@@ -1,7 +1,6 @@
 import type { DesktopStorageAdapter } from "./desktop-storage-adapter";
-import type { InteractionMode } from "../core/providers/tool-registry";
+import type { InteractionMode, ToolRegistry } from "../core/providers/tool-registry";
 import type { ToolExecutor } from "../core/tools/tool-executor";
-import type { ToolRegistryImpl } from "../core/tools/tool-registry-impl";
 
 export type RuntimeTarget = "web" | "desktop";
 
@@ -22,6 +21,6 @@ export interface EvirRuntime {
   has(capability: Capability): boolean;
   mode?: InteractionMode;
   storage?: DesktopStorageAdapter;
-  toolRegistry?: ToolRegistryImpl;
+  toolRegistry?: ToolRegistry;
   toolExecutor?: ToolExecutor;
 }

@@ -110,14 +110,6 @@ export class EvirDB extends Dexie {
       usage_records: "id, conversationId, createdAt",
       settings: "name",
     });
-    this.version(3).stores({
-      providers: "id",
-      conversations: "id, updatedAt",
-      messages: "id, conversationId, createdAt",
-      attachments: "id, messageId",
-      usage_records: "id, conversationId, createdAt",
-      settings: "name",
-    });
   }
 }
 

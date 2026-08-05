@@ -16,6 +16,7 @@ export class ToolExecutor {
     toolName: string,
     args: Record<string, unknown>,
     runtime: EvirRuntime,
+    approved = false,
   ): Promise<ToolResult> {
     const tool =
       this.registry.get(toolName) ?? this.registry.list().find((item) => item.name === toolName);
@@ -25,7 +26,7 @@ export class ToolExecutor {
     if (riskLevelExceeds(tool.riskLevel, MODE_TOOL_RISK_LIMITS[mode])) {
       return failure(`Tool ${toolName} is not allowed in ${mode} mode`, "tool_not_allowed");
     }
-    if (tool.riskLevel === "L3" || tool.riskLevel === "L4") {
+    if ((tool.riskLevel === "L3" || tool.riskLevel === "L4") && !approved) {
       return failure("Permission required", TOOL_PERMISSION_REQUIRED);
     }
 

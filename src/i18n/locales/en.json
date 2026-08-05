@@ -58,9 +58,9 @@
     "deny": "Deny",
     "notAvailable": "This tool is not available in browser mode.",
     "maxIterations": "Maximum tool call iterations reached.",
-    "readFile": "Read file",
-    "listDirectory": "List directory",
-    "writeFile": "Write file"
+    "read_file": "Read file",
+    "list_directory": "List directory",
+    "write_file": "Write file"
   },
   "settings": {
     "title": "Settings",

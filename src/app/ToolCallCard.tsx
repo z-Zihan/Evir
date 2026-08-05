@@ -8,14 +8,8 @@ interface ToolCallCardProps {
   result?: ToolResultRecord;
 }
 
-const TOOL_LABELS: Record<string, string> = {
-  read_file: "tools.readFile",
-  list_directory: "tools.listDirectory",
-  write_file: "tools.writeFile",
-};
-
 export function ToolCallCard({ call, result }: ToolCallCardProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const permissionRequired = result?.error === TOOL_PERMISSION_REQUIRED;
   const resultText =
     result?.error === TOOL_NOT_AVAILABLE ? t("tools.notAvailable") : result?.output;
@@ -24,8 +18,8 @@ export function ToolCallCard({ call, result }: ToolCallCardProps) {
     : result?.success
       ? t("tools.success")
       : t("tools.failed");
-  const toolLabel = TOOL_LABELS[call.toolName];
-  const toolName = toolLabel ? t(toolLabel) : call.toolName;
+  const toolKey = `tools.${call.toolName}`;
+  const toolName = i18n.exists(toolKey) ? t(toolKey) : call.toolName;
 
   return (
     <section className="tool-call-card">

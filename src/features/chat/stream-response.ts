@@ -5,12 +5,12 @@ import {
   type ProviderRecord,
   type ToolResultRecord,
 } from "../../core/storage/db";
-import { getRuntime } from "../../runtime/use-runtime";
 import { useProviderStore } from "../provider/provider-store";
 import { formatAttachmentForProvider } from "./attachment-utils";
 import { runAgentLoop, type AgentLoopTurn } from "./agent-loop";
 import type { ChatState } from "./chat-store";
 import { providerReadinessError, streamAssistant, type StreamResult } from "./chat-stream";
+import type { EvirRuntime } from "../../runtime/types";
 
 type ChatStoreSet = StoreApi<ChatState>["setState"];
 type ChatStoreGet = StoreApi<ChatState>["getState"];
@@ -68,6 +68,7 @@ async function getTurns(
   messages: ProviderMessage[],
   set: ChatStoreSet,
   mode: ChatState["mode"],
+  runtime: EvirRuntime,
 ): Promise<{ turns: AgentLoopTurn[]; maxIterationsReached: boolean }> {
   const onDelta = (streamingContent: string) => set({ streamingContent });
   if (mode === "agent") {
@@ -75,7 +76,7 @@ async function getTurns(
       provider,
       conversationId,
       messages,
-      runtime: getRuntime(),
+      runtime,
       onDelta,
     });
   }
@@ -83,7 +84,7 @@ async function getTurns(
   return { turns: [{ stream }], maxIterationsReached: false };
 }
 
-function toMessage(turn: AgentLoopTurn, conversationId: string, offset: number): MessageRecord {
+function toMessage(turn: AgentLoopTurn, conversationId: string): MessageRecord {
   return {
     id: crypto.randomUUID(),
     conversationId,
@@ -93,7 +94,7 @@ function toMessage(turn: AgentLoopTurn, conversationId: string, offset: number):
     ...(turn.stream.errorMessage ? { errorMessage: turn.stream.errorMessage } : {}),
     ...(turn.toolCalls ? { toolCalls: turn.toolCalls } : {}),
     ...(turn.toolResults ? { toolResults: turn.toolResults } : {}),
-    createdAt: Date.now() + offset,
+    createdAt: Date.now(),
   };
 }
 
@@ -127,6 +128,7 @@ export async function streamResponse(
   get: ChatStoreGet,
   history: MessageRecord[],
   conversationId: string,
+  runtime: EvirRuntime,
 ): Promise<void> {
   const provider = useProviderStore.getState().getDefaultProvider();
   if (!provider) return set({ error: "chat.noProvider" });
@@ -138,8 +140,8 @@ export async function streamResponse(
   const messages = providerMessages(history, provider.protocolId);
   const hint = modeHint(mode);
   if (hint) messages.unshift({ role: "system", content: hint });
-  const result = await getTurns(provider, conversationId, messages, set, mode);
-  const assistants = result.turns.map((turn, index) => toMessage(turn, conversationId, index));
+  const result = await getTurns(provider, conversationId, messages, set, mode, runtime);
+  const assistants = result.turns.map((turn) => toMessage(turn, conversationId));
   const conversation = get().conversations.find(({ id }) => id === conversationId);
   const title = titleFor(history, Boolean(conversation?.title));
   const updatedAt = await persistResponse(assistants, conversationId, title);

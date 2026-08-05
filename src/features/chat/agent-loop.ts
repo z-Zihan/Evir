@@ -10,6 +10,7 @@ export interface AgentLoopTurn {
   stream: StreamResult;
   toolCalls?: ToolCallRecord[];
   toolResults?: ToolResultRecord[];
+  pendingApproval?: { toolName: string; args: Record<string, unknown> };
 }
 
 interface AgentLoopOptions {
@@ -21,10 +22,16 @@ interface AgentLoopOptions {
   maxIterations?: number;
 }
 
+interface AgentToolCall {
+  id: string;
+  type: "function";
+  function: { name: string; arguments: string };
+}
+
 interface AgentMessage {
   role: string;
   content: unknown;
-  tool_calls?: unknown[];
+  tool_calls?: AgentToolCall[];
   tool_call_id?: string;
   name?: string;
 }
@@ -32,6 +39,11 @@ interface AgentMessage {
 export interface AgentLoopResult {
   turns: AgentLoopTurn[];
   maxIterationsReached: boolean;
+}
+
+interface CallWithRaw {
+  record: ToolCallRecord;
+  rawArguments: string;
 }
 
 function providerTools(tools: readonly ToolDefinition[]): unknown[] {
@@ -55,14 +67,19 @@ function parseArguments(value: string): Record<string, unknown> | undefined {
 async function executeCalls(
   stream: StreamResult,
   runtime: EvirRuntime,
-): Promise<{ calls: ToolCallRecord[]; results: ToolResultRecord[] }> {
-  const calls: ToolCallRecord[] = [];
+): Promise<{ calls: CallWithRaw[]; results: ToolResultRecord[] }> {
+  const calls: CallWithRaw[] = [];
   const results: ToolResultRecord[] = [];
   for (const rawCall of stream.toolCalls ?? []) {
     const args = parseArguments(rawCall.arguments);
-    calls.push({ id: rawCall.id, toolName: rawCall.toolName, arguments: args ?? {} });
+    const record: ToolCallRecord = {
+      id: rawCall.id,
+      toolName: rawCall.toolName,
+      arguments: args ?? {},
+    };
+    calls.push({ record, rawArguments: rawCall.arguments });
     const result = args
-      ? await runtime.toolExecutor?.execute(rawCall.toolName, args, runtime)
+      ? await runtime.toolExecutor?.execute(rawCall.toolName, args, runtime, false)
       : {
           success: false,
           output: "Tool arguments must be a JSON object",
@@ -80,18 +97,18 @@ async function executeCalls(
 function appendToolMessages(
   messages: AgentMessage[],
   stream: StreamResult,
-  calls: ToolCallRecord[],
+  calls: CallWithRaw[],
   results: ToolResultRecord[],
 ): void {
   messages.push({
     role: "assistant",
     content: stream.content,
-    tool_calls: calls.map((call, index) => ({
-      id: call.id,
+    tool_calls: calls.map((call) => ({
+      id: call.record.id,
       type: "function",
       function: {
-        name: call.toolName,
-        arguments: stream.toolCalls?.[index]?.arguments ?? JSON.stringify(call.arguments),
+        name: call.record.toolName,
+        arguments: call.rawArguments,
       },
     })),
   });
@@ -107,6 +124,16 @@ function appendToolMessages(
 
 function requiresPermission(results: ToolResultRecord[]): boolean {
   return results.some((result) => result.error === TOOL_PERMISSION_REQUIRED);
+}
+
+function findBlockedCall(
+  calls: CallWithRaw[],
+  results: ToolResultRecord[],
+): { toolName: string; args: Record<string, unknown> } | undefined {
+  const index = results.findIndex((r) => r.error === TOOL_PERMISSION_REQUIRED);
+  if (index === -1) return undefined;
+  const call = calls[index];
+  return call ? { toolName: call.record.toolName, args: call.record.arguments } : undefined;
 }
 
 export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoopResult> {
@@ -130,10 +157,16 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
       return { turns, maxIterationsReached: false };
     }
     const { calls, results } = await executeCalls(stream, runtime);
-    turns.push({ stream, toolCalls: calls, toolResults: results });
-    if (requiresPermission(results)) return { turns, maxIterationsReached: false };
+    const toolCalls = calls.map((c) => c.record);
+    const turn: AgentLoopTurn = { stream, toolCalls, toolResults: results };
+    if (requiresPermission(results)) {
+      const blocked = findBlockedCall(calls, results);
+      if (blocked) turn.pendingApproval = blocked;
+      turns.push(turn);
+      return { turns, maxIterationsReached: false };
+    }
     appendToolMessages(messages, stream, calls, results);
-    options.onDelta("");
+    turns.push(turn);
   }
   return { turns, maxIterationsReached: true };
 }

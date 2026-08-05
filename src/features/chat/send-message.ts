@@ -4,6 +4,7 @@ import { useProviderStore } from "../provider/provider-store";
 import type { ChatState } from "./chat-store";
 import { providerReadinessError } from "./chat-stream";
 import { streamResponse } from "./stream-response";
+import { getRuntime } from "../../runtime/use-runtime";
 
 type ChatStoreSet = StoreApi<ChatState>["setState"];
 type ChatStoreGet = StoreApi<ChatState>["getState"];
@@ -60,5 +61,5 @@ export async function sendChatMessage(
     messages: [...history, userMessage],
     pendingAttachments: [],
   });
-  await streamResponse(set, get, [...history, userMessage], conversationId);
+  await streamResponse(set, get, [...history, userMessage], conversationId, getRuntime());
 }

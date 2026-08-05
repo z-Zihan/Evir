@@ -11,6 +11,7 @@ import {
 } from "./attachment-utils";
 import { sendChatMessage } from "./send-message";
 import { streamResponse } from "./stream-response";
+import { getRuntime } from "../../runtime/use-runtime";
 
 export interface ChatState {
   conversations: ConversationRecord[];
@@ -84,9 +85,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   deleteConversation: async (id) => {
     await db.transaction("rw", db.conversations, db.messages, db.attachments, async () => {
       const messageIds = await db.messages.where("conversationId").equals(id).primaryKeys();
-      for (const msgId of messageIds) {
-        await db.attachments.where("messageId").equals(msgId).delete();
-      }
+      await db.attachments.where("messageId").anyOf(messageIds).delete();
       await db.messages.where("conversationId").equals(id).delete();
       await db.conversations.delete(id);
     });
@@ -147,7 +146,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     await db.messages.delete(lastAssistant.id);
     const history = messages.filter(({ id }) => id !== lastAssistant.id);
     set({ messages: history });
-    await streamResponse(set, get, history, currentConversationId);
+    await streamResponse(set, get, history, currentConversationId, getRuntime());
   },
   editMessage: async (messageId, newContent) => {
     const { messages, currentConversationId, isStreaming } = get();
@@ -157,17 +156,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
     if (!message || message.role !== "user") return;
 
     const toDelete = messages.slice(index + 1);
+    const deleteIds = toDelete.map(({ id }) => id);
     await db.transaction("rw", db.messages, db.attachments, async () => {
       await db.messages.update(messageId, { content: newContent });
-      for (const item of toDelete) {
-        await db.attachments.where("messageId").equals(item.id).delete();
-        await db.messages.delete(item.id);
+      if (deleteIds.length > 0) {
+        await db.attachments.where("messageId").anyOf(deleteIds).delete();
+        await db.messages.bulkDelete(deleteIds);
       }
     });
     const updated = messages.slice(0, index + 1);
     updated[index] = { ...message, content: newContent };
     set({ messages: updated });
-    await streamResponse(set, get, updated, currentConversationId);
+    await streamResponse(set, get, updated, currentConversationId, getRuntime());
   },
   stopGeneration: stopActiveStream,
 }));

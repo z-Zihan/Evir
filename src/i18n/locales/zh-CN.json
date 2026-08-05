@@ -58,9 +58,9 @@
     "deny": "拒绝",
     "notAvailable": "浏览器模式下无法使用此工具。",
     "maxIterations": "已达到工具调用最大迭代次数。",
-    "readFile": "读取文件",
-    "listDirectory": "列出目录",
-    "writeFile": "写入文件"
+    "read_file": "读取文件",
+    "list_directory": "列出目录",
+    "write_file": "写入文件"
   },
   "settings": {
     "title": "设置",
