@@ -2,7 +2,7 @@
 
 > Scope: This memory applies only to the Evir repository.
 > Repository: git@github.com:z-Zihan/Evir.git
-> Last reviewed commit: 5b5bcbd
+> Last reviewed commit: 82f20f3
 > Last updated: 2026-08-05
 
 ## 1. Product Identity
@@ -122,7 +122,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - 外部输入用 Zod 验证
 - 所有长任务支持 AbortSignal
 - PR 门禁：format + ESLint + strict TS + tests + build
-- 当前 22 tests pass
+- 当前 30 tests pass
 
 ## 17. Current Implementation Status
 
@@ -156,22 +156,21 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 ## 18. Current Development Stage
 
 阶段 0 ✅ 完成
-阶段 1（Provider 与纯净聊天 MVP）约 40%
+阶段 1（Provider 与纯净聊天 MVP）约 55%
 
 ## 19. Verified User Capabilities
 
-用户当前可以：添加 Provider → 测试连接 → 新建会话 → 发送消息 → 看到真实流式回复 → 停止生成 → 刷新恢复 → 切换中英文/主题
+用户当前可以：添加 Provider（OpenAI/Anthropic/兼容协议）→ 测试连接 → 获取模型列表 → 新建会话 → 发送消息 → 看到真实流式回复 → 停止生成 → 刷新恢复 → 快捷键操作（Cmd+N/Cmd+,/Cmd+B/Esc）→ 切换中英文/主题
 
 ## 20. Known Gaps and Risks
 
-1. 只支持 OpenAI Chat Completions 协议，缺 Anthropic/Gemini
-2. 无模型发现，用户必须手动输入模型 ID
-3. 快捷键只有定义无实现
-4. Usage 记录已写但无统计 UI
-5. CORS 错误展示不够友好
-6. Stores 绕过 StoragePort 直接用 Dexie（架构债务）
-7. 无附件支持
-8. Desktop 存储未实现
+1. 只支持 OpenAI Chat + Anthropic Messages，缺 Gemini/OpenAI Responses
+2. Usage 记录已写但无统计 UI
+3. CORS 错误展示不够友好
+4. Stores 绕过 StoragePort 直接用 Dexie（架构债务）
+5. 无附件支持
+6. Desktop 存储未实现
+7. 无会话搜索功能
 
 ## 21. Active Decisions
 
@@ -182,11 +181,11 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 ## 22. Next Vertical Slice
 
-1. 完善错误分类与 CORS 用户指引
-2. 实现 Anthropic Messages Adapter
-3. 实现模型发现（/models API + 下拉选择）
-4. 实现快捷键监听
-5. Usage 统计 UI
+1. Usage 统计 UI（Token 用量面板）
+2. 完善错误分类与 CORS 用户指引
+3. 实现 Gemini Adapter
+4. 实现 OpenAI Responses Adapter
+5. 会话搜索功能
 
 ## 23. Relevant Source Documents
 
@@ -206,3 +205,4 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 ## 24. Update Log
 
 - 2026-08-05 | 5b5bcbd | 创建项目记忆；阶段0完成 + 聊天垂直切片完成 + P0/P1 修复完成；22 tests pass；Web gzip 184.96 KB
+- 2026-08-05 | 82f20f3 | Anthropic Messages Adapter + 模型发现 + 快捷键监听 + review 修复；30 tests pass；Web gzip 186.94 KB
