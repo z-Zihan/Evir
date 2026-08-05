@@ -15,6 +15,9 @@ import { useSkillStore } from "../skills/skill-store";
 import type { EvirRuntime } from "../../runtime/types";
 import type { PendingToolApproval } from "./tool-approval";
 import { toMessage, sorted } from "./chat-helpers";
+import { createContextBudgetManager } from "../../core/context/context-budget-manager";
+import { compactToolOutputs } from "../../core/context/compact-tool-outputs";
+import { estimateTokens } from "../../core/context/token-estimate";
 
 type ChatStoreSet = StoreApi<ChatState>["setState"];
 type ChatStoreGet = StoreApi<ChatState>["getState"];
@@ -123,7 +126,30 @@ export async function streamResponse(
 
   set({ isStreaming: true, streamingContent: "", error: null });
   const mode = get().mode;
-  const messages = providerMessages(history, provider.protocolId);
+
+  // Context budget: estimate tokens and compact tool outputs if needed
+  const DEFAULT_MAX_CONTEXT_TOKENS = 128_000;
+  const budgetManager = createContextBudgetManager();
+  const inputTokens = estimateTokens(String(history.reduce((sum, m) => sum + m.content.length, 0)));
+  const snapshot = budgetManager.snapshot(
+    provider.modelId,
+    DEFAULT_MAX_CONTEXT_TOKENS,
+    inputTokens,
+  );
+
+  let effectiveHistory = history;
+  if (budgetManager.shouldCompact(snapshot)) {
+    const maxToolChars = snapshot.reservedToolTokens * 4;
+    effectiveHistory = compactToolOutputs(history, maxToolChars);
+    console.debug(
+      "[evir] context-budget",
+      `stage=${snapshot.compressionStage}`,
+      `utilization=${(snapshot.utilizationRatio * 100).toFixed(1)}%`,
+      `inputTokens=${inputTokens}`,
+    );
+  }
+
+  const messages = providerMessages(effectiveHistory, provider.protocolId);
 
   const systemParts: string[] = [];
   const hint = modeHint(mode);
