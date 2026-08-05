@@ -2,7 +2,7 @@
 
 > Scope: This memory applies only to the Evir repository.
 > Repository: git@github.com:z-Zihan/Evir.git
-> Last reviewed commit: 2046d54
+> Last reviewed commit: 57eee0c
 > Last updated: 2026-08-05
 
 ## 1. Product Identity
@@ -122,7 +122,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - 外部输入用 Zod 验证
 - 所有长任务支持 AbortSignal
 - PR 门禁：format + ESLint + strict TS + tests + build
-- 当前 65 tests pass
+- 当前 65 TS tests + 1 Rust test pass
 
 ## 17. Current Implementation Status
 
@@ -179,9 +179,9 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 ## 22. Next Vertical Slice
 
-1. Desktop Tauri Rust 端基础（SQLite/Keychain/文件系统）
-2. 重新生成 / 编辑用户消息后重试
-3. 会话分支
+1. 修复 Rust P0：keyring 替换 XOR、路径沙箱、SQL 白名单
+2. Desktop Storage Adapter（前端通过 Tauri invoke 调用 Rust SQLite）
+3. 重新生成 / 编辑用户消息后重试
 4. Agent Loop + Tool Registry 执行
 5. Skill/MCP 完整功能
 
@@ -207,3 +207,4 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - 2026-08-05 | 1e7b804 | Usage 统计面板 + 会话搜索 + 错误分类展示（12 种 ProviderErrorType）；30 tests pass；Web gzip 189.05 KB
 - 2026-08-05 | e915a22 | 附件支持（图片/文本/拖拽/4 协议多模态）+ Gemini Adapter + OpenAI Responses Adapter + review 修复；63 tests pass；Web gzip 192.04 KB
 - 2026-08-05 | 2046d54 | 历史附件参与多轮请求 + 会话导出/导入 + 模式切换 + 个性化设置；65 tests pass；阶段1 完成
+- 2026-08-05 | 57eee0c | Desktop Tauri Rust 端基础（SQLite/Keychain/文件系统）；1 Rust test + 65 TS tests pass；review 发现 5 P0（安全）+ 7 P1
