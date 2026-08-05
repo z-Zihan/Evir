@@ -9,7 +9,8 @@ export function providerReadinessError(provider: ProviderRecord): string | undef
   if (!provider.apiKey) return "chat.apiKeyMissing";
   if (
     provider.protocolId !== "openai-chat-completions" &&
-    provider.protocolId !== "openai-compatible-chat"
+    provider.protocolId !== "openai-compatible-chat" &&
+    provider.protocolId !== "anthropic-messages"
   ) {
     return "chat.adapterUnavailable";
   }
@@ -54,7 +55,8 @@ export async function streamAssistant(
   }
   if (
     provider.protocolId !== "openai-chat-completions" &&
-    provider.protocolId !== "openai-compatible-chat"
+    provider.protocolId !== "openai-compatible-chat" &&
+    provider.protocolId !== "anthropic-messages"
   ) {
     return { content: "", status: "error", errorMessage: "chat.adapterUnavailable" };
   }

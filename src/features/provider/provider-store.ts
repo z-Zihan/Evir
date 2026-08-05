@@ -7,7 +7,7 @@ import { db, type ProviderRecord } from "../../core/storage/db";
 
 export const providerSchema = z.object({
   name: z.string().trim().min(1).max(100),
-  protocolId: z.enum(["openai-chat-completions", "openai-compatible-chat"]),
+  protocolId: z.enum(["openai-chat-completions", "openai-compatible-chat", "anthropic-messages"]),
   baseUrl: z.string().url(),
   apiKey: z.string().min(1),
   modelId: z.string().trim().min(1),

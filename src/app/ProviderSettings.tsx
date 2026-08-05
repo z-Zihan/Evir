@@ -96,6 +96,7 @@ export function ProviderSettings() {
             >
               <option value="openai-chat-completions">OpenAI Chat Completions</option>
               <option value="openai-compatible-chat">OpenAI Compatible</option>
+              <option value="anthropic-messages">Anthropic Messages</option>
             </select>
           </label>
           <label>
