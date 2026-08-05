@@ -2,7 +2,7 @@
 
 > Scope: This memory applies only to the Evir repository.
 > Repository: git@github.com:z-Zihan/Evir.git
-> Last reviewed commit: 1e7b804
+> Last reviewed commit: e915a22
 > Last updated: 2026-08-05
 
 ## 1. Product Identity
@@ -122,7 +122,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - 外部输入用 Zod 验证
 - 所有长任务支持 AbortSignal
 - PR 门禁：format + ESLint + strict TS + tests + build
-- 当前 30 tests pass
+- 当前 63 tests pass
 
 ## 17. Current Implementation Status
 
@@ -156,19 +156,19 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 ## 18. Current Development Stage
 
 阶段 0 ✅ 完成
-阶段 1（Provider 与纯净聊天 MVP）约 65%
+阶段 1（Provider 与纯净聊天 MVP）约 85%
 
 ## 19. Verified User Capabilities
 
-用户当前可以：添加 Provider（OpenAI/Anthropic/兼容协议）→ 测试连接 → 获取模型列表 → 新建会话 → 发送消息 → 看到真实流式回复 → 停止生成 → 刷新恢复 → 快捷键操作 → 会话搜索 → 查看 Usage 统计 → 分类错误展示 → 切换中英文/主题
+用户当前可以：添加 Provider（OpenAI/Anthropic/Gemini/兼容协议，5 种协议）→ 测试连接 → 获取模型列表 → 新建会话 → 发送消息/附件 → 看到真实流式回复 → 停止生成 → 刷新恢复 → 快捷键操作 → 会话搜索 → 查看 Usage 统计 → 分类错误展示 → 拖拽上传图片/文本附件 → 切换中英文/主题
 
 ## 20. Known Gaps and Risks
 
-1. 只支持 OpenAI Chat + Anthropic Messages，缺 Gemini/OpenAI Responses
-2. Stores 绕过 StoragePort 直接用 Dexie（架构债务）
-3. 无附件支持
-4. Desktop 存储未实现
-5. CORS 错误展示可进一步优化（已做基础分类）
+1. Stores 绕过 StoragePort 直接用 Dexie（架构债务）
+2. Desktop 存储未实现
+3. 历史消息附件不参与后续请求（多轮对话多模态上下文丢失）
+4. 无会话导出/导入功能
+5. CORS 错误展示可进一步优化
 
 ## 21. Active Decisions
 
@@ -179,11 +179,11 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 ## 22. Next Vertical Slice
 
-1. 实现 Gemini Adapter
-2. 实现 OpenAI Responses Adapter
-3. 附件支持（图片上传）
-4. Desktop SQLite/Keychain 存储
-5. 个性化设置 UI
+1. Desktop SQLite/Keychain 存储
+2. 个性化设置 UI
+3. 会话导出/导入
+4. 历史消息附件参与多轮请求
+5. Ask/Plan/Agent 模式切换 UI
 
 ## 23. Relevant Source Documents
 
@@ -205,3 +205,4 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - 2026-08-05 | 5b5bcbd | 创建项目记忆；阶段0完成 + 聊天垂直切片完成 + P0/P1 修复完成；22 tests pass；Web gzip 184.96 KB
 - 2026-08-05 | 82f20f3 | Anthropic Messages Adapter + 模型发现 + 快捷键监听 + review 修复；30 tests pass；Web gzip 186.94 KB
 - 2026-08-05 | 1e7b804 | Usage 统计面板 + 会话搜索 + 错误分类展示（12 种 ProviderErrorType）；30 tests pass；Web gzip 189.05 KB
+- 2026-08-05 | e915a22 | 附件支持（图片/文本/拖拽/4 协议多模态）+ Gemini Adapter + OpenAI Responses Adapter + review 修复；63 tests pass；Web gzip 192.04 KB
