@@ -26,5 +26,6 @@
   "bundle": {
     "active": true,
     "targets": "all"
-  }
+  },
+  "plugins": {}
 }
