@@ -97,7 +97,15 @@ fatal  导致模块或应用终止
 推荐 JSON Lines，方便流式写入、检索和自动脱敏：
 
 ```json
-{"timestamp":"...","level":"info","channel":"provider","event":"request.completed","runId":"...","durationMs":812,"requestId":"..."}
+{
+  "timestamp": "...",
+  "level": "info",
+  "channel": "provider",
+  "event": "request.completed",
+  "runId": "...",
+  "durationMs": 812,
+  "requestId": "..."
+}
 ```
 
 目录示例：

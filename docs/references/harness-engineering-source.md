@@ -28,7 +28,7 @@ OpenAI 的 Codex 团队于2026年2月发表了一篇[官方文章](https://opena
 
 - Latent Patterns 的术语表将其定义为"位于语言模型与现实世界之间的编排层，用于管理自主代理的行为，主要包含提示管理、工具执行、策略检查和循环控制"。
 
-- [Martin Fowler](https://martinfowler.com/articles/exploring-gen-ai/harness-engineering.html?utm_source=chatgpt.com) 撰写过专门的架构分析文章，将其描述为“*he tooling and practices we can use to keep AI agents in check*”——但它不仅仅关乎安全。**一个好的 Harness 不仅能让智能体更可控，还能让它们更有能力。**
+- [Martin Fowler](https://martinfowler.com/articles/exploring-gen-ai/harness-engineering.html?utm_source=chatgpt.com) 撰写过专门的架构分析文章，将其描述为“_he tooling and practices we can use to keep AI agents in check_”——但它不仅仅关乎安全。**一个好的 Harness 不仅能让智能体更可控，还能让它们更有能力。**
 
 如果用一个公式来描述Harness的作用，那便是：**Agent = Model \+ Harness**
 
@@ -42,12 +42,12 @@ AI 行业正面临着一个令人不安的事实：底层模型的重要性不�
 
 LangChain 明确地证明了这一点。他们的编码代理在 Terminal Bench 2\.0 上从 52\.8% 上升到 66\.5%，从前 30 名跃升至前5名，没有改变模型。他们只改变了 Harness。
 
-|**变更**|**做了什么**|**影响**|
-|---|---|---|
-|自验证循环（Self\-verification loop）|添加了“完成前检查清单”中间件|在提交前捕获错误|
-|上下文工程（Context engineering）|在启动时映射目录结构|Agent 从一开始就理解代码库|
-|循环检测（Loop detection）|跟踪重复的文件编辑|防止出现“死循环”（doom loops）|
-|推理夹层（Reasoning sandwich）|planning / verification阶段使用高推理强度，实现阶段使用中等推理强度 |在时间预算内获得更高质量结果|
+| **变更**                              | **做了什么**                                                        | **影响**                       |
+| ------------------------------------- | ------------------------------------------------------------------- | ------------------------------ |
+| 自验证循环（Self\-verification loop） | 添加了“完成前检查清单”中间件                                        | 在提交前捕获错误               |
+| 上下文工程（Context engineering）     | 在启动时映射目录结构                                                | Agent 从一开始就理解代码库     |
+| 循环检测（Loop detection）            | 跟踪重复的文件编辑                                                  | 防止出现“死循环”（doom loops） |
+| 推理夹层（Reasoning sandwich）        | planning / verification阶段使用高推理强度，实现阶段使用中等推理强度 | 在时间预算内获得更高质量结果   |
 
 相同的模型，不同的方法，结果显著提升，这些改变恰恰验证了 Harness Engineering的重要性。
 
@@ -73,13 +73,13 @@ LangChain 明确地证明了这一点。他们的编码代理在 Terminal Bench 
 
 # **Harness Engineering 相关概念**
 
-|**概念**|**范围**|**关注点**|
-|---|---|---|
-|Prompt Engineering|单次交互|设计高效的提示词|
-|Context Engineering|模型上下文窗口|模型能看到哪些信息|
-|Harness Engineering|整个 Agent 系统|环境、约束、反馈机制、生命周期|
-|Agent Engineering|Agent 架构|Agent 内部设计与任务路由|
-|Platform Engineering|基础设施|部署、扩展、运维|
+| **概念**             | **范围**        | **关注点**                     |
+| -------------------- | --------------- | ------------------------------ |
+| Prompt Engineering   | 单次交互        | 设计高效的提示词               |
+| Context Engineering  | 模型上下文窗口  | 模型能看到哪些信息             |
+| Harness Engineering  | 整个 Agent 系统 | 环境、约束、反馈机制、生命周期 |
+| Agent Engineering    | Agent 架构      | Agent 内部设计与任务路由       |
+| Platform Engineering | 基础设施        | 部署、扩展、运维               |
 
 Harness 工程包含上下文工程，并借鉴提示词工程，但其所处层级更高 —— 它关注的是让 Agent 可靠运行的**完整系统**，而不仅仅是单次交互的输入设计。
 
@@ -169,14 +169,14 @@ Harness Engineering 通过周期性清理 Agent 来解决这一问题：
 
 下表展示了这一转变在各项工程职责中的具体体现：
 
-||**传统方式**|**Harness Engineering**|
-|---|---|---|
-|**编写代码**|主要工作|不再需要|
-|**设计架构**|工作的一部分|**核心工作**|
-|**编写文档**|事后补充|关键基础设施|
-|**代码评审**|审查代码|审查 Agent 输出 \+ Harness 效果|
-|**debug**|阅读代码|分析 Agent 行为模式|
-|**测试**|编写测试用例|设计由 Agent 执行的测试策略|
+|              | **传统方式** | **Harness Engineering**         |
+| ------------ | ------------ | ------------------------------- |
+| **编写代码** | 主要工作     | 不再需要                        |
+| **设计架构** | 工作的一部分 | **核心工作**                    |
+| **编写文档** | 事后补充     | 关键基础设施                    |
+| **代码评审** | 审查代码     | 审查 Agent 输出 \+ Harness 效果 |
+| **debug**    | 阅读代码     | 分析 Agent 行为模式             |
+| **测试**     | 编写测试用例 | 设计由 Agent 执行的测试策略     |
 
 ## **Stripe 的方法：大规模的 Minions**
 
@@ -238,10 +238,8 @@ Agent Request
 - 清晰的目录结构与一致的命名规范
 
 > 搭建时间：1–2 小时
-> 
+>
 > 效果：避免最常见的 Agent 错误
-> 
-> 
 
 ## **Level 2: 小型团队**
 
@@ -260,10 +258,8 @@ Agent Request
 - 专门用于审查 Agent 生成 PR 的代码评审清单
 
 > 搭建时间：1–2 天
-> 
+>
 > 效果：在团队范围内实现 Agent 行为的一致性
-> 
-> 
 
 ## **Level 3: 工程组织**
 
@@ -284,18 +280,14 @@ Agent Request
 - 当 Agent 卡住时的升级处理机制（Escalation policies）
 
 > 搭建时间：1–2 周
-> 
+>
 > 效果：Agent 能够作为“自主贡献者”运行
-> 
-> 
 
 # **Harness Engineering 常见错误**
 
 ## **过度设计控制流**
 
-> *"If you over\-engineer the control flow, the next model update will break your system\.*
-> 
-> 
+> _"If you over\-engineer the control flow, the next model update will break your system\._
 
 模型能力正在快速提升。2024 年还需要通过复杂流程（pipeline）才能完成的能力，如今只需一个上下文窗口内的提示（prompt）就可以实现。因此，在构建 Harness 时，应当具备“可拆卸性（rippable）”——当模型本身足够智能、不再需要某些“聪明”的逻辑时，你应该能够轻松移除这些逻辑。
 
@@ -333,13 +325,13 @@ Harness 需要随着模型一起演进。当新模型在推理能力上有所提
 
 Harness engineering 代表了软件工程师工作内容的一次真正的演变：
 
-|**之前**|**之后**|
-|---|---|
-|编写代码|设计让 AI 编写代码的执行环境|
-|调试代码|调试 Agent 的行为|
-|代码评审|评估 Agent 输出与 Harness 效果|
-|编写测试|设计测试策略|
-|维护文档|将文档构建为机器可读的基础设施|
+| **之前** | **之后**                       |
+| -------- | ------------------------------ |
+| 编写代码 | 设计让 AI 编写代码的执行环境   |
+| 调试代码 | 调试 Agent 的行为              |
+| 代码评审 | 评估 Agent 输出与 Harness 效果 |
+| 编写测试 | 设计测试策略                   |
+| 维护文档 | 将文档构建为机器可读的基础设施 |
 
 这并不意味着工程师变得不那么技术化。恰恰相反，**Harness 工程需要更深层次的架构思考 —— 你是在设计一套无需持续人工干预也能稳定运行的系统。**
 
@@ -354,18 +346,3 @@ Harness Engineering 目前仍是一个非常活跃的研究领域。在 LangChai
 - 让 Agent 分析自身执行轨迹，以识别并修复 Harness 层面的失败模式
 
 - 构建能够根据具体任务“即时组装”所需工具和上下文的 Harness，而非预先固定配置
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -475,7 +475,7 @@ Agent Core 使用可组合 Middleware：Input Normalization、Mode Policy、Capa
 
 0. 工程核验与基础完善。
 1. Provider 与纯净聊天 MVP。
-1.5 企业云与本地模型协议。
+   1.5 企业云与本地模型协议。
 2. Desktop Agent 与内置工具。
 3. 上下文压缩与记忆。
 4. Skill 系统。

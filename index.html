@@ -8,7 +8,9 @@
     <script>
       (() => {
         const value = localStorage.getItem("evir-theme") || "system";
-        const dark = value === "dark" || (value === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+        const dark =
+          value === "dark" ||
+          (value === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
         document.documentElement.classList.toggle("dark", dark);
         document.documentElement.dataset.theme = value;
       })();

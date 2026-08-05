@@ -206,7 +206,6 @@ Evir 是一个纯净、本地优先、用户自带模型（BYOK）的 AI 客户�
 
 Evir Desktop 支持本地 stdio 与远程 Streamable HTTP MCP；新增 Server 默认禁用，用户查看能力并授权后才能使用。Evir Web 第一版不支持 MCP。Evir 不提供或依赖云端业务后端。
 
-
 ## 11. 模式、权限与数据恢复闭环
 
 ### Ask / Plan / Agent
@@ -229,6 +228,7 @@ Evir Desktop 支持本地 stdio 与远程 Streamable HTTP MCP；新增 Server �
 - 支持导出会话、Skill、MCP 配置、设置和任务产物索引。
 - API Key 默认不导出；敏感数据只有用户主动选择并设置密码后才允许加密导出。
 - 应用异常退出后可发现未完成任务，但不得自动重放危险操作。
+
 ## 12. Provider 与协议产品要求
 
 - Provider、Protocol 和 Model Capability 必须分层，不能用厂商名称硬编码请求逻辑。

@@ -22,13 +22,20 @@ export function App() {
         <div className="section-label">{t("sidebar.recent")}</div>
         <div className="empty-list">{t("sidebar.noConversations")}</div>
         <div className="sidebar-footer">
-          <button className="icon-button" type="button" onClick={cycleTheme} aria-label={t("settings.theme")}> 
+          <button
+            className="icon-button"
+            type="button"
+            onClick={cycleTheme}
+            aria-label={t("settings.theme")}
+          >
             {resolvedTheme === "dark" ? <Moon size={17} /> : <Sun size={17} />}
           </button>
           <button
             className="language-button"
             type="button"
-            onClick={() => void i18n.changeLanguage(i18n.language.startsWith("zh") ? "en" : "zh-CN")}
+            onClick={() =>
+              void i18n.changeLanguage(i18n.language.startsWith("zh") ? "en" : "zh-CN")
+            }
           >
             {i18n.language.startsWith("zh") ? "EN" : "中"}
           </button>
@@ -41,7 +48,9 @@ export function App() {
       <main className="workspace">
         <header className="workspace-header">
           <div>
-            <div className="eyebrow">{runtime.target === "desktop" ? "Evir Desktop" : "Evir Web"}</div>
+            <div className="eyebrow">
+              {runtime.target === "desktop" ? "Evir Desktop" : "Evir Web"}
+            </div>
             <h1>{t("chat.title")}</h1>
           </div>
           <div className="capability-chip">
@@ -68,7 +77,9 @@ export function App() {
             <textarea aria-label={t("chat.placeholder")} placeholder={t("chat.placeholder")} />
             <div className="composer-footer">
               <span>{t("chat.modelPlaceholder")}</span>
-              <button type="button" disabled>{t("chat.send")}</button>
+              <button type="button" disabled>
+                {t("chat.send")}
+              </button>
             </div>
           </div>
           <p className="disclaimer">{t("chat.disclaimer")}</p>

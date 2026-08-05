@@ -97,7 +97,6 @@ See the [Provider and Protocol Matrix](docs/13-provider-and-protocol-matrix.md).
 - Desktop supports full Skills and MCP.
 - Third-party Skill and MCP content is untrusted by default.
 
-
 ### Personalization without weakening safety
 
 - Configure naming, language, response style, and durable work preferences through a simple form.
@@ -112,7 +111,6 @@ See the [Provider and Protocol Matrix](docs/13-provider-and-protocol-matrix.md).
 - Customizable keyboard shortcuts and command palette; desktop global shortcuts are off by default.
 - Built-in bilingual help and a GitHub Issue feedback entry in Settings.
 - Provider setup includes official website, console, documentation, and status links.
-
 
 ## One-model start and safe switching
 

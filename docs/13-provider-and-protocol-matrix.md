@@ -16,28 +16,28 @@ Evir 不为每个厂商复制一套完整聊天逻辑，而是拆成三层：
 
 ### P0：聊天 MVP 必须实现
 
-| Adapter ID | 协议 | 主要用途 |
-|---|---|---|
-| `openai-responses` | OpenAI Responses API | 新式流式、工具、多模态、状态项 |
-| `openai-chat-completions` | OpenAI Chat Completions | 广泛兼容的聊天与工具调用 |
-| `anthropic-messages` | Anthropic Messages API | Claude 原生消息、流式和 tool_use |
-| `gemini-interactions` | Gemini Interactions API | Gemini 新式 Agent/流式接口 |
-| `gemini-generate-content` | Gemini GenerateContent | Gemini 通用兼容与存量模型 |
-| `openai-compatible-responses` | 自定义 OpenAI Responses 兼容 | 第三方/本地兼容端点 |
-| `openai-compatible-chat` | 自定义 OpenAI Chat 兼容 | 国内外大多数兼容平台 |
-| `anthropic-compatible-messages` | 自定义 Anthropic Messages 兼容 | Claude Code 类兼容端点 |
+| Adapter ID                      | 协议                           | 主要用途                         |
+| ------------------------------- | ------------------------------ | -------------------------------- |
+| `openai-responses`              | OpenAI Responses API           | 新式流式、工具、多模态、状态项   |
+| `openai-chat-completions`       | OpenAI Chat Completions        | 广泛兼容的聊天与工具调用         |
+| `anthropic-messages`            | Anthropic Messages API         | Claude 原生消息、流式和 tool_use |
+| `gemini-interactions`           | Gemini Interactions API        | Gemini 新式 Agent/流式接口       |
+| `gemini-generate-content`       | Gemini GenerateContent         | Gemini 通用兼容与存量模型        |
+| `openai-compatible-responses`   | 自定义 OpenAI Responses 兼容   | 第三方/本地兼容端点              |
+| `openai-compatible-chat`        | 自定义 OpenAI Chat 兼容        | 国内外大多数兼容平台             |
+| `anthropic-compatible-messages` | 自定义 Anthropic Messages 兼容 | Claude Code 类兼容端点           |
 
 ### P1：企业与本地场景
 
-| Adapter ID | 协议 | 限制 |
-|---|---|---|
-| `azure-openai-responses` | Azure OpenAI Responses | endpoint、deployment/model、API version、API key/Entra |
-| `azure-openai-chat` | Azure OpenAI Chat Completions | 同上 |
-| `aws-bedrock-converse` | Bedrock Converse/ConverseStream | AWS SigV4；Desktop 优先 |
-| `vertex-gemini` | Vertex AI Gemini | OAuth/ADC/service account；Desktop 优先 |
-| `ollama-native` | Ollama `/api/chat` 等 | NDJSON 流式、本地模型列表 |
-| `mistral-native` | Mistral Chat/Conversations | 处理其原生事件和参数差异 |
-| `cohere-chat-v2` | Cohere Chat v2 | 原生工具、流式和引用 |
+| Adapter ID               | 协议                            | 限制                                                   |
+| ------------------------ | ------------------------------- | ------------------------------------------------------ |
+| `azure-openai-responses` | Azure OpenAI Responses          | endpoint、deployment/model、API version、API key/Entra |
+| `azure-openai-chat`      | Azure OpenAI Chat Completions   | 同上                                                   |
+| `aws-bedrock-converse`   | Bedrock Converse/ConverseStream | AWS SigV4；Desktop 优先                                |
+| `vertex-gemini`          | Vertex AI Gemini                | OAuth/ADC/service account；Desktop 优先                |
+| `ollama-native`          | Ollama `/api/chat` 等           | NDJSON 流式、本地模型列表                              |
+| `mistral-native`         | Mistral Chat/Conversations      | 处理其原生事件和参数差异                               |
+| `cohere-chat-v2`         | Cohere Chat v2                  | 原生工具、流式和引用                                   |
 
 ### P2：后续扩展
 
@@ -97,23 +97,23 @@ Web 只启用适合浏览器保存和调用的认证方式。AWS SigV4、Google 
 
 ### 推荐协议映射
 
-| Provider | 首选协议 | 备用协议 |
-|---|---|---|
-| OpenAI | OpenAI Responses | Chat Completions |
-| Anthropic | Anthropic Messages | 无 |
-| Google Gemini API | Gemini Interactions | GenerateContent |
-| Azure OpenAI | Azure Responses | Azure Chat |
-| AWS Bedrock | Bedrock Converse | 厂商原生/Responses，按模型能力 |
-| Vertex AI | Vertex Gemini | OpenAI compatibility（如官方端点支持时） |
-| xAI | OpenAI Responses | OpenAI Chat compatible |
-| Mistral | Mistral Native | OpenAI-compatible Chat |
-| Cohere | Cohere Chat v2 | 无 |
-| OpenRouter | OpenAI Responses | OpenAI Chat compatible |
-| Groq | OpenAI-compatible Chat | Responses（按官方能力） |
-| Together AI | OpenAI-compatible Chat | 无 |
-| Ollama | Ollama Native | OpenAI-compatible Responses/Chat、Anthropic-compatible |
-| LM Studio | OpenAI-compatible Responses/Chat | Anthropic-compatible/native REST |
-| vLLM | OpenAI-compatible Chat/Responses | 无 |
+| Provider          | 首选协议                         | 备用协议                                               |
+| ----------------- | -------------------------------- | ------------------------------------------------------ |
+| OpenAI            | OpenAI Responses                 | Chat Completions                                       |
+| Anthropic         | Anthropic Messages               | 无                                                     |
+| Google Gemini API | Gemini Interactions              | GenerateContent                                        |
+| Azure OpenAI      | Azure Responses                  | Azure Chat                                             |
+| AWS Bedrock       | Bedrock Converse                 | 厂商原生/Responses，按模型能力                         |
+| Vertex AI         | Vertex Gemini                    | OpenAI compatibility（如官方端点支持时）               |
+| xAI               | OpenAI Responses                 | OpenAI Chat compatible                                 |
+| Mistral           | Mistral Native                   | OpenAI-compatible Chat                                 |
+| Cohere            | Cohere Chat v2                   | 无                                                     |
+| OpenRouter        | OpenAI Responses                 | OpenAI Chat compatible                                 |
+| Groq              | OpenAI-compatible Chat           | Responses（按官方能力）                                |
+| Together AI       | OpenAI-compatible Chat           | 无                                                     |
+| Ollama            | Ollama Native                    | OpenAI-compatible Responses/Chat、Anthropic-compatible |
+| LM Studio         | OpenAI-compatible Responses/Chat | Anthropic-compatible/native REST                       |
+| vLLM              | OpenAI-compatible Chat/Responses | 无                                                     |
 
 ## 5. 中国大陆 Provider 预设
 
@@ -136,20 +136,20 @@ Web 只启用适合浏览器保存和调用的认证方式。AWS SigV4、Google 
 
 ### 推荐协议映射
 
-| Provider | 首选协议 | 备用协议/备注 |
-|---|---|---|
-| DeepSeek | OpenAI-compatible Chat | Anthropic-compatible；工具续轮需保留厂商状态 |
-| 阿里云百炼 | OpenAI-compatible Responses | OpenAI-compatible Chat；区域 Endpoint |
-| 火山方舟 | OpenAI-compatible Responses | Chat；部分 Coding 入口支持 Anthropic-compatible |
-| 腾讯混元/TokenHub | OpenAI-compatible Chat | Anthropic-compatible；平台迁移需预留多个 Endpoint |
-| 百度千帆 | OpenAI-compatible Responses | OpenAI-compatible Chat；部分 Agent API 单独处理 |
-| 智谱 GLM | OpenAI-compatible Chat | Anthropic-compatible |
-| Kimi | OpenAI-compatible Chat | 使用 `tools/tool_calls`，不依赖废弃 `functions` |
-| MiniMax | Anthropic-compatible Messages | OpenAI-compatible Chat |
-| SiliconFlow | OpenAI-compatible Chat | 模型能力逐个探测 |
-| StepFun | OpenAI-compatible Chat | 部分 Coding 入口支持 Anthropic-compatible |
-| 讯飞星火 | OpenAI-compatible Chat | 旧模型/助手可能使用原生 WebSocket，不纳入 P0 |
-| 零一万物 Yi | OpenAI-compatible Chat | 手动模型 ID 兜底 |
+| Provider          | 首选协议                      | 备用协议/备注                                     |
+| ----------------- | ----------------------------- | ------------------------------------------------- |
+| DeepSeek          | OpenAI-compatible Chat        | Anthropic-compatible；工具续轮需保留厂商状态      |
+| 阿里云百炼        | OpenAI-compatible Responses   | OpenAI-compatible Chat；区域 Endpoint             |
+| 火山方舟          | OpenAI-compatible Responses   | Chat；部分 Coding 入口支持 Anthropic-compatible   |
+| 腾讯混元/TokenHub | OpenAI-compatible Chat        | Anthropic-compatible；平台迁移需预留多个 Endpoint |
+| 百度千帆          | OpenAI-compatible Responses   | OpenAI-compatible Chat；部分 Agent API 单独处理   |
+| 智谱 GLM          | OpenAI-compatible Chat        | Anthropic-compatible                              |
+| Kimi              | OpenAI-compatible Chat        | 使用 `tools/tool_calls`，不依赖废弃 `functions`   |
+| MiniMax           | Anthropic-compatible Messages | OpenAI-compatible Chat                            |
+| SiliconFlow       | OpenAI-compatible Chat        | 模型能力逐个探测                                  |
+| StepFun           | OpenAI-compatible Chat        | 部分 Coding 入口支持 Anthropic-compatible         |
+| 讯飞星火          | OpenAI-compatible Chat        | 旧模型/助手可能使用原生 WebSocket，不纳入 P0      |
+| 零一万物 Yi       | OpenAI-compatible Chat        | 手动模型 ID 兜底                                  |
 
 ## 6. Provider 添加流程
 

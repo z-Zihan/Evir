@@ -97,7 +97,6 @@ Model Capability
 - Web 支持不依赖本地工具的指令型 Skill；Desktop 支持完整 Skill 与 MCP。
 - 第三方 Skill 和 MCP 默认不可信，必须经过能力检查和权限系统。
 
-
 ### 个性化，但不牺牲安全
 
 - 通过简单表单设置称呼、语言、表达方式和长期工作偏好。
@@ -112,7 +111,6 @@ Model Capability
 - 可自定义键盘快捷键和命令面板；Desktop 全局快捷键默认关闭。
 - 设置页内置中英文帮助中心和 GitHub Issue 反馈入口。
 - Provider 配置页提供对应官网、控制台、官方文档和状态页。
-
 
 ### 单模型开始，安全切换
 

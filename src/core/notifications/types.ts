@@ -1,8 +1,5 @@
 export type SystemNotificationEvent =
-  | "run-completed"
-  | "approval-required"
-  | "run-failed"
-  | "update-available";
+  "run-completed" | "approval-required" | "run-failed" | "update-available";
 
 export interface SystemNotificationSettings {
   enabled: boolean;

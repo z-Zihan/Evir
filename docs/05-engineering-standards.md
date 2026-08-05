@@ -112,7 +112,6 @@ Coding Agent 必须：
 9. 发现文档冲突时停止扩散，记录决策。
 10. 完成后运行质量门禁并报告真实结果。
 
-
 ## 12. 流式输出规范
 
 - Provider 必须返回统一 `AsyncIterable<ModelEvent>` 或等价可取消流。

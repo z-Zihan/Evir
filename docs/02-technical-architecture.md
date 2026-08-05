@@ -238,7 +238,6 @@ MCP Client -> MCP Tool Adapter -> Tool Registry -> Permission Engine -> Agent Lo
 
 Skill、MCP、内置工具必须共享统一 Capability、ToolDefinition、审批、审计、超时和取消协议。详细规范见 `docs/08-skill-and-mcp.md`。
 
-
 ## 12. 模型能力检测
 
 Provider 连接成功不代表可运行 Agent。模型配置必须记录和展示：流式、Tool Calling、并行工具、图片、结构化输出、系统指令、上下文上限和用量返回能力。聊天模式可用但工具调用不可用时，必须禁用 Agent 模式并说明原因。

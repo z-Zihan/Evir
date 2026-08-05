@@ -1,8 +1,5 @@
 export type ContextCompressionStage =
-  | "none"
-  | "tool-output-compaction"
-  | "conversation-summary"
-  | "checkpoint-compaction";
+  "none" | "tool-output-compaction" | "conversation-summary" | "checkpoint-compaction";
 
 export interface ContextBudgetSnapshot {
   modelId: string;

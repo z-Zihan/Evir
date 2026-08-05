@@ -1,4 +1,5 @@
-const SENSITIVE_KEY_PATTERN = /(authorization|api[-_]?key|token|password|secret|cookie|private[-_]?key)/i;
+const SENSITIVE_KEY_PATTERN =
+  /(authorization|api[-_]?key|token|password|secret|cookie|private[-_]?key)/i;
 
 const SECRET_VALUE_PATTERNS: RegExp[] = [
   /\bsk-[A-Za-z0-9_-]{12,}\b/g,
