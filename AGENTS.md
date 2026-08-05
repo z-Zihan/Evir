@@ -69,3 +69,13 @@ Use composable middleware for normalization, mode policy, capability gates, cont
 - Do not disable checks or delete tests to pass CI.
 - Do not use placeholders or TODOs to claim a feature works.
 - After each phase, run the full available quality gate and report actual results.
+
+## Project Memory
+
+开发 Evir 前，必须读取：
+
+- `docs/agent/Evir-project-memory.md`
+
+该文件仅适用于 Evir 仓库，不得作为全局或跨项目记忆使用。
+
+项目记忆只是高密度索引。出现疑问、冲突或需要具体细节时，必须继续读取对应的原始文档，不得只依赖记忆摘要。
