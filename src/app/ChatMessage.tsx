@@ -116,9 +116,14 @@ export function ChatMessage({
               {t("chat.edit")}
             </button>
           )}
-          <button type="button" onClick={() => onBranch(message.id)} disabled={disabled}>
+          <button
+            type="button"
+            onClick={() => onBranch(message.id)}
+            disabled={disabled}
+            aria-label={t("chat.branchFromHere")}
+          >
             <GitBranch size={14} />
-            {t("chat.branch")}
+            {t("chat.branchFromHere")}
           </button>
         </div>
       )}

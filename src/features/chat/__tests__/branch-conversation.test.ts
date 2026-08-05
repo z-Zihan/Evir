@@ -83,7 +83,7 @@ describe("branchConversation", () => {
 
     const branched = await db.conversations.get(newId);
     expect(branched).toBeTruthy();
-    expect(branched!.title).toBe("Test conversation (branch)");
+    expect(branched!.title).toBe("Test conversation chat.branched");
     expect(branched!.providerId).toBe(conversation.providerId);
     expect(branched!.modelId).toBe(conversation.modelId);
     expect(branched!.parentConversationId).toBe(conversation.id);
@@ -202,7 +202,39 @@ describe("branchConversation", () => {
     useChatStore.setState({ currentConversationId: null });
 
     await expect(useChatStore.getState().branchConversation("any-id")).rejects.toThrow(
-      "No active conversation",
+      "Cannot branch now",
     );
+  });
+});
+
+describe("branchConversation with tool calls", () => {
+  it("copies toolCalls and toolResults with remapped IDs", async () => {
+    const messages = [
+      makeMessage("msg-1", "user", "Read a file", 1),
+      {
+        ...makeMessage("msg-2", "assistant", "I read it.", 2),
+        toolCalls: [{ id: "tc-1", toolName: "read_file", arguments: { path: "/tmp/a" } }],
+        toolResults: [
+          { toolCallId: "tc-1", toolName: "read_file", success: true, output: "hello" },
+        ],
+      },
+    ];
+    await db.messages.bulkPut(messages);
+    useChatStore.setState({ messages });
+
+    const newId = await useChatStore.getState().branchConversation("msg-2");
+
+    const branchedMessages = await db.messages
+      .where("conversationId")
+      .equals(newId)
+      .sortBy("createdAt");
+    const assistantMsg = branchedMessages.find((m) => m.role === "assistant");
+    expect(assistantMsg).toBeTruthy();
+    expect(assistantMsg!.toolCalls).toHaveLength(1);
+    expect(assistantMsg!.toolCalls![0]!.id).not.toBe("tc-1");
+    expect(assistantMsg!.toolCalls![0]!.toolName).toBe("read_file");
+    expect(assistantMsg!.toolResults).toHaveLength(1);
+    expect(assistantMsg!.toolResults![0]!.toolCallId).toBe(assistantMsg!.toolCalls![0]!.id);
+    expect(assistantMsg!.toolResults![0]!.output).toBe("hello");
   });
 });

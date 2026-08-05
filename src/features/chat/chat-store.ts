@@ -173,16 +173,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   stopGeneration: stopActiveStream,
   branchConversation: async (messageId) => {
-    const { currentConversationId, messages, conversations } = get();
-    if (!currentConversationId) throw new Error("No active conversation");
+    const { currentConversationId, messages, conversations, isStreaming } = get();
+    if (!currentConversationId || isStreaming) throw new Error("Cannot branch now");
     const conversation = conversations.find((c) => c.id === currentConversationId);
     if (!conversation) throw new Error("Conversation not found");
-    const newId = await doBranchConversation(
-      currentConversationId,
-      messages,
-      conversation,
-      messageId,
-    );
+    const newId = await doBranchConversation(messages, conversation, messageId);
     await get().loadConversations();
     await get().selectConversation(newId);
     return newId;

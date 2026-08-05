@@ -299,6 +299,15 @@ textarea:focus-visible {
 .conversation-item:hover .conversation-delete {
   opacity: 1;
 }
+.conversation-branch-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 4px;
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 400;
+}
 .conversation-delete:hover {
   color: var(--foreground);
 }

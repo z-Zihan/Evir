@@ -34,7 +34,8 @@ describe("ChatMessage actions", () => {
         message={message("user", "Original")}
         disabled={false}
         onEdit={onEdit}
-        onRegenerate={vi.fn()} onBranch={vi.fn()}
+        onRegenerate={vi.fn()}
+        onBranch={vi.fn()}
       />,
     );
 
@@ -55,7 +56,8 @@ describe("ChatMessage actions", () => {
         message={message("assistant", "Response")}
         disabled={false}
         onEdit={vi.fn()}
-        onRegenerate={onRegenerate} onBranch={vi.fn()}
+        onRegenerate={onRegenerate}
+        onBranch={vi.fn()}
       />,
     );
 
@@ -82,7 +84,13 @@ describe("ChatMessage actions", () => {
     ];
 
     render(
-      <ChatMessage message={assistant} disabled={false} onEdit={vi.fn()} onRegenerate={vi.fn()} onBranch={vi.fn()} />,
+      <ChatMessage
+        message={assistant}
+        disabled={false}
+        onEdit={vi.fn()}
+        onRegenerate={vi.fn()}
+        onBranch={vi.fn()}
+      />,
     );
 
     const body = document.body;
