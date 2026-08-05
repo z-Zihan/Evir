@@ -13,6 +13,14 @@
       "write": "把零散需求整理成完整产品方案",
       "explain": "用清楚的方式解释一段代码"
     },
+    "modes": {
+      "ask": "提问",
+      "plan": "规划",
+      "agent": "Agent",
+      "askDesc": "仅与模型对话，不使用本地工具",
+      "planDesc": "使用只读工具进行分析和规划",
+      "agentDesc": "在权限控制下使用完整工具"
+    },
     "placeholder": "输入消息…",
     "modelPlaceholder": "尚未配置模型",
     "send": "发送",
@@ -73,6 +81,28 @@
     "cancel": "取消",
     "noProviders": "尚未配置供应商",
     "addFirst": "添加供应商后开始聊天"
+  },
+  "personalization": {
+    "title": "个性化",
+    "enable": "启用个性化",
+    "displayName": "显示名称",
+    "responseLanguage": "回复语言",
+    "detailLevel": "详细程度",
+    "style": "回复风格",
+    "customInstructions": "自定义指令",
+    "save": "保存",
+    "reset": "恢复默认设置",
+    "followApp": "跟随应用语言",
+    "english": "英语",
+    "chinese": "中文",
+    "concise": "简洁",
+    "balanced": "均衡",
+    "detailed": "详细",
+    "professional": "专业",
+    "casual": "轻松",
+    "academic": "学术",
+    "loadError": "加载个性化设置失败",
+    "saveError": "保存个性化设置失败"
   },
   "shortcuts": {
     "commandPalette": "打开命令面板",

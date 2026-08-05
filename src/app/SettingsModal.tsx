@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
-import { PersonalizationSettings } from "./PersonalizationSettings";
+import { PersonalizationPanel } from "./PersonalizationSettings";
 import { ProviderSettings } from "./ProviderSettings";
 import { UsagePanel } from "./UsagePanel";
 
@@ -66,7 +66,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
         </div>
         <div className="modal-body">
           {activeTab === "providers" && <ProviderSettings />}
-          {activeTab === "personalization" && <PersonalizationSettings />}
+          {activeTab === "personalization" && <PersonalizationPanel />}
           {activeTab === "usage" && <UsagePanel />}
         </div>
       </div>

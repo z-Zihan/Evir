@@ -12,7 +12,7 @@ import {
 type FormStatus = "idle" | "loading" | "saving";
 type FormError = "load" | "save" | null;
 
-export function PersonalizationSettings() {
+export function PersonalizationPanel() {
   const { t } = useTranslation();
   const [form, setForm] = useState<PersonalizationPreferences>({
     ...DEFAULT_PERSONALIZATION_PREFERENCES,
@@ -87,12 +87,13 @@ export function PersonalizationSettings() {
             {t("personalization.responseLanguage")}
             <select
               value={form.responseLanguage}
-              onChange={(event) =>
+              onChange={(event) => {
+                // Safe: select options are type-constrained
                 update(
                   "responseLanguage",
                   event.target.value as PersonalizationPreferences["responseLanguage"],
-                )
-              }
+                );
+              }}
             >
               <option value="follow-app">{t("personalization.followApp")}</option>
               <option value="en">{t("personalization.english")}</option>
@@ -103,12 +104,13 @@ export function PersonalizationSettings() {
             {t("personalization.detailLevel")}
             <select
               value={form.detailLevel}
-              onChange={(event) =>
+              onChange={(event) => {
+                // Safe: select options are type-constrained
                 update(
                   "detailLevel",
                   event.target.value as PersonalizationPreferences["detailLevel"],
-                )
-              }
+                );
+              }}
             >
               <option value="concise">{t("personalization.concise")}</option>
               <option value="balanced">{t("personalization.balanced")}</option>
@@ -119,9 +121,10 @@ export function PersonalizationSettings() {
             {t("personalization.style")}
             <select
               value={form.style}
-              onChange={(event) =>
-                update("style", event.target.value as PersonalizationPreferences["style"])
-              }
+              onChange={(event) => {
+                // Safe: select options are type-constrained
+                update("style", event.target.value as PersonalizationPreferences["style"]);
+              }}
             >
               <option value="professional">{t("personalization.professional")}</option>
               <option value="casual">{t("personalization.casual")}</option>

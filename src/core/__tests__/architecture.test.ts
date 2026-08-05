@@ -37,6 +37,13 @@ function forbiddenImports(files: string[], isForbidden: (moduleName: string) => 
   );
 }
 
+function translationKeys(value: unknown, prefix = ""): string[] {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return [prefix];
+  return Object.entries(value).flatMap(([key, nestedValue]) =>
+    translationKeys(nestedValue, prefix ? `${prefix}.${key}` : key),
+  );
+}
+
 const appFiles = sourceFiles(path.join(SRC_DIR, "app"));
 const componentFiles = sourceFiles(path.join(SRC_DIR, "components"));
 const coreFiles = sourceFiles(path.join(SRC_DIR, "core"));
@@ -97,5 +104,42 @@ describe("architecture dependency direction", () => {
 
   it("defines tool risk limits for every interaction mode", () => {
     expect(Object.keys(MODE_TOOL_RISK_LIMITS).sort()).toEqual(["agent", "ask", "plan"]);
+  });
+
+  it("provides mode and personalization translations in every locale", () => {
+    const requiredKeys = [
+      "chat.modes.ask",
+      "chat.modes.plan",
+      "chat.modes.agent",
+      "chat.modes.askDesc",
+      "chat.modes.planDesc",
+      "chat.modes.agentDesc",
+      "personalization.title",
+      "personalization.enable",
+      "personalization.displayName",
+      "personalization.responseLanguage",
+      "personalization.detailLevel",
+      "personalization.style",
+      "personalization.customInstructions",
+      "personalization.save",
+      "personalization.reset",
+      "personalization.followApp",
+      "personalization.english",
+      "personalization.chinese",
+      "personalization.concise",
+      "personalization.balanced",
+      "personalization.detailed",
+      "personalization.professional",
+      "personalization.casual",
+      "personalization.academic",
+      "personalization.loadError",
+      "personalization.saveError",
+    ];
+
+    for (const locale of ["en.json", "zh-CN.json"]) {
+      const localePath = path.join(SRC_DIR, "i18n", "locales", locale);
+      const keys = translationKeys(JSON.parse(fs.readFileSync(localePath, "utf8")));
+      expect(keys, locale).toEqual(expect.arrayContaining(requiredKeys));
+    }
   });
 });

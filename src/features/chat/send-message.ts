@@ -17,6 +17,7 @@ export async function sendChatMessage(
   get: ChatStoreGet,
   rawText: string,
 ): Promise<void> {
+  const mode = get().mode;
   const text = rawText.trim();
   if ((!text && get().pendingAttachments.length === 0) || get().isStreaming) return;
   const provider = useProviderStore.getState().getDefaultProvider();
@@ -80,6 +81,13 @@ export async function sendChatMessage(
       }
       return { role, content };
     });
+  const modeHint =
+    mode === "agent"
+      ? "You are in Agent mode. The user expects you to help with tasks."
+      : mode === "plan"
+        ? "You are in Plan mode. Analyze the request and provide a structured plan."
+        : "";
+  if (modeHint) streamMessages.unshift({ role: "system", content: modeHint });
   const streamResult = await streamAssistant(
     provider,
     conversationId,

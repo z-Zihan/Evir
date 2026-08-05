@@ -13,6 +13,14 @@
       "write": "Turn rough requirements into a complete product plan",
       "explain": "Explain a piece of code clearly"
     },
+    "modes": {
+      "ask": "Ask",
+      "plan": "Plan",
+      "agent": "Agent",
+      "askDesc": "Chat with the model without local tools",
+      "planDesc": "Read-only tools for analysis and planning",
+      "agentDesc": "Full tool access with permission controls"
+    },
     "placeholder": "Message Evir…",
     "modelPlaceholder": "No model configured",
     "send": "Send",
@@ -73,6 +81,28 @@
     "cancel": "Cancel",
     "noProviders": "No providers configured",
     "addFirst": "Add a provider to start chatting"
+  },
+  "personalization": {
+    "title": "Personalization",
+    "enable": "Enable personalization",
+    "displayName": "Display name",
+    "responseLanguage": "Response language",
+    "detailLevel": "Detail level",
+    "style": "Response style",
+    "customInstructions": "Custom instructions",
+    "save": "Save",
+    "reset": "Reset to defaults",
+    "followApp": "Follow app language",
+    "english": "English",
+    "chinese": "Chinese",
+    "concise": "Concise",
+    "balanced": "Balanced",
+    "detailed": "Detailed",
+    "professional": "Professional",
+    "casual": "Casual",
+    "academic": "Academic",
+    "loadError": "Failed to load personalization settings",
+    "saveError": "Failed to save personalization settings"
   },
   "shortcuts": {
     "commandPalette": "Open command palette",
