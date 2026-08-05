@@ -1,4 +1,5 @@
 import { create } from "zustand";
+// NOTE: Uses Dexie directly for indexed queries; StoragePort covers basic CRUD
 import { db, type ConversationRecord, type MessageRecord } from "../../core/storage/db";
 import { stopActiveStream } from "./chat-stream";
 import type { InteractionMode } from "../../core/providers/tool-registry";

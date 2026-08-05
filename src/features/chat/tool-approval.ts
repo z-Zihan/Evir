@@ -167,8 +167,8 @@ async function finalizeApprovalFlow(
 ): Promise<void> {
   const newTurns = loopResult.turns;
   const newMessages: MessageRecord[] = [];
-  for (let i = 0; i < newTurns.length; i += 1) {
-    newMessages.push(await persistTurn(newTurns[i]!, conversationId));
+  for (const turn of newTurns) {
+    newMessages.push(await persistTurn(turn, conversationId));
   }
   const updatedAt = await updateConversationTimestamp(conversationId);
   const lastStream: StreamResult | undefined = loopResult.turns.at(-1)?.stream;

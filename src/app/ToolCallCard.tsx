@@ -1,7 +1,11 @@
 import { Wrench } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { ToolCallRecord, ToolResultRecord } from "../core/storage/db";
-import { TOOL_NOT_AVAILABLE, TOOL_PERMISSION_REQUIRED } from "../core/tools/tool-executor";
+import {
+  TOOL_DENIED,
+  TOOL_NOT_AVAILABLE,
+  TOOL_PERMISSION_REQUIRED,
+} from "../core/tools/tool-executor";
 import { useChatStore } from "../features/chat/chat-store";
 
 interface ToolCallCardProps {
@@ -26,7 +30,7 @@ export function ToolCallCard({ call, result }: ToolCallCardProps) {
       ? t("tools.permissionRequired")
       : result?.success
         ? t("tools.success")
-        : result?.error === "tool_denied"
+        : result?.error === TOOL_DENIED
           ? t("tools.denied")
           : t("tools.failed");
   const toolKey = `tools.${call.toolName}`;
