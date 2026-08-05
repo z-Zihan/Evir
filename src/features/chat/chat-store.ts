@@ -1,8 +1,7 @@
 import { create } from "zustand";
-// NOTE: Uses Dexie directly for indexed queries; StoragePort covers basic CRUD
 import { db, type ConversationRecord, type MessageRecord } from "../../core/storage/db";
-import type { InteractionMode } from "../../core/providers/tool-registry";
 import { stopActiveStream } from "./chat-stream";
+import type { InteractionMode } from "../../core/providers/tool-registry";
 import {
   processFile,
   validateAttachmentCount,
@@ -14,7 +13,6 @@ import { streamResponse } from "./stream-response";
 import { getRuntime } from "../../runtime/use-runtime";
 import { branchConversation as doBranchConversation } from "./branch-conversation";
 import { approveTool, denyTool, type PendingToolApproval } from "./tool-approval";
-
 export interface ChatState {
   conversations: ConversationRecord[];
   currentConversationId: string | null;
@@ -43,7 +41,6 @@ export interface ChatState {
   denyTool: () => Promise<void>;
   branchConversation: (messageId: string) => Promise<string>;
 }
-
 export const useChatStore = create<ChatState>((set, get) => ({
   conversations: [],
   currentConversationId: null,
@@ -54,11 +51,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   error: null,
   pendingAttachments: [],
   pendingToolApproval: null,
-
   loadConversations: async () => {
     set({ conversations: await db.conversations.orderBy("updatedAt").reverse().toArray() });
   },
-
   createConversation: async (providerId, modelId) => {
     const now = Date.now();
     const conversation: ConversationRecord = {
@@ -78,7 +73,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }));
     return conversation.id;
   },
-
   selectConversation: async (id) => {
     const messages = await db.messages.where("conversationId").equals(id).sortBy("createdAt");
     set({
@@ -90,7 +84,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       pendingToolApproval: null,
     });
   },
-
   deleteConversation: async (id) => {
     await db.transaction("rw", db.conversations, db.messages, db.attachments, async () => {
       const messageIds = await db.messages.where("conversationId").equals(id).primaryKeys();
@@ -111,7 +104,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
         : {}),
     }));
   },
-
   renameConversation: async (id, title) => {
     const cleanTitle = title.trim();
     if (!cleanTitle) return;
@@ -122,7 +114,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       ),
     }));
   },
-
   updateConversationProvider: async (providerId, modelId) => {
     const { currentConversationId } = get();
     if (!currentConversationId) return;
@@ -134,7 +125,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       ),
     }));
   },
-
   addAttachment: async (file) => {
     const current = get().pendingAttachments;
     if (!validateAttachmentCount(current.length)) {
@@ -149,35 +139,29 @@ export const useChatStore = create<ChatState>((set, get) => ({
       set({ error: message });
     }
   },
-
   removeAttachment: (id) => {
     set(({ pendingAttachments }) => ({
       pendingAttachments: pendingAttachments.filter((a) => a.id !== id),
     }));
   },
-
   clearAttachments: () => set({ pendingAttachments: [] }),
   setMode: (mode) => set({ mode }),
-
   approveTool: async () => {
     const pending = get().pendingToolApproval;
     if (!pending) return;
     await approveTool(pending, set, get);
   },
-
   denyTool: async () => {
     const pending = get().pendingToolApproval;
     if (!pending) return;
     await denyTool(pending, set, get);
   },
-
   sendMessage: (text) => sendChatMessage(set, get, text),
   regenerate: async () => {
     const { messages, currentConversationId, isStreaming } = get();
     if (!currentConversationId || isStreaming) return;
     const lastAssistant = [...messages].reverse().find(({ role }) => role === "assistant");
     if (!lastAssistant) return;
-
     await db.messages.delete(lastAssistant.id);
     const history = messages.filter(({ id }) => id !== lastAssistant.id);
     set({ messages: history, pendingToolApproval: null });
@@ -189,7 +173,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const index = messages.findIndex(({ id }) => id === messageId);
     const message = messages[index];
     if (!message || message.role !== "user") return;
-
     const toDelete = messages.slice(index + 1);
     const deleteIds = toDelete.map(({ id }) => id);
     await db.transaction("rw", db.messages, db.attachments, async () => {

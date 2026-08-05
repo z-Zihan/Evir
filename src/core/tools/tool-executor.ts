@@ -8,6 +8,7 @@ import { riskLevelExceeds } from "./tool-registry-impl";
 
 export const TOOL_PERMISSION_REQUIRED = "permission_required";
 export const TOOL_NOT_AVAILABLE = "not_available_in_browser";
+export const TOOL_DENIED = "tool_denied";
 
 export class ToolExecutor {
   constructor(private readonly registry: ToolRegistry) {}

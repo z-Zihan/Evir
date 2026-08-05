@@ -71,7 +71,8 @@
     "list_directory": "List directory",
     "write_file": "Write file",
     "executing": "Executing...",
-    "denied": "Denied"
+    "denied": "Denied",
+    "deniedMessage": "Tool execution denied by user"
   },
   "settings": {
     "title": "Settings",

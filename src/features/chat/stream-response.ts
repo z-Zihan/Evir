@@ -8,12 +8,13 @@ import {
 } from "../../core/storage/db";
 import { useProviderStore } from "../provider/provider-store";
 import { formatAttachmentForProvider } from "./attachment-utils";
-import { runAgentLoop, type AgentLoopResult, type AgentLoopTurn } from "./agent-loop";
+import { runAgentLoop, type AgentLoopResult } from "./agent-loop";
 import type { ChatState } from "./chat-store";
 import { providerReadinessError, streamAssistant, type StreamResult } from "./chat-stream";
 import { useSkillStore } from "../skills/skill-store";
 import type { EvirRuntime } from "../../runtime/types";
 import type { PendingToolApproval } from "./tool-approval";
+import { toMessage, sorted } from "./chat-helpers";
 
 type ChatStoreSet = StoreApi<ChatState>["setState"];
 type ChatStoreGet = StoreApi<ChatState>["getState"];
@@ -87,20 +88,6 @@ async function getLoopResult(
   return { turns: [{ stream }], maxIterationsReached: false, messages: [] };
 }
 
-function toMessage(turn: AgentLoopTurn, conversationId: string): MessageRecord {
-  return {
-    id: crypto.randomUUID(),
-    conversationId,
-    role: "assistant",
-    content: turn.stream.content,
-    status: turn.stream.status,
-    ...(turn.stream.errorMessage ? { errorMessage: turn.stream.errorMessage } : {}),
-    ...(turn.toolCalls ? { toolCalls: turn.toolCalls } : {}),
-    ...(turn.toolResults ? { toolResults: turn.toolResults } : {}),
-    createdAt: Date.now(),
-  };
-}
-
 function titleFor(history: MessageRecord[], hasTitle: boolean): string | undefined {
   const firstMessage = history.length === 1 ? history[0] : undefined;
   return !hasTitle && firstMessage?.role === "user" ? firstMessage.content.slice(0, 60) : undefined;
@@ -120,10 +107,6 @@ async function persistResponse(
     });
   });
   return updatedAt;
-}
-
-function sorted(conversations: ChatState["conversations"]): ChatState["conversations"] {
-  return [...conversations].sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 export async function streamResponse(
