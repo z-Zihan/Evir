@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { InstalledSkill, SkillManifest } from "../../core/skills/types";
 
@@ -22,7 +22,6 @@ const sampleSkills: InstalledSkill[] = [
       riskLevel: "low",
     } satisfies SkillManifest,
     rootPath: "/skills/builtin/bug-fix",
-    enabled: true,
     builtIn: true,
   },
   {
@@ -40,7 +39,6 @@ const sampleSkills: InstalledSkill[] = [
       riskLevel: "medium",
     } satisfies SkillManifest,
     rootPath: "/skills/builtin/code-review",
-    enabled: false,
     builtIn: true,
   },
 ];
@@ -83,7 +81,9 @@ describe("SkillSettings", () => {
     const { SkillSettings } = await import("../SkillSettings");
     render(<SkillSettings />);
 
-    expect(screen.getByText("Bug Fix")).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByText("Bug Fix")).toBeDefined();
+    });
     expect(screen.getByText("Code Review")).toBeDefined();
   });
 
@@ -92,7 +92,9 @@ describe("SkillSettings", () => {
     const { SkillSettings } = await import("../SkillSettings");
     render(<SkillSettings />);
 
-    expect(screen.getByText("skill.low")).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByText("skill.low")).toBeDefined();
+    });
     expect(screen.getByText("skill.medium")).toBeDefined();
   });
 
@@ -101,6 +103,10 @@ describe("SkillSettings", () => {
     mockToggleSkill.mockResolvedValue(undefined);
     const { SkillSettings } = await import("../SkillSettings");
     render(<SkillSettings />);
+
+    await waitFor(() => {
+      expect(screen.queryByText("common.loading")).toBeNull();
+    });
 
     const checkboxes = screen.getAllByRole("checkbox");
     fireEvent.click(checkboxes[0]!);

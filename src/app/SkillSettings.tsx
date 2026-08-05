@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSkillStore } from "../features/skills/skill-store";
 
@@ -8,10 +8,13 @@ export function SkillSettings() {
   const enabledSkillIds = useSkillStore((s) => s.enabledSkillIds);
   const loadSkills = useSkillStore((s) => s.loadSkills);
   const toggleSkill = useSkillStore((s) => s.toggleSkill);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    void loadSkills();
+    void loadSkills().finally(() => setLoading(false));
   }, [loadSkills]);
+
+  if (loading) return <p>{t("common.loading")}</p>;
 
   return (
     <section className="skill-settings">

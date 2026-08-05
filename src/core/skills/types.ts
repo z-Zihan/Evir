@@ -18,6 +18,5 @@ export interface SkillManifest {
 export interface InstalledSkill {
   manifest: SkillManifest;
   rootPath: string;
-  enabled: boolean;
   builtIn: boolean;
 }

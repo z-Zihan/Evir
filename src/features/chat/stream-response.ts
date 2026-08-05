@@ -140,14 +140,21 @@ export async function streamResponse(
   set({ isStreaming: true, streamingContent: "", error: null });
   const mode = get().mode;
   const messages = providerMessages(history, provider.protocolId);
+
+  const systemParts: string[] = [];
   const hint = modeHint(mode);
-  if (hint) messages.unshift({ role: "system", content: hint });
+  if (hint) systemParts.push(hint);
   if (mode === "agent" || mode === "plan") {
+    // Skill content is treated as untrusted data and wrapped in XML-style boundary markers.
     const skillContent = await useSkillStore.getState().getEnabledContent();
     if (skillContent) {
-      messages.unshift({ role: "system", content: `\n\n--- Active Skills ---\n${skillContent}` });
+      systemParts.push(`<active_skills>\n${skillContent}\n</active_skills>`);
     }
   }
+  if (systemParts.length > 0) {
+    messages.unshift({ role: "system", content: systemParts.join("\n\n") });
+  }
+
   const result = await getTurns(provider, conversationId, messages, set, mode, runtime);
   if (result.turns.length === 0) {
     set({ isStreaming: false, streamingContent: "", error: "chat.streamEnded" });

@@ -18,7 +18,6 @@ vi.mock("../../../core/skills/skill-registry", () => {
         riskLevel: "low" as const,
       },
       rootPath: "/skills/builtin/bug-fix",
-      enabled: false,
       builtIn: true,
     },
     {
@@ -36,7 +35,6 @@ vi.mock("../../../core/skills/skill-registry", () => {
         riskLevel: "medium" as const,
       },
       rootPath: "/skills/builtin/code-review",
-      enabled: false,
       builtIn: true,
     },
   ];
@@ -57,14 +55,9 @@ vi.mock("../../../core/skills/skill-registry", () => {
         return "";
       },
       list: () => currentSkills,
-      listEnabled: () => currentSkills.filter((s) => s.enabled),
-      setEnabled: (id: string, enabled: boolean) => {
-        const skill = currentSkills.find((s) => s.manifest.id === id);
-        if (skill) skill.enabled = enabled;
-      },
-      getEnabledContent: async () => {
+      getEnabledContent: async (enabledIds: Set<string>) => {
         await Promise.resolve();
-        const enabled = currentSkills.filter((s) => s.enabled);
+        const enabled = currentSkills.filter((s) => enabledIds.has(s.manifest.id));
         if (enabled.length === 0) return "";
         const contents: string[] = [];
         for (const s of enabled) {

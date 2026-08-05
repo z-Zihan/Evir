@@ -16,6 +16,7 @@ interface SkillState {
 }
 
 let registry: SkillRegistry | null = null;
+let loadPromise: Promise<void> | null = null;
 
 function getRegistry(): SkillRegistry {
   if (!registry) {
@@ -36,35 +37,41 @@ export const useSkillStore = create<SkillState>((set, get) => ({
   enabledSkillIds: new Set<string>(),
 
   loadSkills: async () => {
-    const reg = getRegistry();
-    const skills = await reg.loadBuiltin();
+    if (loadPromise) return loadPromise;
+    loadPromise = (async () => {
+      try {
+        const reg = getRegistry();
+        const skills = await reg.loadBuiltin();
 
-    const record = await db.settings.get(SKILL_ENABLED_SETTING);
-    const enabledIds = Array.isArray(record?.value) ? (record.value as string[]) : [];
+        const record = await db.settings.get(SKILL_ENABLED_SETTING);
+        const raw = record?.value;
+        const enabledIds =
+          Array.isArray(raw) && raw.every((v): v is string => typeof v === "string") ? raw : [];
 
-    const enabledSet = new Set<string>();
-    for (const skill of skills) {
-      if (enabledIds.includes(skill.manifest.id)) {
-        reg.setEnabled(skill.manifest.id, true);
-        enabledSet.add(skill.manifest.id);
+        const enabledSet = new Set<string>();
+        for (const skill of skills) {
+          if (enabledIds.includes(skill.manifest.id)) {
+            enabledSet.add(skill.manifest.id);
+          }
+        }
+
+        set({ skills, enabledSkillIds: enabledSet });
+      } finally {
+        loadPromise = null;
       }
-    }
-
-    set({ skills, enabledSkillIds: enabledSet });
+    })();
+    return loadPromise;
   },
 
   toggleSkill: async (id: string) => {
-    const reg = getRegistry();
     const { enabledSkillIds } = get();
     const newSet = new Set(enabledSkillIds);
     const currentlyEnabled = newSet.has(id);
 
     if (currentlyEnabled) {
       newSet.delete(id);
-      reg.setEnabled(id, false);
     } else {
       newSet.add(id);
-      reg.setEnabled(id, true);
     }
 
     await persistEnabledIds(newSet);
@@ -73,5 +80,8 @@ export const useSkillStore = create<SkillState>((set, get) => ({
 
   isEnabled: (id: string) => get().enabledSkillIds.has(id),
 
-  getEnabledContent: async () => getRegistry().getEnabledContent(),
+  getEnabledContent: async () => {
+    const { enabledSkillIds } = get();
+    return getRegistry().getEnabledContent(enabledSkillIds);
+  },
 }));

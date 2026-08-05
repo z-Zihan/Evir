@@ -1,5 +1,7 @@
 import type { InstalledSkill, SkillManifest, SkillRiskLevel } from "./types";
 
+const SKILL_ID_PATTERN = /^[a-z0-9-]+$/;
+
 const manifests = import.meta.glob<SkillManifest>("/skills/builtin/*/manifest.json", {
   eager: true,
   import: "default",
@@ -24,6 +26,10 @@ function riskLevelScore(level: SkillRiskLevel): number {
       return 2;
     case "low":
       return 1;
+    default: {
+      const _exhaustive: never = level;
+      return _exhaustive;
+    }
   }
 }
 
@@ -31,9 +37,7 @@ export interface SkillRegistry {
   loadBuiltin(): Promise<InstalledSkill[]>;
   getSkillContent(id: string): Promise<string>;
   list(): readonly InstalledSkill[];
-  listEnabled(): readonly InstalledSkill[];
-  setEnabled(id: string, enabled: boolean): void;
-  getEnabledContent(): Promise<string>;
+  getEnabledContent(enabledIds: Set<string>): Promise<string>;
 }
 
 export function createSkillRegistry(): SkillRegistry {
@@ -48,7 +52,6 @@ export function createSkillRegistry(): SkillRegistry {
       loaded.push({
         manifest: { ...manifest, id },
         rootPath: path.replace(/\/manifest\.json$/, ""),
-        enabled: false,
         builtIn: true,
       });
     }
@@ -62,6 +65,7 @@ export function createSkillRegistry(): SkillRegistry {
 
   const getSkillContent = async (id: string): Promise<string> => {
     await Promise.resolve();
+    if (!SKILL_ID_PATTERN.test(id)) return "";
     for (const [path, content] of Object.entries(skillMds)) {
       if (path.includes(`/${id}/`)) {
         return content;
@@ -74,13 +78,8 @@ export function createSkillRegistry(): SkillRegistry {
     loadBuiltin,
     getSkillContent,
     list: () => skills,
-    listEnabled: () => skills.filter((s) => s.enabled),
-    setEnabled: (id, enabled) => {
-      const skill = skills.find((s) => s.manifest.id === id);
-      if (skill) skill.enabled = enabled;
-    },
-    getEnabledContent: async () => {
-      const enabled = skills.filter((s) => s.enabled);
+    getEnabledContent: async (enabledIds: Set<string>) => {
+      const enabled = skills.filter((s) => enabledIds.has(s.manifest.id));
       if (enabled.length === 0) return "";
 
       const contents = await Promise.all(
