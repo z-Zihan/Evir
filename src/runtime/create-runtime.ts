@@ -1,3 +1,4 @@
+import { desktopStorage } from "./desktop-storage-adapter";
 import type { Capability, EvirRuntime, RuntimeTarget } from "./types";
 
 function buildRuntime(target: RuntimeTarget, capabilities: Capability[]): EvirRuntime {
@@ -13,7 +14,7 @@ export function createRuntime(): EvirRuntime {
   const target: RuntimeTarget = import.meta.env.VITE_EVIR_TARGET === "desktop" ? "desktop" : "web";
 
   if (target === "desktop") {
-    return buildRuntime("desktop", [
+    const runtime = buildRuntime("desktop", [
       "chat",
       "attachments",
       "filesystem",
@@ -22,6 +23,7 @@ export function createRuntime(): EvirRuntime {
       "localMcp",
       "backgroundTasks",
     ]);
+    return { ...runtime, storage: desktopStorage };
   }
 
   return buildRuntime("web", ["chat", "attachments"]);

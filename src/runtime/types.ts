@@ -1,3 +1,5 @@
+import type { DesktopStorageAdapter } from "./desktop-storage-adapter";
+
 export type RuntimeTarget = "web" | "desktop";
 
 export type Capability =
@@ -15,4 +17,5 @@ export interface EvirRuntime {
   target: RuntimeTarget;
   capabilities: ReadonlySet<Capability>;
   has(capability: Capability): boolean;
+  storage?: DesktopStorageAdapter;
 }
