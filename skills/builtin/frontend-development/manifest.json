@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "frontend-development",
+  "name": "Frontend Development",
+  "version": "0.1.0",
+  "description": "遵循现有架构完成前端功能并进行验证",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": [],
+  "optionalCapabilities": [],
+  "optionalMcpServers": [],
+  "riskLevel": "low"
+}

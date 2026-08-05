@@ -1,0 +1,66 @@
+{
+  "sidebar": {
+    "newChat": "New chat",
+    "recent": "Recent",
+    "noConversations": "No conversations yet"
+  },
+  "chat": {
+    "title": "New conversation",
+    "emptyTitle": "What needs attention?",
+    "emptyDescription": "Choose a model to start. Desktop exposes local agent capabilities according to your permissions.",
+    "suggestions": {
+      "summarize": "Summarize a document and extract next actions",
+      "write": "Turn rough requirements into a complete product plan",
+      "explain": "Explain a piece of code clearly"
+    },
+    "placeholder": "Message Evir…",
+    "modelPlaceholder": "No model configured",
+    "send": "Send",
+    "disclaimer": "Evir can make mistakes. Verify important results."
+  },
+  "runtime": {
+    "agentReady": "Local agent runtime",
+    "chatOnly": "Browser chat mode"
+  },
+  "settings": {
+    "title": "Settings",
+    "theme": "Switch theme",
+    "general": "General",
+    "providers": "Model providers",
+    "personalization": "Personalization",
+    "agent": "Agent",
+    "skills": "Skills",
+    "mcp": "MCP",
+    "notifications": "Notifications",
+    "shortcuts": "Keyboard shortcuts",
+    "usage": "Usage",
+    "privacy": "Data and privacy",
+    "help": "Help",
+    "feedback": "Send feedback",
+    "about": "About Evir"
+  },
+  "shortcuts": {
+    "commandPalette": "Open command palette",
+    "newConversation": "New conversation",
+    "openSettings": "Open settings",
+    "toggleSidebar": "Toggle sidebar",
+    "openWorkspace": "Open workspace",
+    "searchConversations": "Search conversations",
+    "sendMessage": "Send message",
+    "stopCurrentRun": "Stop current generation",
+    "shortcutHelp": "Show shortcuts"
+  },
+  "help": {
+    "quickStart": "Quick start",
+    "providers": "Add a model provider",
+    "modes": "Ask / Plan / Agent",
+    "personalization": "Personalization and custom instructions",
+    "skills": "Skills",
+    "mcp": "MCP",
+    "permissions": "Permissions and network",
+    "shortcuts": "Keyboard shortcuts",
+    "usage": "Tokens and usage",
+    "privacy": "Data and privacy",
+    "troubleshooting": "Troubleshooting"
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "sidebar": {
+    "newChat": "新建对话",
+    "recent": "最近",
+    "noConversations": "暂无会话"
+  },
+  "chat": {
+    "title": "新对话",
+    "emptyTitle": "现在需要处理什么？",
+    "emptyDescription": "选择模型后开始对话。桌面端会根据权限提供本地 Agent 能力。",
+    "suggestions": {
+      "summarize": "总结一份文档，并提取下一步行动",
+      "write": "把零散需求整理成完整产品方案",
+      "explain": "用清楚的方式解释一段代码"
+    },
+    "placeholder": "输入消息…",
+    "modelPlaceholder": "尚未配置模型",
+    "send": "发送",
+    "disclaimer": "Evir 可能出错。重要结果请核验。"
+  },
+  "runtime": {
+    "agentReady": "本地 Agent Runtime",
+    "chatOnly": "浏览器聊天模式"
+  },
+  "settings": {
+    "title": "设置",
+    "theme": "切换主题",
+    "general": "通用",
+    "providers": "模型供应商",
+    "personalization": "个性化",
+    "agent": "Agent",
+    "skills": "Skill",
+    "mcp": "MCP",
+    "notifications": "通知",
+    "shortcuts": "快捷键",
+    "usage": "用量统计",
+    "privacy": "数据与隐私",
+    "help": "帮助",
+    "feedback": "提交反馈",
+    "about": "关于 Evir"
+  },
+  "shortcuts": {
+    "commandPalette": "打开命令面板",
+    "newConversation": "新建会话",
+    "openSettings": "打开设置",
+    "toggleSidebar": "显示或隐藏侧边栏",
+    "openWorkspace": "打开工作区",
+    "searchConversations": "搜索会话",
+    "sendMessage": "发送消息",
+    "stopCurrentRun": "停止当前生成",
+    "shortcutHelp": "查看快捷键"
+  },
+  "help": {
+    "quickStart": "快速开始",
+    "providers": "添加模型供应商",
+    "modes": "Ask / Plan / Agent",
+    "personalization": "个性化与自定义指令",
+    "skills": "Skill",
+    "mcp": "MCP",
+    "permissions": "权限与网络",
+    "shortcuts": "快捷键",
+    "usage": "Token 与用量",
+    "privacy": "数据与隐私",
+    "troubleshooting": "故障排查"
+  }
+}

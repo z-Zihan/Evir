@@ -1,0 +1,221 @@
+<div align="center">
+
+# Evir
+
+**Your model. Your computer. Your agent.**
+
+A clean, local-first, bring-your-own-model AI client and general-purpose desktop agent.
+
+**Connect one tool-capable model and start using Evir Desktop to work with files, code, terminals, and your computer.**
+
+[简体中文](README.md) · [Product Spec](docs/01-product-requirements.md) · [Roadmap](docs/06-development-plan.md) · [Coding Agent Prompt](prompts/coding-agent-master-prompt.md)
+
+</div>
+
+---
+
+## Why Evir
+
+Many AI clients wrap the core experience in accounts, credits, subscriptions, ads, and platform lock-in. Evir takes a different approach:
+
+- **Bring your own model**: connect international and Chinese providers, local models, or custom compatible endpoints.
+- **Local-first data**: conversations, runs, memory, Skills, and settings remain on the user's device by default.
+- **Explicit capabilities**: streaming, tool calling, vision, and structured output are shown before use.
+- **Controlled execution**: desktop actions are permissioned, stoppable, auditable, and reversible.
+- **Clean product surface**: no ads, credits, mandatory accounts, or required Evir cloud backend.
+- **Lightweight by design**: Tauri 2, lazy-loaded tools, Skills, MCP servers, and sidecars.
+- **One model is enough**: no required secondary summarizer, embedding service, Skill, MCP server, or Evir backend.
+- **Locally diagnosable**: system-wide redacted logs, audit trails, and user-exported diagnostic bundles without a remote logging backdoor.
+
+## Two products, one codebase
+
+### Evir Web
+
+A multi-model chat client that can be deployed as static files.
+
+- Bring your own API key, base URL, and model.
+- Real streaming, Markdown, attachments, conversations, and local search.
+- Internationalization and light, dark, or system themes.
+- Ask and Plan experiences without system-level computer control.
+- Direct browser-to-provider requests with no required Evir backend.
+
+> Some providers do not allow browser CORS requests. Evir Web must detect this and direct the user to Evir Desktop or a browser-compatible endpoint.
+
+### Evir Desktop
+
+A Tauri 2 agent for macOS and Windows.
+
+It adds:
+
+- Workspaces, filesystem access, terminal, and Git.
+- Agent loop, plans, context compaction, and memory.
+- Approvals, audit logs, diffs, snapshots, and rollback.
+- Built-in and user-created Skills.
+- Local stdio and remote Streamable HTTP MCP servers.
+- Browser automation and Computer Use in later phases.
+
+## Model and protocol architecture
+
+Evir separates provider presets, transport protocols, and model capabilities:
+
+```text
+Provider Preset
+  vendor defaults, regions, endpoints, and auth UI
+        ↓
+Protocol Adapter
+  OpenAI Responses / Chat Completions, Anthropic Messages,
+  Gemini, Bedrock, and other native protocols
+        ↓
+Model Capability
+  streaming, tools, vision, structured output, context window
+```
+
+Planned protocol coverage includes:
+
+- OpenAI Responses API
+- OpenAI Chat Completions API
+- Anthropic Messages API
+- Google Gemini Interactions / GenerateContent
+- Azure OpenAI Responses / Chat Completions
+- Amazon Bedrock Converse / ConverseStream
+- Native Mistral, Cohere, and Ollama adapters
+- Custom OpenAI-compatible and Anthropic-compatible endpoints
+
+See the [Provider and Protocol Matrix](docs/13-provider-and-protocol-matrix.md).
+
+## Ask / Plan / Agent
+
+- **Ask**: chat and analysis without autonomous local access.
+- **Plan**: may use user-authorized read-only tools, but cannot mutate files or run change-producing commands.
+- **Agent**: executes tools under the selected permission policy, with pause, cancel, approval, and rollback.
+
+## Skills and MCP
+
+- Skills describe **how to perform a class of tasks**.
+- MCP provides **external tools, resources, and prompts**.
+- Web supports instruction-only Skills that do not depend on local capabilities.
+- Desktop supports full Skills and MCP.
+- Third-party Skill and MCP content is untrusted by default.
+
+
+### Personalization without weakening safety
+
+- Configure naming, language, response style, and durable work preferences through a simple form.
+- Advanced users can edit `USER.md`, `PERSONA.md`, `INSTRUCTIONS.md`, and optional `SOUL.md`.
+- Evir core security, permission, tool, and network policies remain protected and cannot be overridden by Skills or custom instructions.
+- Personalization supports global, workspace, and conversation scopes and can be disabled instantly.
+
+### Complete everyday foundations
+
+- Optional system notifications for long-run completion, approvals, and failures.
+- Local token and usage records that distinguish provider-reported values from estimates.
+- Customizable keyboard shortcuts and command palette; desktop global shortcuts are off by default.
+- Built-in bilingual help and a GitHub Issue feedback entry in Settings.
+- Provider setup includes official website, console, documentation, and status links.
+
+
+## One-model start and safe switching
+
+- After configuring a provider, API key, and model, the user can begin immediately.
+- Ask only requires text generation; Desktop Agent requires reliable tool calling.
+- In-conversation switching checks context limits, tools, attachments, data destination, and provider-private state.
+- Active Agent runs switch only at a safe checkpoint with a structured handoff.
+- Automatic cross-provider fallback is off by default.
+
+## Harness and local diagnostics
+
+Evir treats an agent as `Model + Harness`: the model decides, while the Harness manages context, permissions, tools, loop detection, verification, recovery, and observability. Repository documentation, tests, and architecture rules are part of the machine-readable source of truth.
+
+Diagnostics cover providers, streaming, agents, context, tools, MCP, storage, performance, and crashes. Logs are redacted and local by default. Users explicitly export a diagnostic ZIP and may attach it to a GitHub Issue; Evir has no remote log-access backdoor.
+
+## Privacy and storage
+
+Evir does not require a cloud database.
+
+```text
+API keys                   → OS secure credential store
+Simple settings            → local config
+Conversations/runs/memory  → embedded local storage
+Logs/diffs/snapshots/files → local Artifact store
+```
+
+Desktop uses SQLite as the default embedded adapter. It is a local file, not a server process.
+
+## Performance budgets
+
+- Desktop cold start: P50 < 2s, P95 < 4s.
+- Idle memory target: <= 150 MB; regression threshold 200 MB.
+- Idle CPU target: < 1% long-running average.
+- Desktop package excluding optional sidecars: <= 35 MB.
+- Initial Web JavaScript gzip: <= 350 KB.
+- Display provider stream deltas within 100 ms of arrival.
+
+These are engineering budgets and must be measured in CI or release validation.
+
+## Project status
+
+Evir is currently an **initial engineering scaffold and product specification**, not a finished product.
+
+The repository contains:
+
+- React + TypeScript + Vite + Tauri 2 scaffolding.
+- Web/Desktop Runtime and Capability foundations.
+- Chinese/English and light/dark/system theme foundations.
+- Product, architecture, design, security, performance, Skill, MCP, and provider documentation.
+- A staged Coding Agent prompt.
+
+Development must begin with Phase 0 verification rather than skipping directly to feature implementation.
+
+## Development
+
+### Requirements
+
+- Node.js 20+
+- pnpm 9+
+- Rust stable
+- Tauri 2 platform dependencies
+
+### Commands
+
+```bash
+pnpm install
+pnpm dev:web
+pnpm dev:desktop
+pnpm build:web
+pnpm build:desktop
+pnpm check
+```
+
+Production macOS and Windows bundles should be built on their respective operating systems. A single Git tag can trigger GitHub Actions runners for both platforms and publish the artifacts into one release.
+
+## Documentation
+
+- [Product Requirements](docs/01-product-requirements.md)
+- [Technical Architecture](docs/02-technical-architecture.md)
+- [Development Guide](docs/03-development-guide.md)
+- [Design Specification](docs/04-design-specification.md)
+- [Engineering Standards](docs/05-engineering-standards.md)
+- [Development Plan](docs/06-development-plan.md)
+- [Agent Security and Quality](docs/07-agent-security-and-quality.md)
+- [Skills and MCP](docs/08-skill-and-mcp.md)
+- [Storage, Artifacts, and Recovery](docs/09-storage-artifacts-and-recovery.md)
+- [Streaming and Performance](docs/10-streaming-and-performance.md)
+- [Providers, Permissions, and Observability](docs/11-provider-permissions-and-observability.md)
+- [Product Closure Review](docs/12-product-closure-review.md)
+- [Provider and Protocol Matrix](docs/13-provider-and-protocol-matrix.md)
+- [Personalization, Notifications, Usage, Shortcuts, Feedback, and Help](docs/14-personalization-notifications-usage-shortcuts-feedback-help.md)
+- [Final Experience, Model Switching, and Context](docs/15-final-experience-model-switching-and-context.md)
+- [Evir Harness Engineering](docs/16-harness-engineering-for-evir.md)
+- [Local Logging and Diagnostics](docs/17-local-logging-and-diagnostics.md)
+- [Final Product Review V6](docs/18-final-product-review-v6.md)
+- [Coding Agent Prompt](prompts/coding-agent-master-prompt.md)
+
+## Repository
+
+```text
+git@github.com:z-Zihan/Evir.git
+```
+
+## License
+
+The open-source license will be selected before the first public release. All third-party dependencies must be tracked and license-checked.

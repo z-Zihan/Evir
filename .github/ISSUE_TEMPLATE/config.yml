@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Evir documentation
+    url: https://github.com/z-Zihan/Evir#readme
+    about: Check setup and troubleshooting guidance before filing an issue.

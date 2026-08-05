@@ -1,0 +1,18 @@
+[package]
+name = "evir"
+version = "0.1.0"
+description = "Evir desktop agent"
+authors = ["z-Zihan"]
+edition = "2021"
+
+[lib]
+name = "evir_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

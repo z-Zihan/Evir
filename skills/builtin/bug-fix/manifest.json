@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "bug-fix",
+  "name": "Bug Fix",
+  "version": "0.1.0",
+  "description": "复现、定位、最小修复并验证软件缺陷",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": [],
+  "optionalCapabilities": [],
+  "optionalMcpServers": [],
+  "riskLevel": "low"
+}

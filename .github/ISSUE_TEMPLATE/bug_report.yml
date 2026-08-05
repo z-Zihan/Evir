@@ -1,0 +1,44 @@
+name: Bug report
+description: Report a reproducible Evir problem
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Evir. Do not paste API keys, private conversations, or sensitive file content.
+  - type: dropdown
+    id: target
+    attributes:
+      label: Product
+      options: [Evir Web, Evir Desktop macOS, Evir Desktop Windows]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Evir version
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      placeholder: "1. ...\n2. ...\n3. ..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Optional redacted diagnostics
+      description: Preview and remove sensitive data before submitting.

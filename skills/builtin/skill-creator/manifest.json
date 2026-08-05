@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "skill-creator",
+  "name": "Skill Creator",
+  "version": "0.1.0",
+  "description": "创建、校验并测试 Evir Skill",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": [],
+  "optionalCapabilities": [],
+  "optionalMcpServers": [],
+  "riskLevel": "low"
+}

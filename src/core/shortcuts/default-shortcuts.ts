@@ -1,0 +1,13 @@
+import type { ShortcutDefinition } from "./types";
+
+export const DEFAULT_SHORTCUTS = [
+  { id: "command-palette", labelKey: "shortcuts.commandPalette", defaultAccelerator: "CmdOrCtrl+K", scope: "app", platforms: ["all"], editable: true, enabledByDefault: true },
+  { id: "new-conversation", labelKey: "shortcuts.newConversation", defaultAccelerator: "CmdOrCtrl+N", scope: "app", platforms: ["all"], editable: true, enabledByDefault: true },
+  { id: "open-settings", labelKey: "shortcuts.openSettings", defaultAccelerator: "CmdOrCtrl+,", scope: "app", platforms: ["all"], editable: true, enabledByDefault: true },
+  { id: "toggle-sidebar", labelKey: "shortcuts.toggleSidebar", defaultAccelerator: "CmdOrCtrl+B", scope: "app", platforms: ["all"], editable: true, enabledByDefault: true },
+  { id: "open-workspace", labelKey: "shortcuts.openWorkspace", defaultAccelerator: "CmdOrCtrl+Shift+O", scope: "app", platforms: ["macos", "windows"], editable: true, enabledByDefault: true },
+  { id: "search-conversations", labelKey: "shortcuts.searchConversations", defaultAccelerator: "CmdOrCtrl+Shift+F", scope: "app", platforms: ["all"], editable: true, enabledByDefault: true },
+  { id: "send-message", labelKey: "shortcuts.sendMessage", defaultAccelerator: "CmdOrCtrl+Enter", scope: "app", platforms: ["all"], editable: true, enabledByDefault: true },
+  { id: "stop-current-run", labelKey: "shortcuts.stopCurrentRun", defaultAccelerator: "Escape", scope: "app", platforms: ["all"], editable: false, enabledByDefault: true },
+  { id: "shortcut-help", labelKey: "shortcuts.shortcutHelp", defaultAccelerator: "CmdOrCtrl+/", scope: "app", platforms: ["all"], editable: true, enabledByDefault: true },
+] as const satisfies readonly ShortcutDefinition[];

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Evir",
+  "version": "0.1.0",
+  "identifier": "com.zihan.evir",
+  "build": {
+    "beforeDevCommand": "pnpm vite --mode desktop",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "pnpm build:desktop:frontend",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Evir",
+        "width": 1240,
+        "height": 820,
+        "minWidth": 900,
+        "minHeight": 640
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all"
+  }
+}
