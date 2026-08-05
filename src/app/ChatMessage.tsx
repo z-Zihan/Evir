@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pencil, RotateCcw } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -17,6 +17,9 @@ export function ChatMessage({ message, disabled, onEdit, onRegenerate }: ChatMes
   const { t, i18n } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(message.content);
+  useEffect(() => {
+    if (!isEditing) setDraft(message.content);
+  }, [message.content, isEditing]);
   const hasAttachment = Boolean(message.attachments?.length);
   const canSave = draft.trim().length > 0 || hasAttachment;
   const displayError = (value: string) => (i18n.exists(value) ? t(value) : value);
@@ -29,7 +32,9 @@ export function ChatMessage({ message, disabled, onEdit, onRegenerate }: ChatMes
   const saveEdit = () => {
     if (!canSave) return;
     setIsEditing(false);
-    void onEdit(message.id, draft.trim());
+    onEdit(message.id, draft.trim()).catch(() => {
+      setIsEditing(true);
+    });
   };
 
   return (

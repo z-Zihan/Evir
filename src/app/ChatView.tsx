@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 import { useChatStore } from "../features/chat/chat-store";
 import { useProviderStore } from "../features/provider/provider-store";
 import { ChatMessage } from "./ChatMessage";
+import { ChatEmptyState } from "./ChatEmptyState";
 import { ModeSwitcher } from "./ModeSwitcher";
 
 interface ChatViewProps {
@@ -91,24 +92,7 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
     <main className="workspace">
       <div className="messages-area" ref={scrollRef}>
         {messages.length === 0 && !isStreaming ? (
-          <section className="conversation-empty">
-            <div className="empty-copy">
-              <h2>{t("chat.emptyTitle")}</h2>
-              <p>{t("chat.emptyDescription")}</p>
-            </div>
-            <div className="suggestions">
-              {["summarize", "write", "explain"].map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  className="suggestion-item"
-                  onClick={() => void sendMessage(t(`chat.suggestions.${key}`))}
-                >
-                  {t(`chat.suggestions.${key}`)}
-                </button>
-              ))}
-            </div>
-          </section>
+          <ChatEmptyState onSendMessage={(content) => void sendMessage(content)} />
         ) : (
           <div className="message-list">
             {messages.map((msg) => (

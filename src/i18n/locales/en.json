@@ -21,6 +21,10 @@
       "planDesc": "Read-only tools for analysis and planning",
       "agentDesc": "Full tool access with permission controls"
     },
+    "modeHints": {
+      "agent": "You are in Agent mode. Use available tools when needed.",
+      "plan": "You are in Plan mode. Analyze and provide a structured plan."
+    },
     "placeholder": "Message Evir…",
     "modelPlaceholder": "No model configured",
     "send": "Send",

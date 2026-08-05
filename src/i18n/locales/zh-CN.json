@@ -21,6 +21,10 @@
       "planDesc": "使用只读工具进行分析和规划",
       "agentDesc": "在权限控制下使用完整工具"
     },
+    "modeHints": {
+      "agent": "你处于 Agent 模式。请根据需要使用可用工具。",
+      "plan": "你处于规划模式。分析需求并提供结构化计划。"
+    },
     "placeholder": "输入消息…",
     "modelPlaceholder": "尚未配置模型",
     "send": "发送",

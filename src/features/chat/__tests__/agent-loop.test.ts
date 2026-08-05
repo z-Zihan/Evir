@@ -98,3 +98,52 @@ describe("runAgentLoop", () => {
     expect(vi.mocked(streamAssistant)).toHaveBeenCalledTimes(MAX_AGENT_ITERATIONS);
   });
 });
+
+function setupL3Runtime(execute: ToolDefinition["execute"]): EvirRuntime {
+  const registry = createToolRegistry();
+  registry.register({
+    id: "write_file",
+    name: "write_file",
+    description: "Write a file",
+    source: "evir-local",
+    riskLevel: "L3",
+    schema: { type: "object" },
+    execute,
+  });
+  return {
+    target: "desktop",
+    capabilities: new Set(["filesystem"]),
+    has: (capability) => capability === "filesystem",
+    toolRegistry: registry,
+    toolExecutor: new ToolExecutor(registry),
+  };
+}
+
+describe("runAgentLoop permission handling", () => {
+  it("stops and sets pendingApproval for L3 tools", async () => {
+    const execute = vi.fn(() => Promise.resolve({ success: true, output: "wrote" }));
+    vi.mocked(streamAssistant).mockResolvedValueOnce({
+      content: "I will write the file.",
+      status: "complete",
+      toolCalls: [
+        { id: "call-1", toolName: "write_file", arguments: '{"path":"/tmp/a","content":"hi"}' },
+      ],
+    });
+
+    const result = await runAgentLoop({
+      provider,
+      conversationId: "conversation-1",
+      messages: [{ role: "user", content: "Write it" }],
+      runtime: setupL3Runtime(execute),
+      onDelta: vi.fn(),
+    });
+
+    expect(result.turns).toHaveLength(1);
+    expect(result.maxIterationsReached).toBe(false);
+    expect(result.turns[0]?.pendingApproval).toEqual({
+      toolName: "write_file",
+      args: { path: "/tmp/a", content: "hi" },
+    });
+    expect(execute).not.toHaveBeenCalled();
+  });
+});

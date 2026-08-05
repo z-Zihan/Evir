@@ -45,6 +45,16 @@ export function ToolCallCard({ call, result }: ToolCallCardProps) {
           <pre>{resultText}</pre>
         </details>
       )}
+      {permissionRequired && (
+        <div className="tool-call-actions">
+          <button type="button" className="tool-call-approve">
+            {t("tools.approve")}
+          </button>
+          <button type="button" className="tool-call-deny">
+            {t("tools.deny")}
+          </button>
+        </div>
+      )}
     </section>
   );
 }

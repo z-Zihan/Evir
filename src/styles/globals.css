@@ -491,6 +491,32 @@ textarea:focus-visible {
   overflow-wrap: anywhere;
 }
 
+.tool-call-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 11px;
+  border-top: 1px solid var(--border);
+}
+.tool-call-approve,
+.tool-call-deny {
+  padding: 4px 14px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  background: var(--surface);
+  color: var(--foreground);
+}
+.tool-call-approve {
+  color: var(--success);
+  border-color: var(--success);
+}
+.tool-call-deny {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
 /* Modal */
 .modal-backdrop {
   position: fixed;

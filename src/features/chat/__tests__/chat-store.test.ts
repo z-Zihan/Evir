@@ -11,6 +11,17 @@ import { useProviderStore } from "../../provider/provider-store";
 import { useChatStore } from "../chat-store";
 import { streamAssistant } from "../chat-stream";
 
+vi.mock("../../../i18n/config", () => ({
+  default: { t: (key: string) => key },
+}));
+vi.mock("../../../runtime/use-runtime", () => ({
+  getRuntime: () => ({
+    target: "web" as const,
+    capabilities: new Set(["chat", "attachments"]),
+    has: () => true,
+    mode: "ask" as const,
+  }),
+}));
 vi.mock("../chat-stream", () => ({
   providerReadinessError: vi.fn(() => undefined),
   stopActiveStream: vi.fn(),

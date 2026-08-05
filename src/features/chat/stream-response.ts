@@ -1,3 +1,4 @@
+import i18n from "../../i18n/config";
 import type { StoreApi } from "zustand";
 import {
   db,
@@ -57,8 +58,8 @@ function providerMessages(history: MessageRecord[], protocolId: string): Provide
 }
 
 function modeHint(mode: ChatState["mode"]): string {
-  if (mode === "agent") return "You are in Agent mode. Use available tools when needed.";
-  if (mode === "plan") return "You are in Plan mode. Analyze and provide a structured plan.";
+  if (mode === "agent") return i18n.t("chat.modeHints.agent");
+  if (mode === "plan") return i18n.t("chat.modeHints.plan");
   return "";
 }
 
@@ -141,6 +142,10 @@ export async function streamResponse(
   const hint = modeHint(mode);
   if (hint) messages.unshift({ role: "system", content: hint });
   const result = await getTurns(provider, conversationId, messages, set, mode, runtime);
+  if (result.turns.length === 0) {
+    set({ isStreaming: false, streamingContent: "", error: "chat.streamEnded" });
+    return;
+  }
   const assistants = result.turns.map((turn) => toMessage(turn, conversationId));
   const conversation = get().conversations.find(({ id }) => id === conversationId);
   const title = titleFor(history, Boolean(conversation?.title));
