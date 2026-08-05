@@ -1,23 +1,18 @@
 import type { StoreApi } from "zustand";
 import { db, type MessageRecord } from "../../core/storage/db";
 import { useProviderStore } from "../provider/provider-store";
-import { formatAttachmentForProvider } from "./attachment-utils";
 import type { ChatState } from "./chat-store";
-import { providerReadinessError, streamAssistant } from "./chat-stream";
+import { providerReadinessError } from "./chat-stream";
+import { streamResponse } from "./stream-response";
 
 type ChatStoreSet = StoreApi<ChatState>["setState"];
 type ChatStoreGet = StoreApi<ChatState>["getState"];
-
-function sorted(conversations: ChatState["conversations"]): ChatState["conversations"] {
-  return [...conversations].sort((a, b) => b.updatedAt - a.updatedAt);
-}
 
 export async function sendChatMessage(
   set: ChatStoreSet,
   get: ChatStoreGet,
   rawText: string,
 ): Promise<void> {
-  const mode = get().mode;
   const text = rawText.trim();
   if ((!text && get().pendingAttachments.length === 0) || get().isStreaming) return;
   const provider = useProviderStore.getState().getDefaultProvider();
@@ -63,73 +58,7 @@ export async function sendChatMessage(
   }
   set({
     messages: [...history, userMessage],
-    isStreaming: true,
-    streamingContent: "",
-    error: null,
     pendingAttachments: [],
   });
-
-  const streamMessages = [...history, userMessage]
-    .filter((message) => message.status !== "error")
-    .map(({ role, content, id, attachments: messageAttachments }) => {
-      if (role === "user" && id === userMessage.id && attachments.length > 0) {
-        const parts: unknown[] = [{ type: "text", text: content }];
-        for (const attachment of attachments) {
-          parts.push(formatAttachmentForProvider(attachment, provider.protocolId));
-        }
-        return { role, content: parts };
-      }
-      if (role === "user" && messageAttachments && messageAttachments.length > 0) {
-        const parts: unknown[] = [{ type: "text", text: content }];
-        for (const attachment of messageAttachments) {
-          parts.push(formatAttachmentForProvider(attachment, provider.protocolId));
-        }
-        return { role, content: parts };
-      }
-      return { role, content };
-    });
-  const modeHint =
-    mode === "agent"
-      ? "You are in Agent mode. The user expects you to help with tasks."
-      : mode === "plan"
-        ? "You are in Plan mode. Analyze the request and provide a structured plan."
-        : "";
-  if (modeHint) streamMessages.unshift({ role: "system", content: modeHint });
-  const streamResult = await streamAssistant(
-    provider,
-    conversationId,
-    streamMessages,
-    (streamingContent) => set({ streamingContent }),
-  );
-  const assistant: MessageRecord = {
-    id: crypto.randomUUID(),
-    conversationId,
-    role: "assistant",
-    content: streamResult.content,
-    status: streamResult.status,
-    ...(streamResult.errorMessage ? { errorMessage: streamResult.errorMessage } : {}),
-    createdAt: Date.now(),
-  };
-  const updatedAt = Date.now();
-  const title = history.length === 0 ? text.slice(0, 60) : undefined;
-  await db.transaction("rw", db.messages, db.conversations, async () => {
-    await db.messages.add(assistant);
-    await db.conversations.update(conversationId, {
-      updatedAt,
-      ...(title ? { title } : {}),
-    });
-  });
-  set(({ conversations, currentConversationId, messages }) => ({
-    conversations: sorted(
-      conversations.map((conversation) =>
-        conversation.id === conversationId
-          ? { ...conversation, updatedAt, ...(title ? { title } : {}) }
-          : conversation,
-      ),
-    ),
-    ...(currentConversationId === conversationId ? { messages: [...messages, assistant] } : {}),
-    isStreaming: false,
-    streamingContent: "",
-    error: streamResult.errorMessage ?? null,
-  }));
+  await streamResponse(set, get, [...history, userMessage], conversationId);
 }

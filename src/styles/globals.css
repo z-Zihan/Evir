@@ -365,6 +365,55 @@ textarea:focus-visible {
 .message-typing {
   color: var(--muted-foreground);
 }
+.message-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.message-actions button,
+.message-edit-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  font-size: 12px;
+}
+.message-actions button:hover,
+.message-edit-actions button:hover {
+  background: var(--surface);
+  color: var(--foreground);
+}
+.message-actions button:disabled,
+.message-edit-actions button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.message-edit-form textarea {
+  width: 100%;
+  min-height: 88px;
+  padding: 10px;
+  resize: vertical;
+  border: 1px solid var(--input);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--foreground);
+  line-height: 1.6;
+}
+.message-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 6px;
+}
+.message-edit-actions .message-edit-save {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
 .chat-error {
   padding: 8px 28px;
   color: #c0392b;

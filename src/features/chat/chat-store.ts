@@ -10,6 +10,7 @@ import {
   AttachmentError,
 } from "./attachment-utils";
 import { sendChatMessage } from "./send-message";
+import { streamResponse } from "./stream-response";
 
 export interface ChatState {
   conversations: ConversationRecord[];
@@ -26,6 +27,8 @@ export interface ChatState {
   deleteConversation: (id: string) => Promise<void>;
   renameConversation: (id: string, title: string) => Promise<void>;
   sendMessage: (text: string) => Promise<void>;
+  regenerate: () => Promise<void>;
+  editMessage: (messageId: string, newContent: string) => Promise<void>;
   stopGeneration: () => void;
   addAttachment: (file: File) => Promise<void>;
   removeAttachment: (id: string) => void;
@@ -135,5 +138,36 @@ export const useChatStore = create<ChatState>((set, get) => ({
   clearAttachments: () => set({ pendingAttachments: [] }),
   setMode: (mode) => set({ mode }),
   sendMessage: (text) => sendChatMessage(set, get, text),
+  regenerate: async () => {
+    const { messages, currentConversationId, isStreaming } = get();
+    if (!currentConversationId || isStreaming) return;
+    const lastAssistant = [...messages].reverse().find(({ role }) => role === "assistant");
+    if (!lastAssistant) return;
+
+    await db.messages.delete(lastAssistant.id);
+    const history = messages.filter(({ id }) => id !== lastAssistant.id);
+    set({ messages: history });
+    await streamResponse(set, get, history, currentConversationId);
+  },
+  editMessage: async (messageId, newContent) => {
+    const { messages, currentConversationId, isStreaming } = get();
+    if (!currentConversationId || isStreaming) return;
+    const index = messages.findIndex(({ id }) => id === messageId);
+    const message = messages[index];
+    if (!message || message.role !== "user") return;
+
+    const toDelete = messages.slice(index + 1);
+    await db.transaction("rw", db.messages, db.attachments, async () => {
+      await db.messages.update(messageId, { content: newContent });
+      for (const item of toDelete) {
+        await db.attachments.where("messageId").equals(item.id).delete();
+        await db.messages.delete(item.id);
+      }
+    });
+    const updated = messages.slice(0, index + 1);
+    updated[index] = { ...message, content: newContent };
+    set({ messages: updated });
+    await streamResponse(set, get, updated, currentConversationId);
+  },
   stopGeneration: stopActiveStream,
 }));

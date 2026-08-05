@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useChatStore } from "../features/chat/chat-store";
 import { useProviderStore } from "../features/provider/provider-store";
+import { ChatMessage } from "./ChatMessage";
 import { ModeSwitcher } from "./ModeSwitcher";
 
 interface ChatViewProps {
@@ -23,6 +24,8 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
     streamingContent,
     error,
     sendMessage,
+    regenerate,
+    editMessage,
     stopGeneration,
     pendingAttachments,
     addAttachment,
@@ -109,39 +112,13 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
         ) : (
           <div className="message-list">
             {messages.map((msg) => (
-              <div key={msg.id} className={`message message-${msg.role}`}>
-                <div className="message-content">
-                  {msg.attachments && msg.attachments.length > 0 && (
-                    <div className="message-attachments">
-                      {msg.attachments.map((att) =>
-                        att.type === "image" ? (
-                          <img
-                            key={att.id}
-                            src={att.data}
-                            alt={att.fileName}
-                            className="message-attachment-image"
-                          />
-                        ) : (
-                          <span key={att.id} className="message-attachment-file">
-                            {att.fileName}
-                          </span>
-                        ),
-                      )}
-                    </div>
-                  )}
-                  {msg.role === "assistant" ? (
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
-                  ) : (
-                    <p>{msg.content}</p>
-                  )}
-                  {msg.status === "stopped" && (
-                    <span className="message-stopped">({t("chat.stopped")})</span>
-                  )}
-                  {msg.status === "error" && msg.errorMessage && (
-                    <div className="message-error">{displayError(msg.errorMessage)}</div>
-                  )}
-                </div>
-              </div>
+              <ChatMessage
+                key={msg.id}
+                message={msg}
+                disabled={isStreaming}
+                onEdit={editMessage}
+                onRegenerate={regenerate}
+              />
             ))}
             {isStreaming && (
               <div className="message message-assistant">
