@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useChatStore } from "../features/chat/chat-store";
 import { useProviderStore } from "../features/provider/provider-store";
+import { ModeSwitcher } from "./ModeSwitcher";
 
 interface ChatViewProps {
   input: string;
@@ -17,6 +18,7 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
   const { t, i18n } = useTranslation();
   const {
     messages,
+    mode,
     isStreaming,
     streamingContent,
     error,
@@ -25,6 +27,7 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
     pendingAttachments,
     addAttachment,
     removeAttachment,
+    setMode,
   } = useChatStore();
   const { getDefaultProvider } = useProviderStore();
   const provider = getDefaultProvider();
@@ -156,6 +159,7 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
       </div>
       {error && <div className="chat-error">{displayError(error)}</div>}
       <footer className="composer-wrap">
+        <ModeSwitcher mode={mode} onModeChange={setMode} />
         <div
           className={`composer${dragOver ? " drag-over" : ""}`}
           onDrop={handleDrop}

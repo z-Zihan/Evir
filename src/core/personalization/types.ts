@@ -19,6 +19,28 @@ export interface PersonalizationSettings {
   conversationOverridesEnabled: boolean;
 }
 
+export const RESPONSE_LANGUAGES = ["follow-app", "en", "zh-CN"] as const;
+export const RESPONSE_DETAIL_LEVELS = ["concise", "balanced", "detailed"] as const;
+export const RESPONSE_STYLES = ["professional", "casual", "academic"] as const;
+
+export interface PersonalizationPreferences {
+  enabled: boolean;
+  displayName: string;
+  responseLanguage: (typeof RESPONSE_LANGUAGES)[number];
+  detailLevel: (typeof RESPONSE_DETAIL_LEVELS)[number];
+  style: (typeof RESPONSE_STYLES)[number];
+  customInstructions: string;
+}
+
+export const DEFAULT_PERSONALIZATION_PREFERENCES: PersonalizationPreferences = {
+  enabled: false,
+  displayName: "",
+  responseLanguage: "follow-app",
+  detailLevel: "balanced",
+  style: "professional",
+  customInstructions: "",
+};
+
 export const EDITABLE_PERSONALIZATION_DOCUMENTS = [
   { id: "user", fileName: "USER.md", advanced: false },
   { id: "persona", fileName: "PERSONA.md", advanced: false },

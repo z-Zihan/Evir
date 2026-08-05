@@ -1,20 +1,21 @@
 import { create } from "zustand";
 // NOTE: Uses Dexie directly for indexed queries; StoragePort covers basic CRUD
 import { db, type ConversationRecord, type MessageRecord } from "../../core/storage/db";
-import { useProviderStore } from "../provider/provider-store";
-import { providerReadinessError, stopActiveStream, streamAssistant } from "./chat-stream";
+import type { InteractionMode } from "../../core/providers/tool-registry";
+import { stopActiveStream } from "./chat-stream";
 import {
-  formatAttachmentForProvider,
   processFile,
   validateAttachmentCount,
   type ProcessedAttachment,
   AttachmentError,
 } from "./attachment-utils";
+import { sendChatMessage } from "./send-message";
 
-interface ChatState {
+export interface ChatState {
   conversations: ConversationRecord[];
   currentConversationId: string | null;
   messages: MessageRecord[];
+  mode: InteractionMode;
   isStreaming: boolean;
   streamingContent: string;
   error: string | null;
@@ -29,16 +30,14 @@ interface ChatState {
   addAttachment: (file: File) => Promise<void>;
   removeAttachment: (id: string) => void;
   clearAttachments: () => void;
-}
-
-function sorted(conversations: ConversationRecord[]): ConversationRecord[] {
-  return [...conversations].sort((a, b) => b.updatedAt - a.updatedAt);
+  setMode: (mode: InteractionMode) => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
   conversations: [],
   currentConversationId: null,
   messages: [],
+  mode: "ask",
   isStreaming: false,
   streamingContent: "",
   error: null,
@@ -134,107 +133,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   clearAttachments: () => set({ pendingAttachments: [] }),
-
-  sendMessage: async (rawText) => {
-    const text = rawText.trim();
-    if ((!text && get().pendingAttachments.length === 0) || get().isStreaming) return;
-    const provider = useProviderStore.getState().getDefaultProvider();
-    if (!provider) return set({ error: "chat.noProvider" });
-    const readinessError = providerReadinessError(provider);
-    if (readinessError) return set({ error: readinessError });
-
-    const attachments = get().pendingAttachments;
-    let conversationId = get().currentConversationId;
-    if (!conversationId)
-      conversationId = await get().createConversation(provider.id, provider.modelId);
-    const history = get().messages;
-    const now = Date.now();
-    const userMessage: MessageRecord = {
-      id: crypto.randomUUID(),
-      conversationId,
-      role: "user",
-      content: text,
-      status: "complete",
-      createdAt: now,
-    };
-    if (attachments.length > 0) {
-      userMessage.attachments = attachments.map((a) => ({
-        id: a.id,
-        messageId: userMessage.id,
-        fileName: a.fileName,
-        mimeType: a.mimeType,
-        size: a.size,
-        data: a.data,
-        type: a.type,
-        createdAt: now,
-      }));
-    }
-    await db.messages.add(userMessage);
-    if (attachments.length > 0) {
-      await db.attachments.bulkPut(
-        attachments.map((att) => ({ ...att, messageId: userMessage.id, createdAt: now })),
-      );
-    }
-    set({
-      messages: [...history, userMessage],
-      isStreaming: true,
-      streamingContent: "",
-      error: null,
-      pendingAttachments: [],
-    });
-
-    const streamMessages = [...history, userMessage]
-      .filter((message) => message.status !== "error")
-      .map(({ role, content: messageContent }) => {
-        if (role === "user" && attachments.length > 0) {
-          const parts: unknown[] = [{ type: "text", text: messageContent }];
-          for (const att of attachments) {
-            parts.push(formatAttachmentForProvider(att, provider.protocolId));
-          }
-          return { role, content: parts };
-        }
-        return { role, content: messageContent };
-      });
-
-    const streamResult = await streamAssistant(
-      provider,
-      conversationId,
-      streamMessages,
-      (streamingContent) => set({ streamingContent }),
-    );
-
-    const assistant: MessageRecord = {
-      id: crypto.randomUUID(),
-      conversationId,
-      role: "assistant",
-      content: streamResult.content,
-      status: streamResult.status,
-      ...(streamResult.errorMessage ? { errorMessage: streamResult.errorMessage } : {}),
-      createdAt: Date.now(),
-    };
-    const updatedAt = Date.now();
-    const title = history.length === 0 ? text.slice(0, 60) : undefined;
-    await db.transaction("rw", db.messages, db.conversations, async () => {
-      await db.messages.add(assistant);
-      await db.conversations.update(conversationId, {
-        updatedAt,
-        ...(title ? { title } : {}),
-      });
-    });
-    set(({ conversations, currentConversationId: curId, messages }) => ({
-      conversations: sorted(
-        conversations.map((conversation) =>
-          conversation.id === conversationId
-            ? { ...conversation, updatedAt, ...(title ? { title } : {}) }
-            : conversation,
-        ),
-      ),
-      ...(curId === conversationId ? { messages: [...messages, assistant] } : {}),
-      isStreaming: false,
-      streamingContent: "",
-      error: streamResult.errorMessage ?? null,
-    }));
-  },
-
+  setMode: (mode) => set({ mode }),
+  sendMessage: (text) => sendChatMessage(set, get, text),
   stopGeneration: stopActiveStream,
 }));
