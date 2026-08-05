@@ -171,13 +171,16 @@ export class GeminiClient implements ProtocolAdapter {
     signal?: AbortSignal,
   ): Promise<Response> {
     const action = stream ? "streamGenerateContent" : "generateContent";
-    const query = `key=${encodeURIComponent(this.connection.apiKey)}${stream ? "&alt=sse" : ""}`;
+    const query = stream ? "alt=sse" : "";
     const baseUrl = this.connection.baseUrl.replace(/\/+$/, "");
-    return fetch(`${baseUrl}/v1beta/models/${encodeURIComponent(model)}:${action}?${query}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      ...(signal ? { signal } : {}),
-    });
+    return fetch(
+      `${baseUrl}/v1beta/models/${encodeURIComponent(model)}:${action}${query ? `?${query}` : ""}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": this.connection.apiKey },
+        body: JSON.stringify(body),
+        ...(signal ? { signal } : {}),
+      },
+    );
   }
 }

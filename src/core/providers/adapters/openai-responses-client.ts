@@ -87,8 +87,14 @@ export class OpenAIResponsesClient implements ProtocolAdapter {
   }): AsyncIterable<ProviderStreamEvent> {
     let responseId = uuid();
     try {
+      const { input, instructions } = responsesInput(params.messages);
       const response = await this.request(
-        { model: params.modelId, input: responsesInput(params.messages), stream: true },
+        {
+          model: params.modelId,
+          input,
+          ...(instructions ? { instructions } : {}),
+          stream: true,
+        },
         params.signal,
       );
       if (!response.ok) {

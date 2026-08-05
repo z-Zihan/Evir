@@ -18,19 +18,31 @@ export function responsesEndpoint(baseUrl: string): string {
   return clean.endsWith("/v1") ? `${clean}/responses` : `${clean}/v1/responses`;
 }
 
-export function responsesInput(messages: unknown[]): Record<string, unknown>[] {
+export function responsesInput(messages: unknown[]): {
+  input: Record<string, unknown>[];
+  instructions?: string;
+} {
   const input: Record<string, unknown>[] = [];
+  const systemParts: string[] = [];
   for (const value of messages) {
     const message = asRecord(value);
     const role = asString(message?.role);
     const text = asString(message?.content);
-    if (!text || (role !== "user" && role !== "assistant" && role !== "system")) continue;
+    if (!text) continue;
+    if (role === "system") {
+      systemParts.push(text);
+      continue;
+    }
+    if (role !== "user" && role !== "assistant") continue;
     input.push({
       role,
       content: [{ type: role === "assistant" ? "output_text" : "input_text", text }],
     });
   }
-  return input;
+  return {
+    input,
+    ...(systemParts.length > 0 ? { instructions: systemParts.join("\n\n") } : {}),
+  };
 }
 
 export async function* responseSseEvents(

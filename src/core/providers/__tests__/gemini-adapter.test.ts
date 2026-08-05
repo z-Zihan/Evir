@@ -115,7 +115,7 @@ describe("GeminiGenerateContentAdapter", () => {
     const url = call?.[0];
     const init = call?.[1];
     expect(url).toBe(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-test:streamGenerateContent?key=secret&alt=sse",
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-test:streamGenerateContent?alt=sse",
     );
     expect(JSON.parse(init?.body as string)).toEqual({
       contents: [
@@ -124,6 +124,9 @@ describe("GeminiGenerateContentAdapter", () => {
       ],
       systemInstruction: { parts: [{ text: "Be concise" }] },
     });
-    expect(init?.headers).toEqual({ "Content-Type": "application/json" });
+    expect(init?.headers).toEqual({
+      "Content-Type": "application/json",
+      "x-goog-api-key": "secret",
+    });
   });
 });
