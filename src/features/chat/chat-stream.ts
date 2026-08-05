@@ -22,7 +22,9 @@ export function providerReadinessError(provider: ProviderRecord): string | undef
   if (
     provider.protocolId !== "openai-chat-completions" &&
     provider.protocolId !== "openai-compatible-chat" &&
-    provider.protocolId !== "anthropic-messages"
+    provider.protocolId !== "anthropic-messages" &&
+    provider.protocolId !== "gemini-generate-content" &&
+    provider.protocolId !== "openai-responses"
   )
     return "chat.protocolUnsupported";
 }

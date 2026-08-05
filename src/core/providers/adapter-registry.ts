@@ -1,14 +1,18 @@
 import type { ProtocolAdapter } from "./stream-events";
 import type { ProtocolAdapterId } from "./types";
 import { AnthropicMessagesAdapter } from "./adapters/anthropic-messages";
+import { GeminiGenerateContentAdapter } from "./adapters/gemini-generate-content";
 import { OpenAIChatCompletionsAdapter } from "./adapters/openai-chat-completions";
 import { OpenAICompatibleChatAdapter } from "./adapters/openai-compatible-chat";
+import { OpenAIResponsesAdapter } from "./adapters/openai-responses";
 import type { OpenAIConnectionConfig } from "./adapters/openai-chat-client";
 
 export function getAdapter(protocolId: ProtocolAdapterId): ProtocolAdapter | undefined {
   if (protocolId === "anthropic-messages") return new AnthropicMessagesAdapter();
+  if (protocolId === "gemini-generate-content") return new GeminiGenerateContentAdapter();
   if (protocolId === "openai-chat-completions") return new OpenAIChatCompletionsAdapter();
   if (protocolId === "openai-compatible-chat") return new OpenAICompatibleChatAdapter();
+  if (protocolId === "openai-responses") return new OpenAIResponsesAdapter();
   return undefined;
 }
 
@@ -17,12 +21,16 @@ export function createConfiguredAdapter(
   config: OpenAIConnectionConfig,
 ): ProtocolAdapter | undefined {
   if (protocolId === "anthropic-messages") return new AnthropicMessagesAdapter(config);
+  if (protocolId === "gemini-generate-content") {
+    return new GeminiGenerateContentAdapter(config);
+  }
   if (protocolId === "openai-chat-completions") {
     return new OpenAIChatCompletionsAdapter(config);
   }
   if (protocolId === "openai-compatible-chat") {
     return new OpenAICompatibleChatAdapter(config);
   }
+  if (protocolId === "openai-responses") return new OpenAIResponsesAdapter(config);
   return undefined;
 }
 
