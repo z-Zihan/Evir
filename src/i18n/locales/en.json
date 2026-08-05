@@ -16,7 +16,14 @@
     "placeholder": "Message Evir…",
     "modelPlaceholder": "No model configured",
     "send": "Send",
-    "disclaimer": "Evir can make mistakes. Verify important results."
+    "stop": "Stop",
+    "stopped": "stopped",
+    "disclaimer": "Evir can make mistakes. Verify important results.",
+    "noProvider": "No model provider configured. Open settings to add one.",
+    "addProviderFirst": "Add Provider",
+    "streamEnded": "Stream ended unexpectedly",
+    "copyCode": "Copy code",
+    "copied": "Copied"
   },
   "runtime": {
     "agentReady": "Local agent runtime",
@@ -38,6 +45,25 @@
     "help": "Help",
     "feedback": "Send feedback",
     "about": "About Evir"
+  },
+  "provider": {
+    "add": "Add provider",
+    "edit": "Edit",
+    "delete": "Delete",
+    "name": "Name",
+    "protocol": "Protocol",
+    "baseUrl": "Base URL",
+    "apiKey": "***",
+    "modelId": "Model",
+    "testConnection": "Test connection",
+    "connectionSuccess": "Connection successful",
+    "connectionFailed": "Connection failed",
+    "setDefault": "Set as default",
+    "default": "Default",
+    "save": "Save",
+    "cancel": "Cancel",
+    "noProviders": "No providers configured",
+    "addFirst": "Add a provider to start chatting"
   },
   "shortcuts": {
     "commandPalette": "Open command palette",

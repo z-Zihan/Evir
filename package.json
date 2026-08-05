@@ -20,11 +20,15 @@
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
+    "dexie": "^4.4.4",
     "i18next": "^25.0.0",
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-i18next": "^16.0.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "zod": "^4.4.3",
     "zustand": "^5.0.0"
   },
   "devDependencies": {
@@ -39,6 +43,7 @@
     "eslint": "^9.0.0",
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.0",
+    "fake-indexeddb": "^6.2.5",
     "globals": "^16.0.0",
     "jsdom": "^26.0.0",
     "prettier": "^3.0.0",

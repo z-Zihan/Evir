@@ -16,7 +16,14 @@
     "placeholder": "输入消息…",
     "modelPlaceholder": "尚未配置模型",
     "send": "发送",
-    "disclaimer": "Evir 可能出错。重要结果请核验。"
+    "stop": "停止",
+    "stopped": "已停止",
+    "disclaimer": "Evir 可能出错。重要结果请核验。",
+    "noProvider": "尚未配置模型供应商。打开设置添加一个。",
+    "addProviderFirst": "添加供应商",
+    "streamEnded": "流式响应意外结束",
+    "copyCode": "复制代码",
+    "copied": "已复制"
   },
   "runtime": {
     "agentReady": "本地 Agent Runtime",
@@ -38,6 +45,25 @@
     "help": "帮助",
     "feedback": "提交反馈",
     "about": "关于 Evir"
+  },
+  "provider": {
+    "add": "添加供应商",
+    "edit": "编辑",
+    "delete": "删除",
+    "name": "名称",
+    "protocol": "协议",
+    "baseUrl": "Base URL",
+    "apiKey": "***",
+    "modelId": "模型",
+    "testConnection": "测试连接",
+    "connectionSuccess": "连接成功",
+    "connectionFailed": "连接失败",
+    "setDefault": "设为默认",
+    "default": "默认",
+    "save": "保存",
+    "cancel": "取消",
+    "noProviders": "尚未配置供应商",
+    "addFirst": "添加供应商后开始聊天"
   },
   "shortcuts": {
     "commandPalette": "打开命令面板",
