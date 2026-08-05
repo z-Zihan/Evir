@@ -1,4 +1,5 @@
 import { create } from "zustand";
+// NOTE: Uses Dexie directly for indexed queries; StoragePort covers basic CRUD
 import { db, type ConversationRecord, type MessageRecord } from "../../core/storage/db";
 import { useProviderStore } from "../provider/provider-store";
 import { providerReadinessError, stopActiveStream, streamAssistant } from "./chat-stream";
@@ -86,6 +87,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   sendMessage: async (rawText) => {
     const text = rawText.trim();
+    // ChatView disables sending while streaming; keep this guard for non-UI callers.
     if (!text || get().isStreaming) return;
     const provider = useProviderStore.getState().getDefaultProvider();
     if (!provider) return set({ error: "chat.noProvider" });

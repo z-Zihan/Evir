@@ -27,6 +27,12 @@ const authSchema = z.object({
   apiKey: z.string().min(1),
 });
 
+function uuid(): string {
+  return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 export class OpenAIChatClient implements ProtocolAdapter {
   private connection: OpenAIConnectionConfig;
 
@@ -86,8 +92,9 @@ export class OpenAIChatClient implements ProtocolAdapter {
     tools?: unknown[];
     signal?: AbortSignal;
   }): AsyncIterable<ProviderStreamEvent> {
-    let responseId: string = crypto.randomUUID();
+    let responseId: string = uuid();
     let finishReason = "stop";
+    let hasFinished = false;
     const openToolCalls = new Set<string>();
     try {
       const response = await this.request(
@@ -160,7 +167,11 @@ export class OpenAIChatClient implements ProtocolAdapter {
           if (argumentsDelta)
             yield { type: "tool-call-arguments-delta", toolCallId, argumentsDelta };
         }
-        finishReason = string(choice?.finish_reason) ?? finishReason;
+        const nextFinishReason = string(choice?.finish_reason);
+        if (nextFinishReason) {
+          finishReason = nextFinishReason;
+          hasFinished = true;
+        }
         const usage = record(root?.usage);
         if (usage) {
           const inputTokens = number(usage.prompt_tokens);
@@ -176,14 +187,19 @@ export class OpenAIChatClient implements ProtocolAdapter {
           };
         }
       }
-      yield {
-        type: "error",
-        error: {
-          type: ProviderErrorType.NETWORK_ERROR,
-          message: "Provider stream ended before completion",
-          retryable: true,
-        },
-      };
+      if (hasFinished) {
+        for (const toolCallId of openToolCalls) yield { type: "tool-call-end", toolCallId };
+        yield { type: "response-complete", responseId, finishReason };
+      } else {
+        yield {
+          type: "error",
+          error: {
+            type: ProviderErrorType.NETWORK_ERROR,
+            message: "Provider stream ended before completion",
+            retryable: true,
+          },
+        };
+      }
     } catch (error) {
       yield { type: "error", error: mapThrownError(error, params.signal) };
     }

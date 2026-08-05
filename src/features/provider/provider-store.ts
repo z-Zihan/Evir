@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { z } from "zod";
 import { getAdapter } from "../../core/providers/adapter-registry";
 import type { ProviderError } from "../../core/providers/stream-events";
+// NOTE: Uses Dexie directly for indexed queries; StoragePort covers basic CRUD
 import { db, type ProviderRecord } from "../../core/storage/db";
 
 export const providerSchema = z.object({
@@ -11,6 +12,7 @@ export const providerSchema = z.object({
   apiKey: z.string().min(1),
   modelId: z.string().trim().min(1),
 });
+const updateSchema = providerSchema.extend({ apiKey: z.string().optional() });
 
 export type ProviderConfigInput = z.infer<typeof providerSchema>;
 export type ConnectionResult = { ok: boolean; error?: ProviderError };
@@ -72,10 +74,11 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
   updateProvider: async (id, patch) => {
     const current = get().providers.find((provider) => provider.id === id);
     if (!current) throw new Error("Provider not found");
-    const config = providerSchema.parse({ ...current, ...patch });
+    const { apiKey = current.apiKey, ...config } = updateSchema.parse({ ...current, ...patch });
     const updated: ProviderRecord = {
       ...current,
       ...config,
+      apiKey,
       ...(patch.enabled === undefined ? {} : { enabled: patch.enabled }),
       updatedAt: Date.now(),
     };

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+// NOTE: Uses Dexie directly for indexed queries; StoragePort covers basic CRUD
 import { db, type UsageRecord } from "../../core/storage/db";
 
 interface UsageState {

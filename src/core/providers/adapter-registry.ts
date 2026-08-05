@@ -4,20 +4,21 @@ import { OpenAIChatCompletionsAdapter } from "./adapters/openai-chat-completions
 import { OpenAICompatibleChatAdapter } from "./adapters/openai-compatible-chat";
 import type { OpenAIConnectionConfig } from "./adapters/openai-chat-client";
 
-const adapters: Partial<Record<ProtocolAdapterId, ProtocolAdapter>> = {
-  "openai-chat-completions": new OpenAIChatCompletionsAdapter(),
-  "openai-compatible-chat": new OpenAICompatibleChatAdapter(),
-};
-
 export function getAdapter(protocolId: ProtocolAdapterId): ProtocolAdapter | undefined {
-  return adapters[protocolId];
+  if (protocolId === "openai-chat-completions") return new OpenAIChatCompletionsAdapter();
+  if (protocolId === "openai-compatible-chat") return new OpenAICompatibleChatAdapter();
+  return undefined;
 }
 
-export function configureAdapter(adapter: ProtocolAdapter, config: OpenAIConnectionConfig): void {
-  if (
-    adapter instanceof OpenAIChatCompletionsAdapter ||
-    adapter instanceof OpenAICompatibleChatAdapter
-  ) {
-    adapter.configure(config);
+export function createConfiguredAdapter(
+  protocolId: ProtocolAdapterId,
+  config: OpenAIConnectionConfig,
+): ProtocolAdapter | undefined {
+  if (protocolId === "openai-chat-completions") {
+    return new OpenAIChatCompletionsAdapter(config);
   }
+  if (protocolId === "openai-compatible-chat") {
+    return new OpenAICompatibleChatAdapter(config);
+  }
+  return undefined;
 }

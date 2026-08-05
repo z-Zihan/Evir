@@ -27,8 +27,8 @@ export function ProviderSettings() {
           ? t("provider.connectionSuccess")
           : `${t("provider.connectionFailed")}: ${result.error?.message ?? ""}`,
       );
-    } catch {
-      setTestResult(t("provider.connectionFailed"));
+    } catch (error) {
+      setTestResult(error instanceof Error ? error.message : String(error));
     }
     setTesting(false);
   };
@@ -45,8 +45,8 @@ export function ProviderSettings() {
         modelId: "",
       });
       setTestResult(null);
-    } catch {
-      setTestResult(t("provider.connectionFailed"));
+    } catch (error) {
+      setTestResult(error instanceof Error ? error.message : String(error));
     }
   };
 
