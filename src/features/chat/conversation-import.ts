@@ -53,6 +53,8 @@ const conversationSchema = z.object({
   modelId: z.string(),
   createdAt: z.number(),
   updatedAt: z.number(),
+  parentConversationId: z.string().optional(),
+  branchedFromMessageId: z.string().optional(),
   messages: z.array(messageSchema),
 });
 
@@ -76,8 +78,12 @@ export async function importConversations(
         skipped++;
         continue;
       }
-      const { messages, ...convData } = conv;
-      await db.conversations.put(convData);
+      const { messages, parentConversationId, branchedFromMessageId, ...convRest } = conv;
+      await db.conversations.put({
+        ...convRest,
+        ...(parentConversationId !== undefined ? { parentConversationId } : {}),
+        ...(branchedFromMessageId !== undefined ? { branchedFromMessageId } : {}),
+      });
       for (const msg of messages) {
         const { attachments, ...msgData } = msg;
         const msgRecord = {

@@ -45,7 +45,10 @@
     "unsupportedFileType": "不支持的文件类型。支持图片和文本文件。",
     "fileTooLarge": "文件过大。图片最大 10MB，文本最大 1MB。",
     "removeAttachment": "移除附件",
-    "attachmentLimit": "每条消息最多 5 个附件。"
+    "attachmentLimit": "每条消息最多 5 个附件。",
+    "branch": "分支",
+    "branchFromHere": "从此处分支",
+    "branched": "(已分支)"
   },
   "runtime": {
     "agentReady": "本地 Agent Runtime",

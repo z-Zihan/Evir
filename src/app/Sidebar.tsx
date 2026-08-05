@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { MessageSquarePlus, Moon, Search, Settings2, Sun, Trash2 } from "lucide-react";
+import { GitBranch, MessageSquarePlus, Moon, Search, Settings2, Sun, Trash2 } from "lucide-react";
 import { useChatStore } from "../features/chat/chat-store";
 import { useProviderStore } from "../features/provider/provider-store";
 import { useThemeStore } from "../features/settings/theme-store";
@@ -69,7 +69,15 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
               className={`conversation-item${conv.id === currentConversationId ? " active" : ""}`}
               onClick={() => handleSelectConversation(conv.id)}
             >
-              <span className="conversation-title">{conv.title || t("chat.title")}</span>
+              <span className="conversation-title">
+                {conv.title || t("chat.title")}
+                {conv.parentConversationId && (
+                  <span className="conversation-branch-indicator">
+                    <GitBranch size={11} />
+                    {t("chat.branched")}
+                  </span>
+                )}
+              </span>
               <button
                 className="conversation-delete"
                 type="button"

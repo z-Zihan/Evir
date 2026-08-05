@@ -32,6 +32,7 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
     addAttachment,
     removeAttachment,
     setMode,
+    branchConversation,
   } = useChatStore();
   const { getDefaultProvider } = useProviderStore();
   const provider = getDefaultProvider();
@@ -102,6 +103,7 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
                 disabled={isStreaming}
                 onEdit={editMessage}
                 onRegenerate={regenerate}
+                onBranch={(messageId) => void branchConversation(messageId)}
               />
             ))}
             {isStreaming && (

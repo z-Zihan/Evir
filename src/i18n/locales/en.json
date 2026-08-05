@@ -45,7 +45,10 @@
     "unsupportedFileType": "Unsupported file type. Images and text files are supported.",
     "fileTooLarge": "File too large. Images: max 10MB, text: max 1MB.",
     "removeAttachment": "Remove attachment",
-    "attachmentLimit": "Maximum 5 attachments per message."
+    "attachmentLimit": "Maximum 5 attachments per message.",
+    "branch": "Branch",
+    "branchFromHere": "Branch from here",
+    "branched": "(branched)"
   },
   "runtime": {
     "agentReady": "Local agent runtime",

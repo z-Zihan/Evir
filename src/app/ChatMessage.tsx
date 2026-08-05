@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pencil, RotateCcw } from "lucide-react";
+import { GitBranch, Pencil, RotateCcw } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { MessageRecord } from "../core/storage/db";
@@ -11,9 +11,16 @@ interface ChatMessageProps {
   disabled: boolean;
   onEdit: (messageId: string, content: string) => Promise<void>;
   onRegenerate: () => Promise<void>;
+  onBranch: (messageId: string) => void;
 }
 
-export function ChatMessage({ message, disabled, onEdit, onRegenerate }: ChatMessageProps) {
+export function ChatMessage({
+  message,
+  disabled,
+  onEdit,
+  onRegenerate,
+  onBranch,
+}: ChatMessageProps) {
   const { t, i18n } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(message.content);
@@ -109,6 +116,10 @@ export function ChatMessage({ message, disabled, onEdit, onRegenerate }: ChatMes
               {t("chat.edit")}
             </button>
           )}
+          <button type="button" onClick={() => onBranch(message.id)} disabled={disabled}>
+            <GitBranch size={14} />
+            {t("chat.branch")}
+          </button>
         </div>
       )}
     </div>

@@ -12,6 +12,7 @@ import {
 import { sendChatMessage } from "./send-message";
 import { streamResponse } from "./stream-response";
 import { getRuntime } from "../../runtime/use-runtime";
+import { branchConversation as doBranchConversation } from "./branch-conversation";
 
 export interface ChatState {
   conversations: ConversationRecord[];
@@ -35,6 +36,7 @@ export interface ChatState {
   removeAttachment: (id: string) => void;
   clearAttachments: () => void;
   setMode: (mode: InteractionMode) => void;
+  branchConversation: (messageId: string) => Promise<string>;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -170,4 +172,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
     await streamResponse(set, get, updated, currentConversationId, getRuntime());
   },
   stopGeneration: stopActiveStream,
+  branchConversation: async (messageId) => {
+    const { currentConversationId, messages, conversations } = get();
+    if (!currentConversationId) throw new Error("No active conversation");
+    const conversation = conversations.find((c) => c.id === currentConversationId);
+    if (!conversation) throw new Error("Conversation not found");
+    const newId = await doBranchConversation(
+      currentConversationId,
+      messages,
+      conversation,
+      messageId,
+    );
+    await get().loadConversations();
+    await get().selectConversation(newId);
+    return newId;
+  },
 }));

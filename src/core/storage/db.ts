@@ -20,6 +20,8 @@ export interface ConversationRecord {
   modelId: string;
   createdAt: number;
   updatedAt: number;
+  parentConversationId?: string;
+  branchedFromMessageId?: string;
 }
 
 export interface AttachmentRecord {
@@ -114,3 +116,20 @@ export class EvirDB extends Dexie {
 }
 
 export const db = new EvirDB();
+
+export function createBranch(
+  source: ConversationRecord,
+  branchedFromMessageId: string,
+): ConversationRecord {
+  const now = Date.now();
+  return {
+    id: crypto.randomUUID(),
+    title: `${source.title} (branch)`,
+    providerId: source.providerId,
+    modelId: source.modelId,
+    createdAt: now,
+    updatedAt: now,
+    parentConversationId: source.id,
+    branchedFromMessageId,
+  };
+}
