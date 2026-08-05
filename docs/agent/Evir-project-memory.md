@@ -2,7 +2,7 @@
 
 > Scope: This memory applies only to the Evir repository.
 > Repository: git@github.com:z-Zihan/Evir.git
-> Last reviewed commit: 82f20f3
+> Last reviewed commit: 1e7b804
 > Last updated: 2026-08-05
 
 ## 1. Product Identity
@@ -156,21 +156,19 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 ## 18. Current Development Stage
 
 阶段 0 ✅ 完成
-阶段 1（Provider 与纯净聊天 MVP）约 55%
+阶段 1（Provider 与纯净聊天 MVP）约 65%
 
 ## 19. Verified User Capabilities
 
-用户当前可以：添加 Provider（OpenAI/Anthropic/兼容协议）→ 测试连接 → 获取模型列表 → 新建会话 → 发送消息 → 看到真实流式回复 → 停止生成 → 刷新恢复 → 快捷键操作（Cmd+N/Cmd+,/Cmd+B/Esc）→ 切换中英文/主题
+用户当前可以：添加 Provider（OpenAI/Anthropic/兼容协议）→ 测试连接 → 获取模型列表 → 新建会话 → 发送消息 → 看到真实流式回复 → 停止生成 → 刷新恢复 → 快捷键操作 → 会话搜索 → 查看 Usage 统计 → 分类错误展示 → 切换中英文/主题
 
 ## 20. Known Gaps and Risks
 
 1. 只支持 OpenAI Chat + Anthropic Messages，缺 Gemini/OpenAI Responses
-2. Usage 记录已写但无统计 UI
-3. CORS 错误展示不够友好
-4. Stores 绕过 StoragePort 直接用 Dexie（架构债务）
-5. 无附件支持
-6. Desktop 存储未实现
-7. 无会话搜索功能
+2. Stores 绕过 StoragePort 直接用 Dexie（架构债务）
+3. 无附件支持
+4. Desktop 存储未实现
+5. CORS 错误展示可进一步优化（已做基础分类）
 
 ## 21. Active Decisions
 
@@ -181,11 +179,11 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 ## 22. Next Vertical Slice
 
-1. Usage 统计 UI（Token 用量面板）
-2. 完善错误分类与 CORS 用户指引
-3. 实现 Gemini Adapter
-4. 实现 OpenAI Responses Adapter
-5. 会话搜索功能
+1. 实现 Gemini Adapter
+2. 实现 OpenAI Responses Adapter
+3. 附件支持（图片上传）
+4. Desktop SQLite/Keychain 存储
+5. 个性化设置 UI
 
 ## 23. Relevant Source Documents
 
@@ -206,3 +204,4 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 - 2026-08-05 | 5b5bcbd | 创建项目记忆；阶段0完成 + 聊天垂直切片完成 + P0/P1 修复完成；22 tests pass；Web gzip 184.96 KB
 - 2026-08-05 | 82f20f3 | Anthropic Messages Adapter + 模型发现 + 快捷键监听 + review 修复；30 tests pass；Web gzip 186.94 KB
+- 2026-08-05 | 1e7b804 | Usage 统计面板 + 会话搜索 + 错误分类展示（12 种 ProviderErrorType）；30 tests pass；Web gzip 189.05 KB
