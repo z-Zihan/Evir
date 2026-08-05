@@ -161,5 +161,18 @@
     "usage": "Token 与用量",
     "privacy": "数据与隐私",
     "troubleshooting": "故障排查"
+  },
+  "skill": {
+    "title": "Skill",
+    "enabled": "已启用",
+    "disabled": "已禁用",
+    "enable": "启用",
+    "disable": "禁用",
+    "riskLevel": "风险等级",
+    "noSkills": "暂无安装的 Skill",
+    "builtin": "内置",
+    "low": "低",
+    "medium": "中",
+    "high": "高"
   }
 }

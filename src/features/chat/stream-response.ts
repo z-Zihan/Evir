@@ -11,6 +11,7 @@ import { formatAttachmentForProvider } from "./attachment-utils";
 import { runAgentLoop, type AgentLoopTurn } from "./agent-loop";
 import type { ChatState } from "./chat-store";
 import { providerReadinessError, streamAssistant, type StreamResult } from "./chat-stream";
+import { useSkillStore } from "../skills/skill-store";
 import type { EvirRuntime } from "../../runtime/types";
 
 type ChatStoreSet = StoreApi<ChatState>["setState"];
@@ -141,6 +142,12 @@ export async function streamResponse(
   const messages = providerMessages(history, provider.protocolId);
   const hint = modeHint(mode);
   if (hint) messages.unshift({ role: "system", content: hint });
+  if (mode === "agent" || mode === "plan") {
+    const skillContent = await useSkillStore.getState().getEnabledContent();
+    if (skillContent) {
+      messages.unshift({ role: "system", content: `\n\n--- Active Skills ---\n${skillContent}` });
+    }
+  }
   const result = await getTurns(provider, conversationId, messages, set, mode, runtime);
   if (result.turns.length === 0) {
     set({ isStreaming: false, streamingContent: "", error: "chat.streamEnded" });

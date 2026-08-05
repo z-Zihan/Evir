@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Database, X } from "lucide-react";
 import { PersonalizationPanel } from "./PersonalizationSettings";
+import { SkillSettings } from "./SkillSettings";
 import { ProviderSettings } from "./ProviderSettings";
 import { UsagePanel } from "./UsagePanel";
 import { downloadBlob, exportConversations } from "../features/chat/conversation-export";
@@ -14,14 +15,14 @@ interface SettingsModalProps {
 
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const { t, i18n } = useTranslation();
-  const [activeTab, setActiveTab] = useState<"providers" | "personalization" | "usage" | "data">(
-    "providers",
-  );
+  const [activeTab, setActiveTab] = useState<
+    "providers" | "personalization" | "skills" | "usage" | "data"
+  >("providers");
   const [importResult, setImportResult] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   if (!open) return null;
 
-  const handleTabChange = (tab: "providers" | "personalization" | "usage" | "data") => {
+  const handleTabChange = (tab: "providers" | "personalization" | "skills" | "usage" | "data") => {
     setActiveTab(tab);
     setImportResult(null);
   };
@@ -74,6 +75,13 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             {t("settings.personalization")}
           </button>
           <button
+            className={`tab${activeTab === "skills" ? " active" : ""}`}
+            type="button"
+            onClick={() => handleTabChange("skills")}
+          >
+            {t("settings.skills")}
+          </button>
+          <button
             className={`tab${activeTab === "usage" ? " active" : ""}`}
             type="button"
             onClick={() => handleTabChange("usage")}
@@ -103,6 +111,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
         <div className="modal-body">
           {activeTab === "providers" && <ProviderSettings />}
           {activeTab === "personalization" && <PersonalizationPanel />}
+          {activeTab === "skills" && <SkillSettings />}
           {activeTab === "usage" && <UsagePanel />}
           {activeTab === "data" && (
             <div className="data-settings">

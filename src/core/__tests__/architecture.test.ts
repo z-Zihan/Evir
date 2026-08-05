@@ -155,6 +155,17 @@ describe("architecture dependency direction", () => {
       "personalization.academic",
       "personalization.loadError",
       "personalization.saveError",
+      "skill.title",
+      "skill.enabled",
+      "skill.disabled",
+      "skill.enable",
+      "skill.disable",
+      "skill.riskLevel",
+      "skill.noSkills",
+      "skill.builtin",
+      "skill.low",
+      "skill.medium",
+      "skill.high",
     ];
 
     for (const locale of ["en.json", "zh-CN.json"]) {

@@ -161,5 +161,18 @@
     "usage": "Tokens and usage",
     "privacy": "Data and privacy",
     "troubleshooting": "Troubleshooting"
+  },
+  "skill": {
+    "title": "Skills",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "enable": "Enable",
+    "disable": "Disable",
+    "riskLevel": "Risk level",
+    "noSkills": "No skills installed",
+    "builtin": "Built-in",
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High"
   }
 }
