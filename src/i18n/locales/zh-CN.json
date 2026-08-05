@@ -179,5 +179,28 @@
     "low": "低",
     "medium": "中",
     "high": "高"
+  },
+  "mcp": {
+    "title": "MCP 服务器",
+    "add": "添加服务器",
+    "name": "名称",
+    "transport": "传输方式",
+    "stdio": "stdio",
+    "streamableHttp": "Streamable HTTP",
+    "command": "命令",
+    "arguments": "参数",
+    "workingDirectory": "工作目录",
+    "url": "URL",
+    "headers": "请求头",
+    "enabled": "已启用",
+    "disabled": "已禁用",
+    "enable": "启用",
+    "disable": "禁用",
+    "delete": "删除",
+    "noServers": "暂无 MCP 服务器",
+    "desktopOnly": "stdio 传输需要桌面端模式",
+    "securityNotice": "新服务器默认禁用。工具需要逐项授权。",
+    "save": "保存",
+    "cancel": "取消"
   }
 }

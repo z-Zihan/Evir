@@ -179,5 +179,28 @@
     "low": "Low",
     "medium": "Medium",
     "high": "High"
+  },
+  "mcp": {
+    "title": "MCP Servers",
+    "add": "Add server",
+    "name": "Name",
+    "transport": "Transport",
+    "stdio": "stdio",
+    "streamableHttp": "Streamable HTTP",
+    "command": "Command",
+    "arguments": "Arguments",
+    "workingDirectory": "Working directory",
+    "url": "URL",
+    "headers": "Headers",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "enable": "Enable",
+    "disable": "Disable",
+    "delete": "Delete",
+    "noServers": "No MCP servers configured",
+    "desktopOnly": "stdio transport requires Desktop mode",
+    "securityNotice": "New servers are disabled by default. Tools require per-item authorization.",
+    "save": "Save",
+    "cancel": "Cancel"
   }
 }

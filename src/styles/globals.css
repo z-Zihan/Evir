@@ -555,6 +555,139 @@ textarea:focus-visible {
   cursor: not-allowed;
 }
 
+/* MCP Settings */
+.mcp-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.mcp-settings h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.mcp-security-notice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.mcp-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mcp-item {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.mcp-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.mcp-item-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+.mcp-transport-badge {
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--surface-elevated);
+  color: var(--muted-foreground);
+  border: 1px solid var(--border);
+}
+.mcp-item-detail {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  font-family: monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mcp-item-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.mcp-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.mcp-toggle input {
+  cursor: pointer;
+}
+.mcp-delete {
+  border: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  padding: 4px;
+}
+.mcp-delete:hover {
+  color: var(--danger);
+}
+.mcp-add {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--foreground);
+  cursor: pointer;
+  font-size: 13px;
+  align-self: flex-start;
+}
+.mcp-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.mcp-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+.mcp-form input,
+.mcp-form select {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+  color: var(--foreground);
+  font-size: 14px;
+}
+.mcp-desktop-notice {
+  font-size: 12px;
+  color: var(--danger);
+  margin: 0;
+}
+
 /* Modal */
 .modal-backdrop {
   position: fixed;

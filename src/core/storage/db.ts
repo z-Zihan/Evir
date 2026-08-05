@@ -87,12 +87,23 @@ export interface SettingRecord {
   value: unknown;
 }
 
+export interface McpServerRecord {
+  id: string;
+  name: string;
+  transport: "stdio" | "streamable-http";
+  enabled: number;
+  config: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export class EvirDB extends Dexie {
   providers!: Table<ProviderRecord, string>;
   conversations!: Table<ConversationRecord, string>;
   messages!: Table<MessageRecord, string>;
   attachments!: Table<AttachmentRecord, string>;
   usage_records!: Table<UsageRecord, string>;
+  mcpServers!: Table<McpServerRecord, string>;
   settings!: Table<SettingRecord, string>;
 
   constructor(name = "evir") {
@@ -110,6 +121,15 @@ export class EvirDB extends Dexie {
       messages: "id, conversationId, createdAt",
       attachments: "id, messageId",
       usage_records: "id, conversationId, createdAt",
+      settings: "name",
+    });
+    this.version(3).stores({
+      providers: "id",
+      conversations: "id, updatedAt",
+      messages: "id, conversationId, createdAt",
+      attachments: "id, messageId",
+      usage_records: "id, conversationId, createdAt",
+      mcpServers: "id",
       settings: "name",
     });
   }
