@@ -33,7 +33,12 @@ function toRecord(entry: McpServerEntry): McpServerRecord {
 }
 
 function toEntry(record: McpServerRecord): McpServerEntry {
-  const extra = JSON.parse(record.config) as Record<string, unknown>;
+  let extra: Record<string, unknown> = {};
+  try {
+    extra = JSON.parse(record.config) as Record<string, unknown>;
+  } catch {
+    // Corrupted config — treat as empty
+  }
   return {
     id: record.id,
     name: record.name,
@@ -75,21 +80,21 @@ export const useMcpStore = create<McpState>((set) => ({
   },
 
   toggleServer: async (id) => {
-    set(({ servers }) => ({
-      servers: servers.map((s) => (s.id === id ? { ...s, enabled: !s.enabled } : s)),
-    }));
-    const server = useMcpStore.getState().servers.find((s) => s.id === id);
-    if (server) await db.mcpServers.put(toRecord(server));
+    const { servers } = useMcpStore.getState();
+    const server = servers.find((s) => s.id === id);
+    if (!server) return;
+    const updated = { ...server, enabled: !server.enabled };
+    await db.mcpServers.put(toRecord(updated));
+    set({ servers: servers.map((s) => (s.id === id ? updated : s)) });
   },
 
   updateServer: async (id, config) => {
+    const { servers } = useMcpStore.getState();
+    const server = servers.find((s) => s.id === id);
+    if (!server) return;
     const now = Date.now();
-    set(({ servers }) => ({
-      servers: servers.map((s) =>
-        s.id === id ? ({ ...s, ...config, updatedAt: now } as McpServerEntry) : s,
-      ),
-    }));
-    const server = useMcpStore.getState().servers.find((s) => s.id === id);
-    if (server) await db.mcpServers.put({ ...toRecord(server), updatedAt: now });
+    const updated = { ...server, ...config, updatedAt: now } as McpServerEntry;
+    await db.mcpServers.put({ ...toRecord(updated), updatedAt: now });
+    set({ servers: servers.map((s) => (s.id === id ? updated : s)) });
   },
 }));

@@ -1,14 +1,12 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Trash2, Plus, AlertTriangle } from "lucide-react";
-import { useMcpStore, type McpServerEntry } from "../features/mcp/mcp-store";
+import { useMcpStore } from "../features/mcp/mcp-store";
 import type { McpTransport } from "../core/mcp/types";
-
-type Transport = McpTransport;
 
 interface FormState {
   name: string;
-  transport: Transport;
+  transport: McpTransport;
   command: string;
   args: string;
   cwd: string;
@@ -88,8 +86,8 @@ export function McpSettings() {
               </div>
               <p className="mcp-item-detail">
                 {server.transport === "stdio"
-                  ? `${server.command} ${(server as McpServerEntry & { args: string[] }).args.join(" ")}`
-                  : (server as McpServerEntry & { url: string }).url}
+                  ? `${server.command} ${server.args.join(" ")}`
+                  : server.url}
               </p>
               <div className="mcp-item-footer">
                 <label className="mcp-toggle">
@@ -123,7 +121,7 @@ export function McpSettings() {
             <span>{t("mcp.transport")}</span>
             <select
               value={form.transport}
-              onChange={(e) => setForm({ ...form, transport: e.target.value as Transport })}
+              onChange={(e) => setForm({ ...form, transport: e.target.value as McpTransport })}
             >
               <option value="stdio">{t("mcp.stdio")}</option>
               <option value="streamable-http">{t("mcp.streamableHttp")}</option>
