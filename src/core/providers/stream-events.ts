@@ -36,6 +36,7 @@ export type ProviderStreamEvent =
 
 export interface ProtocolAdapter {
   id: ProtocolAdapterId;
+  listModels?(config: { authConfig: Record<string, unknown> }): Promise<string[]>;
   testConnection(config: {
     providerId: string;
     modelId: string;

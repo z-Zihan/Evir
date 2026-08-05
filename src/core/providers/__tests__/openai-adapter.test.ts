@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createConfiguredAdapter, getAdapter } from "../adapter-registry";
+import { createConfiguredAdapter, getAdapter, listModelsForProtocol } from "../adapter-registry";
 import { OpenAIChatCompletionsAdapter } from "../adapters/openai-chat-completions";
 import {
   ProviderErrorType,
@@ -36,6 +36,26 @@ afterEach(() => {
 });
 
 describe("OpenAIChatCompletionsAdapter", () => {
+  it("lists model ids using the configured OpenAI endpoint and authorization", async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ data: [{ id: "gpt-one" }, { id: "gpt-two" }] })),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const models = await listModelsForProtocol("openai-chat-completions", {
+      providerId: "openai",
+      baseUrl: "https://example.com/v1/",
+      apiKey: "test-key",
+    });
+
+    expect(models).toEqual(["gpt-one", "gpt-two"]);
+    expect(fetchMock).toHaveBeenCalledWith("https://example.com/v1/models", {
+      headers: { Authorization: "Bearer test-key" },
+    });
+  });
+
   it("parses SSE across chunk boundaries", async () => {
     const fetchMock = vi.fn(() =>
       Promise.resolve(
@@ -140,6 +160,16 @@ describe("OpenAIChatCompletionsAdapter", () => {
 });
 
 describe("adapter registry", () => {
+  it("reports model discovery as unavailable for Anthropic", async () => {
+    await expect(
+      listModelsForProtocol("anthropic-messages", {
+        providerId: "anthropic",
+        baseUrl: "https://api.anthropic.com",
+        apiKey: "test-key",
+      }),
+    ).resolves.toBeUndefined();
+  });
+
   it("returns independent adapter instances", () => {
     expect(getAdapter("openai-chat-completions")).not.toBe(getAdapter("openai-chat-completions"));
     expect(

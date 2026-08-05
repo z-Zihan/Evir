@@ -1,14 +1,40 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useProviderStore } from "../features/provider/provider-store";
 import { useChatStore } from "../features/chat/chat-store";
 import { Sidebar } from "./Sidebar";
 import { ChatView } from "./ChatView";
 import { SettingsModal } from "./SettingsModal";
+import { useShortcuts } from "./useShortcuts";
 
 export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const { providers, loadProviders } = useProviderStore();
-  const { loadConversations } = useChatStore();
+  const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [messageInput, setMessageInput] = useState("");
+  const { providers, loadProviders, getDefaultProvider } = useProviderStore();
+  const { loadConversations, createConversation, sendMessage, stopGeneration, isStreaming } =
+    useChatStore();
+
+  const handleNewConversation = useCallback(() => {
+    const provider = getDefaultProvider();
+    if (provider) void createConversation(provider.id, provider.modelId);
+    else setSettingsOpen(true);
+  }, [createConversation, getDefaultProvider]);
+
+  const handleSendMessage = useCallback(() => {
+    if (!messageInput.trim() || isStreaming) return;
+    void sendMessage(messageInput);
+    setMessageInput("");
+  }, [isStreaming, messageInput, sendMessage]);
+
+  useShortcuts({
+    onNewConversation: handleNewConversation,
+    onOpenSettings: () => setSettingsOpen(true),
+    onToggleSidebar: () => setSidebarVisible((visible) => !visible),
+    onSendMessage: handleSendMessage,
+    onStop: () => {
+      if (isStreaming) stopGeneration();
+    },
+  });
 
   useEffect(() => {
     void loadProviders();
@@ -21,8 +47,13 @@ export function App() {
 
   return (
     <div className="app-shell">
-      <Sidebar onOpenSettings={() => setSettingsOpen(true)} />
-      <ChatView onOpenSettings={() => setSettingsOpen(true)} />
+      {sidebarVisible && <Sidebar onOpenSettings={() => setSettingsOpen(true)} />}
+      <ChatView
+        input={messageInput}
+        onInputChange={setMessageInput}
+        onSendMessage={handleSendMessage}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );

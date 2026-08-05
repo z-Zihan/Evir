@@ -4,11 +4,20 @@ import { useProviderStore, type ProviderConfigInput } from "../features/provider
 
 export function ProviderSettings() {
   const { t } = useTranslation();
-  const { providers, addProvider, deleteProvider, setDefaultProvider, testConnection } =
-    useProviderStore();
+  const {
+    providers,
+    addProvider,
+    deleteProvider,
+    setDefaultProvider,
+    testConnection,
+    fetchModels,
+  } = useProviderStore();
   const [showForm, setShowForm] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
+  const [models, setModels] = useState<string[]>([]);
+  const [fetchingModels, setFetchingModels] = useState(false);
+  const [modelFetchError, setModelFetchError] = useState<string | null>(null);
   const [form, setForm] = useState<ProviderConfigInput>({
     name: "",
     protocolId: "openai-compatible-chat",
@@ -45,9 +54,20 @@ export function ProviderSettings() {
         modelId: "",
       });
       setTestResult(null);
+      setModels([]);
+      setModelFetchError(null);
     } catch (error) {
       setTestResult(error instanceof Error ? error.message : String(error));
     }
+  };
+
+  const handleFetchModels = async () => {
+    setFetchingModels(true);
+    setModelFetchError(null);
+    const discoveredModels = await fetchModels(form);
+    setModels(discoveredModels);
+    if (discoveredModels.length === 0) setModelFetchError(t("provider.fetchModelsFailed"));
+    setFetchingModels(false);
   };
 
   return (
@@ -116,11 +136,27 @@ export function ProviderSettings() {
           </label>
           <label>
             {t("provider.modelId")}
-            <input
-              value={form.modelId}
-              onChange={(e) => setForm({ ...form, modelId: e.target.value })}
-            />
+            <div className="model-input-row">
+              <input
+                list="model-options"
+                value={form.modelId}
+                onChange={(e) => setForm({ ...form, modelId: e.target.value })}
+              />
+              <button
+                type="button"
+                disabled={fetchingModels}
+                onClick={() => void handleFetchModels()}
+              >
+                {fetchingModels ? t("provider.fetchingModels") : t("provider.fetchModels")}
+              </button>
+            </div>
+            <datalist id="model-options">
+              {models.map((model) => (
+                <option key={model} value={model} />
+              ))}
+            </datalist>
           </label>
+          {modelFetchError && <div className="test-result">{modelFetchError}</div>}
           {testResult && <div className="test-result">{testResult}</div>}
           <div className="form-actions">
             <button type="button" disabled={testing} onClick={() => void handleTest()}>
@@ -134,6 +170,8 @@ export function ProviderSettings() {
               onClick={() => {
                 setShowForm(false);
                 setTestResult(null);
+                setModels([]);
+                setModelFetchError(null);
               }}
             >
               {t("provider.cancel")}

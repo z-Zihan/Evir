@@ -26,6 +26,9 @@ const authSchema = z.object({
   baseUrl: z.string().url().optional(),
   apiKey: z.string().min(1),
 });
+const modelsResponseSchema = z.object({
+  data: z.array(z.object({ id: z.string() })),
+});
 
 function uuid(): string {
   return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -50,6 +53,19 @@ export class OpenAIChatClient implements ProtocolAdapter {
 
   configure(config: OpenAIConnectionConfig): void {
     this.connection = { ...config, baseUrl: config.baseUrl.replace(/\/+$/, "") };
+  }
+
+  async listModels(config: { authConfig: Record<string, unknown> }): Promise<string[]> {
+    const auth = authSchema.parse(config.authConfig);
+    const baseUrl = (auth.baseUrl ?? this.connection.baseUrl).replace(/\/+$/, "");
+    const response = await fetch(`${baseUrl}/models`, {
+      headers: { Authorization: `Bearer ${auth.apiKey}` },
+    });
+    if (!response.ok) {
+      const error = await responseError(response);
+      throw new Error(error.message);
+    }
+    return modelsResponseSchema.parse(await response.json()).data.map(({ id }) => id);
   }
 
   async testConnection(config: {

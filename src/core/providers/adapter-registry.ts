@@ -25,3 +25,15 @@ export function createConfiguredAdapter(
   }
   return undefined;
 }
+
+export function listModelsForProtocol(
+  protocolId: ProtocolAdapterId,
+  config: OpenAIConnectionConfig,
+): Promise<string[] | undefined> {
+  const adapter = createConfiguredAdapter(protocolId, config);
+  return (
+    adapter?.listModels?.({
+      authConfig: { baseUrl: config.baseUrl, apiKey: config.apiKey },
+    }) ?? Promise.resolve(undefined)
+  );
+}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Square } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -7,32 +7,28 @@ import { useChatStore } from "../features/chat/chat-store";
 import { useProviderStore } from "../features/provider/provider-store";
 
 interface ChatViewProps {
+  input: string;
+  onInputChange: (input: string) => void;
+  onSendMessage: () => void;
   onOpenSettings: () => void;
 }
 
-export function ChatView({ onOpenSettings }: ChatViewProps) {
+export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }: ChatViewProps) {
   const { t } = useTranslation();
   const { messages, isStreaming, streamingContent, error, sendMessage, stopGeneration } =
     useChatStore();
   const { getDefaultProvider } = useProviderStore();
   const provider = getDefaultProvider();
-  const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, streamingContent]);
 
-  const handleSend = () => {
-    if (!input.trim() || isStreaming) return;
-    void sendMessage(input);
-    setInput("");
-  };
-
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
       e.preventDefault();
-      handleSend();
+      onSendMessage();
     }
   };
 
@@ -113,7 +109,7 @@ export function ChatView({ onOpenSettings }: ChatViewProps) {
             aria-label={t("chat.placeholder")}
             placeholder={t("chat.placeholder")}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => onInputChange(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={isStreaming}
           />
@@ -125,7 +121,7 @@ export function ChatView({ onOpenSettings }: ChatViewProps) {
                 {t("chat.stop")}
               </button>
             ) : (
-              <button type="button" disabled={!input.trim()} onClick={handleSend}>
+              <button type="button" disabled={!input.trim()} onClick={onSendMessage}>
                 {t("chat.send")}
               </button>
             )}

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { z } from "zod";
-import { getAdapter } from "../../core/providers/adapter-registry";
+import { getAdapter, listModelsForProtocol } from "../../core/providers/adapter-registry";
 import type { ProviderError } from "../../core/providers/stream-events";
 // NOTE: Uses Dexie directly for indexed queries; StoragePort covers basic CRUD
 import { db, type ProviderRecord } from "../../core/storage/db";
@@ -13,6 +13,11 @@ export const providerSchema = z.object({
   modelId: z.string().trim().min(1),
 });
 const updateSchema = providerSchema.extend({ apiKey: z.string().optional() });
+const modelDiscoverySchema = providerSchema.pick({
+  protocolId: true,
+  baseUrl: true,
+  apiKey: true,
+});
 
 export type ProviderConfigInput = z.infer<typeof providerSchema>;
 export type ConnectionResult = { ok: boolean; error?: ProviderError };
@@ -28,6 +33,7 @@ interface ProviderState {
   deleteProvider: (id: string) => Promise<void>;
   setDefaultProvider: (id: string) => Promise<void>;
   testConnection: (config: ProviderConfigInput) => Promise<ConnectionResult>;
+  fetchModels: (config: ProviderConfigInput) => Promise<string[]>;
   getDefaultProvider: () => ProviderRecord | undefined;
 }
 
@@ -129,6 +135,22 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
       modelId: config.modelId,
       authConfig: { baseUrl: config.baseUrl, apiKey: config.apiKey },
     });
+  },
+
+  fetchModels: async (input) => {
+    try {
+      const config = modelDiscoverySchema.parse(input);
+      return (
+        (await listModelsForProtocol(config.protocolId, {
+          providerId: config.protocolId,
+          baseUrl: config.baseUrl,
+          apiKey: config.apiKey,
+        })) ?? []
+      );
+    } catch (error) {
+      console.error("[evir] fetchModels failed:", error);
+      return [];
+    }
   },
 
   getDefaultProvider: () =>
