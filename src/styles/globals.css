@@ -772,6 +772,79 @@ textarea:focus-visible {
 .model-label {
   margin-left: 8px;
 }
+
+/* Model Switcher */
+.model-switcher {
+  position: relative;
+}
+.model-switcher-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  cursor: pointer;
+}
+.model-switcher-button:hover {
+  border-color: var(--foreground);
+  color: var(--foreground);
+}
+.model-switcher-model {
+  font-weight: 600;
+  color: var(--foreground);
+}
+.model-switcher-chevron {
+  transition: transform 0.15s ease;
+}
+.model-switcher-chevron.open {
+  transform: rotate(180deg);
+}
+.model-switcher-dropdown {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  min-width: 260px;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  box-shadow: 0 8px 30px rgb(0 0 0 / 0.12);
+  z-index: 50;
+  padding: 4px;
+}
+.model-switcher-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.model-switcher-item:hover {
+  background: var(--sidebar);
+}
+.model-switcher-item.active {
+  background: var(--sidebar);
+}
+.model-switcher-item-name {
+  font-weight: 600;
+}
+.model-switcher-item-detail {
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
 .composer.drag-over {
   border-color: var(--focus);
   box-shadow: 0 0 0 2px var(--focus);

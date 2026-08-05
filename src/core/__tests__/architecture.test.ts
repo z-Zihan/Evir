@@ -116,6 +116,8 @@ describe("architecture dependency direction", () => {
       "chat.modes.agentDesc",
       "chat.modeHints.agent",
       "chat.modeHints.plan",
+      "chat.switchModel",
+      "chat.currentModel",
       "chat.regenerate",
       "chat.edit",
       "chat.save",

@@ -8,6 +8,8 @@ import { useProviderStore } from "../features/provider/provider-store";
 import { ChatMessage } from "./ChatMessage";
 import { ChatEmptyState } from "./ChatEmptyState";
 import { ModeSwitcher } from "./ModeSwitcher";
+import { ModelSwitcher } from "./ModelSwitcher";
+import type { ProviderRecord } from "../core/storage/db";
 
 interface ChatViewProps {
   input: string;
@@ -33,8 +35,9 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
     removeAttachment,
     setMode,
     branchConversation,
+    updateConversationProvider,
   } = useChatStore();
-  const { getDefaultProvider } = useProviderStore();
+  const { getDefaultProvider, switchProvider } = useProviderStore();
   const provider = getDefaultProvider();
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -177,7 +180,14 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
               >
                 <Paperclip size={16} />
               </button>
-              <span className="model-label">{provider.modelId}</span>
+              <ModelSwitcher
+                onSwitch={(p: ProviderRecord) => {
+                  void (async () => {
+                    await switchProvider(p.id);
+                    await updateConversationProvider(p.id, p.modelId);
+                  })();
+                }}
+              />
             </span>
             {isStreaming ? (
               <button type="button" className="stop-button" onClick={stopGeneration}>

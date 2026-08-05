@@ -48,7 +48,9 @@
     "attachmentLimit": "Maximum 5 attachments per message.",
     "branch": "Branch",
     "branchFromHere": "Branch from here",
-    "branched": "(branched)"
+    "branched": "(branched)",
+    "switchModel": "Switch model",
+    "currentModel": "Current model"
   },
   "runtime": {
     "agentReady": "Local agent runtime",

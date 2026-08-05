@@ -28,6 +28,7 @@ export interface ChatState {
   selectConversation: (id: string) => Promise<void>;
   deleteConversation: (id: string) => Promise<void>;
   renameConversation: (id: string, title: string) => Promise<void>;
+  updateConversationProvider: (providerId: string, modelId: string) => Promise<void>;
   sendMessage: (text: string) => Promise<void>;
   regenerate: () => Promise<void>;
   editMessage: (messageId: string, newContent: string) => Promise<void>;
@@ -111,6 +112,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set(({ conversations }) => ({
       conversations: conversations.map((conversation) =>
         conversation.id === id ? { ...conversation, title: cleanTitle } : conversation,
+      ),
+    }));
+  },
+
+  updateConversationProvider: async (providerId, modelId) => {
+    const { currentConversationId } = get();
+    if (!currentConversationId) return;
+    const now = Date.now();
+    await db.conversations.update(currentConversationId, { providerId, modelId, updatedAt: now });
+    set(({ conversations }) => ({
+      conversations: conversations.map((c) =>
+        c.id === currentConversationId ? { ...c, providerId, modelId, updatedAt: now } : c,
       ),
     }));
   },

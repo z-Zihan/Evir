@@ -38,6 +38,7 @@ interface ProviderState {
   ) => Promise<void>;
   deleteProvider: (id: string) => Promise<void>;
   setDefaultProvider: (id: string) => Promise<void>;
+  switchProvider: (providerId: string) => Promise<void>;
   testConnection: (config: ProviderConfigInput) => Promise<ConnectionResult>;
   fetchModels: (config: ProviderConfigInput) => Promise<string[]>;
   getDefaultProvider: () => ProviderRecord | undefined;
@@ -130,6 +131,13 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
       })),
     );
     set({ providers });
+  },
+
+  switchProvider: async (providerId) => {
+    if (!get().providers.some((provider) => provider.id === providerId)) {
+      throw new Error("Provider not found");
+    }
+    await get().setDefaultProvider(providerId);
   },
 
   testConnection: async (input) => {
