@@ -7,9 +7,10 @@ import { useThemeStore } from "../features/settings/theme-store";
 
 interface SidebarProps {
   onOpenSettings: () => void;
+  focusSearchRef: React.RefObject<(() => void) | null>;
 }
 
-export function Sidebar({ onOpenSettings }: SidebarProps) {
+export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
   const { t, i18n } = useTranslation();
   const {
     conversations,
@@ -23,10 +24,11 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    const focusSearch = () => searchRef.current?.focus();
-    window.addEventListener("evir:focus-search", focusSearch);
-    return () => window.removeEventListener("evir:focus-search", focusSearch);
-  }, []);
+    focusSearchRef.current = () => searchRef.current?.focus();
+    return () => {
+      focusSearchRef.current = null;
+    };
+  }, [focusSearchRef]);
   const provider = getDefaultProvider();
   const filteredConversations = conversations.filter(({ title }) =>
     title.toLowerCase().includes(searchQuery.trim().toLowerCase()),

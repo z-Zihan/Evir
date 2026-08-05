@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useProviderStore } from "../features/provider/provider-store";
 import { useChatStore } from "../features/chat/chat-store";
 import { useUsageStore } from "../features/usage/usage-store";
@@ -11,6 +11,7 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [messageInput, setMessageInput] = useState("");
+  const focusSearchRef = useRef<(() => void) | null>(null);
   const { providers, loadProviders, getDefaultProvider } = useProviderStore();
   const { loadConversations, createConversation, sendMessage, stopGeneration, isStreaming } =
     useChatStore();
@@ -34,7 +35,8 @@ export function App() {
     onToggleSidebar: () => setSidebarVisible((visible) => !visible),
     onSearchConversations: () => {
       if (!sidebarVisible) setSidebarVisible(true);
-      window.dispatchEvent(new CustomEvent("evir:focus-search"));
+      // Use rAF to wait for sidebar to mount if it was hidden
+      requestAnimationFrame(() => focusSearchRef.current?.());
     },
     onSendMessage: handleSendMessage,
     onStop: () => {
@@ -54,7 +56,9 @@ export function App() {
 
   return (
     <div className="app-shell">
-      {sidebarVisible && <Sidebar onOpenSettings={() => setSettingsOpen(true)} />}
+      {sidebarVisible && (
+        <Sidebar onOpenSettings={() => setSettingsOpen(true)} focusSearchRef={focusSearchRef} />
+      )}
       <ChatView
         input={messageInput}
         onInputChange={setMessageInput}
