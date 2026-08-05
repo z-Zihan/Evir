@@ -14,12 +14,13 @@ interface ChatViewProps {
 }
 
 export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }: ChatViewProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { messages, isStreaming, streamingContent, error, sendMessage, stopGeneration } =
     useChatStore();
   const { getDefaultProvider } = useProviderStore();
   const provider = getDefaultProvider();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const displayError = (value: string) => (i18n.exists(value) ? t(value) : value);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -83,7 +84,7 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
                     <span className="message-stopped">({t("chat.stopped")})</span>
                   )}
                   {msg.status === "error" && msg.errorMessage && (
-                    <div className="message-error">{msg.errorMessage}</div>
+                    <div className="message-error">{displayError(msg.errorMessage)}</div>
                   )}
                 </div>
               </div>
@@ -102,7 +103,7 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
           </div>
         )}
       </div>
-      {error && <div className="chat-error">{error}</div>}
+      {error && <div className="chat-error">{displayError(error)}</div>}
       <footer className="composer-wrap">
         <div className="composer">
           <textarea

@@ -13,7 +13,7 @@ export function getAdapter(protocolId: ProtocolAdapterId): ProtocolAdapter | und
 }
 
 export function createConfiguredAdapter(
-  protocolId: ProtocolAdapterId,
+  protocolId: string,
   config: OpenAIConnectionConfig,
 ): ProtocolAdapter | undefined {
   if (protocolId === "anthropic-messages") return new AnthropicMessagesAdapter(config);
@@ -27,7 +27,7 @@ export function createConfiguredAdapter(
 }
 
 export function listModelsForProtocol(
-  protocolId: ProtocolAdapterId,
+  protocolId: string,
   config: OpenAIConnectionConfig,
 ): Promise<string[] | undefined> {
   const adapter = createConfiguredAdapter(protocolId, config);

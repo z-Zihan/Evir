@@ -1,9 +1,21 @@
-import { createConfiguredAdapter, getAdapter } from "../../core/providers/adapter-registry";
+import { createConfiguredAdapter } from "../../core/providers/adapter-registry";
+import { getErrorDisplay } from "../../core/providers/error-messages";
 import { ProviderErrorType } from "../../core/providers/stream-events";
-import type { MessageRecord, ProviderRecord, UsageRecord } from "../../core/storage/db";
+import type { ProviderRecord, UsageRecord } from "../../core/storage/db";
 import { useUsageStore } from "../usage/usage-store";
 
 let activeController: AbortController | undefined;
+
+async function formatProviderError(
+  errorType: ProviderErrorType,
+  providerMessage: string,
+): Promise<string> {
+  const { default: i18n } = await import("../../i18n/config");
+  const display = getErrorDisplay(errorType, (key) => i18n.t(key));
+  const guidance = `${display.title}: ${display.description}`;
+  const detail = providerMessage.trim();
+  return detail ? `${guidance} ${i18n.t("errors.detail", { message: detail })}` : guidance;
+}
 
 export function providerReadinessError(provider: ProviderRecord): string | undefined {
   if (!provider.apiKey) return "chat.apiKeyMissing";
@@ -11,117 +23,119 @@ export function providerReadinessError(provider: ProviderRecord): string | undef
     provider.protocolId !== "openai-chat-completions" &&
     provider.protocolId !== "openai-compatible-chat" &&
     provider.protocolId !== "anthropic-messages"
-  ) {
-    return "chat.adapterUnavailable";
-  }
-  return getAdapter(provider.protocolId) ? undefined : "chat.adapterUnavailable";
+  )
+    return "chat.protocolUnsupported";
 }
 
-function createUsageRecord(
-  usage: { inputTokens?: number; outputTokens?: number; totalTokens?: number },
-  provider: ProviderRecord,
-  conversationId: string,
-  startedAt: number,
-  firstTokenAt?: number,
-): UsageRecord {
-  return {
-    id: crypto.randomUUID(),
-    conversationId,
-    providerId: provider.id,
-    modelId: provider.modelId,
-    ...usage,
-    evidence: "provider",
-    success: true,
-    durationMs: Date.now() - startedAt,
-    ...(firstTokenAt ? { firstTokenMs: firstTokenAt - startedAt } : {}),
-    createdAt: startedAt,
-  };
+export function stopActiveStream(): void {
+  activeController?.abort();
 }
 
 export interface StreamResult {
   content: string;
-  status: MessageRecord["status"];
+  status: "complete" | "stopped" | "error";
   errorMessage?: string;
 }
 
 export async function streamAssistant(
   provider: ProviderRecord,
   conversationId: string,
-  messages: Array<{ role: MessageRecord["role"]; content: string }>,
-  onContent: (content: string) => void,
+  messages: { role: string; content: string }[],
+  onDelta: (delta: string) => void,
 ): Promise<StreamResult> {
-  if (activeController && !activeController.signal.aborted) {
-    return { content: "", status: "error", errorMessage: "chat.alreadyStreaming" };
+  if (activeController) {
+    return {
+      content: "",
+      status: "error",
+      errorMessage: "chat.alreadyStreaming",
+    } satisfies StreamResult;
   }
-  if (
-    provider.protocolId !== "openai-chat-completions" &&
-    provider.protocolId !== "openai-compatible-chat" &&
-    provider.protocolId !== "anthropic-messages"
-  ) {
-    return { content: "", status: "error", errorMessage: "chat.adapterUnavailable" };
-  }
-  const adapter = createConfiguredAdapter(provider.protocolId, {
+  const configuredAdapter = createConfiguredAdapter(provider.protocolId, {
     providerId: provider.id,
     baseUrl: provider.baseUrl,
     apiKey: provider.apiKey,
   });
-  if (!adapter) return { content: "", status: "error", errorMessage: "chat.adapterUnavailable" };
+  if (!configuredAdapter) {
+    return {
+      content: "",
+      status: "error",
+      errorMessage: "chat.protocolUnsupported",
+    } satisfies StreamResult;
+  }
 
-  activeController = new AbortController();
-  const controller = activeController;
-  const startedAt = Date.now();
+  const controller = new AbortController();
+  activeController = controller;
   let content = "";
-  let status: MessageRecord["status"] = "complete";
+  let status: StreamResult["status"] = "complete";
   let errorMessage: string | undefined;
   let completed = false;
-  let firstTokenAt: number | undefined;
-  let lastCommit = 0;
+  const startTime = Date.now();
 
   try {
-    for await (const event of adapter.stream({
+    for await (const event of configuredAdapter.stream({
       modelId: provider.modelId,
       messages,
       signal: controller.signal,
     })) {
       if (event.type === "text-delta") {
-        firstTokenAt ??= Date.now();
         content += event.text;
-        if (Date.now() - lastCommit >= 32) {
-          lastCommit = Date.now();
-          onContent(content);
-        }
+        onDelta(content);
       } else if (event.type === "usage") {
-        await useUsageStore
-          .getState()
-          .addRecord(
-            createUsageRecord(event.usage, provider, conversationId, startedAt, firstTokenAt),
-          );
+        const usageRecord: UsageRecord = {
+          id:
+            typeof crypto !== "undefined" && crypto.randomUUID
+              ? crypto.randomUUID()
+              : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          conversationId,
+          providerId: provider.id,
+          modelId: provider.modelId,
+          ...(event.usage.inputTokens !== undefined
+            ? { inputTokens: event.usage.inputTokens }
+            : {}),
+          ...(event.usage.outputTokens !== undefined
+            ? { outputTokens: event.usage.outputTokens }
+            : {}),
+          ...(event.usage.totalTokens !== undefined
+            ? { totalTokens: event.usage.totalTokens }
+            : {}),
+          evidence: "provider",
+          success: true,
+          durationMs: Date.now() - startTime,
+          ...(content ? { firstTokenMs: Date.now() - startTime } : {}),
+          createdAt: Date.now(),
+        };
+        void useUsageStore.getState().addRecord(usageRecord);
       } else if (event.type === "error") {
         status =
           controller.signal.aborted || event.error.type === ProviderErrorType.CANCELLED
             ? "stopped"
             : "error";
-        errorMessage = status === "error" ? event.error.message : undefined;
+        errorMessage =
+          status === "error"
+            ? await formatProviderError(event.error.type, event.error.message)
+            : undefined;
         break;
       } else if (event.type === "response-complete") {
         completed = true;
       }
     }
-    if (!completed && status === "complete") {
-      status = controller.signal.aborted ? "stopped" : "error";
-      errorMessage = status === "error" ? "chat.streamEnded" : undefined;
-    }
   } catch (error) {
     status = controller.signal.aborted ? "stopped" : "error";
-    errorMessage = status === "error" && error instanceof Error ? error.message : undefined;
+    errorMessage =
+      status === "error"
+        ? await formatProviderError(
+            ProviderErrorType.PROVIDER_ERROR,
+            error instanceof Error ? error.message : "",
+          )
+        : undefined;
   } finally {
     if (activeController === controller) activeController = undefined;
   }
 
-  onContent(content);
-  return { content, status, ...(errorMessage ? { errorMessage } : {}) };
-}
-
-export function stopActiveStream(): void {
-  activeController?.abort();
+  if (!completed && status === "complete") status = "stopped";
+  return {
+    content,
+    status,
+    ...(errorMessage !== undefined ? { errorMessage } : {}),
+  } satisfies StreamResult;
 }

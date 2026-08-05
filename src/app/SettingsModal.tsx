@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { ProviderSettings } from "./ProviderSettings";
+import { UsagePanel } from "./UsagePanel";
 
 interface SettingsModalProps {
   open: boolean;
@@ -9,6 +11,7 @@ interface SettingsModalProps {
 
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const { t, i18n } = useTranslation();
+  const [activeTab, setActiveTab] = useState<"providers" | "usage">("providers");
   if (!open) return null;
 
   return (
@@ -16,23 +19,43 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{t("settings.title")}</h2>
-          <button className="icon-button" type="button" onClick={onClose} aria-label="Close">
+          <button
+            className="icon-button"
+            type="button"
+            onClick={onClose}
+            aria-label={t("settings.close")}
+          >
             <X size={17} />
           </button>
         </div>
         <div className="modal-tabs">
-          <button className="tab active">{t("settings.providers")}</button>
           <button
-            className="tab"
+            className={`tab${activeTab === "providers" ? " active" : ""}`}
+            type="button"
+            onClick={() => setActiveTab("providers")}
+          >
+            {t("settings.providers")}
+          </button>
+          <button
+            className={`tab${activeTab === "usage" ? " active" : ""}`}
+            type="button"
+            onClick={() => setActiveTab("usage")}
+          >
+            {t("settings.usage")}
+          </button>
+          <button
+            className="language-button settings-language"
+            type="button"
+            aria-label={t("settings.switchLanguage")}
             onClick={() =>
               void i18n.changeLanguage(i18n.language.startsWith("zh") ? "en" : "zh-CN")
             }
           >
-            {i18n.language.startsWith("zh") ? "EN" : "中"}
+            {t("settings.languageToggle")}
           </button>
         </div>
         <div className="modal-body">
-          <ProviderSettings />
+          {activeTab === "providers" ? <ProviderSettings /> : <UsagePanel />}
         </div>
       </div>
     </div>

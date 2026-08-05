@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useProviderStore } from "../features/provider/provider-store";
 import { useChatStore } from "../features/chat/chat-store";
+import { useUsageStore } from "../features/usage/usage-store";
 import { Sidebar } from "./Sidebar";
 import { ChatView } from "./ChatView";
 import { SettingsModal } from "./SettingsModal";
@@ -13,6 +14,7 @@ export function App() {
   const { providers, loadProviders, getDefaultProvider } = useProviderStore();
   const { loadConversations, createConversation, sendMessage, stopGeneration, isStreaming } =
     useChatStore();
+  const loadUsageRecords = useUsageStore((state) => state.loadRecords);
 
   const handleNewConversation = useCallback(() => {
     const provider = getDefaultProvider();
@@ -39,7 +41,8 @@ export function App() {
   useEffect(() => {
     void loadProviders();
     void loadConversations();
-  }, [loadProviders, loadConversations]);
+    void loadUsageRecords();
+  }, [loadProviders, loadConversations, loadUsageRecords]);
 
   useEffect(() => {
     if (providers.length === 0) setSettingsOpen(true);

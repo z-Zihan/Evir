@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { MessageSquarePlus, Moon, Settings2, Sun, Trash2 } from "lucide-react";
+import { MessageSquarePlus, Moon, Search, Settings2, Sun, Trash2 } from "lucide-react";
 import { useChatStore } from "../features/chat/chat-store";
 import { useProviderStore } from "../features/provider/provider-store";
 import { useThemeStore } from "../features/settings/theme-store";
@@ -19,11 +20,20 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
   } = useChatStore();
   const { getDefaultProvider } = useProviderStore();
   const { resolvedTheme, cycleTheme } = useThemeStore();
+  const [searchQuery, setSearchQuery] = useState("");
   const provider = getDefaultProvider();
+  const filteredConversations = conversations.filter(({ title }) =>
+    title.toLowerCase().includes(searchQuery.trim().toLowerCase()),
+  );
 
   const handleNewChat = () => {
     if (provider) void createConversation(provider.id, provider.modelId);
     else onOpenSettings();
+  };
+
+  const handleSelectConversation = (id: string) => {
+    setSearchQuery("");
+    void selectConversation(id);
   };
 
   return (
@@ -36,16 +46,28 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
         <MessageSquarePlus size={16} />
         {t("sidebar.newChat")}
       </button>
+      <label className="conversation-search">
+        <Search size={15} />
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder={t("sidebar.searchPlaceholder")}
+          aria-label={t("sidebar.searchPlaceholder")}
+        />
+      </label>
       <div className="section-label">{t("sidebar.recent")}</div>
       {conversations.length === 0 ? (
         <div className="empty-list">{t("sidebar.noConversations")}</div>
+      ) : filteredConversations.length === 0 ? (
+        <div className="empty-list">{t("sidebar.noResults")}</div>
       ) : (
         <div className="conversation-list">
-          {conversations.map((conv) => (
+          {filteredConversations.map((conv) => (
             <div
               key={conv.id}
               className={`conversation-item${conv.id === currentConversationId ? " active" : ""}`}
-              onClick={() => void selectConversation(conv.id)}
+              onClick={() => handleSelectConversation(conv.id)}
             >
               <span className="conversation-title">{conv.title || t("chat.title")}</span>
               <button
