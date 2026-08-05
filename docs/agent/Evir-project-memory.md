@@ -2,8 +2,8 @@
 
 > Scope: This memory applies only to the Evir repository.
 > Repository: git@github.com:z-Zihan/Evir.git
-> Last reviewed commit: 57eee0c
-> Last updated: 2026-08-05
+> Last reviewed commit: e7c47d0
+> Last updated: 2026-08-06
 
 ## 1. Product Identity
 
@@ -113,7 +113,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 | 空闲内存           | ≤ 150 MB     |
 | 空闲 CPU           | < 1%         |
 | 安装产物           | ≤ 35 MB      |
-| 当前实际 Web gzip  | 184.96 KB ✅ |
+| 当前实际 Web gzip  | 208.11 KB ✅ |
 
 ## 16. Engineering Standards
 
@@ -122,7 +122,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - 外部输入用 Zod 验证
 - 所有长任务支持 AbortSignal
 - PR 门禁：format + ESLint + strict TS + tests + build
-- 当前 65 TS tests + 1 Rust test pass
+- 当前 114 TS tests + 4 Rust tests pass
 
 ## 17. Current Implementation Status
 
@@ -139,8 +139,15 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - SettingsModal
 - i18n 中英文完整
 - Light/Dark/System 主题
-- 架构结构测试（7 项依赖方向检查）
+- 架构结构测试（8 项依赖方向检查 + i18n key 完整性）
 - Adapter 测试（10 项）
+- 重新生成 / 编辑重试
+- Agent Loop + Tool Registry（read_file, list_directory, write_file）
+- L3 工具审批流（Approve/Deny 按钮接线）
+- 会话分支（从任意消息 fork）
+- 模型切换 UI（inline dropdown）
+- Skill 系统（Registry + Store + Settings UI + Prompt 注入）
+- 共享 helpers（chat-helpers.ts）
 
 **只有骨架：**
 
@@ -151,7 +158,9 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - Anthropic/Gemini/OpenAI Responses Adapter
 - 模型发现（/models API）
 - 模型切换 UI / 快捷键执行 / 通知 / Usage 面板 / 个性化 UI / 附件
-- Desktop SQLite/Keychain / Agent Loop / Skill/MCP 完整功能
+- Desktop stores 切换到 Tauri invoke（当前 Desktop 用 Dexie，Web 也用 Dexie）
+- MCP Server 连接（stdio + Streamable HTTP）
+- 更多 Provider 协议（Azure, Bedrock）
 
 ## 18. Current Development Stage
 
@@ -160,15 +169,16 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 ## 19. Verified User Capabilities
 
-用户当前可以：添加 Provider（5 种协议）→ 测试连接 → 获取模型列表 → 新建会话 → 发送消息/附件 → 看到真实流式回复 → 停止生成 → 刷新恢复 → 快捷键操作 → 会话搜索 → 查看 Usage 统计 → 分类错误展示 → 拖拽上传图片/文本附件 → 历史附件参与多轮对话 → 会话导出/导入 → Ask/Plan/Agent 模式切换 → 个性化设置 → 切换中英文/主题
+用户当前可以：添加 Provider（5 种协议）→ 测试连接 → 获取模型列表 → 新建会话 → 发送消息/附件 → 看到真实流式回复 → 停止生成 → 刷新恢复 → 快捷键操作 → 会话搜索 → 查看 Usage 统计 → 分类错误展示 → 拖拽上传图片/文本附件 → 历史附件参与多轮对话 → 会话导出/导入 → Ask/Plan/Agent 模式切换 → 个性化设置 → 切换中英文/主题 → 重新生成/编辑消息 → 会话分支 → 模型切换 → Agent 模式 L3 工具审批 → Skill 启用/禁用
 
 ## 20. Known Gaps and Risks
 
 1. Stores 绕过 StoragePort 直接用 Dexie（架构债务）
-2. Desktop SQLite/Keychain 存储未实现
+2. Desktop stores 未切换到 Tauri invoke（Desktop 模式仍用 Dexie）
 3. CORS 错误展示可进一步优化
-4. 无重新生成/编辑重发功能
-5. 无会话分支功能
+4. tool-approval.ts 行数超限（254 行 vs 200 限制）
+5. ToolCallCard Approve/Deny 缺少集成测试
+6. 无 MCP Server 连接
 
 ## 21. Active Decisions
 
@@ -179,11 +189,11 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 ## 22. Next Vertical Slice
 
-1. 修复 Rust P0：keyring 替换 XOR、路径沙箱、SQL 白名单
-2. Desktop Storage Adapter（前端通过 Tauri invoke 调用 Rust SQLite）
-3. 重新生成 / 编辑用户消息后重试
-4. Agent Loop + Tool Registry 执行
-5. Skill/MCP 完整功能
+1. MCP Server 连接（stdio + Streamable HTTP）
+2. Desktop stores 切换到 Tauri invoke（替换 Dexie）
+3. 更多 Provider 协议（Azure, Bedrock）
+4. Context Builder + 上下文压缩
+5. 快捷键执行（ShortcutRegistry 实际触发）
 
 ## 23. Relevant Source Documents
 
@@ -208,3 +218,15 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - 2026-08-05 | e915a22 | 附件支持（图片/文本/拖拽/4 协议多模态）+ Gemini Adapter + OpenAI Responses Adapter + review 修复；63 tests pass；Web gzip 192.04 KB
 - 2026-08-05 | 2046d54 | 历史附件参与多轮请求 + 会话导出/导入 + 模式切换 + 个性化设置；65 tests pass；阶段1 完成
 - 2026-08-05 | 57eee0c | Desktop Tauri Rust 端基础（SQLite/Keychain/文件系统）；1 Rust test + 65 TS tests pass；review 发现 5 P0（安全）+ 7 P1
+- 2026-08-06 | c535f0a | 重新生成 + 编辑重试（stream-response.ts 共享 helper, send-message 重构, ChatMessage 组件）；79 tests pass
+- 2026-08-06 | 797e4ac | Agent Loop + Tool Registry（tool-registry-impl, tool-executor, local-file-tools, agent-loop, ToolCallCard UI）；91 tests pass
+- 2026-08-06 | dcfe3c9 | Agent Loop P0+P1 review 修复（路径遍历防护, L3 权限, DI, onDelta 修复）；92 tests pass
+- 2026-08-06 | 8601edf | Agent Loop P2 review 修复（draft sync, modeHint i18n, Approve/Deny 按钮 UI）；92 tests pass
+- 2026-08-06 | 698f10c | 会话分支（parentConversationId, branchConversation, ChatMessage branch 按钮）；100 tests pass
+- 2026-08-06 | b8492c7 | 分支 review 修复（toolCalls/toolResults ID remap, bulkAdd, i18n）；101 tests pass
+- 2026-08-06 | cada526 | 模型切换 UI（ModelSwitcher dropdown, provider-store switchProvider）；105 tests pass
+- 2026-08-06 | 8f527cd | Skill 系统（Registry + Store + Settings UI + Prompt 注入）；114 tests pass
+- 2026-08-06 | 3f4a11a | Skill review P0+P1 修复（类型安全, prompt 注入防护, 竞态, 双状态源）；114 tests pass
+- 2026-08-06 | 3fe30d4 | ToolCallCard Approve/Deny 接线（tool-approval.ts, continueAgentLoop, pendingToolApproval 状态）；114 tests pass
+- 2026-08-06 | d1949a6 | Tool approval review P0+P1 修复（CSS 损坏, 静态 import, chat-helpers.ts, 消息去重）；114 tests pass
+- 2026-08-06 | e7c47d0 | Review P1 修复（TOOL_DENIED 常量, for...of 循环, NOTE 注释恢复）；114 tests pass；Web gzip 208.11 KB
