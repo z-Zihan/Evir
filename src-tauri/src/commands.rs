@@ -1,19 +1,14 @@
 use std::{
-    collections::BTreeMap,
-    path::{Path, PathBuf},
-    sync::Mutex,
-    time::{SystemTime, UNIX_EPOCH},
+    path::{Component, Path, PathBuf},
+    time::UNIX_EPOCH,
 };
 
+use keyring::Entry;
 use serde::Serialize;
 use serde_json::Value;
 use tauri::{AppHandle, Manager};
 
 use crate::storage::{self, DatabaseState};
-
-const KEYCHAIN_FILE: &str = "keychain.enc";
-const SECRET_MASK: [u8; 32] = *b"evir-temporary-keychain-mask-v1!";
-static KEYCHAIN_LOCK: Mutex<()> = Mutex::new(());
 
 #[derive(Serialize)]
 pub struct FileInfo {
@@ -64,87 +59,14 @@ pub(crate) fn db_query(
     sql: String,
     params: Vec<Value>,
 ) -> Result<Vec<Value>, String> {
+    validate_query_sql(&sql)?;
     with_connection(&app, |conn| storage::execute_query(conn, &sql, &params))
 }
 
 #[tauri::command]
 pub(crate) fn db_update(app: AppHandle, sql: String, params: Vec<Value>) -> Result<usize, String> {
+    validate_update_sql(&sql)?;
     with_connection(&app, |conn| storage::execute_update(conn, &sql, &params))
-}
-
-fn crypt(payload: &[u8], nonce: &[u8; 16]) -> Vec<u8> {
-    payload
-        .iter()
-        .enumerate()
-        .map(|(index, byte)| {
-            byte ^ SECRET_MASK[index % SECRET_MASK.len()] ^ nonce[index % nonce.len()]
-        })
-        .collect()
-}
-
-fn hex_encode(bytes: &[u8]) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut output = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        output.push(HEX[(byte >> 4) as usize] as char);
-        output.push(HEX[(byte & 0x0f) as usize] as char);
-    }
-    output
-}
-
-fn hex_decode(value: &str) -> Result<Vec<u8>, String> {
-    if !value.len().is_multiple_of(2) {
-        return Err("invalid encrypted keychain data".to_owned());
-    }
-    value
-        .as_bytes()
-        .chunks_exact(2)
-        .map(|pair| {
-            let high = (pair[0] as char)
-                .to_digit(16)
-                .ok_or_else(|| "invalid encrypted keychain data".to_owned())?;
-            let low = (pair[1] as char)
-                .to_digit(16)
-                .ok_or_else(|| "invalid encrypted keychain data".to_owned())?;
-            Ok(((high << 4) | low) as u8)
-        })
-        .collect()
-}
-
-fn load_keychain(path: &Path) -> Result<BTreeMap<String, String>, String> {
-    if !path.exists() {
-        return Ok(BTreeMap::new());
-    }
-    let encoded = std::fs::read_to_string(path).map_err(|error| error.to_string())?;
-    let bytes = hex_decode(&encoded)?;
-    let (nonce, ciphertext) = bytes
-        .split_first_chunk::<16>()
-        .ok_or_else(|| "invalid encrypted keychain data".to_owned())?;
-    let plaintext = crypt(ciphertext, nonce);
-    serde_json::from_slice(&plaintext).map_err(|_| "invalid encrypted keychain data".to_owned())
-}
-
-fn save_keychain(path: &Path, values: &BTreeMap<String, String>) -> Result<(), String> {
-    let plaintext = serde_json::to_vec(values).map_err(|error| error.to_string())?;
-    let nonce = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_err(|error| error.to_string())?
-        .as_nanos()
-        .to_le_bytes();
-    let mut encrypted = nonce.to_vec();
-    encrypted.extend(crypt(&plaintext, &nonce));
-    std::fs::write(path, hex_encode(&encrypted)).map_err(|error| error.to_string())?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
-            .map_err(|error| error.to_string())?;
-    }
-    Ok(())
-}
-
-fn keychain_path(app: &AppHandle) -> Result<PathBuf, String> {
-    Ok(app_data_dir(app)?.join(KEYCHAIN_FILE))
 }
 
 fn validate_key(key: &str) -> Result<(), String> {
@@ -154,45 +76,65 @@ fn validate_key(key: &str) -> Result<(), String> {
     Ok(())
 }
 
-// TODO: Replace this temporary encrypted file with the keyring crate for production.
 #[tauri::command]
-pub(crate) fn keychain_set(app: AppHandle, key: String, value: String) -> Result<(), String> {
+pub(crate) fn keychain_set(key: String, value: String) -> Result<(), String> {
     validate_key(&key)?;
-    let _guard = KEYCHAIN_LOCK
-        .lock()
-        .map_err(|_| "keychain lock is poisoned".to_owned())?;
-    let path = keychain_path(&app)?;
-    let mut values = load_keychain(&path)?;
-    values.insert(key, value);
-    save_keychain(&path, &values)
+    let entry = Entry::new("evir", &key).map_err(|error| error.to_string())?;
+    entry
+        .set_password(&value)
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
-pub(crate) fn keychain_get(app: AppHandle, key: String) -> Result<Option<String>, String> {
+pub(crate) fn keychain_get(key: String) -> Result<Option<String>, String> {
     validate_key(&key)?;
-    let _guard = KEYCHAIN_LOCK
-        .lock()
-        .map_err(|_| "keychain lock is poisoned".to_owned())?;
-    Ok(load_keychain(&keychain_path(&app)?)?.get(&key).cloned())
-}
-
-#[tauri::command]
-pub(crate) fn keychain_delete(app: AppHandle, key: String) -> Result<(), String> {
-    validate_key(&key)?;
-    let _guard = KEYCHAIN_LOCK
-        .lock()
-        .map_err(|_| "keychain lock is poisoned".to_owned())?;
-    let path = keychain_path(&app)?;
-    let mut values = load_keychain(&path)?;
-    values.remove(&key);
-    save_keychain(&path, &values)
-}
-
-fn path_from_input(path: String) -> Result<PathBuf, String> {
-    if path.trim().is_empty() {
-        return Err("path must not be empty".to_owned());
+    let entry = Entry::new("evir", &key).map_err(|error| error.to_string())?;
+    match entry.get_password() {
+        Ok(value) => Ok(Some(value)),
+        Err(keyring::Error::NoEntry) => Ok(None),
+        Err(error) => Err(error.to_string()),
     }
-    Ok(PathBuf::from(path))
+}
+
+#[tauri::command]
+pub(crate) fn keychain_delete(key: String) -> Result<(), String> {
+    validate_key(&key)?;
+    let entry = Entry::new("evir", &key).map_err(|error| error.to_string())?;
+    match entry.delete_credential() {
+        Ok(()) => Ok(()),
+        Err(keyring::Error::NoEntry) => Ok(()),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+fn validate_path(path: &str) -> Result<PathBuf, String> {
+    let path_buf = PathBuf::from(path);
+    if !path_buf.is_absolute() {
+        return Err("path must be absolute".to_owned());
+    }
+    if path_buf
+        .components()
+        .any(|component| component == Component::ParentDir)
+    {
+        return Err("path must not contain parent directory traversal".to_owned());
+    }
+    let canonical = path_buf.canonicalize().unwrap_or(path_buf);
+    let blocked = [
+        "/etc",
+        "/var",
+        "/usr",
+        "/bin",
+        "/sbin",
+        "/System",
+        "/private/etc",
+    ];
+    let path_str = canonical.to_string_lossy();
+    for prefix in blocked {
+        if path_str.starts_with(prefix) {
+            return Err(format!("access to {prefix} is not allowed"));
+        }
+    }
+    Ok(canonical)
 }
 
 fn file_info_from_path(path: &Path) -> Result<FileInfo, String> {
@@ -216,17 +158,17 @@ fn file_info_from_path(path: &Path) -> Result<FileInfo, String> {
 
 #[tauri::command]
 pub(crate) fn fs_read_file(path: String) -> Result<String, String> {
-    std::fs::read_to_string(path_from_input(path)?).map_err(|error| error.to_string())
+    std::fs::read_to_string(validate_path(&path)?).map_err(|error| error.to_string())
 }
 
 #[tauri::command]
 pub(crate) fn fs_write_file(path: String, content: String) -> Result<(), String> {
-    std::fs::write(path_from_input(path)?, content).map_err(|error| error.to_string())
+    std::fs::write(validate_path(&path)?, content).map_err(|error| error.to_string())
 }
 
 #[tauri::command]
 pub(crate) fn fs_list_dir(path: String) -> Result<Vec<FileInfo>, String> {
-    let mut files = std::fs::read_dir(path_from_input(path)?)
+    let mut files = std::fs::read_dir(validate_path(&path)?)
         .map_err(|error| error.to_string())?
         .map(|entry| {
             let entry = entry.map_err(|error| error.to_string())?;
@@ -239,5 +181,92 @@ pub(crate) fn fs_list_dir(path: String) -> Result<Vec<FileInfo>, String> {
 
 #[tauri::command]
 pub(crate) fn fs_file_info(path: String) -> Result<FileInfo, String> {
-    file_info_from_path(&path_from_input(path)?)
+    file_info_from_path(&validate_path(&path)?)
+}
+
+fn validate_query_sql(sql: &str) -> Result<(), String> {
+    let trimmed = sql.trim().to_uppercase();
+    if !trimmed.starts_with("SELECT")
+        && !trimmed.starts_with("WITH")
+        && !trimmed.starts_with("PRAGMA")
+    {
+        return Err("only SELECT, WITH, and PRAGMA queries are allowed".to_owned());
+    }
+    Ok(())
+}
+
+fn validate_update_sql(sql: &str) -> Result<(), String> {
+    let trimmed = sql.trim().to_uppercase();
+    if !trimmed.starts_with("INSERT")
+        && !trimmed.starts_with("UPDATE")
+        && !trimmed.starts_with("DELETE")
+    {
+        return Err("only INSERT, UPDATE, and DELETE are allowed".to_owned());
+    }
+    let lower = sql.to_lowercase();
+    for keyword in ["drop", "attach", "detach", "pragma", "vacuum", "reindex"] {
+        if lower.contains(keyword) {
+            return Err(format!("{keyword} is not allowed"));
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{validate_query_sql, validate_update_sql};
+
+    #[test]
+    fn query_validation_allows_read_statements_only() {
+        for sql in [
+            "SELECT * FROM messages",
+            " with recent AS (SELECT 1) SELECT * FROM recent",
+            "pragma table_info(messages)",
+        ] {
+            assert!(
+                validate_query_sql(sql).is_ok(),
+                "expected query to pass: {sql}"
+            );
+        }
+        assert_eq!(
+            validate_query_sql("DELETE FROM messages"),
+            Err("only SELECT, WITH, and PRAGMA queries are allowed".to_owned())
+        );
+    }
+
+    #[test]
+    fn update_validation_allows_dml_and_blocks_dangerous_keywords() {
+        for sql in [
+            "INSERT INTO settings VALUES (?1, ?2)",
+            " update settings SET value = ?1",
+            "DELETE FROM settings WHERE name = ?1",
+        ] {
+            assert!(
+                validate_update_sql(sql).is_ok(),
+                "expected update to pass: {sql}"
+            );
+        }
+        assert!(validate_update_sql("DROP TABLE settings").is_err());
+        assert_eq!(
+            validate_update_sql("DELETE FROM settings; VACUUM"),
+            Err("vacuum is not allowed".to_owned())
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn path_validation_requires_absolute_non_traversing_unblocked_paths() {
+        use super::validate_path;
+
+        assert_eq!(
+            validate_path("relative/file.txt"),
+            Err("path must be absolute".to_owned())
+        );
+        assert_eq!(
+            validate_path("/tmp/../etc/passwd"),
+            Err("path must not contain parent directory traversal".to_owned())
+        );
+        assert!(validate_path("/etc/passwd").is_err());
+        assert!(validate_path("/tmp/evir-file.txt").is_ok());
+    }
 }

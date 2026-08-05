@@ -14,12 +14,18 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
-            let app_data_dir = app
-                .path()
-                .app_data_dir()
-                .expect("failed to get app data dir");
-            std::fs::create_dir_all(&app_data_dir).expect("failed to create app data dir");
-            let conn = storage::init_db(&app_data_dir).expect("failed to init database");
+            let app_data_dir = app.path().app_data_dir().map_err(|error| {
+                eprintln!("Failed to get app data dir: {error}");
+                error
+            })?;
+            std::fs::create_dir_all(&app_data_dir).map_err(|error| {
+                eprintln!("Failed to create app data dir: {error}");
+                error
+            })?;
+            let conn = storage::init_db(&app_data_dir).map_err(|error| {
+                eprintln!("Failed to init database: {error}");
+                error
+            })?;
             app.manage(storage::DatabaseState::new(conn));
             Ok(())
         })
