@@ -4,6 +4,9 @@ import type { ContextCompressionStage } from "./types";
 const SAFETY_MARGIN_RATIO = 0.1;
 const RESERVED_OUTPUT_RATIO = 0.2;
 const RESERVED_TOOLS_RATIO = 0.1;
+const COMPACT_THRESHOLD = 0.6;
+const SUMMARY_THRESHOLD = 0.75;
+const CHECKPOINT_THRESHOLD = 0.9;
 
 export function createContextBudgetManager(): ContextBudgetManager {
   return {
@@ -29,7 +32,7 @@ export function createContextBudgetManager(): ContextBudgetManager {
     },
 
     shouldCompact(snapshot) {
-      return snapshot.utilizationRatio > 0.6;
+      return snapshot.utilizationRatio > COMPACT_THRESHOLD;
     },
 
     getCompressionStage: getCompressionStage,
@@ -37,8 +40,8 @@ export function createContextBudgetManager(): ContextBudgetManager {
 }
 
 export function getCompressionStage(utilization: number): ContextCompressionStage {
-  if (utilization > 0.9) return "checkpoint-compaction";
-  if (utilization > 0.75) return "conversation-summary";
-  if (utilization > 0.6) return "tool-output-compaction";
+  if (utilization > CHECKPOINT_THRESHOLD) return "checkpoint-compaction";
+  if (utilization > SUMMARY_THRESHOLD) return "conversation-summary";
+  if (utilization > COMPACT_THRESHOLD) return "tool-output-compaction";
   return "none";
 }

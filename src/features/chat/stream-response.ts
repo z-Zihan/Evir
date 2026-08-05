@@ -17,7 +17,9 @@ import type { PendingToolApproval } from "./tool-approval";
 import { toMessage, sorted } from "./chat-helpers";
 import { createContextBudgetManager } from "../../core/context/context-budget-manager";
 import { compactToolOutputs } from "../../core/context/compact-tool-outputs";
-import { estimateTokens } from "../../core/context/token-estimate";
+import { estimateMessagesTokens } from "../../core/context/token-estimate";
+
+const budgetManagerInstance = createContextBudgetManager();
 
 type ChatStoreSet = StoreApi<ChatState>["setState"];
 type ChatStoreGet = StoreApi<ChatState>["getState"];
@@ -128,9 +130,10 @@ export async function streamResponse(
   const mode = get().mode;
 
   // Context budget: estimate tokens and compact tool outputs if needed
+  // TODO: lookup maxContextTokens from ModelProfile.capabilities when available
   const DEFAULT_MAX_CONTEXT_TOKENS = 128_000;
-  const budgetManager = createContextBudgetManager();
-  const inputTokens = estimateTokens(String(history.reduce((sum, m) => sum + m.content.length, 0)));
+  const budgetManager = budgetManagerInstance;
+  const inputTokens = estimateMessagesTokens(history);
   const snapshot = budgetManager.snapshot(
     provider.modelId,
     DEFAULT_MAX_CONTEXT_TOKENS,
