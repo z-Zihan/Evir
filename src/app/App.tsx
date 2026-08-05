@@ -32,6 +32,10 @@ export function App() {
     onNewConversation: handleNewConversation,
     onOpenSettings: () => setSettingsOpen(true),
     onToggleSidebar: () => setSidebarVisible((visible) => !visible),
+    onSearchConversations: () => {
+      if (!sidebarVisible) setSidebarVisible(true);
+      window.dispatchEvent(new CustomEvent("evir:focus-search"));
+    },
     onSendMessage: handleSendMessage,
     onStop: () => {
       if (isStreaming) stopGeneration();

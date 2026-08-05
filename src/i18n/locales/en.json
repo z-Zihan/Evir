@@ -2,7 +2,9 @@
   "sidebar": {
     "newChat": "New chat",
     "recent": "Recent",
-    "noConversations": "No conversations yet"
+    "noConversations": "No conversations yet",
+    "searchPlaceholder": "Search conversations…",
+    "noResults": "No matches"
   },
   "chat": {
     "title": "New conversation",

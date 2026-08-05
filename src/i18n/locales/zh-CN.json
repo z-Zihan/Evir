@@ -2,7 +2,9 @@
   "sidebar": {
     "newChat": "新建对话",
     "recent": "最近",
-    "noConversations": "暂无会话"
+    "noConversations": "暂无会话",
+    "searchPlaceholder": "搜索对话…",
+    "noResults": "无匹配结果"
   },
   "chat": {
     "title": "新对话",

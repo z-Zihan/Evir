@@ -110,6 +110,30 @@ textarea:focus-visible {
   border-radius: 9px;
   font-weight: 600;
 }
+
+.conversation-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.conversation-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 13px;
+  outline: none;
+}
+.conversation-search input::placeholder {
+  color: var(--muted-foreground);
+}
+
 .section-label {
   margin: 24px 8px 8px;
   color: var(--muted-foreground);

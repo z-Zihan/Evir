@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { GitBranch, MessageSquarePlus, Moon, Search, Settings2, Sun, Trash2 } from "lucide-react";
 import { useChatStore } from "../features/chat/chat-store";
@@ -21,6 +21,12 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
   const { getDefaultProvider } = useProviderStore();
   const { resolvedTheme, cycleTheme } = useThemeStore();
   const [searchQuery, setSearchQuery] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const focusSearch = () => searchRef.current?.focus();
+    window.addEventListener("evir:focus-search", focusSearch);
+    return () => window.removeEventListener("evir:focus-search", focusSearch);
+  }, []);
   const provider = getDefaultProvider();
   const filteredConversations = conversations.filter(({ title }) =>
     title.toLowerCase().includes(searchQuery.trim().toLowerCase()),
@@ -49,6 +55,7 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
       <label className="conversation-search">
         <Search size={15} />
         <input
+          ref={searchRef}
           type="search"
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
