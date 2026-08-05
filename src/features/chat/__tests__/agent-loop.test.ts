@@ -141,6 +141,7 @@ describe("runAgentLoop permission handling", () => {
     expect(result.turns).toHaveLength(1);
     expect(result.maxIterationsReached).toBe(false);
     expect(result.turns[0]?.pendingApproval).toEqual({
+      toolCallId: "call-1",
       toolName: "write_file",
       args: { path: "/tmp/a", content: "hi" },
     });

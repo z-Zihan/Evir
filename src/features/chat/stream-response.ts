@@ -8,11 +8,12 @@ import {
 } from "../../core/storage/db";
 import { useProviderStore } from "../provider/provider-store";
 import { formatAttachmentForProvider } from "./attachment-utils";
-import { runAgentLoop, type AgentLoopTurn } from "./agent-loop";
+import { runAgentLoop, type AgentLoopResult, type AgentLoopTurn } from "./agent-loop";
 import type { ChatState } from "./chat-store";
 import { providerReadinessError, streamAssistant, type StreamResult } from "./chat-stream";
 import { useSkillStore } from "../skills/skill-store";
 import type { EvirRuntime } from "../../runtime/types";
+import type { PendingToolApproval } from "./tool-approval";
 
 type ChatStoreSet = StoreApi<ChatState>["setState"];
 type ChatStoreGet = StoreApi<ChatState>["getState"];
@@ -64,14 +65,14 @@ function modeHint(mode: ChatState["mode"]): string {
   return "";
 }
 
-async function getTurns(
+async function getLoopResult(
   provider: ProviderRecord,
   conversationId: string,
   messages: ProviderMessage[],
   set: ChatStoreSet,
   mode: ChatState["mode"],
   runtime: EvirRuntime,
-): Promise<{ turns: AgentLoopTurn[]; maxIterationsReached: boolean }> {
+): Promise<AgentLoopResult> {
   const onDelta = (streamingContent: string) => set({ streamingContent });
   if (mode === "agent") {
     return runAgentLoop({
@@ -83,7 +84,7 @@ async function getTurns(
     });
   }
   const stream = await streamAssistant(provider, conversationId, messages, onDelta);
-  return { turns: [{ stream }], maxIterationsReached: false };
+  return { turns: [{ stream }], maxIterationsReached: false, messages: [] };
 }
 
 function toMessage(turn: AgentLoopTurn, conversationId: string): MessageRecord {
@@ -145,7 +146,6 @@ export async function streamResponse(
   const hint = modeHint(mode);
   if (hint) systemParts.push(hint);
   if (mode === "agent" || mode === "plan") {
-    // Skill content is treated as untrusted data and wrapped in XML-style boundary markers.
     const skillContent = await useSkillStore.getState().getEnabledContent();
     if (skillContent) {
       systemParts.push(`<active_skills>\n${skillContent}\n</active_skills>`);
@@ -155,11 +155,51 @@ export async function streamResponse(
     messages.unshift({ role: "system", content: systemParts.join("\n\n") });
   }
 
-  const result = await getTurns(provider, conversationId, messages, set, mode, runtime);
+  const result = await getLoopResult(provider, conversationId, messages, set, mode, runtime);
   if (result.turns.length === 0) {
     set({ isStreaming: false, streamingContent: "", error: "chat.streamEnded" });
     return;
   }
+
+  const lastTurn = result.turns[result.turns.length - 1];
+  const blocked = lastTurn?.pendingApproval;
+
+  if (blocked && mode === "agent") {
+    const earlierTurns = result.turns.slice(0, -1);
+    const earlierMessages = earlierTurns.map((turn) => toMessage(turn, conversationId));
+    if (earlierMessages.length > 0) {
+      const conversation = get().conversations.find(({ id }) => id === conversationId);
+      const title = titleFor(history, Boolean(conversation?.title));
+      await persistResponse(earlierMessages, conversationId, title);
+    }
+
+    const blockedMessage = toMessage(lastTurn, conversationId);
+    const pendingApproval: PendingToolApproval = {
+      toolCallId: blocked.toolCallId,
+      toolName: blocked.toolName,
+      args: blocked.args,
+      conversationId,
+      messages: result.messages,
+      providerId: provider.id,
+      turn: lastTurn,
+    };
+
+    set(({ conversations, currentConversationId, messages: currentMessages }) => ({
+      conversations: sorted(
+        conversations.map((item) =>
+          item.id === conversationId ? { ...item, updatedAt: Date.now() } : item,
+        ),
+      ),
+      ...(currentConversationId === conversationId
+        ? { messages: [...currentMessages, ...earlierMessages, blockedMessage] }
+        : {}),
+      isStreaming: false,
+      streamingContent: "",
+      pendingToolApproval: pendingApproval,
+    }));
+    return;
+  }
+
   const assistants = result.turns.map((turn) => toMessage(turn, conversationId));
   const conversation = get().conversations.find(({ id }) => id === conversationId);
   const title = titleFor(history, Boolean(conversation?.title));

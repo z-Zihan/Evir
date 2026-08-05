@@ -508,7 +508,7 @@ textarea:focus-visible {
   border-top: 1px solid var(--border);
 }
 .tool-call-approve,
-.tool-call-deny {
+.tool-call-deny {#10;.tool-call-deny {
   padding: 4px 14px;
   font-size: 12px;
   border: 1px solid var(--border);
@@ -521,9 +521,14 @@ textarea:focus-visible {
   color: var(--success);
   border-color: var(--success);
 }
-.tool-call-deny {
+.tool-call-deny {#10;.tool-call-deny {
   color: var(--danger);
   border-color: var(--danger);
+}
+.tool-call-approve:disabled,
+.tool-call-deny:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Modal */

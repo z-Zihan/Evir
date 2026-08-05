@@ -10,10 +10,10 @@ export interface AgentLoopTurn {
   stream: StreamResult;
   toolCalls?: ToolCallRecord[];
   toolResults?: ToolResultRecord[];
-  pendingApproval?: { toolName: string; args: Record<string, unknown> };
+  pendingApproval?: { toolCallId: string; toolName: string; args: Record<string, unknown> };
 }
 
-interface AgentLoopOptions {
+export interface AgentLoopOptions {
   provider: ProviderRecord;
   conversationId: string;
   messages: AgentMessage[];
@@ -28,7 +28,7 @@ interface AgentToolCall {
   function: { name: string; arguments: string };
 }
 
-interface AgentMessage {
+export interface AgentMessage {
   role: string;
   content: unknown;
   tool_calls?: AgentToolCall[];
@@ -39,6 +39,7 @@ interface AgentMessage {
 export interface AgentLoopResult {
   turns: AgentLoopTurn[];
   maxIterationsReached: boolean;
+  messages: AgentMessage[];
 }
 
 interface CallWithRaw {
@@ -105,7 +106,7 @@ function appendToolMessages(
     content: stream.content,
     tool_calls: calls.map((call) => ({
       id: call.record.id,
-      type: "function",
+      type: "function" as const,
       function: {
         name: call.record.toolName,
         arguments: call.rawArguments,
@@ -129,11 +130,13 @@ function requiresPermission(results: ToolResultRecord[]): boolean {
 function findBlockedCall(
   calls: CallWithRaw[],
   results: ToolResultRecord[],
-): { toolName: string; args: Record<string, unknown> } | undefined {
+): { toolCallId: string; toolName: string; args: Record<string, unknown> } | undefined {
   const index = results.findIndex((r) => r.error === TOOL_PERMISSION_REQUIRED);
   if (index === -1) return undefined;
   const call = calls[index];
-  return call ? { toolName: call.record.toolName, args: call.record.arguments } : undefined;
+  return call
+    ? { toolCallId: call.record.id, toolName: call.record.toolName, args: call.record.arguments }
+    : undefined;
 }
 
 export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoopResult> {
@@ -154,7 +157,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
     );
     if (stream.status !== "complete" || !stream.toolCalls?.length) {
       turns.push({ stream });
-      return { turns, maxIterationsReached: false };
+      return { turns, maxIterationsReached: false, messages };
     }
     const { calls, results } = await executeCalls(stream, runtime);
     const toolCalls = calls.map((c) => c.record);
@@ -163,10 +166,14 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
       const blocked = findBlockedCall(calls, results);
       if (blocked) turn.pendingApproval = blocked;
       turns.push(turn);
-      return { turns, maxIterationsReached: false };
+      return { turns, maxIterationsReached: false, messages };
     }
     appendToolMessages(messages, stream, calls, results);
     turns.push(turn);
   }
-  return { turns, maxIterationsReached: true };
+  return { turns, maxIterationsReached: true, messages };
+}
+
+export async function continueAgentLoop(options: AgentLoopOptions): Promise<AgentLoopResult> {
+  return runAgentLoop(options);
 }

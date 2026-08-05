@@ -69,7 +69,9 @@
     "maxIterations": "已达到工具调用最大迭代次数。",
     "read_file": "读取文件",
     "list_directory": "列出目录",
-    "write_file": "写入文件"
+    "write_file": "写入文件",
+    "executing": "正在执行...",
+    "denied": "已拒绝"
   },
   "settings": {
     "title": "设置",

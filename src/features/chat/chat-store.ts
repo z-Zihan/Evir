@@ -13,6 +13,7 @@ import { sendChatMessage } from "./send-message";
 import { streamResponse } from "./stream-response";
 import { getRuntime } from "../../runtime/use-runtime";
 import { branchConversation as doBranchConversation } from "./branch-conversation";
+import { approveTool, denyTool, type PendingToolApproval } from "./tool-approval";
 
 export interface ChatState {
   conversations: ConversationRecord[];
@@ -23,6 +24,7 @@ export interface ChatState {
   streamingContent: string;
   error: string | null;
   pendingAttachments: ProcessedAttachment[];
+  pendingToolApproval: PendingToolApproval | null;
   loadConversations: () => Promise<void>;
   createConversation: (providerId: string, modelId: string) => Promise<string>;
   selectConversation: (id: string) => Promise<void>;
@@ -37,6 +39,8 @@ export interface ChatState {
   removeAttachment: (id: string) => void;
   clearAttachments: () => void;
   setMode: (mode: InteractionMode) => void;
+  approveTool: () => Promise<void>;
+  denyTool: () => Promise<void>;
   branchConversation: (messageId: string) => Promise<string>;
 }
 
@@ -49,6 +53,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   streamingContent: "",
   error: null,
   pendingAttachments: [],
+  pendingToolApproval: null,
 
   loadConversations: async () => {
     set({ conversations: await db.conversations.orderBy("updatedAt").reverse().toArray() });
@@ -82,6 +87,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       streamingContent: "",
       error: null,
       pendingAttachments: [],
+      pendingToolApproval: null,
     });
   },
 
@@ -100,6 +106,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             messages: [],
             streamingContent: "",
             pendingAttachments: [],
+            pendingToolApproval: null,
           }
         : {}),
     }));
@@ -151,6 +158,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   clearAttachments: () => set({ pendingAttachments: [] }),
   setMode: (mode) => set({ mode }),
+
+  approveTool: async () => {
+    const pending = get().pendingToolApproval;
+    if (!pending) return;
+    await approveTool(pending, set, get);
+  },
+
+  denyTool: async () => {
+    const pending = get().pendingToolApproval;
+    if (!pending) return;
+    await denyTool(pending, set, get);
+  },
+
   sendMessage: (text) => sendChatMessage(set, get, text),
   regenerate: async () => {
     const { messages, currentConversationId, isStreaming } = get();
@@ -160,7 +180,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     await db.messages.delete(lastAssistant.id);
     const history = messages.filter(({ id }) => id !== lastAssistant.id);
-    set({ messages: history });
+    set({ messages: history, pendingToolApproval: null });
     await streamResponse(set, get, history, currentConversationId, getRuntime());
   },
   editMessage: async (messageId, newContent) => {
@@ -181,7 +201,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     });
     const updated = messages.slice(0, index + 1);
     updated[index] = { ...message, content: newContent };
-    set({ messages: updated });
+    set({ messages: updated, pendingToolApproval: null });
     await streamResponse(set, get, updated, currentConversationId, getRuntime());
   },
   stopGeneration: stopActiveStream,

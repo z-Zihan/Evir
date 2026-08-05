@@ -69,7 +69,9 @@
     "maxIterations": "Maximum tool call iterations reached.",
     "read_file": "Read file",
     "list_directory": "List directory",
-    "write_file": "Write file"
+    "write_file": "Write file",
+    "executing": "Executing...",
+    "denied": "Denied"
   },
   "settings": {
     "title": "Settings",

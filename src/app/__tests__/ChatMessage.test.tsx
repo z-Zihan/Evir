@@ -4,6 +4,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MessageRecord } from "../../core/storage/db";
 import { ChatMessage } from "../ChatMessage";
 
+vi.mock("../../features/chat/chat-store", () => ({
+  useChatStore: (selector: (state: Record<string, unknown>) => unknown) =>
+    selector({
+      isStreaming: false,
+      pendingToolApproval: null,
+      approveTool: vi.fn(),
+      denyTool: vi.fn(),
+    }),
+}));
+
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string) => key,
