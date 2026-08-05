@@ -47,6 +47,21 @@
     "agentReady": "本地 Agent Runtime",
     "chatOnly": "浏览器聊天模式"
   },
+  "tools": {
+    "title": "工具调用",
+    "arguments": "参数",
+    "result": "结果",
+    "success": "成功",
+    "failed": "失败",
+    "permissionRequired": "需要权限",
+    "approve": "允许",
+    "deny": "拒绝",
+    "notAvailable": "浏览器模式下无法使用此工具。",
+    "maxIterations": "已达到工具调用最大迭代次数。",
+    "readFile": "读取文件",
+    "listDirectory": "列出目录",
+    "writeFile": "写入文件"
+  },
   "settings": {
     "title": "设置",
     "close": "关闭",

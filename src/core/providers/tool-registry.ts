@@ -1,6 +1,14 @@
+import type { EvirRuntime } from "../../runtime/types";
+
 export type ToolSource = "evir-local" | "mcp-local" | "mcp-remote" | "provider-server";
 
 export type RiskLevel = "L0" | "L1" | "L2" | "L3" | "L4";
+
+export interface ToolResult {
+  success: boolean;
+  output: string;
+  error?: string;
+}
 
 export interface ToolDefinition {
   id: string;
@@ -9,6 +17,7 @@ export interface ToolDefinition {
   source: ToolSource;
   riskLevel: RiskLevel;
   schema: Record<string, unknown>;
+  execute(args: Record<string, unknown>, runtime: EvirRuntime): Promise<ToolResult>;
 }
 
 export interface ToolRegistry {
@@ -18,6 +27,7 @@ export interface ToolRegistry {
   list(): readonly ToolDefinition[];
   listBySource(source: ToolSource): readonly ToolDefinition[];
   listByRiskLevel(maxLevel: RiskLevel): readonly ToolDefinition[];
+  listForMode(mode: InteractionMode): readonly ToolDefinition[];
 }
 
 export type InteractionMode = "ask" | "plan" | "agent";

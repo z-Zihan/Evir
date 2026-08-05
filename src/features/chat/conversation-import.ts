@@ -12,6 +12,20 @@ const attachmentSchema = z.object({
   createdAt: z.number(),
 });
 
+const toolCallSchema = z.object({
+  id: z.string(),
+  toolName: z.string(),
+  arguments: z.record(z.string(), z.unknown()),
+});
+
+const toolResultSchema = z.object({
+  toolCallId: z.string(),
+  toolName: z.string(),
+  success: z.boolean(),
+  output: z.string(),
+  error: z.string().optional(),
+});
+
 const messageSchema = z.object({
   id: z.string(),
   conversationId: z.string(),
@@ -28,6 +42,8 @@ const messageSchema = z.object({
     })
     .optional(),
   attachments: z.array(attachmentSchema).optional(),
+  toolCalls: z.array(toolCallSchema).optional(),
+  toolResults: z.array(toolResultSchema).optional(),
 });
 
 const conversationSchema = z.object({
@@ -85,6 +101,15 @@ export async function importConversations(
                     ? { totalTokens: msgData.usage.totalTokens }
                     : {}),
                 },
+              }
+            : {}),
+          ...(msgData.toolCalls !== undefined ? { toolCalls: msgData.toolCalls } : {}),
+          ...(msgData.toolResults !== undefined
+            ? {
+                toolResults: msgData.toolResults.map(({ error, ...result }) => ({
+                  ...result,
+                  ...(error !== undefined ? { error } : {}),
+                })),
               }
             : {}),
         };

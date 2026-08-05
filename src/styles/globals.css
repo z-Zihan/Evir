@@ -20,6 +20,8 @@
   --primary-foreground: #ffffff;
   --sidebar: #ecece8;
   --focus: #7a806f;
+  --success: #2f7d4a;
+  --danger: #b43a32;
 }
 
 :root.dark {
@@ -35,6 +37,8 @@
   --primary-foreground: #1c1d1a;
   --sidebar: #191a17;
   --focus: #a9ae9a;
+  --success: #76c893;
+  --danger: #ef8179;
 }
 
 * {
@@ -358,7 +362,7 @@ textarea:focus-visible {
   font-style: italic;
 }
 .message-error {
-  color: #c0392b;
+  color: var(--danger);
   font-size: 13px;
   margin-top: 8px;
 }
@@ -428,6 +432,63 @@ textarea:focus-visible {
   border-radius: 8px;
   background: #c0392b;
   color: #fff;
+}
+
+/* Tool calls */
+.tool-call-card {
+  margin-top: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.tool-call-header,
+.tool-call-name {
+  display: flex;
+  align-items: center;
+}
+.tool-call-header {
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 11px;
+}
+.tool-call-name {
+  min-width: 0;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.tool-call-name strong {
+  overflow: hidden;
+  color: var(--foreground);
+  text-overflow: ellipsis;
+}
+.tool-call-status {
+  flex: none;
+  font-size: 11px;
+  color: var(--danger);
+}
+.tool-call-status.success {
+  color: var(--success);
+}
+.tool-call-details {
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+}
+.tool-call-details summary {
+  padding: 7px 11px;
+  cursor: pointer;
+  color: var(--muted-foreground);
+}
+.tool-call-details pre {
+  max-height: 240px;
+  margin: 0;
+  padding: 10px 11px;
+  overflow: auto;
+  border: 0;
+  border-radius: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* Modal */

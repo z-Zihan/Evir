@@ -123,6 +123,31 @@ describe("OpenAIChatCompletionsAdapter", () => {
     });
   });
 
+  it("keeps one tool call id while streaming argument fragments", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          sseResponse([
+            'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call-1","function":{"name":"read_file","arguments":"{\\"path\\":"}}]}}]}\n\n',
+            'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\\"/tmp/a\\"}"}}]},"finish_reason":"tool_calls"}]}\n\n',
+            "data: [DONE]\n\n",
+          ]),
+        ),
+      ),
+    );
+
+    const events = await collect(new OpenAIChatCompletionsAdapter({ apiKey: "test-key" }));
+
+    expect(events.filter((event) => event.type === "tool-call-start")).toEqual([
+      { type: "tool-call-start", toolCallId: "call-1", toolName: "read_file" },
+    ]);
+    expect(events.filter((event) => event.type === "tool-call-arguments-delta")).toEqual([
+      { type: "tool-call-arguments-delta", toolCallId: "call-1", argumentsDelta: '{"path":' },
+      { type: "tool-call-arguments-delta", toolCallId: "call-1", argumentsDelta: '"/tmp/a"}' },
+    ]);
+  });
+
   it("completes when finish_reason is received without a DONE event", async () => {
     vi.stubGlobal(
       "fetch",

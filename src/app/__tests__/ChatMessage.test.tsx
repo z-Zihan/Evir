@@ -62,4 +62,34 @@ describe("ChatMessage actions", () => {
     fireEvent.click(screen.getByRole("button", { name: "chat.regenerate" }));
     expect(onRegenerate).toHaveBeenCalledOnce();
   });
+
+  it("renders a tool call with its arguments and result", () => {
+    const assistant = message("assistant", "I read the file.");
+    assistant.toolCalls = [
+      {
+        id: "call-1",
+        toolName: "read_file",
+        arguments: { path: "/tmp/notes.txt" },
+      },
+    ];
+    assistant.toolResults = [
+      {
+        toolCallId: "call-1",
+        toolName: "read_file",
+        success: true,
+        output: "Notes",
+      },
+    ];
+
+    render(
+      <ChatMessage message={assistant} disabled={false} onEdit={vi.fn()} onRegenerate={vi.fn()} />,
+    );
+
+    const body = document.body;
+    expect(body.textContent).toContain("tools.title");
+    expect(body.textContent).toContain("tools.readFile");
+    expect(body.textContent).toContain("tools.success");
+    expect(body.textContent).toContain("notes.txt");
+    expect(body.textContent).toContain("Notes");
+  });
 });

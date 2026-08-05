@@ -112,6 +112,7 @@ export class OpenAIChatClient implements ProtocolAdapter {
     let finishReason = "stop";
     let hasFinished = false;
     const openToolCalls = new Set<string>();
+    const toolCallIds = new Map<number, string>();
     try {
       const response = await this.request(
         {
@@ -173,7 +174,9 @@ export class OpenAIChatClient implements ProtocolAdapter {
         const toolCalls = Array.isArray(delta?.tool_calls) ? delta.tool_calls : [];
         for (const rawCall of toolCalls) {
           const call = record(rawCall);
-          const toolCallId = string(call?.id) ?? `tool-${number(call?.index) ?? 0}`;
+          const index = number(call?.index) ?? 0;
+          const toolCallId = string(call?.id) ?? toolCallIds.get(index) ?? `tool-${index}`;
+          toolCallIds.set(index, toolCallId);
           const fn = record(call?.function);
           if (!openToolCalls.has(toolCallId)) {
             openToolCalls.add(toolCallId);

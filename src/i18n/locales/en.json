@@ -47,6 +47,21 @@
     "agentReady": "Local agent runtime",
     "chatOnly": "Browser chat mode"
   },
+  "tools": {
+    "title": "Tool call",
+    "arguments": "Arguments",
+    "result": "Result",
+    "success": "Success",
+    "failed": "Failed",
+    "permissionRequired": "Permission required",
+    "approve": "Approve",
+    "deny": "Deny",
+    "notAvailable": "This tool is not available in browser mode.",
+    "maxIterations": "Maximum tool call iterations reached.",
+    "readFile": "Read file",
+    "listDirectory": "List directory",
+    "writeFile": "Write file"
+  },
   "settings": {
     "title": "Settings",
     "close": "Close",

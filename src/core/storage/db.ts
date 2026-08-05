@@ -33,6 +33,20 @@ export interface AttachmentRecord {
   createdAt: number;
 }
 
+export interface ToolCallRecord {
+  id: string;
+  toolName: string;
+  arguments: Record<string, unknown>;
+}
+
+export interface ToolResultRecord {
+  toolCallId: string;
+  toolName: string;
+  success: boolean;
+  output: string;
+  error?: string;
+}
+
 export interface MessageRecord {
   id: string;
   conversationId: string;
@@ -47,6 +61,8 @@ export interface MessageRecord {
     totalTokens?: number;
   };
   attachments?: AttachmentRecord[];
+  toolCalls?: ToolCallRecord[];
+  toolResults?: ToolResultRecord[];
 }
 
 export interface UsageRecord {
@@ -87,6 +103,14 @@ export class EvirDB extends Dexie {
       settings: "name",
     });
     this.version(2).stores({
+      providers: "id",
+      conversations: "id, updatedAt",
+      messages: "id, conversationId, createdAt",
+      attachments: "id, messageId",
+      usage_records: "id, conversationId, createdAt",
+      settings: "name",
+    });
+    this.version(3).stores({
       providers: "id",
       conversations: "id, updatedAt",
       messages: "id, conversationId, createdAt",

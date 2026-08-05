@@ -37,6 +37,7 @@ export interface StreamResult {
   content: string;
   status: "complete" | "stopped" | "error";
   errorMessage?: string;
+  toolCalls?: { id: string; toolName: string; arguments: string }[];
 }
 
 export async function streamAssistant(
@@ -44,6 +45,7 @@ export async function streamAssistant(
   conversationId: string,
   messages: { role: string; content: unknown }[],
   onDelta: (delta: string) => void,
+  tools?: unknown[],
 ): Promise<StreamResult> {
   if (activeController) {
     return {
@@ -71,17 +73,28 @@ export async function streamAssistant(
   let status: StreamResult["status"] = "complete";
   let errorMessage: string | undefined;
   let completed = false;
+  const toolCalls = new Map<string, { id: string; toolName: string; arguments: string }>();
   const startTime = Date.now();
 
   try {
     for await (const event of configuredAdapter.stream({
       modelId: provider.modelId,
       messages,
+      ...(tools?.length ? { tools } : {}),
       signal: controller.signal,
     })) {
       if (event.type === "text-delta") {
         content += event.text;
         onDelta(content);
+      } else if (event.type === "tool-call-start") {
+        toolCalls.set(event.toolCallId, {
+          id: event.toolCallId,
+          toolName: event.toolName,
+          arguments: "",
+        });
+      } else if (event.type === "tool-call-arguments-delta") {
+        const call = toolCalls.get(event.toolCallId);
+        if (call) call.arguments += event.argumentsDelta;
       } else if (event.type === "usage") {
         const usageRecord: UsageRecord = {
           id:
@@ -139,5 +152,6 @@ export async function streamAssistant(
     content,
     status,
     ...(errorMessage !== undefined ? { errorMessage } : {}),
+    ...(toolCalls.size > 0 ? { toolCalls: [...toolCalls.values()] } : {}),
   } satisfies StreamResult;
 }

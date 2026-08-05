@@ -4,6 +4,7 @@ import { Pencil, RotateCcw } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { MessageRecord } from "../core/storage/db";
+import { ToolCallCard } from "./ToolCallCard";
 
 interface ChatMessageProps {
   message: MessageRecord;
@@ -79,6 +80,10 @@ export function ChatMessage({ message, disabled, onEdit, onRegenerate }: ChatMes
         ) : (
           <p>{message.content}</p>
         )}
+        {message.toolCalls?.map((call) => {
+          const result = message.toolResults?.find((item) => item.toolCallId === call.id);
+          return <ToolCallCard key={call.id} call={call} {...(result ? { result } : {})} />;
+        })}
         {message.status === "stopped" && (
           <span className="message-stopped">({t("chat.stopped")})</span>
         )}
