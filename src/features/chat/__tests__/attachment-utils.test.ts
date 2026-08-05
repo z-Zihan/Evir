@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import type { AttachmentRecord } from "../../../core/storage/db";
 import {
   processFile,
   formatAttachmentForProvider,
@@ -159,6 +160,24 @@ describe("formatAttachmentForProvider", () => {
   it("formats text for OpenAI Responses", () => {
     const result = formatAttachmentForProvider(textAtt, "openai-responses");
     expect(result).toEqual({ type: "input_text", text: "const x = 1;" });
+  });
+
+  it("formats attachment data loaded from storage for historical messages", () => {
+    const storedAttachment: AttachmentRecord = {
+      id: "stored-1",
+      messageId: "historical-message",
+      fileName: "history.png",
+      mimeType: "image/png",
+      size: 128,
+      data: "data:image/png;base64,aGlzdG9yeQ==",
+      type: "image",
+      createdAt: 1,
+    };
+
+    expect(formatAttachmentForProvider(storedAttachment, "anthropic-messages")).toEqual({
+      type: "image",
+      source: { type: "base64", media_type: "image/png", data: "aGlzdG9yeQ==" },
+    });
   });
 });
 

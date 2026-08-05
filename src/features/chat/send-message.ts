@@ -69,18 +69,29 @@ export async function sendChatMessage(
     pendingAttachments: [],
   });
 
-  const streamMessages = [...history, userMessage]
-    .filter((message) => message.status !== "error")
-    .map(({ role, content }) => {
-      if (role === "user" && attachments.length > 0) {
-        const parts: unknown[] = [{ type: "text", text: content }];
-        for (const attachment of attachments) {
-          parts.push(formatAttachmentForProvider(attachment, provider.protocolId));
+  // NOTE: Loads historical attachments from IndexedDB on each send. For very long conversations with many attachments, this could be optimized with caching.
+  const streamMessages = await Promise.all(
+    [...history, userMessage]
+      .filter((message) => message.status !== "error")
+      .map(async ({ role, content, id, attachments: messageAttachments }) => {
+        if (role === "user" && id === userMessage.id && attachments.length > 0) {
+          const parts: unknown[] = [{ type: "text", text: content }];
+          for (const attachment of attachments) {
+            parts.push(formatAttachmentForProvider(attachment, provider.protocolId));
+          }
+          return { role, content: parts };
         }
-        return { role, content: parts };
-      }
-      return { role, content };
-    });
+        if (role === "user" && messageAttachments && messageAttachments.length > 0) {
+          const storedAttachments = await db.attachments.where("messageId").equals(id).toArray();
+          const parts: unknown[] = [{ type: "text", text: content }];
+          for (const attachment of storedAttachments) {
+            parts.push(formatAttachmentForProvider(attachment, provider.protocolId));
+          }
+          return { role, content: parts };
+        }
+        return { role, content };
+      }),
+  );
   const modeHint =
     mode === "agent"
       ? "You are in Agent mode. The user expects you to help with tasks."
