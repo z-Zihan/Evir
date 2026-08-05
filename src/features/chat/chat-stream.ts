@@ -42,7 +42,7 @@ export interface StreamResult {
 export async function streamAssistant(
   provider: ProviderRecord,
   conversationId: string,
-  messages: { role: string; content: string }[],
+  messages: { role: string; content: unknown }[],
   onDelta: (delta: string) => void,
 ): Promise<StreamResult> {
   if (activeController) {

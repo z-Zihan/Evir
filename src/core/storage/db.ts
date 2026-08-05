@@ -22,6 +22,17 @@ export interface ConversationRecord {
   updatedAt: number;
 }
 
+export interface AttachmentRecord {
+  id: string;
+  messageId: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  data: string;
+  type: "image" | "text";
+  createdAt: number;
+}
+
 export interface MessageRecord {
   id: string;
   conversationId: string;
@@ -35,6 +46,7 @@ export interface MessageRecord {
     outputTokens?: number;
     totalTokens?: number;
   };
+  attachments?: AttachmentRecord[];
 }
 
 export interface UsageRecord {
@@ -61,6 +73,7 @@ export class EvirDB extends Dexie {
   providers!: Table<ProviderRecord, string>;
   conversations!: Table<ConversationRecord, string>;
   messages!: Table<MessageRecord, string>;
+  attachments!: Table<AttachmentRecord, string>;
   usage_records!: Table<UsageRecord, string>;
   settings!: Table<SettingRecord, string>;
 
@@ -70,6 +83,14 @@ export class EvirDB extends Dexie {
       providers: "id",
       conversations: "id, updatedAt",
       messages: "id, conversationId, createdAt",
+      usage_records: "id, conversationId, createdAt",
+      settings: "name",
+    });
+    this.version(2).stores({
+      providers: "id",
+      conversations: "id, updatedAt",
+      messages: "id, conversationId, createdAt",
+      attachments: "id, messageId",
       usage_records: "id, conversationId, createdAt",
       settings: "name",
     });

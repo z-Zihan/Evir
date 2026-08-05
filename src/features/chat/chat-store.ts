@@ -3,6 +3,13 @@ import { create } from "zustand";
 import { db, type ConversationRecord, type MessageRecord } from "../../core/storage/db";
 import { useProviderStore } from "../provider/provider-store";
 import { providerReadinessError, stopActiveStream, streamAssistant } from "./chat-stream";
+import {
+  formatAttachmentForProvider,
+  processFile,
+  validateAttachmentCount,
+  type ProcessedAttachment,
+  AttachmentError,
+} from "./attachment-utils";
 
 interface ChatState {
   conversations: ConversationRecord[];
@@ -11,6 +18,7 @@ interface ChatState {
   isStreaming: boolean;
   streamingContent: string;
   error: string | null;
+  pendingAttachments: ProcessedAttachment[];
   loadConversations: () => Promise<void>;
   createConversation: (providerId: string, modelId: string) => Promise<string>;
   selectConversation: (id: string) => Promise<void>;
@@ -18,6 +26,9 @@ interface ChatState {
   renameConversation: (id: string, title: string) => Promise<void>;
   sendMessage: (text: string) => Promise<void>;
   stopGeneration: () => void;
+  addAttachment: (file: File) => Promise<void>;
+  removeAttachment: (id: string) => void;
+  clearAttachments: () => void;
 }
 
 function sorted(conversations: ConversationRecord[]): ConversationRecord[] {
@@ -31,6 +42,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isStreaming: false,
   streamingContent: "",
   error: null,
+  pendingAttachments: [],
 
   loadConversations: async () => {
     set({ conversations: await db.conversations.orderBy("updatedAt").reverse().toArray() });
@@ -58,18 +70,33 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   selectConversation: async (id) => {
     const messages = await db.messages.where("conversationId").equals(id).sortBy("createdAt");
-    set({ currentConversationId: id, messages, streamingContent: "", error: null });
+    set({
+      currentConversationId: id,
+      messages,
+      streamingContent: "",
+      error: null,
+      pendingAttachments: [],
+    });
   },
 
   deleteConversation: async (id) => {
-    await db.transaction("rw", db.conversations, db.messages, async () => {
+    await db.transaction("rw", db.conversations, db.messages, db.attachments, async () => {
+      const messageIds = await db.messages.where("conversationId").equals(id).primaryKeys();
+      for (const msgId of messageIds) {
+        await db.attachments.where("messageId").equals(msgId).delete();
+      }
       await db.messages.where("conversationId").equals(id).delete();
       await db.conversations.delete(id);
     });
     set(({ conversations, currentConversationId }) => ({
       conversations: conversations.filter((conversation) => conversation.id !== id),
       ...(currentConversationId === id
-        ? { currentConversationId: null, messages: [], streamingContent: "" }
+        ? {
+            currentConversationId: null,
+            messages: [],
+            streamingContent: "",
+            pendingAttachments: [],
+          }
         : {}),
     }));
   },
@@ -85,15 +112,38 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }));
   },
 
+  addAttachment: async (file) => {
+    const current = get().pendingAttachments;
+    if (!validateAttachmentCount(current.length)) {
+      set({ error: "chat.attachmentLimit" });
+      return;
+    }
+    try {
+      const processed = await processFile(file);
+      set({ pendingAttachments: [...current, processed], error: null });
+    } catch (error) {
+      const message = error instanceof AttachmentError ? error.message : "chat.unsupportedFileType";
+      set({ error: message });
+    }
+  },
+
+  removeAttachment: (id) => {
+    set(({ pendingAttachments }) => ({
+      pendingAttachments: pendingAttachments.filter((a) => a.id !== id),
+    }));
+  },
+
+  clearAttachments: () => set({ pendingAttachments: [] }),
+
   sendMessage: async (rawText) => {
     const text = rawText.trim();
-    // ChatView disables sending while streaming; keep this guard for non-UI callers.
-    if (!text || get().isStreaming) return;
+    if ((!text && get().pendingAttachments.length === 0) || get().isStreaming) return;
     const provider = useProviderStore.getState().getDefaultProvider();
     if (!provider) return set({ error: "chat.noProvider" });
     const readinessError = providerReadinessError(provider);
     if (readinessError) return set({ error: readinessError });
 
+    const attachments = get().pendingAttachments;
     let conversationId = get().currentConversationId;
     if (!conversationId)
       conversationId = await get().createConversation(provider.id, provider.modelId);
@@ -107,20 +157,49 @@ export const useChatStore = create<ChatState>((set, get) => ({
       status: "complete",
       createdAt: now,
     };
+    if (attachments.length > 0) {
+      userMessage.attachments = attachments.map((a) => ({
+        id: a.id,
+        messageId: userMessage.id,
+        fileName: a.fileName,
+        mimeType: a.mimeType,
+        size: a.size,
+        data: a.data,
+        type: a.type,
+        createdAt: now,
+      }));
+    }
     await db.messages.add(userMessage);
+    if (attachments.length > 0) {
+      await db.attachments.bulkPut(
+        attachments.map((att) => ({ ...att, messageId: userMessage.id, createdAt: now })),
+      );
+    }
     set({
       messages: [...history, userMessage],
       isStreaming: true,
       streamingContent: "",
       error: null,
+      pendingAttachments: [],
     });
+
+    const streamMessages = [...history, userMessage]
+      .filter((message) => message.status !== "error")
+      .map(({ role, content: messageContent }) => {
+        if (role === "user" && attachments.length > 0) {
+          const parts: unknown[] = [{ type: "text", text: messageContent }];
+          for (const att of attachments) {
+            parts.push(formatAttachmentForProvider(att, provider.protocolId));
+          }
+          return { role, content: parts };
+        }
+        return { role, content: messageContent };
+      });
 
     const streamResult = await streamAssistant(
       provider,
       conversationId,
-      [...history, userMessage]
-        .filter((message) => message.status !== "error")
-        .map(({ role, content: messageContent }) => ({ role, content: messageContent })),
+      streamMessages,
       (streamingContent) => set({ streamingContent }),
     );
 
@@ -142,7 +221,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         ...(title ? { title } : {}),
       });
     });
-    set(({ conversations, currentConversationId, messages }) => ({
+    set(({ conversations, currentConversationId: curId, messages }) => ({
       conversations: sorted(
         conversations.map((conversation) =>
           conversation.id === conversationId
@@ -150,7 +229,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             : conversation,
         ),
       ),
-      ...(currentConversationId === conversationId ? { messages: [...messages, assistant] } : {}),
+      ...(curId === conversationId ? { messages: [...messages, assistant] } : {}),
       isStreaming: false,
       streamingContent: "",
       error: streamResult.errorMessage ?? null,

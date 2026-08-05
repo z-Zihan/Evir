@@ -23,7 +23,13 @@
     "addProviderFirst": "Add Provider",
     "streamEnded": "Stream ended unexpectedly",
     "copyCode": "Copy code",
-    "copied": "Copied"
+    "copied": "Copied",
+    "attachFile": "Attach file",
+    "attachments": "Attachments",
+    "unsupportedFileType": "Unsupported file type. Images and text files are supported.",
+    "fileTooLarge": "File too large. Images: max 10MB, text: max 1MB.",
+    "removeAttachment": "Remove attachment",
+    "attachmentLimit": "Maximum 5 attachments per message."
   },
   "runtime": {
     "agentReady": "Local agent runtime",

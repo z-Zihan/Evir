@@ -545,3 +545,89 @@ textarea:focus-visible {
   border-radius: 8px;
   background: var(--surface-elevated);
 }
+
+/* Attachments */
+.pending-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 16px 0;
+}
+.pending-attachment-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 12px;
+}
+.pending-attachment-chip button {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: var(--muted-foreground);
+  padding: 2px;
+  display: flex;
+}
+.pending-attachment-chip button:hover {
+  color: var(--foreground);
+}
+.pending-attachment-thumb {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+.pending-attachment-name {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.message-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.message-attachment-image {
+  max-width: 200px;
+  max-height: 200px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.message-attachment-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.attach-button {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: var(--muted-foreground);
+  padding: 4px;
+  display: inline-flex;
+  vertical-align: middle;
+}
+.attach-button:hover {
+  color: var(--foreground);
+}
+.attach-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.model-label {
+  margin-left: 8px;
+}
+.composer.drag-over {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 2px var(--focus);
+}
