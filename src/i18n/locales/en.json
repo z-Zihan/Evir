@@ -45,6 +45,7 @@
   },
   "settings": {
     "title": "Settings",
+    "close": "Close",
     "theme": "Switch theme",
     "general": "General",
     "providers": "Model providers",
@@ -58,7 +59,12 @@
     "privacy": "Data and privacy",
     "help": "Help",
     "feedback": "Send feedback",
-    "about": "About Evir"
+    "about": "About Evir",
+    "data": "Data",
+    "exportAll": "Export all conversations",
+    "importAll": "Import from file",
+    "importSuccess": "Imported {{imported}} conversations ({{skipped}} skipped)",
+    "importFailed": "Import failed: {{message}}"
   },
   "provider": {
     "add": "Add provider",

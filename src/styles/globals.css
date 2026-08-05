@@ -631,3 +631,37 @@ textarea:focus-visible {
   border-color: var(--focus);
   box-shadow: 0 0 0 2px var(--focus);
 }
+
+/* Data settings */
+.data-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.data-settings h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.data-actions {
+  display: flex;
+  gap: 8px;
+}
+.data-actions button {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 13px;
+}
+.data-actions button:nth-child(2) {
+  background: var(--surface);
+  color: var(--foreground);
+}
+.import-result {
+  font-size: 13px;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--surface-elevated);
+}
