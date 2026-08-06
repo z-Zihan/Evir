@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { DEFAULT_SHORTCUTS } from "../core/shortcuts/default-shortcuts";
+import { isMac } from "../core/shortcuts/platform";
 
 interface ShortcutCallbacks {
   onNewConversation: () => void;
@@ -41,11 +42,10 @@ export function useShortcuts(callbacks: ShortcutCallbacks): void {
   ref.current = callbacks;
 
   useEffect(() => {
-    const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
     const handleKeyDown = (event: KeyboardEvent) => {
       const shortcut = DEFAULT_SHORTCUTS.find(
         ({ id, defaultAccelerator }) =>
-          callbackById[id] && matches(event, defaultAccelerator, isMac),
+          callbackById[id] && matches(event, defaultAccelerator, isMac()),
       );
       if (!shortcut) return;
       if (shortcut.id !== "stop-current-run") event.preventDefault();

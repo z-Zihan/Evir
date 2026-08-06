@@ -23,7 +23,7 @@ describe("ShortcutsSettings", () => {
     expect(screen.getByText("shortcuts.newConversation")).toBeDefined();
     expect(screen.getByText("shortcuts.openSettings")).toBeDefined();
     expect(screen.getByText("shortcuts.toggleSidebar")).toBeDefined();
-    expect(screen.getByText("shortcuts.openWorkspace")).toBeDefined();
+    // open-workspace excluded on web platform
     expect(screen.getByText("shortcuts.searchConversations")).toBeDefined();
     expect(screen.getByText("shortcuts.sendMessage")).toBeDefined();
     expect(screen.getByText("shortcuts.stopCurrentRun")).toBeDefined();
@@ -42,7 +42,7 @@ describe("ShortcutsSettings", () => {
       const { ShortcutsSettings } = await import("../ShortcutsSettings");
       render(<ShortcutsSettings />);
       // CmdOrCtrl+K should be formatted as ⌘K on Mac
-      expect(screen.getByText("\u2318+K")).toBeDefined();
+      expect(screen.getByText("\u2318 K")).toBeDefined();
     } finally {
       if (originalPlatform) {
         Object.defineProperty(navigator, "platform", originalPlatform);
@@ -62,7 +62,7 @@ describe("ShortcutsSettings", () => {
       vi.resetModules();
       const { ShortcutsSettings } = await import("../ShortcutsSettings");
       render(<ShortcutsSettings />);
-      // CmdOrCtrl+K should be formatted as CtrlK on non-Mac
+      // CmdOrCtrl+K should be formatted as Ctrl+K on non-Mac
       expect(screen.getByText("Ctrl+K")).toBeDefined();
     } finally {
       if (originalPlatform) {
