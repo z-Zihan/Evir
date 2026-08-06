@@ -104,10 +104,9 @@ describe("ChatMessage actions", () => {
     );
 
     const body = document.body;
-    expect(body.textContent).toContain("tools.title");
     expect(body.textContent).toContain("read_file");
-    expect(body.textContent).toContain("tools.success");
+    expect(body.textContent).toContain("read_file");
     expect(body.textContent).toContain("notes.txt");
-    expect(body.textContent).toContain("Notes");
+    expect(body.textContent).toContain("agent.completed");
   });
 });

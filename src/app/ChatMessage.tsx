@@ -5,7 +5,7 @@ import { Copy, GitBranch, Pencil, RotateCcw } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { MessageRecord } from "../core/storage/db";
-import { ToolCallCard } from "./ToolCallCard";
+import { AgentActivity } from "./AgentActivity";
 
 interface ChatMessageProps {
   message: MessageRecord;
@@ -134,10 +134,9 @@ export function ChatMessage({
         ) : (
           <p>{message.content}</p>
         )}
-        {message.toolCalls?.map((call) => {
-          const result = message.toolResults?.find((item) => item.toolCallId === call.id);
-          return <ToolCallCard key={call.id} call={call} {...(result ? { result } : {})} />;
-        })}
+        {message.toolCalls && message.toolCalls.length > 0 && (
+          <AgentActivity toolCalls={message.toolCalls} toolResults={message.toolResults ?? []} />
+        )}
         {message.status === "stopped" && (
           <span className="text-muted text-xs italic">({t("chat.stopped")})</span>
         )}

@@ -257,7 +257,10 @@
     "verification": "Verification",
     "unresolvedErrors": "Unresolved Errors",
     "loading": "Loading",
-    "none": "None"
+    "none": "None",
+    "processing": "Processing",
+    "completed": "Completed",
+    "completedWithErrors": "Completed with errors"
   },
   "memory": {
     "title": "Memory",
