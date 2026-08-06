@@ -28,8 +28,61 @@ jobs:
             echo "::error::JS gzip size ($GZIP_BYTES bytes) exceeds budget of 350KB ($BUDGET_BYTES bytes)"
             exit 1
           fi
+      - name: Download previous benchmark
+        id: prev-benchmark
+        uses: dawidd6/action-download-artifact@v6
+        continue-on-error: true
+        with:
+          workflow: benchmark.yml
+          branch: main
+          name: benchmark-results
+          path: previous-benchmark
+          if_no_artifact_found: warn
+      - name: Check for regressions
+        if: steps.prev-benchmark.outcome == 'success'
+        run: |
+          node -e "
+          const fs = require('fs');
+          const path = require('path');
+          const prevDir = 'previous-benchmark';
+          const prevFile = fs.readdirSync(prevDir).find((f) => f.endsWith('.json'));
+          if (!prevFile) {
+            console.log('No previous benchmark JSON found, skipping regression check.');
+            process.exit(0);
+          }
+          const prev = JSON.parse(fs.readFileSync(path.join(prevDir, prevFile), 'utf8'));
+          const curr = JSON.parse(fs.readFileSync('docs/benchmarks/latest.json', 'utf8'));
+
+          const metrics = [
+            ['web.jsGzipSizeBytes', prev.web?.jsGzipSizeBytes, curr.web?.jsGzipSizeBytes],
+            ['web.cssGzipSizeBytes', prev.web?.cssGzipSizeBytes, curr.web?.cssGzipSizeBytes],
+            ['dist.totalSizeBytes', prev.dist?.totalSizeBytes, curr.dist?.totalSizeBytes],
+            ['tests.durationMs', prev.tests?.durationMs, curr.tests?.durationMs],
+          ];
+
+          const THRESHOLD = 0.05;
+          let failed = false;
+          for (const [name, prevValue, currValue] of metrics) {
+            if (typeof prevValue !== 'number' || typeof currValue !== 'number' || prevValue <= 0) {
+              console.log(\`\${name}: skipped (missing baseline)\`);
+              continue;
+            }
+            const delta = (currValue - prevValue) / prevValue;
+            const pct = (delta * 100).toFixed(2);
+            console.log(\`\${name}: \${prevValue} -> \${currValue} (\${pct}%)\`);
+            if (delta > THRESHOLD) {
+              console.log(\`::error::\${name} regressed by \${pct}% (previous: \${prevValue}, current: \${currValue}), exceeds 5% threshold\`);
+              failed = true;
+            }
+          }
+          if (failed) process.exit(1);
+          "
+      - name: Stamp benchmark with commit SHA
+        run: cp docs/benchmarks/latest.json "docs/benchmarks/${GITHUB_SHA}.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: benchmark-results
-          path: docs/benchmarks/latest.json
+          path: |
+            docs/benchmarks/latest.json
+            docs/benchmarks/${{ github.sha }}.json
