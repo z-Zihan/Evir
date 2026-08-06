@@ -39,7 +39,7 @@ interface ProviderState {
 }
 
 async function shouldPersistApiKeys(): Promise<boolean> {
-  return (await db.settings.get("persistApiKeys"))?.value === true;
+  return (await db.settings.get("persistApiKeys"))?.value !== false;
 }
 
 async function persistProvider(provider: ProviderRecord): Promise<void> {
