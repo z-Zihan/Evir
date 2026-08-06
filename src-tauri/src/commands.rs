@@ -1,5 +1,7 @@
+
 use std::{
     path::{Component, Path, PathBuf},
+    process::Command as StdCommand,
     time::UNIX_EPOCH,
 };
 
@@ -17,6 +19,27 @@ pub struct FileInfo {
     is_dir: bool,
     size: u64,
     modified: Option<u64>,
+}
+
+#[derive(Serialize)]
+pub struct CommandResult {
+    stdout: String,
+    stderr: String,
+    exit_code: Option<i32>,
+    success: bool,
+}
+
+#[derive(Serialize)]
+pub struct GitStatusEntry {
+    status: String,
+    file: String,
+}
+
+#[derive(Serialize)]
+pub struct GitStatusResult {
+    is_repo: bool,
+    entries: Vec<GitStatusEntry>,
+    branch: Option<String>,
 }
 
 fn app_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
@@ -182,6 +205,203 @@ pub(crate) fn fs_list_dir(path: String) -> Result<Vec<FileInfo>, String> {
 #[tauri::command]
 pub(crate) fn fs_file_info(path: String) -> Result<FileInfo, String> {
     file_info_from_path(&validate_path(&path)?)
+}
+
+/// Apply a unified diff patch to a file. Supports simple search-and-replace style patches.
+#[tauri::command]
+pub(crate) fn fs_apply_patch(
+    path: String,
+    old_content: String,
+    new_content: String,
+) -> Result<(), String> {
+    let validated = validate_path(&path)?;
+    // Verify the file currently contains old_content before replacing
+    let current = std::fs::read_to_string(&validated).map_err(|error| error.to_string())?;
+    if !current.contains(&old_content) {
+        return Err("old_content not found in file — patch cannot be applied".to_owned());
+    }
+    let patched = current.replacen(&old_content, &new_content, 1);
+    std::fs::write(&validated, patched).map_err(|error| error.to_string())
+}
+
+/// Search for files by name pattern in a directory tree (max depth 5).
+#[tauri::command]
+pub(crate) fn fs_search_files(
+    path: String,
+    pattern: String,
+) -> Result<Vec<String>, String> {
+    let root = validate_path(&path)?;
+    let pattern_lower = pattern.to_lowercase();
+    let mut results = Vec::new();
+    search_recursive(&root, &pattern_lower, &mut results, 0, 5);
+    Ok(results)
+}
+
+fn search_recursive(
+    dir: &Path,
+    pattern: &str,
+    results: &mut Vec<String>,
+    depth: usize,
+    max_depth: usize,
+) {
+    if depth > max_depth || results.len() >= 200 {
+        return;
+    }
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_lowercase();
+            let path = entry.path();
+            if name.contains(pattern) {
+                results.push(path.to_string_lossy().into_owned());
+                if results.len() >= 200 {
+                    return;
+                }
+            }
+            if path.is_dir() && !name.starts_with('.') && name != "node_modules" && name != "target" {
+                search_recursive(&path, pattern, results, depth + 1, max_depth);
+            }
+        }
+    }
+}
+
+/// Execute a shell command in the workspace directory.
+/// Uses argument array (no shell interpolation) for safety.
+#[tauri::command]
+pub(crate) fn run_command(
+    cwd: String,
+    program: String,
+    args: Vec<String>,
+    timeout_ms: Option<u64>,
+) -> Result<CommandResult, String> {
+    let cwd = validate_path(&cwd)?;
+    let mut cmd = StdCommand::new(&program);
+    cmd.args(&args);
+    cmd.current_dir(&cwd);
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::piped());
+
+    let timeout = std::time::Duration::from_millis(timeout_ms.unwrap_or(30_000));
+    let start = std::time::Instant::now();
+
+    let mut child = cmd.spawn().map_err(|error| error.to_string())?;
+
+    // Wait with timeout
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                let stdout = child.stdout.take();
+                let stderr = child.stderr.take();
+                let stdout_str = match stdout {
+                    Some(mut s) => {
+                        use std::io::Read;
+                        let mut buf = String::new();
+                        s.read_to_string(&mut buf).ok();
+                        truncate_string(&buf, 50_000)
+                    }
+                    None => String::new(),
+                };
+                let stderr_str = match stderr {
+                    Some(mut s) => {
+                        use std::io::Read;
+                        let mut buf = String::new();
+                        s.read_to_string(&mut buf).ok();
+                        truncate_string(&buf, 50_000)
+                    }
+                    None => String::new(),
+                };
+                return Ok(CommandResult {
+                    stdout: stdout_str,
+                    stderr: stderr_str,
+                    exit_code: status.code(),
+                    success: status.success(),
+                });
+            }
+            Ok(None) => {
+                if start.elapsed() > timeout {
+                    let _ = child.kill();
+                    return Ok(CommandResult {
+                        stdout: String::new(),
+                        stderr: format!("Command timed out after {}ms", timeout.as_millis()),
+                        exit_code: None,
+                        success: false,
+                    });
+                }
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+            Err(error) => return Err(error.to_string()),
+        }
+    }
+}
+
+fn truncate_string(s: &str, max_len: usize) -> String {
+    if s.len() <= max_len {
+        s.to_string()
+    } else {
+        format!("{}\n... truncated ({} bytes total)", &s[..max_len], s.len())
+    }
+}
+
+/// Get git status for a directory.
+#[tauri::command]
+pub(crate) fn git_status(path: String) -> Result<GitStatusResult, String> {
+    let dir = validate_path(&path)?;
+    let git_dir = dir.join(".git");
+    if !git_dir.exists() {
+        return Ok(GitStatusResult {
+            is_repo: false,
+            entries: vec![],
+            branch: None,
+        });
+    }
+
+    let output = StdCommand::new("git")
+        .args(["status", "--porcelain=v1", "-b"])
+        .current_dir(&dir)
+        .output()
+        .map_err(|error| error.to_string())?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut entries = Vec::new();
+    let mut branch = None;
+
+    for line in stdout.lines() {
+        if line.starts_with("## ") {
+            // Branch line: "## main...origin/main"
+            let rest = &line[3..];
+            if let Some(dotdot) = rest.find("...") {
+                branch = Some(rest[..dotdot].to_string());
+            } else {
+                branch = Some(rest.to_string());
+            }
+        } else if line.len() >= 3 {
+            let status = line[..2].trim().to_string();
+            let file = line[3..].to_string();
+            entries.push(GitStatusEntry { status, file });
+        }
+    }
+
+    Ok(GitStatusResult {
+        is_repo: true,
+        entries,
+        branch,
+    })
+}
+
+/// Get git diff for a directory.
+#[tauri::command]
+pub(crate) fn git_diff(path: String, staged: bool) -> Result<String, String> {
+    let dir = validate_path(&path)?;
+    let mut cmd = StdCommand::new("git");
+    cmd.args(["diff"]);
+    if staged {
+        cmd.arg("--staged");
+    }
+    cmd.current_dir(&dir);
+    cmd.stdout(std::process::Stdio::piped());
+
+    let output = cmd.output().map_err(|error| error.to_string())?;
+    let diff = String::from_utf8_lossy(&output.stdout);
+    Ok(truncate_string(&diff, 100_000))
 }
 
 fn validate_query_sql(sql: &str) -> Result<(), String> {

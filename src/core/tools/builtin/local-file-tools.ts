@@ -41,6 +41,23 @@ function pathBlocked(): ToolResult {
 
 const pathArgsSchema = z.object({ path: z.string().min(1) }).strict();
 const writeArgsSchema = pathArgsSchema.extend({ content: z.string() }).strict();
+const patchArgsSchema = pathArgsSchema
+  .extend({ old_content: z.string(), new_content: z.string() })
+  .strict();
+const searchArgsSchema = z.object({ path: z.string().min(1), pattern: z.string().min(1) }).strict();
+const commandArgsSchema = z
+  .object({
+    cwd: z.string().min(1),
+    program: z.string().min(1),
+    args: z.array(z.string()).default([]),
+    timeout_ms: z.number().optional(),
+  })
+  .strict();
+const gitArgsSchema = z.object({ path: z.string().min(1) }).strict();
+const gitDiffArgsSchema = z
+  .object({ path: z.string().min(1), staged: z.boolean().default(false) })
+  .strict();
+
 const pathJsonSchema = {
   type: "object",
   properties: { path: { type: "string", description: "Absolute filesystem path" } },
@@ -113,6 +130,93 @@ async function writeFile(args: Record<string, unknown>, runtime: EvirRuntime): P
   }
 }
 
+async function applyPatch(
+  args: Record<string, unknown>,
+  runtime: EvirRuntime,
+): Promise<ToolResult> {
+  if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
+  const parsed = patchArgsSchema.safeParse(args);
+  if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
+  const safePath = validatePath(parsed.data.path);
+  if (!safePath) return pathBlocked();
+  try {
+    await runtime.storage.applyPatch(safePath, parsed.data.old_content, parsed.data.new_content);
+    return { success: true, output: `patched ${safePath}` };
+  } catch (error) {
+    return toolError(error);
+  }
+}
+
+async function searchFiles(
+  args: Record<string, unknown>,
+  runtime: EvirRuntime,
+): Promise<ToolResult> {
+  if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
+  const parsed = searchArgsSchema.safeParse(args);
+  if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
+  const safePath = validatePath(parsed.data.path);
+  if (!safePath) return pathBlocked();
+  try {
+    const results = await runtime.storage.searchFiles(safePath, parsed.data.pattern);
+    return { success: true, output: results.join("\n") || "no matches" };
+  } catch (error) {
+    return toolError(error);
+  }
+}
+
+async function runCommand(
+  args: Record<string, unknown>,
+  runtime: EvirRuntime,
+): Promise<ToolResult> {
+  if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
+  const parsed = commandArgsSchema.safeParse(args);
+  if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
+  const safeCwd = validatePath(parsed.data.cwd);
+  if (!safeCwd) return pathBlocked();
+  try {
+    const result = await runtime.storage.runCommand(
+      safeCwd,
+      parsed.data.program,
+      parsed.data.args,
+      parsed.data.timeout_ms,
+    );
+    const output = `exit_code: ${result.exit_code ?? "N/A"}\n--- stdout ---\n${result.stdout}\n--- stderr ---\n${result.stderr}`;
+    return { success: result.success, output };
+  } catch (error) {
+    return toolError(error);
+  }
+}
+
+async function gitStatus(args: Record<string, unknown>, runtime: EvirRuntime): Promise<ToolResult> {
+  if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
+  const parsed = gitArgsSchema.safeParse(args);
+  if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
+  const safePath = validatePath(parsed.data.path);
+  if (!safePath) return pathBlocked();
+  try {
+    const result = await runtime.storage.gitStatus(safePath);
+    if (!result.is_repo) return { success: true, output: "Not a git repository" };
+    const lines = result.entries.map((e) => `${e.status}\t${e.file}`);
+    return { success: true, output: `branch: ${result.branch ?? "unknown"}\n${lines.join("\n")}` };
+  } catch (error) {
+    return toolError(error);
+  }
+}
+
+async function gitDiff(args: Record<string, unknown>, runtime: EvirRuntime): Promise<ToolResult> {
+  if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
+  const parsed = gitDiffArgsSchema.safeParse(args);
+  if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
+  const safePath = validatePath(parsed.data.path);
+  if (!safePath) return pathBlocked();
+  try {
+    const diff = await runtime.storage.gitDiff(safePath, parsed.data.staged);
+    return { success: true, output: diff || "no changes" };
+  } catch (error) {
+    return toolError(error);
+  }
+}
+
 export const LOCAL_FILE_TOOLS: readonly ToolDefinition[] = [
   {
     id: "read_file",
@@ -147,5 +251,87 @@ export const LOCAL_FILE_TOOLS: readonly ToolDefinition[] = [
       required: ["path", "content"],
     },
     execute: writeFile,
+  },
+  {
+    id: "apply_patch",
+    name: "apply_patch",
+    description:
+      "Apply a search-and-replace patch to a file. Replaces first occurrence of old_content with new_content.",
+    source: "evir-local",
+    riskLevel: "L3",
+    schema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Absolute filesystem path" },
+        old_content: { type: "string", description: "Exact text to find in the file" },
+        new_content: { type: "string", description: "Text to replace it with" },
+      },
+      required: ["path", "old_content", "new_content"],
+      additionalProperties: false,
+    },
+    execute: applyPatch,
+  },
+  {
+    id: "search_files",
+    name: "search_files",
+    description: "Search for files by name pattern in a directory tree (max depth 5).",
+    source: "evir-local",
+    riskLevel: "L1",
+    schema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Absolute directory path to search in" },
+        pattern: { type: "string", description: "File name pattern (case-insensitive substring)" },
+      },
+      required: ["path", "pattern"],
+      additionalProperties: false,
+    },
+    execute: searchFiles,
+  },
+  {
+    id: "run_command",
+    name: "run_command",
+    description:
+      "Execute a program with arguments in the workspace directory. Uses argument array (no shell interpolation).",
+    source: "evir-local",
+    riskLevel: "L3",
+    schema: {
+      type: "object",
+      properties: {
+        cwd: { type: "string", description: "Working directory (absolute path)" },
+        program: { type: "string", description: "Program to execute (e.g. 'npm', 'git', 'cargo')" },
+        args: { type: "array", items: { type: "string" }, description: "Arguments array" },
+        timeout_ms: { type: "number", description: "Timeout in milliseconds (default 30000)" },
+      },
+      required: ["cwd", "program", "args"],
+      additionalProperties: false,
+    },
+    execute: runCommand,
+  },
+  {
+    id: "git_status",
+    name: "git_status",
+    description: "Get git status for a directory. Returns branch and modified files.",
+    source: "evir-local",
+    riskLevel: "L1",
+    schema: pathJsonSchema,
+    execute: gitStatus,
+  },
+  {
+    id: "git_diff",
+    name: "git_diff",
+    description: "Get git diff for a directory. Returns unified diff text.",
+    source: "evir-local",
+    riskLevel: "L1",
+    schema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Absolute directory path" },
+        staged: { type: "boolean", description: "Show staged changes (default false)" },
+      },
+      required: ["path"],
+      additionalProperties: false,
+    },
+    execute: gitDiff,
   },
 ];
