@@ -56,7 +56,8 @@
     "branchFromHere": "从此处分支",
     "branched": "(已分支)",
     "switchModel": "切换模型",
-    "currentModel": "当前模型"
+    "currentModel": "当前模型",
+    "pinFailed": "置顶失败"
   },
   "runtime": {
     "agentReady": "本地 Agent Runtime",

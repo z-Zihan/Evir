@@ -24,13 +24,21 @@ vi.mock("../../../core/storage/db", () => ({
         equals: () => ({
           sortBy: () =>
             Promise.resolve([
-              { id: "m1", conversationId: "c1", role: "user", content: "Hello", createdAt: 1100 },
+              {
+                id: "m1",
+                conversationId: "c1",
+                role: "user",
+                content: "Hello",
+                createdAt: 1100,
+                status: "complete",
+              },
               {
                 id: "m2",
                 conversationId: "c1",
                 role: "assistant",
                 content: "Hi there!",
                 createdAt: 1200,
+                status: "complete",
               },
             ]),
         }),
@@ -45,37 +53,41 @@ vi.mock("../../../core/storage/db", () => ({
 }));
 
 import { exportConversationAsMarkdown, exportConversationMarkdown } from "../conversation-export";
+import type { ConversationRecord, MessageRecord, AttachmentRecord } from "../../../core/storage/db";
+
+function makeConv(overrides: Partial<ConversationRecord> = {}): ConversationRecord {
+  return {
+    id: "c1",
+    title: "My Chat",
+    providerId: "p1",
+    modelId: "m1",
+    createdAt: 1000,
+    updatedAt: 2000,
+    ...overrides,
+  };
+}
+
+function makeMsg(
+  overrides: Partial<MessageRecord> = {},
+): MessageRecord & { attachments: AttachmentRecord[] } {
+  return {
+    id: "m1",
+    conversationId: "c1",
+    role: "user",
+    content: "Hello world",
+    createdAt: 1100,
+    status: "complete",
+    attachments: [],
+    ...overrides,
+  };
+}
 
 describe("exportConversationAsMarkdown", () => {
   it("generates markdown with title and messages", () => {
-    const md = exportConversationAsMarkdown(
-      {
-        id: "c1",
-        title: "My Chat",
-        providerId: "p1",
-        modelId: "m1",
-        createdAt: 1000,
-        updatedAt: 2000,
-      },
-      [
-        {
-          id: "m1",
-          conversationId: "c1",
-          role: "user",
-          content: "Hello world",
-          createdAt: 1100,
-          attachments: [],
-        },
-        {
-          id: "m2",
-          conversationId: "c1",
-          role: "assistant",
-          content: "Hi!",
-          createdAt: 1200,
-          attachments: [],
-        },
-      ],
-    );
+    const md = exportConversationAsMarkdown(makeConv(), [
+      makeMsg({ id: "m1", role: "user", content: "Hello world" }),
+      makeMsg({ id: "m2", role: "assistant", content: "Hi!" }),
+    ]);
 
     expect(md).toContain("# My Chat");
     expect(md).toContain("## User");
@@ -86,39 +98,24 @@ describe("exportConversationAsMarkdown", () => {
   });
 
   it("handles attachments", () => {
-    const md = exportConversationAsMarkdown(
-      {
-        id: "c1",
-        title: "Test",
-        providerId: "p1",
-        modelId: "m1",
-        createdAt: 1000,
-        updatedAt: 2000,
-      },
-      [
-        {
-          id: "m1",
-          conversationId: "c1",
-          role: "user",
-          content: "See attached",
-          createdAt: 1100,
-          attachments: [
-            { id: "a1", messageId: "m1", fileName: "doc.pdf", mimeType: "application/pdf" },
-          ],
-        },
-      ],
-    );
+    const att: AttachmentRecord = {
+      id: "a1",
+      messageId: "m1",
+      fileName: "doc.pdf",
+      mimeType: "application/pdf",
+      size: 100,
+      data: "",
+      type: "text",
+      createdAt: 1100,
+    };
+    const md = exportConversationAsMarkdown(makeConv(), [makeMsg({ attachments: [att] })]);
 
     expect(md).toContain("**Attachments:**");
     expect(md).toContain("doc.pdf (application/pdf)");
   });
 
   it("uses Untitled for empty title", () => {
-    const md = exportConversationAsMarkdown(
-      { id: "c1", title: "", providerId: "p1", modelId: "m1", createdAt: 1000, updatedAt: 2000 },
-      [],
-    );
-
+    const md = exportConversationAsMarkdown(makeConv({ title: "" }), []);
     expect(md).toContain("# Untitled");
   });
 });

@@ -845,13 +845,6 @@ textarea:focus-visible {
   font-size: 13px;
   outline: none;
 }
-.conversation-item .conversation-delete {
-  display: none;
-}
-.conversation-item:hover .conversation-delete,
-.conversation-item.active .conversation-delete {
-  display: flex;
-}
 
 /* Modal */
 .modal-backdrop {

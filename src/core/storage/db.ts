@@ -22,6 +22,8 @@ export interface ConversationRecord {
   updatedAt: number;
   parentConversationId?: string;
   branchedFromMessageId?: string;
+  // pinned is a non-indexed field — no Dexie schema upgrade needed.
+  // Sorting by pinned is done in-memory (Sidebar.tsx).
   pinned?: number;
 }
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Check,
+  Pencil,
   GitBranch,
   MessageSquarePlus,
   Moon,
@@ -36,6 +36,7 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const committingRef = useRef(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -71,11 +72,15 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
   };
 
   const handleCommitRename = () => {
-    if (renamingId) {
-      void renameConversation(renamingId, renameValue);
+    if (committingRef.current) return;
+    committingRef.current = true;
+    const id = renamingId;
+    if (id) {
+      void renameConversation(id, renameValue);
     }
     setRenamingId(null);
     setRenameValue("");
+    committingRef.current = false;
   };
 
   const handleRenameKeyDown = (e: React.KeyboardEvent) => {
@@ -98,7 +103,7 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
         onClick={() => handleSelectConversation(conv.id)}
         onDoubleClick={() => handleStartRename(conv.id, conv.title)}
       >
-        {conv.pinned === 1 && <Pin size={11} className="pin-indicator" />}
+        {conv.pinned && <Pin size={11} className="pin-indicator" />}
         {isRenaming ? (
           <input
             className="rename-input"
@@ -106,6 +111,7 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
             value={renameValue}
             autoFocus
             onChange={(e) => setRenameValue(e.target.value)}
+            maxLength={100}
             onBlur={handleCommitRename}
             onKeyDown={handleRenameKeyDown}
             onClick={(e) => e.stopPropagation()}
@@ -139,7 +145,7 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
               title={t("sidebar.rename")}
               onClick={() => handleStartRename(conv.id, conv.title)}
             >
-              <Check size={13} />
+              <Pencil size={13} />
             </button>
             <button
               className="conversation-delete"

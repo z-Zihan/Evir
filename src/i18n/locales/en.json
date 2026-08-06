@@ -56,7 +56,8 @@
     "branchFromHere": "Branch from here",
     "branched": "(branched)",
     "switchModel": "Switch model",
-    "currentModel": "Current model"
+    "currentModel": "Current model",
+    "pinFailed": "Failed to pin conversation"
   },
   "runtime": {
     "agentReady": "Local agent runtime",
