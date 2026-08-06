@@ -93,7 +93,7 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
     return (
       <div
         key={conv.id}
-        className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-sm hover:bg-surface-hover transition relative${isActive ? " active" : ""}${conv.pinned ? " pinned" : ""}`}
+        className={`group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-sm hover:bg-surface-hover transition relative${isActive ? " active" : ""}${conv.pinned ? " pinned" : ""}`}
         onClick={() => handleSelectConversation(conv.id)}
         onDoubleClick={() => handleStartRename(conv.id, conv.title)}
       >
@@ -122,7 +122,10 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
           </span>
         )}
         {!isRenaming && (
-          <div className="hidden gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+          <div
+            className={`hidden group-hover:flex gap-1 flex-shrink-0${isActive ? " flex" : ""}`}
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               className="conversation-action-btn"
               type="button"

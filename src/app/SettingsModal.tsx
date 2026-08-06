@@ -63,7 +63,10 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[200]">
+    <div
+      className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[200]"
+      onClick={onClose}
+    >
       <div
         className="bg-surface border border-border rounded-2xl w-[min(640px,calc(100%-40px))] max-h-[80vh] flex flex-col shadow-xl"
         onClick={(e) => e.stopPropagation()}
@@ -187,13 +190,21 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           {activeTab === "theme" && <ThemeSettings />}
           {activeTab === "memory" && <MemorySettings conversationId={null} />}
           {activeTab === "data" && (
-            <div className="data-settings">
-              <h3>{t("settings.data")}</h3>
-              <div className="data-actions">
-                <button type="button" onClick={() => void handleExport()}>
+            <div className="flex flex-col gap-3">
+              <h3 className="text-base font-semibold">{t("settings.data")}</h3>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  type="button"
+                  className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg cursor-pointer text-sm hover:bg-surface-hover transition"
+                  onClick={() => void handleExport()}
+                >
                   {t("settings.exportAll")}
                 </button>
-                <button type="button" onClick={() => fileInputRef.current?.click()}>
+                <button
+                  type="button"
+                  className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg cursor-pointer text-sm hover:bg-surface-hover transition"
+                  onClick={() => fileInputRef.current?.click()}
+                >
                   {t("settings.importAll")}
                 </button>
                 <input
@@ -208,7 +219,11 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   }}
                 />
               </div>
-              {importResult && <div className="import-result">{importResult}</div>}
+              {importResult && (
+                <div className="text-sm p-2 rounded-lg mt-1" role="alert">
+                  {importResult}
+                </div>
+              )}
             </div>
           )}
         </div>

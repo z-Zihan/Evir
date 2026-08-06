@@ -18,7 +18,6 @@ export function AgentActivity({ toolCalls, toolResults }: AgentActivityProps) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const isStreaming = useChatStore((s) => s.isStreaming);
-  const pendingToolApproval = useChatStore((s) => s.pendingToolApproval);
   const approveTool = useChatStore((s) => s.approveTool);
   const denyTool = useChatStore((s) => s.denyTool);
 
@@ -30,7 +29,9 @@ export function AgentActivity({ toolCalls, toolResults }: AgentActivityProps) {
   }).length;
 
   const total = toolCalls.length;
-  const hasPending = toolCalls.some((tc) => resultsByCallId.get(tc.id)?.error === TOOL_PERMISSION_REQUIRED);
+  const hasPending = toolCalls.some(
+    (tc) => resultsByCallId.get(tc.id)?.error === TOOL_PERMISSION_REQUIRED,
+  );
 
   const hasFailed = toolResults.some(
     (r) => !r.success && r.error !== TOOL_PERMISSION_REQUIRED && r.error !== TOOL_DENIED,
@@ -59,11 +60,10 @@ export function AgentActivity({ toolCalls, toolResults }: AgentActivityProps) {
 
       {/* Compact step list — always visible */}
       <div className="px-3 pb-2 flex flex-col gap-1">
-        {toolCalls.slice(0, expanded ? total : 3).map((call) => {
-          const result = toolResults.find((r) => r.toolCallId === call.id);
-          const isPending = pendingToolApproval?.toolCallId === call.id;
-          const isRunning = isPending && isStreaming;
+        {(expanded ? toolCalls : toolCalls.slice(-3)).map((call) => {
+          const result = resultsByCallId.get(call.id);
           const permissionRequired = result?.error === TOOL_PERMISSION_REQUIRED;
+          const isRunning = isStreaming && !result;
           const isDenied = result?.error === TOOL_DENIED;
 
           const icon = isRunning ? (
@@ -140,7 +140,7 @@ export function AgentActivity({ toolCalls, toolResults }: AgentActivityProps) {
       {expanded && (
         <div className="border-t border-border px-3 py-2 flex flex-col gap-2">
           {toolCalls.map((call) => {
-            const result = toolResults.find((r) => r.toolCallId === call.id);
+            const result = resultsByCallId.get(call.id);
             const resultText =
               result?.error === TOOL_NOT_AVAILABLE ? t("tools.notAvailable") : result?.output;
 

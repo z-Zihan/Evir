@@ -1,6 +1,6 @@
 import { useEffect, useRef, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Paperclip, Square, X } from "lucide-react";
+import { Download, Paperclip, Square, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useChatStore } from "../features/chat/chat-store";
@@ -9,7 +9,6 @@ import { ChatMessage } from "./ChatMessage";
 import { ChatEmptyState } from "./ChatEmptyState";
 import { ModeSwitcher } from "./ModeSwitcher";
 import { ModelSwitcher } from "./ModelSwitcher";
-import { Download } from "lucide-react";
 import type { ProviderRecord } from "../core/storage/db";
 import { useDragDrop } from "./use-drag-drop";
 import { WorkspaceSelector } from "./WorkspaceSelector";
@@ -191,7 +190,7 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
                     key={att.id}
                     className="flex items-center gap-1 px-2 py-1 bg-surface-hover border border-border rounded-lg text-xs"
                   >
-                    <span className="pending-attachment-name">{att.fileName}</span>
+                    <span className="max-w-[140px] truncate">{att.fileName}</span>
                     <button
                       type="button"
                       onClick={() => removeAttachment(att.id)}
