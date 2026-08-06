@@ -3,7 +3,7 @@
 /* Dark mode via .dark class */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Design tokens — Tailwind v4 @theme generates utilities automatically */
+/* Design tokens — Light mode (default) */
 @theme {
   --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
@@ -27,7 +27,8 @@
   --color-accent: #5856d6;
 }
 
-@theme dark {
+/* Dark mode tokens — applied via .dark class on :root */
+:root.dark {
   --color-background: #0a0a0b;
   --color-surface: #161618;
   --color-surface-hover: #242426;
@@ -69,7 +70,7 @@ body {
   border-radius: 9999px;
 }
 
-/* Code blocks — use raw CSS vars to avoid conflicts */
+/* Code blocks */
 .message-content pre {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -96,7 +97,7 @@ body {
   color: var(--color-foreground);
 }
 
-/* User message card */
+/* User message */
 .message-user .message-content {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -106,19 +107,18 @@ body {
   color: var(--color-foreground);
 }
 
-/* Assistant message — clean, no background */
+/* Assistant message */
 .message-assistant .message-content {
   padding: 0;
   color: var(--color-foreground);
 }
 
-/* Markdown elements */
+/* Markdown */
 .message-content p {
   margin: 0 0 8px;
   line-height: 1.75;
   color: var(--color-foreground);
 }
-
 .message-content p:last-child {
   margin-bottom: 0;
 }
@@ -137,7 +137,6 @@ body {
   color: var(--color-foreground);
   font-weight: 600;
 }
-
 .message-content h1 {
   font-size: 1.3em;
 }
