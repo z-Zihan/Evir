@@ -1182,6 +1182,289 @@
   }
 }
 
+/* Local identity and avatar editor */
+
+.identity-profile-editor {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 20px;
+  padding-top: 2px;
+}
+
+.identity-avatar-column {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  padding-right: 20px;
+  border-right: 1px solid var(--border);
+}
+
+.identity-avatar-upload {
+  position: relative;
+  display: grid;
+  width: 80px;
+  height: 80px;
+  overflow: hidden;
+  place-items: center;
+  padding: 0;
+  border: 2px solid var(--surface);
+  border-radius: 22px;
+  outline: 1px solid var(--border-strong);
+  color: white;
+  cursor: pointer;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.identity-avatar-upload:hover,
+.identity-avatar-upload:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.identity-avatar-upload img,
+.sidebar-identity-avatar img,
+.message-user .message-role-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.identity-avatar-upload i {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  border: 2px solid var(--surface);
+  border-radius: 8px;
+  background: var(--foreground);
+  color: var(--background);
+  font-style: normal;
+}
+
+.identity-avatar-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.identity-avatar-actions button {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 5px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--primary);
+  cursor: pointer;
+  font-size: 9.5px;
+  font-weight: 620;
+}
+
+.identity-avatar-actions button:hover {
+  background: var(--surface-hover);
+}
+
+.identity-avatar-actions button.danger {
+  color: var(--danger);
+}
+
+.identity-avatar-column > small {
+  max-width: 125px;
+  color: var(--muted-foreground);
+  font-size: 8px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.identity-details-column {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 16px;
+}
+
+.identity-details-column .personalization-name-field {
+  grid-template-columns: 1fr;
+  gap: 7px;
+}
+
+.identity-details-column .personalization-name-field small {
+  grid-column: auto;
+}
+
+.identity-avatar-error {
+  margin: 10px 0 0 170px;
+  color: var(--danger);
+  font-size: 9px;
+}
+
+.sidebar-identity-avatar,
+.message-user .message-role-mark {
+  overflow: hidden;
+}
+
+.avatar-crop-backdrop {
+  position: fixed;
+  z-index: 150;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: color-mix(in srgb, var(--foreground) 32%, transparent);
+  backdrop-filter: blur(3px);
+}
+
+.avatar-crop-dialog {
+  width: min(470px, calc(100vw - 40px));
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 24px 70px color-mix(in srgb, black 24%, transparent);
+}
+
+.avatar-crop-dialog > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 17px 18px 15px;
+  border-bottom: 1px solid var(--border);
+}
+
+.avatar-crop-dialog h4,
+.avatar-crop-dialog p {
+  margin: 0;
+}
+
+.avatar-crop-dialog h4 {
+  font-size: 14px;
+  font-weight: 680;
+}
+
+.avatar-crop-dialog header p {
+  margin-top: 5px;
+  color: var(--muted-foreground);
+  font-size: 9.5px;
+  line-height: 1.5;
+}
+
+.avatar-crop-dialog header button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.avatar-crop-dialog header button:hover {
+  background: var(--surface-hover);
+  color: var(--foreground);
+}
+
+.avatar-crop-stage {
+  position: relative;
+  height: 320px;
+  background: var(--background);
+}
+
+.avatar-crop-controls {
+  display: grid;
+  grid-template-columns: auto auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 18px;
+  border-top: 1px solid var(--border);
+  color: var(--muted-foreground);
+}
+
+.avatar-crop-controls label {
+  color: var(--foreground);
+  font-size: 9.5px;
+  font-weight: 620;
+}
+
+.avatar-crop-controls input[type="range"] {
+  width: 100%;
+  accent-color: var(--primary);
+}
+
+.avatar-crop-error {
+  padding: 0 18px 10px;
+  color: var(--danger);
+  font-size: 9px;
+}
+
+.avatar-crop-dialog > footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+}
+
+.avatar-crop-dialog > footer button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 620;
+}
+
+.avatar-crop-dialog > footer .primary-button {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+@media (max-width: 640px) {
+  .identity-profile-editor {
+    grid-template-columns: 1fr;
+  }
+  .identity-avatar-column {
+    padding-right: 0;
+    padding-bottom: 14px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .identity-avatar-error {
+    margin-left: 0;
+  }
+  .avatar-crop-backdrop {
+    align-items: end;
+    padding: 0;
+  }
+  .avatar-crop-dialog {
+    width: 100vw;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 14px 14px 0 0;
+  }
+  .avatar-crop-stage {
+    height: min(92vw, 390px);
+  }
+}
+
 /* Focused settings workflows */
 
 .settings-form-backdrop {

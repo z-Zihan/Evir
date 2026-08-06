@@ -41,6 +41,7 @@ describe("ChatMessage actions", () => {
         message={message("user", "Local message")}
         disabled={false}
         localUserName="Zihan"
+        localUserAvatar=""
         onEdit={vi.fn()}
         onRegenerate={vi.fn()}
       />,
@@ -59,6 +60,7 @@ describe("ChatMessage actions", () => {
         message={message("user", "Original")}
         disabled={false}
         localUserName="Local user"
+        localUserAvatar=""
         onEdit={onEdit}
         onRegenerate={vi.fn()}
       />,
@@ -81,6 +83,7 @@ describe("ChatMessage actions", () => {
         message={message("assistant", "Response")}
         disabled={false}
         localUserName="Local user"
+        localUserAvatar=""
         onEdit={vi.fn()}
         onRegenerate={onRegenerate}
       />,
@@ -113,6 +116,7 @@ describe("ChatMessage actions", () => {
         message={assistant}
         disabled={false}
         localUserName="Local user"
+        localUserAvatar=""
         onEdit={vi.fn()}
         onRegenerate={vi.fn()}
       />,

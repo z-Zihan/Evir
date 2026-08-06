@@ -28,6 +28,7 @@ export interface PersonalizationPreferences {
   enabled: boolean;
   displayName: string;
   avatarColor: (typeof AVATAR_COLORS)[number];
+  avatarImage: string;
   responseLanguage: (typeof RESPONSE_LANGUAGES)[number];
   detailLevel: (typeof RESPONSE_DETAIL_LEVELS)[number];
   style: (typeof RESPONSE_STYLES)[number];
@@ -38,6 +39,7 @@ export const DEFAULT_PERSONALIZATION_PREFERENCES: PersonalizationPreferences = {
   enabled: false,
   displayName: "",
   avatarColor: "sage",
+  avatarImage: "",
   responseLanguage: "follow-app",
   detailLevel: "balanced",
   style: "professional",

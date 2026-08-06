@@ -121,13 +121,17 @@
 
 验收：至少连接一个本地和一个远程测试 Server；工具调用经过统一权限系统；断连可恢复或明确失败。
 
-## 阶段 6：通用工具与浏览器自动化
+## 阶段 6：通用工具与浏览器自动化（DELAY）
+
+> **状态：DELAY — 代码保留，入口移除，后续按需启用。**
+> 浏览器工具代码保留在 src/core/tools/builtin/browser-tools.ts，但未注册到 Runtime。
 
 交付：文档/数据工具、文件整理、Playwright Sidecar、下载/上传保护、Sidecar 生命周期与跨平台产物。Provider 服务端工具在本阶段前后按独立来源接入。
 
-## 阶段 7：Computer Use
+## 阶段 7：Computer Use（DELAY）
 
-交付：macOS Accessibility、Windows UI Automation、截图、窗口/控件识别、键鼠事件、渐进系统权限、敏感操作保护和多显示器处理。
+> **状态：DELAY — 未开始，后续按需开发。**
+> 需要 macOS Accessibility API + Windows UI Automation，工作量大，当前优先级低。
 
 ## 阶段 8：发布质量
 

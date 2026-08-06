@@ -25,8 +25,8 @@ export function Sidebar({ onOpenSettings, onNewConversation }: SidebarProps) {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [identity, setIdentity] = useState<
-    Pick<PersonalizationPreferences, "displayName" | "avatarColor">
-  >({ displayName: "", avatarColor: "sage" });
+    Pick<PersonalizationPreferences, "displayName" | "avatarColor" | "avatarImage">
+  >({ displayName: "", avatarColor: "sage", avatarImage: "" });
   const committingRef = useRef(false);
 
   useEffect(() => {
@@ -177,7 +177,7 @@ export function Sidebar({ onOpenSettings, onNewConversation }: SidebarProps) {
           aria-label={t("sidebar.editIdentity")}
         >
           <span className={`sidebar-identity-avatar avatar-${identity.avatarColor}`}>
-            {localInitial}
+            {identity.avatarImage ? <img src={identity.avatarImage} alt="" /> : localInitial}
           </span>
           <span className="sidebar-identity-copy">
             <strong>{localName}</strong>

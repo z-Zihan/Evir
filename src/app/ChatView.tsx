@@ -43,6 +43,7 @@ interface MessageListProps {
   messages: MessageRecord[];
   disabled: boolean;
   localUserName: string;
+  localUserAvatar: string;
   onEdit: (messageId: string, content: string) => Promise<void>;
   onRegenerate: () => Promise<void>;
 }
@@ -51,6 +52,7 @@ const MessageList = memo(function MessageList({
   messages,
   disabled,
   localUserName,
+  localUserAvatar,
   onEdit,
   onRegenerate,
 }: MessageListProps) {
@@ -62,6 +64,7 @@ const MessageList = memo(function MessageList({
           message={msg}
           disabled={disabled}
           localUserName={localUserName}
+          localUserAvatar={localUserAvatar}
           onEdit={onEdit}
           onRegenerate={onRegenerate}
         />
@@ -99,6 +102,7 @@ export function ChatView({
   } = useChatStore();
   const { getDefaultProvider, switchProvider } = useProviderStore();
   const [localDisplayName, setLocalDisplayName] = useState("");
+  const [localUserAvatar, setLocalUserAvatar] = useState("");
 
   const provider = getDefaultProvider();
   const conversationTitle =
@@ -125,9 +129,11 @@ export function ChatView({
       void loadPersonalizationPreferences()
         .then((preferences) => {
           if (mounted) setLocalDisplayName(preferences.displayName.trim());
+          if (mounted) setLocalUserAvatar(preferences.avatarImage);
         })
         .catch(() => {
           if (mounted) setLocalDisplayName("");
+          if (mounted) setLocalUserAvatar("");
         });
     };
     loadLocalIdentity();
@@ -270,6 +276,7 @@ export function ChatView({
               messages={messages}
               disabled={isStreaming}
               localUserName={localUserName}
+              localUserAvatar={localUserAvatar}
               onEdit={editMessage}
               onRegenerate={regenerate}
             />

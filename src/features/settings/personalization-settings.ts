@@ -16,6 +16,11 @@ const personalizationSchema = z.object({
   enabled: z.boolean(),
   displayName: z.string(),
   avatarColor: z.enum(AVATAR_COLORS).default("sage"),
+  avatarImage: z
+    .string()
+    .max(500_000)
+    .refine((value) => !value || /^data:image\/(?:jpeg|png|webp);base64,/.test(value))
+    .default(""),
   responseLanguage: z.enum(RESPONSE_LANGUAGES),
   detailLevel: z.enum(RESPONSE_DETAIL_LEVELS),
   style: z.enum(RESPONSE_STYLES),

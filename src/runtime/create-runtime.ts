@@ -1,6 +1,5 @@
 import { desktopStorage } from "./desktop-storage-adapter";
 import { LOCAL_FILE_TOOLS } from "../core/tools/builtin/local-file-tools";
-import { createBrowserTools } from "../core/tools/builtin/browser-tools";
 import { ToolExecutor } from "../core/tools/tool-executor";
 import { createToolRegistry } from "../core/tools/tool-registry-impl";
 import type { Capability, EvirRuntime, RuntimeTarget } from "./types";
@@ -21,7 +20,6 @@ export function createRuntime(): EvirRuntime {
 
   if (target === "desktop") {
     for (const tool of LOCAL_FILE_TOOLS) toolRegistry.register(tool);
-    for (const tool of createBrowserTools()) toolRegistry.register(tool);
     const runtime = buildRuntime("desktop", [
       "chat",
       "attachments",
@@ -29,7 +27,6 @@ export function createRuntime(): EvirRuntime {
       "terminal",
       "git",
       "localMcp",
-      "browserAutomation",
       "backgroundTasks",
     ]);
     return {

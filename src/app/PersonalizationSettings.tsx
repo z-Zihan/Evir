@@ -1,6 +1,15 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { AlignLeft, Languages, MessageSquareText, ShieldCheck, UserRound } from "lucide-react";
+import {
+  AlignLeft,
+  Camera,
+  ImagePlus,
+  Languages,
+  MessageSquareText,
+  ShieldCheck,
+  Trash2,
+  UserRound,
+} from "lucide-react";
 import {
   DEFAULT_PERSONALIZATION_PREFERENCES,
   AVATAR_COLORS,
@@ -10,6 +19,8 @@ import {
   loadPersonalizationPreferences,
   savePersonalizationPreferences,
 } from "../features/settings/personalization-settings";
+import { AvatarCropDialog } from "./AvatarCropDialog";
+import { validateAvatarFile } from "./avatar-image";
 
 type FormStatus = "idle" | "loading" | "saving";
 type FormError = "load" | "save" | null;
@@ -21,6 +32,9 @@ export function PersonalizationPanel() {
   });
   const [status, setStatus] = useState<FormStatus>("loading");
   const [error, setError] = useState<FormError>(null);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [cropSource, setCropSource] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -38,6 +52,13 @@ export function PersonalizationPanel() {
       mounted = false;
     };
   }, []);
+
+  useEffect(
+    () => () => {
+      if (cropSource) URL.revokeObjectURL(cropSource);
+    },
+    [cropSource],
+  );
 
   const update = <Key extends keyof PersonalizationPreferences>(
     key: Key,
@@ -64,6 +85,32 @@ export function PersonalizationPanel() {
   };
 
   const handleReset = () => void persist({ ...DEFAULT_PERSONALIZATION_PREFERENCES });
+
+  const handleAvatarFile = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    const fileError = validateAvatarFile(file);
+    if (fileError === "type") {
+      setAvatarError(t("personalization.avatarTypeError"));
+      return;
+    }
+    if (fileError === "size") {
+      setAvatarError(t("personalization.avatarSizeError"));
+      return;
+    }
+    setAvatarError(null);
+    setCropSource(URL.createObjectURL(file));
+  };
+
+  const closeCropDialog = () => {
+    setCropSource(null);
+  };
+
+  const handleCroppedAvatar = (avatarImage: string) => {
+    update("avatarImage", avatarImage);
+    closeCropDialog();
+  };
 
   return (
     <section className="personalization-settings">
@@ -103,40 +150,86 @@ export function PersonalizationPanel() {
                 <p>{t("personalization.identityDescription")}</p>
               </div>
             </div>
-            <div className="personalization-identity-editor">
-              <span
-                className={`identity-avatar-preview avatar-${form.avatarColor}`}
-                aria-hidden="true"
-              >
-                {Array.from(form.displayName.trim())[0] ?? t("chat.you")}
-              </span>
-              <label className="personalization-name-field">
-                <span>{t("personalization.displayName")}</span>
+            <div className="identity-profile-editor">
+              <div className="identity-avatar-column">
+                <button
+                  className={`identity-avatar-upload avatar-${form.avatarColor}`}
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  aria-label={t("personalization.uploadAvatar")}
+                >
+                  {form.avatarImage ? (
+                    <img src={form.avatarImage} alt="" />
+                  ) : (
+                    <span>{Array.from(form.displayName.trim())[0] ?? t("chat.you")}</span>
+                  )}
+                  <i aria-hidden="true">
+                    <Camera size={15} />
+                  </i>
+                </button>
                 <input
-                  type="text"
-                  value={form.displayName}
-                  placeholder={t("personalization.displayNamePlaceholder")}
-                  onChange={(event) => update("displayName", event.target.value)}
+                  ref={fileInputRef}
+                  className="hidden"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleAvatarFile}
                 />
-                <small>{t("personalization.displayNameHint")}</small>
-              </label>
-            </div>
-            <div className="avatar-color-field">
-              <span>{t("personalization.avatarColor")}</span>
-              <div role="radiogroup" aria-label={t("personalization.avatarColor")}>
-                {AVATAR_COLORS.map((color) => (
-                  <button
-                    className={`avatar-color-option avatar-${color}${form.avatarColor === color ? " active" : ""}`}
-                    type="button"
-                    role="radio"
-                    aria-checked={form.avatarColor === color}
-                    aria-label={t(`personalization.avatarColors.${color}`)}
-                    key={color}
-                    onClick={() => update("avatarColor", color)}
+                <div className="identity-avatar-actions">
+                  <button type="button" onClick={() => fileInputRef.current?.click()}>
+                    <ImagePlus size={13} />
+                    {form.avatarImage
+                      ? t("personalization.replacePhoto")
+                      : t("personalization.choosePhoto")}
+                  </button>
+                  {form.avatarImage && (
+                    <button
+                      className="danger"
+                      type="button"
+                      onClick={() => update("avatarImage", "")}
+                    >
+                      <Trash2 size={13} /> {t("personalization.removePhoto")}
+                    </button>
+                  )}
+                </div>
+                <small>{t("personalization.avatarHint")}</small>
+              </div>
+              <div className="identity-details-column">
+                <label className="personalization-name-field">
+                  <span>{t("personalization.displayName")}</span>
+                  <input
+                    type="text"
+                    value={form.displayName}
+                    maxLength={40}
+                    placeholder={t("personalization.displayNamePlaceholder")}
+                    onChange={(event) => update("displayName", event.target.value)}
                   />
-                ))}
+                  <small>{t("personalization.displayNameHint")}</small>
+                </label>
+                {!form.avatarImage && (
+                  <div className="avatar-color-field">
+                    <span>{t("personalization.fallbackColor")}</span>
+                    <div role="radiogroup" aria-label={t("personalization.fallbackColor")}>
+                      {AVATAR_COLORS.map((color) => (
+                        <button
+                          className={`avatar-color-option avatar-${color}${form.avatarColor === color ? " active" : ""}`}
+                          type="button"
+                          role="radio"
+                          aria-checked={form.avatarColor === color}
+                          aria-label={t(`personalization.avatarColors.${color}`)}
+                          key={color}
+                          onClick={() => update("avatarColor", color)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
+            {avatarError && (
+              <p className="identity-avatar-error" role="alert">
+                {avatarError}
+              </p>
+            )}
           </section>
 
           <section className="personalization-section">
@@ -261,6 +354,13 @@ export function PersonalizationPanel() {
           </p>
         )}
       </form>
+      {cropSource && (
+        <AvatarCropDialog
+          imageUrl={cropSource}
+          onCancel={closeCropDialog}
+          onSave={handleCroppedAvatar}
+        />
+      )}
     </section>
   );
 }

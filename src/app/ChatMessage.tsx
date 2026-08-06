@@ -11,6 +11,7 @@ interface ChatMessageProps {
   message: MessageRecord;
   disabled: boolean;
   localUserName: string;
+  localUserAvatar: string;
   onEdit: (messageId: string, content: string) => Promise<void>;
   onRegenerate: () => Promise<void>;
 }
@@ -46,6 +47,7 @@ export function ChatMessage({
   message,
   disabled,
   localUserName,
+  localUserAvatar,
   onEdit,
   onRegenerate,
 }: ChatMessageProps) {
@@ -81,7 +83,13 @@ export function ChatMessage({
     <article className={`message-row message-${message.role}`}>
       <div className="message-rail" aria-hidden="true">
         <span className="message-role-mark">
-          {isAssistant ? <img src="/evir-mark.svg" alt="" /> : localInitial}
+          {isAssistant ? (
+            <img src="/evir-mark.svg" alt="" />
+          ) : localUserAvatar ? (
+            <img src={localUserAvatar} alt="" />
+          ) : (
+            localInitial
+          )}
         </span>
       </div>
       <div className="message-main">
