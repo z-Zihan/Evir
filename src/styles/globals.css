@@ -1521,3 +1521,15 @@ textarea:focus-visible {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.char-count {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+textarea {
+  resize: none;
+  min-height: 44px;
+  max-height: 200px;
+  overflow-y: auto;
+}

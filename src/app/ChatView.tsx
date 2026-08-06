@@ -1,18 +1,19 @@
-import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
+import { useEffect, useRef, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Paperclip, Square, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useChatStore } from "../features/chat/chat-store";
-import { useUsageStore } from "../features/usage/usage-store";
 import { useProviderStore } from "../features/provider/provider-store";
 import { ChatMessage } from "./ChatMessage";
 import { ChatEmptyState } from "./ChatEmptyState";
 import { ModeSwitcher } from "./ModeSwitcher";
 import { ModelSwitcher } from "./ModelSwitcher";
 import { Download } from "lucide-react";
-import { downloadBlob, exportConversationMarkdown } from "../features/chat/conversation-export";
 import type { ProviderRecord } from "../core/storage/db";
+import { useDragDrop } from "./use-drag-drop";
+import { handleExportMarkdown } from "./export-helpers";
+import { useConversationTokenCount } from "./use-token-count";
 
 interface ChatViewProps {
   input: string;
@@ -43,30 +44,12 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
   } = useChatStore();
   const { getDefaultProvider, switchProvider } = useProviderStore();
 
-  const handleExportMarkdown = async () => {
-    if (!currentConversationId) return;
-    try {
-      const blob = await exportConversationMarkdown(currentConversationId);
-      const conv = useChatStore
-        .getState()
-        .conversations.find((c) => c.id === currentConversationId);
-      const title = conv?.title || "conversation";
-      downloadBlob(blob, `${title}.md`);
-    } catch (e) {
-      console.error("Failed to export markdown:", e);
-    }
-  };
   const provider = getDefaultProvider();
 
-  const tokenCount = useUsageStore((s) => {
-    if (!currentConversationId) return 0;
-    return s.records
-      .filter((r) => r.conversationId === currentConversationId)
-      .reduce((sum, r) => sum + (r.totalTokens ?? (r.inputTokens ?? 0) + (r.outputTokens ?? 0)), 0);
-  });
+  const tokenCount = useConversationTokenCount(currentConversationId);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [dragOver, setDragOver] = useState(false);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -89,18 +72,14 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setDragOver(false);
-    handleFileSelect(e.dataTransfer.files);
-  };
+  const { dragOver, handleDrop, handleDragOver, handleDragLeave } = useDragDrop(handleFileSelect);
 
-  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setDragOver(true);
-  };
-
-  const handleDragLeave = () => setDragOver(false);
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = "auto";
+    ta.style.height = `${Math.min(ta.scrollHeight, 200)}px`;
+  }, [input]);
 
   if (!provider) {
     return (
@@ -187,6 +166,7 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
             </div>
           )}
           <textarea
+            ref={textareaRef}
             aria-label={t("chat.placeholder")}
             placeholder={t("chat.placeholder")}
             value={input}
@@ -216,7 +196,7 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
               <button
                 type="button"
                 className="attach-button"
-                onClick={() => void handleExportMarkdown()}
+                onClick={() => void handleExportMarkdown(currentConversationId ?? "")}
                 disabled={isStreaming || !currentConversationId}
                 aria-label={t("settings.exportMarkdown")}
                 title={t("settings.exportMarkdown")}
@@ -225,6 +205,7 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
               </button>
             </span>
             <span className="composer-info">
+              {input.length > 0 && <span className="char-count">{input.length}</span>}
               {tokenCount > 0 && t("chat.tokenCount", { count: tokenCount })}
             </span>
             {isStreaming ? (
