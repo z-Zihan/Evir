@@ -2,7 +2,7 @@
 
 > Scope: This memory applies only to the Evir repository.
 > Repository: git@github.com:z-Zihan/Evir.git
-> Last reviewed commit: e7c47d0
+> Last reviewed commit: 1a5bb0f
 > Last updated: 2026-08-06
 
 ## 1. Product Identity
@@ -122,7 +122,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - 外部输入用 Zod 验证
 - 所有长任务支持 AbortSignal
 - PR 门禁：format + ESLint + strict TS + tests + build
-- 当前 114 TS tests + 4 Rust tests pass
+- 当前 143 TS tests + 4 Rust tests pass
 
 ## 17. Current Implementation Status
 
@@ -148,6 +148,12 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - 模型切换 UI（inline dropdown）
 - Skill 系统（Registry + Store + Settings UI + Prompt 注入）
 - 共享 helpers（chat-helpers.ts）
+- MCP Server 配置（Store + Settings UI + DB schema v3）
+- Context Budget Manager + Tool Output 压缩
+- Sidebar 搜索 + Cmd+Shift+F 快捷键
+- Shortcuts 设置面板（平台感知格式化）
+- Privacy 设置面板（清除本地数据 + 事务保护）
+- 共享 platform.ts（isMac + currentPlatform）
 
 **只有骨架：**
 
@@ -159,8 +165,9 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - 模型发现（/models API）
 - 模型切换 UI / 快捷键执行 / 通知 / Usage 面板 / 个性化 UI / 附件
 - Desktop stores 切换到 Tauri invoke（当前 Desktop 用 Dexie，Web 也用 Dexie）
-- MCP Server 连接（stdio + Streamable HTTP）
+- MCP Server 实际连接（当前仅配置管理，无 stdio/HTTP 通信）
 - 更多 Provider 协议（Azure, Bedrock）
+- About / Help 面板
 
 ## 18. Current Development Stage
 
@@ -178,7 +185,8 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 3. CORS 错误展示可进一步优化
 4. tool-approval.ts 行数超限（254 行 vs 200 限制）
 5. ToolCallCard Approve/Deny 缺少集成测试
-6. 无 MCP Server 连接
+6. MCP Server 仅配置管理，无实际连接
+7. 项目记忆更新滞后
 
 ## 21. Active Decisions
 
@@ -189,11 +197,11 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 ## 22. Next Vertical Slice
 
-1. MCP Server 连接（stdio + Streamable HTTP）
-2. Desktop stores 切换到 Tauri invoke（替换 Dexie）
-3. 更多 Provider 协议（Azure, Bedrock）
-4. Context Builder + 上下文压缩
-5. 快捷键执行（ShortcutRegistry 实际触发）
+1. About / Help 面板
+2. MCP Server 实际连接（stdio + Streamable HTTP）
+3. Desktop stores 切换到 Tauri invoke（替换 Dexie）
+4. 更多 Provider 协议（Azure, Bedrock）
+5. LLM 对话摘要（Context Builder 第二阶段）
 
 ## 23. Relevant Source Documents
 
@@ -230,3 +238,14 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - 2026-08-06 | 3fe30d4 | ToolCallCard Approve/Deny 接线（tool-approval.ts, continueAgentLoop, pendingToolApproval 状态）；114 tests pass
 - 2026-08-06 | d1949a6 | Tool approval review P0+P1 修复（CSS 损坏, 静态 import, chat-helpers.ts, 消息去重）；114 tests pass
 - 2026-08-06 | e7c47d0 | Review P1 修复（TOOL_DENIED 常量, for...of 循环, NOTE 注释恢复）；114 tests pass；Web gzip 208.11 KB
+- 2026-08-06 | 21dd361 | 项目记忆更新（13 commits, 114 tests, 208 KB gzip）
+- 2026-08-06 | 5208513 | Sidebar 搜索 + Cmd+Shift+F 快捷键（i18n + CSS + ref-based focus）；114 tests pass
+- 2026-08-06 | de6cde5 | Sidebar 搜索 P0 修复（CustomEvent → ref-based focus）
+- 2026-08-06 | 9fa7073 | MCP Server 配置（Store + Settings UI + DB schema v3）；119 tests pass
+- 2026-08-06 | 1f89692 | MCP review P0+P1 修复（DB-first writes, 类型收窄, headers, try/catch）；119 tests pass
+- 2026-08-06 | 0dd6540 | Context Budget Manager + Tool Output 压缩（token 估算, 4 级压缩, 按比例截断）；135 tests pass
+- 2026-08-06 | ef4b5e9 | Context budget review P0+P1 修复（token 估算修正, 比例截断, 阈值常量）；135 tests pass
+- 2026-08-06 | 36c2d5a | Shortcuts 设置面板（9 个快捷键展示 + 平台感知格式化）；139 tests pass
+- 2026-08-06 | f27e7be | Shortcuts review P1 修复（共享 platform.ts, Mac 格式化, 平台过滤）；139 tests pass
+- 2026-08-06 | a4a3a48 | Privacy 设置面板（5 个清除按钮 + 确认对话框 + 事务保护）；143 tests pass
+- 2026-08-06 | 1a5bb0f | Privacy review P0+P1 修复（事务保护, disabled 状态, 无障碍）；143 tests pass
