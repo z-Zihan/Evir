@@ -201,7 +201,12 @@
     "save": "Save",
     "namePlaceholder": "Skill name",
     "descPlaceholder": "Short description",
-    "contentPlaceholder": "Skill instructions (Markdown)..."
+    "contentPlaceholder": "Skill instructions (Markdown)...",
+    "installFromFile": "Install from file",
+    "uninstall": "Uninstall",
+    "missingFrontmatter": "File is missing YAML frontmatter (--- ... ---)",
+    "missingFrontmatterFields": "Frontmatter must include name, version, description, and riskLevel",
+    "invalidRiskLevel": "Invalid riskLevel \"{{riskLevel}}\" — must be low, medium, or high"
   },
   "mcp": {
     "title": "MCP Servers",

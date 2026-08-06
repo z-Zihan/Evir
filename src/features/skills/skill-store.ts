@@ -2,6 +2,7 @@ import { create } from "zustand";
 // NOTE: Uses Dexie directly for settings; StoragePort covers basic CRUD
 import { db } from "../../core/storage/db";
 import type { SkillManifest } from "../../core/skills/types";
+import { validateManifest } from "../../core/skills/types";
 import { createSkillRegistry, type SkillRegistry } from "../../core/skills/skill-registry";
 import type { InstalledSkill } from "../../core/skills/types";
 
@@ -16,7 +17,9 @@ interface SkillState {
   getEnabledContent: () => Promise<string>;
   importSkill: (manifest: SkillManifest, content: string) => Promise<string>;
   createSkill: (name: string, description: string, content: string) => Promise<string>;
-  deleteSkill: (id: string) => Promise<void>;
+  installSkill: (manifest: SkillManifest, content: string) => Promise<string>;
+  uninstallSkill: (id: string) => Promise<void>;
+  updateSkill: (id: string, content: string, description?: string) => Promise<void>;
   listAll: () => InstalledSkill[];
 }
 
@@ -122,7 +125,25 @@ export const useSkillStore = create<SkillState>((set, get) => ({
     return id;
   },
 
-  deleteSkill: async (id) => {
+  installSkill: async (manifest, content) => {
+    const errors = validateManifest(manifest);
+    if (errors.length > 0) {
+      throw new Error(`Invalid skill manifest: ${errors.join(", ")}`);
+    }
+    const id = manifest.id;
+    const alreadyInstalled =
+      get().skills.some((s) => s.manifest.id === id) ||
+      (await db.settings.get(`skill:${id}`)) !== undefined;
+    if (alreadyInstalled) {
+      throw new Error(`Skill "${id}" is already installed`);
+    }
+    await db.settings.put({ name: `skill:${id}`, value: { manifest, content } });
+    const skill: InstalledSkill = { manifest, rootPath: "", builtIn: false };
+    set((state) => ({ skills: [...state.skills, skill] }));
+    return id;
+  },
+
+  uninstallSkill: async (id) => {
     await db.settings.delete(`skill:${id}`);
     set((state) => ({
       skills: state.skills.filter((s) => s.manifest.id !== id),
@@ -134,19 +155,50 @@ export const useSkillStore = create<SkillState>((set, get) => ({
     }));
     const remaining = get().enabledSkillIds;
     if (remaining.size === 0) {
-      await db.settings.delete("skillEnabledIds");
+      await db.settings.delete(SKILL_ENABLED_SETTING);
     } else {
-      await db.settings.put({
-        name: "skillEnabledIds",
-        value: [...remaining],
-      });
+      await persistEnabledIds(remaining);
     }
+  },
+
+  updateSkill: async (id, content, description) => {
+    const record = await db.settings.get(`skill:${id}`);
+    const existingValue = record?.value as
+      { manifest: SkillManifest; content: string; [key: string]: unknown } | undefined;
+    const current = get().skills.find((s) => s.manifest.id === id);
+    const baseManifest = existingValue?.manifest ?? current?.manifest;
+    if (!baseManifest) {
+      throw new Error(`Skill not found: ${id}`);
+    }
+    const manifest = description !== undefined ? { ...baseManifest, description } : baseManifest;
+
+    await db.settings.put({
+      name: `skill:${id}`,
+      value: { ...existingValue, manifest, content },
+    });
+    set((state) => ({
+      skills: state.skills.map((s) => (s.manifest.id === id ? { ...s, manifest } : s)),
+    }));
   },
 
   listAll: () => get().skills,
 
   getEnabledContent: async () => {
-    const { enabledSkillIds } = get();
-    return getRegistry().getEnabledContent(enabledSkillIds);
+    const { enabledSkillIds, skills } = get();
+    const reg = getRegistry();
+    const builtinIds = new Set(reg.list().map((s) => s.manifest.id));
+    const builtinEnabledIds = new Set([...enabledSkillIds].filter((id) => builtinIds.has(id)));
+    const builtinContent = await reg.getEnabledContent(builtinEnabledIds);
+
+    const customSkills = skills.filter((s) => !s.builtIn && enabledSkillIds.has(s.manifest.id));
+    const customContents = await Promise.all(
+      customSkills.map(async (s) => {
+        const record = await db.settings.get(`skill:${s.manifest.id}`);
+        const value = record?.value as { content?: string } | undefined;
+        return `## ${s.manifest.name}\n\n${value?.content ?? ""}`;
+      }),
+    );
+
+    return [builtinContent, ...customContents].filter(Boolean).join("\n\n---\n\n");
   },
 }));

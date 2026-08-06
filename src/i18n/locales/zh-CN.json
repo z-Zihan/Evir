@@ -201,7 +201,12 @@
     "save": "保存",
     "namePlaceholder": "Skill 名称",
     "descPlaceholder": "简短描述",
-    "contentPlaceholder": "Skill 指令内容（Markdown）..."
+    "contentPlaceholder": "Skill 指令内容（Markdown）...",
+    "installFromFile": "从文件安装",
+    "uninstall": "卸载",
+    "missingFrontmatter": "文件缺少 YAML 前置元数据（--- ... ---）",
+    "missingFrontmatterFields": "前置元数据必须包含 name、version、description 和 riskLevel",
+    "invalidRiskLevel": "无效的 riskLevel “{{riskLevel}}” — 必须为 low、medium 或 high"
   },
   "mcp": {
     "title": "MCP 服务器",

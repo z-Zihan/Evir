@@ -122,4 +122,103 @@ describe("skill-store", () => {
     expect(content).toContain("Content for bug fix");
     expect(content).not.toContain("Code Review");
   });
+
+  const customManifest = {
+    schemaVersion: 1 as const,
+    id: "my-custom-skill",
+    name: "My Custom Skill",
+    version: "0.1.0",
+    description: "A custom test skill",
+    entry: "SKILL.md",
+    source: "imported" as const,
+    capabilities: [],
+    optionalCapabilities: [],
+    optionalMcpServers: [],
+    riskLevel: "low" as const,
+  };
+
+  describe("installSkill", () => {
+    it("installs a valid custom skill", async () => {
+      const id = await useSkillStore.getState().installSkill(customManifest, "custom content");
+      expect(id).toBe("my-custom-skill");
+      const { skills } = useSkillStore.getState();
+      expect(skills.some((s) => s.manifest.id === id)).toBe(true);
+    });
+
+    it("rejects an invalid manifest", async () => {
+      const invalid = { ...customManifest, id: "Invalid ID!" };
+      await expect(useSkillStore.getState().installSkill(invalid, "content")).rejects.toThrow();
+    });
+
+    it("rejects installing a duplicate id", async () => {
+      await useSkillStore.getState().installSkill(customManifest, "custom content");
+      await expect(
+        useSkillStore.getState().installSkill(customManifest, "other content"),
+      ).rejects.toThrow(/already installed/);
+    });
+  });
+
+  describe("uninstallSkill", () => {
+    it("removes an installed skill and its enabled state", async () => {
+      await useSkillStore.getState().installSkill(customManifest, "custom content");
+      await useSkillStore.getState().toggleSkill(customManifest.id);
+      expect(useSkillStore.getState().isEnabled(customManifest.id)).toBe(true);
+
+      await useSkillStore.getState().uninstallSkill(customManifest.id);
+
+      const { skills, enabledSkillIds } = useSkillStore.getState();
+      expect(skills.some((s) => s.manifest.id === customManifest.id)).toBe(false);
+      expect(enabledSkillIds.has(customManifest.id)).toBe(false);
+    });
+
+    it("no longer includes uninstalled skill content in getEnabledContent", async () => {
+      await useSkillStore.getState().installSkill(customManifest, "custom content");
+      await useSkillStore.getState().toggleSkill(customManifest.id);
+      await useSkillStore.getState().uninstallSkill(customManifest.id);
+
+      const content = await useSkillStore.getState().getEnabledContent();
+      expect(content).not.toContain("custom content");
+    });
+  });
+
+  describe("updateSkill", () => {
+    it("updates content and description of an installed skill", async () => {
+      await useSkillStore.getState().installSkill(customManifest, "original content");
+      await useSkillStore
+        .getState()
+        .updateSkill(customManifest.id, "updated content", "new description");
+
+      const { skills } = useSkillStore.getState();
+      const updated = skills.find((s) => s.manifest.id === customManifest.id);
+      expect(updated?.manifest.description).toBe("new description");
+    });
+
+    it("includes updated content for enabled custom skills via getEnabledContent", async () => {
+      await useSkillStore.getState().installSkill(customManifest, "original content");
+      await useSkillStore.getState().toggleSkill(customManifest.id);
+      await useSkillStore.getState().updateSkill(customManifest.id, "updated content");
+
+      const content = await useSkillStore.getState().getEnabledContent();
+      expect(content).toContain("updated content");
+      expect(content).not.toContain("original content");
+    });
+
+    it("throws when updating a skill that does not exist", async () => {
+      await expect(
+        useSkillStore.getState().updateSkill("does-not-exist", "content"),
+      ).rejects.toThrow(/not found/);
+    });
+  });
+
+  it("getEnabledContent includes custom skill content from DB alongside builtin content", async () => {
+    await useSkillStore.getState().installSkill(customManifest, "custom skill body");
+    await useSkillStore.getState().toggleSkill(customManifest.id);
+    await useSkillStore.getState().toggleSkill("bug-fix");
+
+    const content = await useSkillStore.getState().getEnabledContent();
+    expect(content).toContain("Bug Fix");
+    expect(content).toContain("Content for bug fix");
+    expect(content).toContain("My Custom Skill");
+    expect(content).toContain("custom skill body");
+  });
 });
