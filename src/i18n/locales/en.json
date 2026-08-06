@@ -59,7 +59,8 @@
     "switchModel": "Switch model",
     "currentModel": "Current model",
     "pinFailed": "Failed to pin conversation",
-    "copyMessage": "Copy"
+    "copyMessage": "Copy",
+    "tokenCount": "{{count}} tokens"
   },
   "runtime": {
     "agentReady": "Local agent runtime",

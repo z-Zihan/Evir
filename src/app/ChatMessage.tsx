@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Copy, GitBranch, Pencil, RotateCcw } from "lucide-react";
+import { format } from "date-fns";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { MessageRecord } from "../core/storage/db";
@@ -105,40 +106,43 @@ export function ChatMessage({
         )}
       </div>
       {!isEditing && message.role !== "system" && (
-        <div className="message-actions">
-          <button
-            type="button"
-            onClick={() => {
-              void navigator.clipboard.writeText(message.content).then(() => {
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1500);
-              });
-            }}
-            aria-label={t("chat.copyMessage")}
-          >
-            <Copy size={14} />
-            {copied ? t("chat.copied") : t("chat.copyMessage")}
-          </button>
-          {message.role === "assistant" ? (
-            <button type="button" onClick={() => void onRegenerate()} disabled={disabled}>
-              <RotateCcw size={14} />
-              {t("chat.regenerate")}
+        <div className="message-meta">
+          <span className="message-timestamp">{format(new Date(message.createdAt), "HH:mm")}</span>
+          <div className="message-actions">
+            <button
+              type="button"
+              onClick={() => {
+                void navigator.clipboard.writeText(message.content).then(() => {
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1500);
+                });
+              }}
+              aria-label={t("chat.copyMessage")}
+            >
+              <Copy size={14} />
+              {copied ? t("chat.copied") : t("chat.copyMessage")}
             </button>
-          ) : (
-            <button type="button" onClick={() => setIsEditing(true)} disabled={disabled}>
-              <Pencil size={14} />
-              {t("chat.edit")}
+            {message.role === "assistant" ? (
+              <button type="button" onClick={() => void onRegenerate()} disabled={disabled}>
+                <RotateCcw size={14} />
+                {t("chat.regenerate")}
+              </button>
+            ) : (
+              <button type="button" onClick={() => setIsEditing(true)} disabled={disabled}>
+                <Pencil size={14} />
+                {t("chat.edit")}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => onBranch(message.id)}
+              disabled={disabled}
+              aria-label={t("chat.branchFromHere")}
+            >
+              <GitBranch size={14} />
+              {t("chat.branchFromHere")}
             </button>
-          )}
-          <button
-            type="button"
-            onClick={() => onBranch(message.id)}
-            disabled={disabled}
-            aria-label={t("chat.branchFromHere")}
-          >
-            <GitBranch size={14} />
-            {t("chat.branchFromHere")}
-          </button>
+          </div>
         </div>
       )}
     </div>

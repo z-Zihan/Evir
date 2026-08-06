@@ -4,6 +4,7 @@ import { Paperclip, Square, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useChatStore } from "../features/chat/chat-store";
+import { useUsageStore } from "../features/usage/usage-store";
 import { useProviderStore } from "../features/provider/provider-store";
 import { ChatMessage } from "./ChatMessage";
 import { ChatEmptyState } from "./ChatEmptyState";
@@ -56,6 +57,13 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
     }
   };
   const provider = getDefaultProvider();
+
+  const tokenCount = useUsageStore((s) => {
+    if (!currentConversationId) return 0;
+    return s.records
+      .filter((r) => r.conversationId === currentConversationId)
+      .reduce((sum, r) => sum + (r.totalTokens ?? (r.inputTokens ?? 0) + (r.outputTokens ?? 0)), 0);
+  });
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -215,6 +223,9 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
               >
                 <Download size={16} />
               </button>
+            </span>
+            <span className="composer-info">
+              {tokenCount > 0 && t("chat.tokenCount", { count: tokenCount })}
             </span>
             {isStreaming ? (
               <button type="button" className="stop-button" onClick={stopGeneration}>

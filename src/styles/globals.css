@@ -1371,3 +1371,25 @@ textarea:focus-visible {
   color: var(--muted-foreground);
   padding: 4px 0;
 }
+
+/* Message meta (timestamp + actions) */
+.message-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.message-timestamp {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+/* Composer info (token count) */
+.composer-info {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  opacity: 0.6;
+  margin-left: auto;
+}

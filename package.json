@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
+    "date-fns": "^4.4.0",
     "dexie": "^4.4.4",
     "i18next": "^25.0.0",
     "lucide-react": "^0.468.0",

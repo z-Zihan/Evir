@@ -59,7 +59,8 @@
     "switchModel": "切换模型",
     "currentModel": "当前模型",
     "pinFailed": "置顶失败",
-    "copyMessage": "复制"
+    "copyMessage": "复制",
+    "tokenCount": "{{count}} tokens"
   },
   "runtime": {
     "agentReady": "本地 Agent Runtime",
