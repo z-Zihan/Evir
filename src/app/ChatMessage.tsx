@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Copy, GitBranch, Pencil, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
@@ -13,6 +13,32 @@ interface ChatMessageProps {
   onEdit: (messageId: string, content: string) => Promise<void>;
   onRegenerate: () => Promise<void>;
   onBranch: (messageId: string) => void;
+}
+
+function CodeBlock({ className, children }: { className?: string; children: ReactNode }) {
+  const [copied, setCopied] = useState(false);
+  const code = typeof children === "string" ? children : JSON.stringify(children);
+  return (
+    <div className="code-block">
+      <button
+        type="button"
+        className="code-block-copy"
+        onClick={() => {
+          void navigator.clipboard.writeText(code).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          });
+        }}
+        aria-label="Copy code"
+      >
+        <Copy size={13} />
+        {copied ? "Copied!" : "Copy"}
+      </button>
+      <pre>
+        <code className={className}>{children}</code>
+      </pre>
+    </div>
+  );
 }
 
 export function ChatMessage({
@@ -90,7 +116,18 @@ export function ChatMessage({
             </div>
           </div>
         ) : message.role === "assistant" ? (
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              code({ className: cn, children: ch, ...props }) {
+                const isInline = !cn;
+                if (isInline) return <code {...props}>{ch}</code>;
+                return <CodeBlock className={cn}>{ch}</CodeBlock>;
+              },
+            }}
+          >
+            {message.content}
+          </ReactMarkdown>
         ) : (
           <p>{message.content}</p>
         )}

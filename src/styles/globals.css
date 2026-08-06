@@ -1466,3 +1466,35 @@ textarea:focus-visible {
   border: 1px solid var(--border-color);
   border-radius: 4px;
 }
+
+/* Code block with copy button */
+.code-block {
+  position: relative;
+}
+
+.code-block-copy {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  padding: 0.2rem 0.5rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  color: var(--text-muted);
+  z-index: 1;
+}
+
+.code-block:hover .code-block-copy {
+  opacity: 1;
+}
+
+.code-block-copy:hover {
+  color: var(--text-primary);
+}
