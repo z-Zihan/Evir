@@ -101,7 +101,9 @@
     "exportAll": "Export all conversations",
     "importAll": "Import from file",
     "importSuccess": "Imported {{imported}} conversations ({{skipped}} skipped)",
-    "importFailed": "Import failed: {{message}}"
+    "importFailed": "Import failed: {{message}}",
+    "exportMarkdown": "Export as Markdown",
+    "exportMdSingle": "Export Chat as .md"
   },
   "provider": {
     "add": "Add provider",

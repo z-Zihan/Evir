@@ -101,7 +101,9 @@
     "exportAll": "导出全部会话",
     "importAll": "从文件导入",
     "importSuccess": "已导入 {{imported}} 个会话（跳过 {{skipped}} 个）",
-    "importFailed": "导入失败：{{message}}"
+    "importFailed": "导入失败：{{message}}",
+    "exportMarkdown": "导出为 Markdown",
+    "exportMdSingle": "导出对话为 .md"
   },
   "provider": {
     "add": "添加供应商",

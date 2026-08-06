@@ -9,6 +9,8 @@ import { ChatMessage } from "./ChatMessage";
 import { ChatEmptyState } from "./ChatEmptyState";
 import { ModeSwitcher } from "./ModeSwitcher";
 import { ModelSwitcher } from "./ModelSwitcher";
+import { Download } from "lucide-react";
+import { downloadBlob, exportConversationMarkdown } from "../features/chat/conversation-export";
 import type { ProviderRecord } from "../core/storage/db";
 
 interface ChatViewProps {
@@ -38,6 +40,21 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
     updateConversationProvider,
   } = useChatStore();
   const { getDefaultProvider, switchProvider } = useProviderStore();
+  const { currentConversationId } = useChatStore();
+
+  const handleExportMarkdown = async () => {
+    if (!currentConversationId) return;
+    try {
+      const blob = await exportConversationMarkdown(currentConversationId);
+      const conv = useChatStore
+        .getState()
+        .conversations.find((c) => c.id === currentConversationId);
+      const title = conv?.title || "conversation";
+      downloadBlob(blob, `${title}.md`);
+    } catch {
+      // ignore — no conversation selected
+    }
+  };
   const provider = getDefaultProvider();
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -188,6 +205,16 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
                   })();
                 }}
               />
+              <button
+                type="button"
+                className="attach-button"
+                onClick={() => void handleExportMarkdown()}
+                disabled={isStreaming || !currentConversationId}
+                aria-label={t("settings.exportMarkdown")}
+                title={t("settings.exportMarkdown")}
+              >
+                <Download size={16} />
+              </button>
             </span>
             {isStreaming ? (
               <button type="button" className="stop-button" onClick={stopGeneration}>

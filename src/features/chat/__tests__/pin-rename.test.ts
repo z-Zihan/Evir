@@ -2,13 +2,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../core/storage/db", () => {
-  const mockUpdate = vi.fn((_id: string, _patch: Record<string, unknown>) => Promise.resolve());
   return {
     db: {
       conversations: {
         toArray: vi.fn(() => Promise.resolve([])),
         add: vi.fn(() => Promise.resolve()),
-        update: mockUpdate,
+        update: convUpdate,
         delete: vi.fn(() => Promise.resolve()),
         where: vi.fn(() => ({ equals: () => ({ toArray: () => Promise.resolve([]) }) })),
       },
@@ -35,7 +34,8 @@ vi.mock("../../../core/storage/db", () => {
 });
 
 import { useChatStore } from "../chat-store";
-import { db } from "../../../core/storage/db";
+
+const convUpdate = vi.hoisted(() => vi.fn(() => Promise.resolve()));
 
 beforeEach(() => {
   useChatStore.setState({
@@ -63,35 +63,28 @@ beforeEach(() => {
 describe("togglePin", () => {
   it("pins an unpinned conversation", async () => {
     await useChatStore.getState().togglePin("c1");
-    expect(db.conversations.update).toHaveBeenCalledWith(
-      "c1",
-      expect.objectContaining({ pinned: 1 }),
-    );
-    expect(useChatStore.getState().conversations[0].pinned).toBe(1);
+    expect(convUpdate).toHaveBeenCalledWith("c1", expect.objectContaining({ pinned: 1 }));
+    expect(useChatStore.getState().conversations.find((c) => c.id === "c1")!.pinned).toBe(1);
   });
 
   it("unpins a pinned conversation", async () => {
     await useChatStore.getState().togglePin("c2");
-    expect(db.conversations.update).toHaveBeenCalledWith(
-      "c2",
-      expect.objectContaining({ pinned: 0 }),
-    );
-    expect(useChatStore.getState().conversations[1].pinned).toBe(0);
+    expect(convUpdate).toHaveBeenCalledWith("c2", expect.objectContaining({ pinned: 0 }));
+    expect(useChatStore.getState().conversations.find((c) => c.id === "c2")!.pinned).toBe(0);
   });
 });
 
 describe("renameConversation", () => {
   it("updates the title in store and DB", async () => {
     await useChatStore.getState().renameConversation("c1", "New Title");
-    expect(db.conversations.update).toHaveBeenCalledWith(
-      "c1",
-      expect.objectContaining({ title: "New Title" }),
+    expect(convUpdate).toHaveBeenCalledWith("c1", expect.objectContaining({ title: "New Title" }));
+    expect(useChatStore.getState().conversations.find((c) => c.id === "c1")!.title).toBe(
+      "New Title",
     );
-    expect(useChatStore.getState().conversations[0].title).toBe("New Title");
   });
 
   it("does nothing for empty title", async () => {
     await useChatStore.getState().renameConversation("c1", "   ");
-    expect(db.conversations.update).not.toHaveBeenCalled();
+    expect(convUpdate).not.toHaveBeenCalled();
   });
 });
