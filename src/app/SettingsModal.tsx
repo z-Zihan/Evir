@@ -13,6 +13,7 @@ import {
   Palette,
   ShieldCheck,
   Sparkles,
+  Stethoscope,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -22,6 +23,7 @@ import { SkillSettings } from "./SkillSettings";
 import { McpSettings } from "./McpSettings";
 import { PrivacySettings } from "./PrivacySettings";
 import { AboutSettings } from "./AboutSettings";
+import { DiagnosticsSettings } from "./DiagnosticsSettings";
 import { MemorySettings } from "./MemorySettings";
 import { ThemeSettings } from "./ThemeSettings";
 import { LanguageSettings } from "./LanguageSettings";
@@ -42,6 +44,7 @@ type SettingsTab =
   | "theme"
   | "language"
   | "memory"
+  | "diagnostics"
   | "about";
 
 interface SettingsNavItem {
@@ -75,6 +78,7 @@ const SETTINGS_GROUPS: Array<{ labelKey: string; items: SettingsNavItem[] }> = [
       { tab: "usage", labelKey: "settings.usage", icon: BarChart3 },
       { tab: "data", labelKey: "settings.data", icon: Database },
       { tab: "privacy", labelKey: "settings.privacy", icon: ShieldCheck },
+      { tab: "diagnostics", labelKey: "settings.diagnostics", icon: Stethoscope },
       { tab: "about", labelKey: "settings.about", icon: Info },
     ],
   },
@@ -182,6 +186,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               {activeTab === "theme" && <ThemeSettings />}
               {activeTab === "language" && <LanguageSettings />}
               {activeTab === "memory" && <MemorySettings conversationId={null} />}
+              {activeTab === "diagnostics" && <DiagnosticsSettings />}
               {activeTab === "data" && (
                 <div className="flex flex-col gap-3">
                   <h3 className="text-base font-semibold">{t("settings.data")}</h3>

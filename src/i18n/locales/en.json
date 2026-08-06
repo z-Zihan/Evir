@@ -110,6 +110,7 @@
     "shortcuts": "Keyboard shortcuts",
     "usage": "Usage",
     "privacy": "Data and privacy",
+    "diagnostics": "Diagnostics",
     "help": "Help",
     "feedback": "Send feedback",
     "about": "About Evir",
@@ -293,5 +294,26 @@
     "empty": "No memories yet",
     "save": "Save",
     "cancel": "Cancel"
+  },
+  "diagnostics": {
+    "title": "Diagnostics",
+    "export": "Export logs",
+    "clear": "Clear logs",
+    "filter": "Filter by level",
+    "empty": "No log entries",
+    "filters": {
+      "all": "All",
+      "info": "Info",
+      "warn": "Warn",
+      "error": "Error"
+    },
+    "levels": {
+      "trace": "Trace",
+      "debug": "Debug",
+      "info": "Info",
+      "warn": "Warn",
+      "error": "Error",
+      "fatal": "Fatal"
+    }
   }
 }

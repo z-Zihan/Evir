@@ -110,6 +110,7 @@
     "shortcuts": "快捷键",
     "usage": "用量统计",
     "privacy": "数据与隐私",
+    "diagnostics": "诊断",
     "help": "帮助",
     "feedback": "提交反馈",
     "about": "关于 Evir",
@@ -293,5 +294,26 @@
     "empty": "暂无记忆",
     "save": "保存",
     "cancel": "取消"
+  },
+  "diagnostics": {
+    "title": "诊断",
+    "export": "导出日志",
+    "clear": "清除日志",
+    "filter": "按级别筛选",
+    "empty": "暂无日志",
+    "filters": {
+      "all": "全部",
+      "info": "信息",
+      "warn": "警告",
+      "error": "错误"
+    },
+    "levels": {
+      "trace": "跟踪",
+      "debug": "调试",
+      "info": "信息",
+      "warn": "警告",
+      "error": "错误",
+      "fatal": "严重"
+    }
   }
 }
