@@ -2,7 +2,7 @@
 
 > Scope: This memory applies only to the Evir repository.
 > Repository: git@github.com:z-Zihan/Evir.git
-> Last reviewed commit: 1a5bb0f
+> Last reviewed commit: 29195a1
 > Last updated: 2026-08-06
 
 ## 1. Product Identity
@@ -122,7 +122,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - 外部输入用 Zod 验证
 - 所有长任务支持 AbortSignal
 - PR 门禁：format + ESLint + strict TS + tests + build
-- 当前 143 TS tests + 4 Rust tests pass
+- 当前 153 TS tests + 4 Rust tests pass
 
 ## 17. Current Implementation Status
 
@@ -154,6 +154,13 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - Shortcuts 设置面板（平台感知格式化）
 - Privacy 设置面板（清除本地数据 + 事务保护）
 - 共享 platform.ts（isMac + currentPlatform）
+- About 面板（版本号、描述、GitHub 链接、许可证）
+- 对话置顶 + 内联重命名（双击/按钮，Enter/Escape/blur）
+- Markdown 导出（单对话 .md，角色标签 + 附件列表）
+- 自动标题生成（首条消息截断 30 字）
+- 删除对话确认弹窗
+- 消息复制按钮（clipboard + 1.5s 反馈）
+- 会话列表按 updatedAt 降序排序
 
 **只有骨架：**
 
@@ -161,13 +168,9 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 **未实现：**
 
-- Anthropic/Gemini/OpenAI Responses Adapter
-- 模型发现（/models API）
-- 模型切换 UI / 快捷键执行 / 通知 / Usage 面板 / 个性化 UI / 附件
 - Desktop stores 切换到 Tauri invoke（当前 Desktop 用 Dexie，Web 也用 Dexie）
 - MCP Server 实际连接（当前仅配置管理，无 stdio/HTTP 通信）
 - 更多 Provider 协议（Azure, Bedrock）
-- About / Help 面板
 
 ## 18. Current Development Stage
 
@@ -186,7 +189,8 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 4. tool-approval.ts 行数超限（254 行 vs 200 限制）
 5. ToolCallCard Approve/Deny 缺少集成测试
 6. MCP Server 仅配置管理，无实际连接
-7. 项目记忆更新滞后
+7. tool-approval.ts 254 行（超 200 限制）
+8. chat-store.ts 超 200 行限制
 
 ## 21. Active Decisions
 
@@ -197,11 +201,11 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 ## 22. Next Vertical Slice
 
-1. About / Help 面板
-2. MCP Server 实际连接（stdio + Streamable HTTP）
-3. Desktop stores 切换到 Tauri invoke（替换 Dexie）
-4. 更多 Provider 协议（Azure, Bedrock）
-5. LLM 对话摘要（Context Builder 第二阶段）
+1. MCP Server 实际连接（stdio + Streamable HTTP）
+2. Desktop stores 切换到 Tauri invoke（替换 Dexie）
+3. 更多 Provider 协议（Azure, Bedrock）
+4. LLM 对话摘要（Context Builder 第二阶段）
+5. 自定义快捷键绑定（ShortcutRegistry 实际使用）
 
 ## 23. Relevant Source Documents
 
@@ -248,4 +252,15 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - 2026-08-06 | 36c2d5a | Shortcuts 设置面板（9 个快捷键展示 + 平台感知格式化）；139 tests pass
 - 2026-08-06 | f27e7be | Shortcuts review P1 修复（共享 platform.ts, Mac 格式化, 平台过滤）；139 tests pass
 - 2026-08-06 | a4a3a48 | Privacy 设置面板（5 个清除按钮 + 确认对话框 + 事务保护）；143 tests pass
+- 2026-08-06 | 1a5bb0f | Privacy review P0+P1 修复（事务原子性, 禁用态, role=alert, CSS class）；143 tests pass
+- 2026-08-06 | e36a99e | 项目记忆更新（23 commits, 143 tests）
+- 2026-08-06 | b33d1f8 | About 面板（版本号 from package.json, GitHub 链接, 许可证）；145 tests pass
+- 2026-08-06 | 9ee398c | About review P1 修复（package.json import, SettingsTab 类型提取）；145 tests pass
+- 2026-08-06 | 0c5436e | 对话置顶 + 内联重命名（pinned 字段, 双击重命名, Pin 按钮）；149 tests pass
+- 2026-08-06 | 3bf32c4 | Markdown 导出（.md 文件, 角色标签, 附件列表）+ lint 修复；153 tests pass
+- 2026-08-06 | 0440c79 | Pin/Rename review P0+P1 修复（guard ref, Pencil 图标, 错误处理, maxLength）；153 tests pass
+- 2026-08-06 | 37d435c | 自动标题生成（首条消息截断 30 字 + …）；153 tests pass
+- 2026-08-06 | 68efbb0 | Combined review P1 修复（export 错误处理, escapeMd 完善, DRY 重构）；153 tests pass
+- 2026-08-06 | e61e459 | 删除确认弹窗 + 消息复制按钮（clipboard + 1.5s 反馈）；153 tests pass
+- 2026-08-06 | 29195a1 | 会话列表按 updatedAt 降序排序；153 tests pass
 - 2026-08-06 | 1a5bb0f | Privacy review P0+P1 修复（事务保护, disabled 状态, 无障碍）；143 tests pass
