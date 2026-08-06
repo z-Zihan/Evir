@@ -132,7 +132,7 @@
 
 .section-label {
   padding: 15px 8px 5px;
-  color: color-mix(in srgb, var(--muted-foreground) 82%, transparent);
+  color: var(--muted-foreground);
   font-size: 10px;
   font-weight: 650;
   letter-spacing: 0.08em;
@@ -666,6 +666,55 @@
   min-width: 0;
   gap: 8px;
   margin-left: auto;
+}
+
+.workspace-selector {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+}
+
+.workspace-selector button {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  border: 1px solid var(--border) !important;
+  border-radius: 7px;
+  background: transparent !important;
+  color: var(--muted-foreground) !important;
+  cursor: pointer;
+  font-size: 10.5px;
+  font-weight: 560;
+  white-space: nowrap;
+}
+
+.workspace-selector button:hover {
+  border-color: var(--border-strong) !important;
+  background: var(--surface-hover) !important;
+  color: var(--foreground) !important;
+}
+
+.workspace-path {
+  display: inline-flex;
+  max-width: 180px;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: 10.5px;
+  font-weight: 560;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-selector .workspace-clear {
+  width: 28px;
+  justify-content: center;
+  padding: 0;
 }
 
 .composer-tool-button {
@@ -1598,7 +1647,150 @@
   color: var(--primary-foreground);
 }
 
+.confirmation-backdrop {
+  position: fixed;
+  z-index: 200;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: color-mix(in srgb, var(--foreground) 30%, transparent);
+  backdrop-filter: blur(3px);
+}
+
+.confirmation-dialog {
+  position: relative;
+  display: grid;
+  width: min(430px, calc(100vw - 40px));
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 12px;
+  padding: 20px;
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 24px 70px color-mix(in srgb, black 24%, transparent);
+}
+
+.confirmation-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+  color: var(--danger);
+}
+
+.confirmation-dialog.warning .confirmation-icon {
+  background: color-mix(in srgb, var(--warning) 12%, var(--surface));
+  color: var(--warning);
+}
+
+.confirmation-copy {
+  min-width: 0;
+  padding-right: 24px;
+}
+
+.confirmation-copy h4,
+.confirmation-copy p {
+  margin: 0;
+}
+
+.confirmation-copy h4 {
+  font-size: 14px;
+  font-weight: 680;
+  letter-spacing: -0.01em;
+}
+
+.confirmation-copy p {
+  margin-top: 6px;
+  color: var(--muted-foreground);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.confirmation-copy .confirmation-error {
+  color: var(--danger);
+}
+
+.confirmation-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.confirmation-close:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--foreground);
+}
+
+.confirmation-dialog footer {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 6px;
+}
+
+.confirmation-dialog footer button {
+  min-height: 35px;
+  padding: 0 13px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--foreground);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 620;
+}
+
+.confirmation-dialog footer button:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.confirmation-dialog footer .confirmation-submit {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: white;
+}
+
+.confirmation-dialog.warning footer .confirmation-submit {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.confirmation-dialog button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
 @media (max-width: 640px) {
+  .confirmation-backdrop {
+    align-items: end;
+    padding: 0;
+  }
+  .confirmation-dialog {
+    width: 100vw;
+    grid-template-columns: 34px minmax(0, 1fr);
+    padding: 18px;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 14px 14px 0 0;
+  }
+  .confirmation-dialog footer button {
+    flex: 1;
+  }
   .identity-workspace {
     grid-template-columns: 1fr;
   }
@@ -2366,7 +2558,7 @@
 }
 
 .message-header time {
-  color: color-mix(in srgb, var(--muted-foreground) 74%, transparent);
+  color: var(--muted-foreground);
   font-size: 10px;
 }
 

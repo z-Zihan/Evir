@@ -97,6 +97,8 @@ Rust fmt + clippy + tests
 
 关键流程应有 E2E：首次配置、发送消息、停止生成、切换主题/语言、Desktop 工作区授权和审批。
 
+阶段 S 起，质量门还包括独立的 `test:e2e`、`test:ui`、`test:visual`、`test:a11y` 和 `benchmark`。Vitest 只能收集 `src` 内单元/集成测试，Playwright 测试必须使用独立配置和确定性本地 fixture。视觉基准只能在人工确认差异合理后定向更新；Desktop Capability 浏览器测试不得写成原生完整验收。
+
 ## 11. AI 生成代码约束
 
 Coding Agent 必须：

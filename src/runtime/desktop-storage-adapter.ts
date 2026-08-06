@@ -71,26 +71,52 @@ export interface GitStatusResult {
   branch: string | null;
 }
 
+function selectedWorkspace(): string {
+  return globalThis.localStorage?.getItem("evir-workspace-current") ?? "";
+}
+
 export const desktopStorage: DesktopStorageAdapter = {
   query: (sql, params) => invoke("db_query", { sql, params }),
   update: (sql, params) => invoke("db_update", { sql, params }),
   keychainSet: (key, value) => invoke("keychain_set", { key, value }),
   keychainGet: (key) => invoke("keychain_get", { key }),
   keychainDelete: (key) => invoke("keychain_delete", { key }),
-  readFile: (path) => invoke("fs_read_file", { path }),
-  writeFile: (path, content) => invoke("fs_write_file", { path, content }),
-  listDir: (path) => invoke("fs_list_dir", { path }),
-  fileInfo: (path) => invoke("fs_file_info", { path }),
+  readFile: (path) => invoke("fs_read_file", { path, workspaceRoot: selectedWorkspace() }),
+  writeFile: (path, content) =>
+    invoke("fs_write_file", { path, content, workspaceRoot: selectedWorkspace() }),
+  listDir: (path) => invoke("fs_list_dir", { path, workspaceRoot: selectedWorkspace() }),
+  fileInfo: (path) => invoke("fs_file_info", { path, workspaceRoot: selectedWorkspace() }),
   applyPatch: (path, oldContent, newContent) =>
-    invoke("fs_apply_patch", { path, oldContent, newContent }),
-  searchFiles: (path, pattern) => invoke("fs_search_files", { path, pattern }),
+    invoke("fs_apply_patch", {
+      path,
+      oldContent,
+      newContent,
+      workspaceRoot: selectedWorkspace(),
+    }),
+  searchFiles: (path, pattern) =>
+    invoke("fs_search_files", { path, pattern, workspaceRoot: selectedWorkspace() }),
   runCommand: (cwd, program, args, timeoutMs, env) =>
-    invoke("run_command", { cwd, program, args, timeoutMs, env: env ?? null }),
-  gitStatus: (path) => invoke("git_status", { path }),
-  gitDiff: (path, staged) => invoke("git_diff", { path, staged }),
-  createDirectory: (path) => invoke("fs_create_directory", { path }),
-  fileStat: (path) => invoke("fs_file_stat", { path }),
-  createSnapshot: (filePath, runId) => invoke("fs_create_snapshot", { filePath, runId }),
+    invoke("run_command", {
+      cwd,
+      program,
+      args,
+      timeoutMs,
+      env: env ?? null,
+      workspaceRoot: selectedWorkspace(),
+    }),
+  gitStatus: (path) => invoke("git_status", { path, workspaceRoot: selectedWorkspace() }),
+  gitDiff: (path, staged) =>
+    invoke("git_diff", { path, staged, workspaceRoot: selectedWorkspace() }),
+  createDirectory: (path) =>
+    invoke("fs_create_directory", { path, workspaceRoot: selectedWorkspace() }),
+  fileStat: (path) => invoke("fs_file_stat", { path, workspaceRoot: selectedWorkspace() }),
+  createSnapshot: (filePath, runId) =>
+    invoke("fs_create_snapshot", { filePath, runId, workspaceRoot: selectedWorkspace() }),
   restoreSnapshot: (snapshotId, runId, filePath) =>
-    invoke("fs_restore_snapshot", { snapshotId, runId, filePath }),
+    invoke("fs_restore_snapshot", {
+      snapshotId,
+      runId,
+      filePath,
+      workspaceRoot: selectedWorkspace(),
+    }),
 };

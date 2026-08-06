@@ -2,15 +2,12 @@ import { createConfiguredAdapter } from "../../core/providers/adapter-registry";
 import { getErrorDisplay } from "../../core/providers/error-messages";
 import { ProviderErrorType } from "../../core/providers/stream-events";
 import type { ProviderRecord, UsageRecord } from "../../core/storage/db";
+import i18n from "../../i18n/config";
 import { useUsageStore } from "../usage/usage-store";
 
 let activeController: AbortController | undefined;
 
-async function formatProviderError(
-  errorType: ProviderErrorType,
-  providerMessage: string,
-): Promise<string> {
-  const { default: i18n } = await import("../../i18n/config");
+function formatProviderError(errorType: ProviderErrorType, providerMessage: string): string {
   const display = getErrorDisplay(errorType, (key) => i18n.t(key));
   const guidance = `${display.title}: ${display.description}`;
   const detail = providerMessage.trim();
@@ -149,7 +146,7 @@ export async function streamAssistant(
             : "error";
         errorMessage =
           status === "error"
-            ? await formatProviderError(event.error.type, event.error.message)
+            ? formatProviderError(event.error.type, event.error.message)
             : undefined;
         break;
       } else if (event.type === "response-complete") {
@@ -160,7 +157,7 @@ export async function streamAssistant(
     status = controller.signal.aborted ? "stopped" : "error";
     errorMessage =
       status === "error"
-        ? await formatProviderError(
+        ? formatProviderError(
             ProviderErrorType.PROVIDER_ERROR,
             error instanceof Error ? error.message : "",
           )

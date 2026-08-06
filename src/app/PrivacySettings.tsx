@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { LockKeyhole, UnlockKeyhole } from "lucide-react";
 import { db } from "../core/storage/db";
 import { useChatStore } from "../features/chat/chat-store";
+import { useConfirmationDialog } from "./useConfirmationDialog";
 
 type ActionState = "idle" | "clearing" | "success" | "error";
 
@@ -11,9 +12,9 @@ export function PrivacySettings() {
   const { privateSession, togglePrivateSession } = useChatStore();
   const [resultKey, setResultKey] = useState<ActionState>("idle");
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
 
-  const clearWithConfirm = async (action: () => Promise<void>) => {
-    if (!window.confirm(t("privacy.confirmClear"))) return;
+  const clearData = async (action: () => Promise<void>) => {
     setResultKey("clearing");
     setErrorMessage("");
     try {
@@ -28,7 +29,7 @@ export function PrivacySettings() {
   };
 
   const clearConversations = () =>
-    clearWithConfirm(async () => {
+    clearData(async () => {
       await db.transaction("rw", db.conversations, db.messages, db.attachments, async () => {
         await db.conversations.clear();
         await db.messages.clear();
@@ -37,22 +38,22 @@ export function PrivacySettings() {
     });
 
   const clearProviders = () =>
-    clearWithConfirm(async () => {
+    clearData(async () => {
       await db.providers.clear();
     });
 
   const clearUsage = () =>
-    clearWithConfirm(async () => {
+    clearData(async () => {
       await db.usage_records.clear();
     });
 
   const clearMcp = () =>
-    clearWithConfirm(async () => {
+    clearData(async () => {
       await db.mcpServers.clear();
     });
 
   const clearAll = () =>
-    clearWithConfirm(async () => {
+    clearData(async () => {
       await db.transaction(
         "rw",
         [
@@ -105,7 +106,18 @@ export function PrivacySettings() {
           type="button"
           className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg cursor-pointer text-sm hover:bg-surface-hover transition danger"
           disabled={resultKey === "clearing"}
-          onClick={() => void clearConversations()}
+          onClick={() =>
+            requestConfirmation(
+              {
+                title: t("confirmation.clearTitle"),
+                description: t("confirmation.clearDescription", {
+                  item: t("privacy.conversationsData"),
+                }),
+                confirmLabel: t("privacy.clearConversations"),
+              },
+              clearConversations,
+            )
+          }
         >
           {t("privacy.clearConversations")}
         </button>
@@ -113,7 +125,18 @@ export function PrivacySettings() {
           type="button"
           className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg cursor-pointer text-sm hover:bg-surface-hover transition danger"
           disabled={resultKey === "clearing"}
-          onClick={() => void clearProviders()}
+          onClick={() =>
+            requestConfirmation(
+              {
+                title: t("confirmation.clearTitle"),
+                description: t("confirmation.clearDescription", {
+                  item: t("privacy.providersData"),
+                }),
+                confirmLabel: t("privacy.clearProviders"),
+              },
+              clearProviders,
+            )
+          }
         >
           {t("privacy.clearProviders")}
         </button>
@@ -121,7 +144,18 @@ export function PrivacySettings() {
           type="button"
           className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg cursor-pointer text-sm hover:bg-surface-hover transition danger"
           disabled={resultKey === "clearing"}
-          onClick={() => void clearUsage()}
+          onClick={() =>
+            requestConfirmation(
+              {
+                title: t("confirmation.clearTitle"),
+                description: t("confirmation.clearDescription", {
+                  item: t("privacy.usageData"),
+                }),
+                confirmLabel: t("privacy.clearUsage"),
+              },
+              clearUsage,
+            )
+          }
         >
           {t("privacy.clearUsage")}
         </button>
@@ -129,7 +163,18 @@ export function PrivacySettings() {
           type="button"
           className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg cursor-pointer text-sm hover:bg-surface-hover transition danger"
           disabled={resultKey === "clearing"}
-          onClick={() => void clearMcp()}
+          onClick={() =>
+            requestConfirmation(
+              {
+                title: t("confirmation.clearTitle"),
+                description: t("confirmation.clearDescription", {
+                  item: t("privacy.mcpData"),
+                }),
+                confirmLabel: t("privacy.clearMcp"),
+              },
+              clearMcp,
+            )
+          }
         >
           {t("privacy.clearMcp")}
         </button>
@@ -137,7 +182,16 @@ export function PrivacySettings() {
           type="button"
           className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg cursor-pointer text-sm hover:bg-surface-hover transition danger severe"
           disabled={resultKey === "clearing"}
-          onClick={() => void clearAll()}
+          onClick={() =>
+            requestConfirmation(
+              {
+                title: t("confirmation.clearAllTitle"),
+                description: t("confirmation.clearAllDescription"),
+                confirmLabel: t("privacy.clearAll"),
+              },
+              clearAll,
+            )
+          }
         >
           {t("privacy.clearAll")}
         </button>
@@ -158,6 +212,7 @@ export function PrivacySettings() {
           {errorMessage ? `: ${errorMessage}` : ""}
         </div>
       )}
+      {confirmationDialog}
     </section>
   );
 }

@@ -13,6 +13,11 @@ function buildRuntime(target: RuntimeTarget, capabilities: Capability[]): EvirRu
   };
 }
 
+function getWorkspaceRoot(): string | null {
+  const stored = localStorage.getItem("evir-workspace-current");
+  return stored && stored.trim() ? stored : null;
+}
+
 export function createRuntime(): EvirRuntime {
   const target: RuntimeTarget = import.meta.env.VITE_EVIR_TARGET === "desktop" ? "desktop" : "web";
   const toolRegistry = createToolRegistry();
@@ -35,6 +40,7 @@ export function createRuntime(): EvirRuntime {
       toolRegistry,
       toolExecutor,
       mode: "agent" as const,
+      getWorkspaceRoot,
     };
   }
 

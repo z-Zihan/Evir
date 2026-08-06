@@ -16,6 +16,22 @@
     "localIdentity": "本地身份",
     "editIdentity": "编辑头像和昵称"
   },
+  "confirmation": {
+    "deleteTitle": "确认删除？",
+    "deleteDescription": "“{{item}}”将从本机永久删除，此操作无法撤销。",
+    "clearTitle": "确认清理数据？",
+    "clearDescription": "{{item}}将从本机永久清除，此操作无法撤销。",
+    "clearAllTitle": "确认重置所有数据？",
+    "clearAllDescription": "所有对话、供应商、用量、MCP 和本地设置都将被永久清除，Evir 将回到初始状态。此操作无法撤销。",
+    "resetTitle": "恢复默认设置？",
+    "resetDescription": "{{item}}的当前设置将立即替换为默认值并保存。",
+    "photoDescription": "当前头像图片将从身份设置中移除。确认后仍需保存身份才会生效。",
+    "workspaceDescription": "当前工作区关联将被移除，但不会删除文件夹中的任何文件。",
+    "cancel": "取消",
+    "close": "关闭确认窗口",
+    "processing": "处理中…",
+    "failed": "操作失败，数据未完成变更。请重试。"
+  },
   "chat": {
     "title": "新对话",
     "startHere": "从这里开始",
@@ -82,6 +98,7 @@
   },
   "runtime": {
     "agentReady": "本地 Agent Runtime",
+    "desktopLocal": "本地桌面模式",
     "chatOnly": "浏览器聊天模式"
   },
   "tools": {
@@ -495,6 +512,10 @@
     "clearMcp": "清除 MCP 服务器",
     "clearAll": "重置所有数据",
     "confirmClear": "确定吗？此操作不可撤销。",
+    "conversationsData": "所有对话、消息与附件",
+    "providersData": "所有模型供应商配置",
+    "usageData": "所有用量统计记录",
+    "mcpData": "所有 MCP 服务器配置",
     "cleared": "已清除",
     "clearFailed": "清除失败"
   },
@@ -547,6 +568,7 @@
     "insights": "本地用量洞察",
     "description": "按时间和模型查看 Token 消耗。所有统计都来自本地请求记录。",
     "clear": "清除数据",
+    "data": "所有用量统计记录",
     "totalTokens": "累计 Token",
     "peakDay": "单日峰值",
     "peakRequest": "单次峰值",
@@ -572,6 +594,7 @@
     "title": "诊断",
     "export": "导出日志",
     "clear": "清除日志",
+    "data": "所有本地诊断日志",
     "filter": "按级别筛选",
     "empty": "暂无日志",
     "filters": {

@@ -292,3 +292,11 @@ Evir 支持简单表单和高级 Markdown 两种个性化方式。用户可编�
 - 用户可生成诊断 ZIP，预览后发送给他人或手动附加到 GitHub Issue。
 - API Key、Authorization、完整会话和文件正文默认不得进入日志或诊断包。
 - 完整规则见 `docs/17-local-logging-and-diagnostics.md`。
+
+## 20. 阶段 S 已验证产品边界
+
+- Web 当前只承诺聊天与附件分析，不展示 Agent、Plan、本地工作区、文件/终端/Git 工具或 MCP。
+- Desktop 新会话默认 Agent，可切换 Ask；Plan 是内部规划能力，不作为常驻一级入口。
+- 工作区属于任务上下文，入口位于输入区附近；普通问答不强制选择工作区或调用工具。
+- 同一 Agent Run 的工具调用在一个 Agent Activity 内分组；审批、失败、停止和完成使用统一状态表达。
+- 上述边界已有 Web/Desktop Capability 自动化证据。真实 Provider 和原生工作区完整 Agent 任务已实现，尚未完成真实端到端验收。

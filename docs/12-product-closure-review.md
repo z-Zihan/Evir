@@ -223,3 +223,9 @@ V4 决策：浏览器自动化、文档解析、大型语法高亮和本地模�
 ### 9.6 高级功能可能破坏“小而美”
 
 修正：Skill、MCP、Persona、Usage、日志、帮助和反馈保留，但统一进入设置或命令面板。主界面只保留模型、模式、输入、发送/停止和任务状态。
+
+## 10. 阶段 S 实施核验
+
+2026-08-06 已完成 Web/Desktop Capability 的确定性 E2E、视觉矩阵和无障碍回归，并实际启动 macOS 预签名原生窗口。Web/Desktop 能力分离、Desktop 默认 Agent、工作区入口和 Agent Activity 已与本审查一致。
+
+真实 Provider、原生完整 Agent 工具任务、系统权限、签名安装与 Windows 仍是发布前门槛；浏览器 Capability 结果不能替代这些验收。

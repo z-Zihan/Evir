@@ -19,6 +19,7 @@ export interface EvirRuntime {
   target: RuntimeTarget;
   capabilities: ReadonlySet<Capability>;
   has(capability: Capability): boolean;
+  getWorkspaceRoot?: () => string | null;
   mode?: InteractionMode;
   storage?: DesktopStorageAdapter;
   toolRegistry?: ToolRegistry;

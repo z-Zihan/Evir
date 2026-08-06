@@ -407,7 +407,7 @@
   font-size: var(--font-size-xs);
   color: var(--muted-foreground);
   padding: var(--space-1) 0 var(--space-2);
-  opacity: 0.6;
+  opacity: 1;
 }
 
 /* Pending attachments */

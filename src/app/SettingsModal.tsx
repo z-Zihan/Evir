@@ -32,6 +32,7 @@ import { ProviderSettings } from "./ProviderSettings";
 import { UsagePanel } from "./UsagePanel";
 import { downloadBlob, exportConversations } from "../features/chat/conversation-export";
 import { importConversations } from "../features/chat/conversation-import";
+import { getRuntime } from "../runtime/use-runtime";
 
 export type SettingsTab =
   | "providers"
@@ -101,10 +102,56 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
   const [importResult, setImportResult] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const visibleGroups = SETTINGS_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => item.tab !== "mcp" || getRuntime().target === "desktop"),
+  })).filter((group) => group.items.length > 0);
 
   useEffect(() => {
     if (open) setActiveTab(initialTab);
   }, [initialTab, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    previousFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeButtonRef.current?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab" || !dialogRef.current) return;
+      const focusable = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((element) => !element.hidden && element.getAttribute("aria-hidden") !== "true");
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (!first || !last) return;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      previousFocusRef.current?.focus();
+    };
+  }, [open]);
 
   if (!open) return null;
 
@@ -114,9 +161,9 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
     contentRef.current?.scrollTo?.({ top: 0 });
   };
 
-  const activeItem = SETTINGS_GROUPS.flatMap((group) => group.items).find(
-    (item) => item.tab === activeTab,
-  );
+  const activeItem = visibleGroups
+    .flatMap((group) => group.items)
+    .find((item) => item.tab === activeTab);
 
   const handleExport = async () => {
     const blob = await exportConversations();
@@ -139,6 +186,7 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
   return (
     <div className="settings-backdrop">
       <div
+        ref={dialogRef}
         className="settings-dialog"
         role="dialog"
         aria-modal="true"
@@ -150,6 +198,7 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
             <h2 id="settings-title">{t("settings.title")}</h2>
           </div>
           <button
+            ref={closeButtonRef}
             className="settings-close"
             type="button"
             onClick={onClose}
@@ -160,7 +209,7 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
         </header>
         <div className="settings-layout">
           <nav className="settings-nav" aria-label={t("settings.navigation")}>
-            {SETTINGS_GROUPS.map((group) => (
+            {visibleGroups.map((group) => (
               <div className="settings-nav-group" key={group.labelKey}>
                 <span className="settings-nav-label">{t(group.labelKey)}</span>
                 {group.items.map(({ tab, labelKey, icon: Icon }) => (

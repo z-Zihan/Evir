@@ -158,3 +158,9 @@ Evir 当前产品定义已经形成完整闭环，可以进入分阶段开发。
 ## 7. 最终判断
 
 Evir 的产品需求已经足够完整。接下来最重要的不是继续写规格，而是让 Coding Agent 严格按阶段实现，并用真实构建、测试、性能数据和跨平台运行结果验证这些设计。
+
+## 8. 阶段 S 证据更新
+
+2026-08-06 的整改建立了 Playwright E2E、UI 矩阵、视觉基准与 axe 门禁。当前 Web JavaScript gzip 271.08 KB；298 个 TypeScript 测试、5 个 Rust 测试及浏览器质量套件通过；macOS 预签名原生窗口可启动。详细证据见 `docs/reviews/automated-quality-report.md`。
+
+产品仍未发布就绪：真实 Provider、原生多工具 Agent 任务、签名安装包和 Windows 尚未验收，大 chunk 告警仍需后续拆分。

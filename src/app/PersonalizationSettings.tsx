@@ -15,6 +15,7 @@ import {
   loadPersonalizationPreferences,
   savePersonalizationPreferences,
 } from "../features/settings/personalization-settings";
+import { useConfirmationDialog } from "./useConfirmationDialog";
 
 type FormStatus = "idle" | "loading" | "saving";
 type FormError = "load" | "save" | null;
@@ -44,6 +45,7 @@ export function PersonalizationPanel() {
   });
   const [status, setStatus] = useState<FormStatus>("loading");
   const [error, setError] = useState<FormError>(null);
+  const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
 
   useEffect(() => {
     let mounted = true;
@@ -89,7 +91,17 @@ export function PersonalizationPanel() {
   };
 
   const handleReset = () =>
-    void persist(responsePreferencesFrom(DEFAULT_PERSONALIZATION_PREFERENCES));
+    requestConfirmation(
+      {
+        title: t("confirmation.resetTitle"),
+        description: t("confirmation.resetDescription", {
+          item: t("settings.personalization"),
+        }),
+        confirmLabel: t("personalization.reset"),
+        tone: "warning",
+      },
+      () => persist(responsePreferencesFrom(DEFAULT_PERSONALIZATION_PREFERENCES)),
+    );
 
   return (
     <section className="personalization-settings">
@@ -243,6 +255,7 @@ export function PersonalizationPanel() {
           </p>
         )}
       </form>
+      {confirmationDialog}
     </section>
   );
 }

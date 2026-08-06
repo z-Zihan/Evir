@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { BookOpenText, FileUp, Plus, ShieldCheck, Trash2, X } from "lucide-react";
 import { useSkillStore } from "../features/skills/skill-store";
 import type { SkillManifest, SkillRiskLevel } from "../core/skills/types";
+import { useConfirmationDialog } from "./useConfirmationDialog";
 
 const VALID_RISK_LEVELS: SkillRiskLevel[] = ["low", "medium", "high"];
 
@@ -26,6 +27,7 @@ function parseFrontmatter(text: string): Record<string, string> | null {
 
 export function SkillSettings() {
   const { t } = useTranslation();
+  const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
   const skills = useSkillStore((s) => s.skills);
   const enabledSkillIds = useSkillStore((s) => s.enabledSkillIds);
   const loadSkills = useSkillStore((s) => s.loadSkills);
@@ -261,7 +263,18 @@ export function SkillSettings() {
                         type="button"
                         className="skill-delete-button"
                         aria-label={t("skill.uninstall")}
-                        onClick={() => void uninstallSkill(skill.manifest.id)}
+                        onClick={() =>
+                          requestConfirmation(
+                            {
+                              title: t("confirmation.deleteTitle"),
+                              description: t("confirmation.deleteDescription", {
+                                item: skill.manifest.name,
+                              }),
+                              confirmLabel: t("skill.uninstall"),
+                            },
+                            () => uninstallSkill(skill.manifest.id),
+                          )
+                        }
                       >
                         <Trash2 size={14} />
                       </button>
@@ -282,6 +295,7 @@ export function SkillSettings() {
           </ul>
         </>
       )}
+      {confirmationDialog}
     </section>
   );
 }

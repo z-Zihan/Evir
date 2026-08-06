@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_PERSONALIZATION_PREFERENCES } from "../../core/personalization/types";
 
@@ -55,6 +55,10 @@ describe("LocalIdentityPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "finish-crop" }));
     expect(screen.getByText("personalization.replacePhoto")).toBeDefined();
     expect(screen.getByText("personalization.removePhoto")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "personalization.removePhoto" }));
+    expect(screen.getByRole("alertdialog")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "confirmation.cancel" }));
+    expect(screen.getByText("personalization.replacePhoto")).toBeDefined();
   });
 
   it("rejects unsupported avatar files before cropping", async () => {
@@ -100,6 +104,25 @@ describe("LocalIdentityPanel", () => {
 });
 
 describe("PersonalizationPanel", () => {
+  it("requires confirmation before restoring defaults", async () => {
+    const settings = await import("../../features/settings/personalization-settings");
+    const savePreferences = vi.mocked(settings.savePersonalizationPreferences);
+    const { PersonalizationPanel } = await import("../PersonalizationSettings");
+    render(<PersonalizationPanel />);
+    await screen.findByText("personalization.responseLanguage");
+
+    fireEvent.click(screen.getByRole("button", { name: "personalization.reset" }));
+    expect(screen.getByRole("alertdialog")).toBeDefined();
+    expect(savePreferences).not.toHaveBeenCalled();
+    fireEvent.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "personalization.reset",
+      }),
+    );
+
+    await waitFor(() => expect(savePreferences).toHaveBeenCalledOnce());
+  });
+
   it("preserves the latest local identity when saving response preferences", async () => {
     const settings = await import("../../features/settings/personalization-settings");
     const loadPreferences = vi.mocked(settings.loadPersonalizationPreferences);

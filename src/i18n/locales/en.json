@@ -16,6 +16,22 @@
     "localIdentity": "Local identity",
     "editIdentity": "Edit avatar and nickname"
   },
+  "confirmation": {
+    "deleteTitle": "Delete this item?",
+    "deleteDescription": "“{{item}}” will be permanently removed from this device. This cannot be undone.",
+    "clearTitle": "Clear this data?",
+    "clearDescription": "{{item}} will be permanently cleared from this device. This cannot be undone.",
+    "clearAllTitle": "Reset all data?",
+    "clearAllDescription": "All conversations, providers, usage, MCP servers, and local settings will be permanently cleared. Evir will return to its initial state. This cannot be undone.",
+    "resetTitle": "Restore defaults?",
+    "resetDescription": "The current {{item}} settings will be replaced with their defaults and saved immediately.",
+    "photoDescription": "The current avatar image will be removed from the identity settings. You will still need to save the identity to apply it.",
+    "workspaceDescription": "The current workspace link will be removed. No files in the folder will be deleted.",
+    "cancel": "Cancel",
+    "close": "Close confirmation dialog",
+    "processing": "Working…",
+    "failed": "The action failed and the change was not completed. Please try again."
+  },
   "chat": {
     "title": "New conversation",
     "startHere": "Start here",
@@ -82,6 +98,7 @@
   },
   "runtime": {
     "agentReady": "Local agent runtime",
+    "desktopLocal": "Local desktop mode",
     "chatOnly": "Browser chat mode"
   },
   "tools": {
@@ -498,6 +515,10 @@
     "clearMcp": "Clear MCP servers",
     "clearAll": "Reset all data",
     "confirmClear": "Are you sure? This cannot be undone.",
+    "conversationsData": "All conversations, messages, and attachments",
+    "providersData": "All model provider configurations",
+    "usageData": "All usage records",
+    "mcpData": "All MCP server configurations",
     "cleared": "Cleared successfully",
     "clearFailed": "Failed to clear"
   },
@@ -550,6 +571,7 @@
     "insights": "Local usage insights",
     "description": "Explore token consumption over time and by model. All metrics come from local request records.",
     "clear": "Clear data",
+    "data": "All usage records",
     "totalTokens": "Total tokens",
     "peakDay": "Peak day",
     "peakRequest": "Peak request",
@@ -575,6 +597,7 @@
     "title": "Diagnostics",
     "export": "Export logs",
     "clear": "Clear logs",
+    "data": "All local diagnostic logs",
     "filter": "Filter by level",
     "empty": "No log entries",
     "filters": {

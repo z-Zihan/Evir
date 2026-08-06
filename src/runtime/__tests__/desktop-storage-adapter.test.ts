@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -6,7 +7,10 @@ import { desktopStorage } from "../desktop-storage-adapter";
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
 describe("DesktopStorageAdapter", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.setItem("evir-workspace-current", "/tmp");
+  });
 
   it("queries SQLite", async () => {
     vi.mocked(invoke).mockResolvedValue([{ id: 1 }]);
@@ -49,7 +53,10 @@ describe("DesktopStorageAdapter", () => {
     vi.mocked(invoke).mockResolvedValue("file content");
 
     await expect(desktopStorage.readFile("/tmp/test.txt")).resolves.toBe("file content");
-    expect(invoke).toHaveBeenCalledWith("fs_read_file", { path: "/tmp/test.txt" });
+    expect(invoke).toHaveBeenCalledWith("fs_read_file", {
+      path: "/tmp/test.txt",
+      workspaceRoot: "/tmp",
+    });
   });
 
   it("writes a file", async () => {
@@ -59,6 +66,7 @@ describe("DesktopStorageAdapter", () => {
     expect(invoke).toHaveBeenCalledWith("fs_write_file", {
       path: "/tmp/test.txt",
       content: "content",
+      workspaceRoot: "/tmp",
     });
   });
 
@@ -69,7 +77,7 @@ describe("DesktopStorageAdapter", () => {
     vi.mocked(invoke).mockResolvedValue(files);
 
     await expect(desktopStorage.listDir("/tmp")).resolves.toEqual(files);
-    expect(invoke).toHaveBeenCalledWith("fs_list_dir", { path: "/tmp" });
+    expect(invoke).toHaveBeenCalledWith("fs_list_dir", { path: "/tmp", workspaceRoot: "/tmp" });
   });
 
   it("gets file information", async () => {
@@ -83,6 +91,9 @@ describe("DesktopStorageAdapter", () => {
     vi.mocked(invoke).mockResolvedValue(info);
 
     await expect(desktopStorage.fileInfo("/tmp/test.txt")).resolves.toEqual(info);
-    expect(invoke).toHaveBeenCalledWith("fs_file_info", { path: "/tmp/test.txt" });
+    expect(invoke).toHaveBeenCalledWith("fs_file_info", {
+      path: "/tmp/test.txt",
+      workspaceRoot: "/tmp",
+    });
   });
 });

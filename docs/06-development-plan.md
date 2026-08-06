@@ -79,14 +79,18 @@
 
 ### S9：性能与稳定性回归 ✅
 
-- ✅ Web gzip 238 KB（预算 350 KB）
+- ✅ Web JavaScript gzip 271.08 KB（预算 350 KB）
 - ✅ 长会话渲染优化：MessageList 组件 memo 化，流式更新不再重渲染历史消息
 - ✅ 工具流式事件批量更新：rAF 节流，每次 animation frame 只触发一次 set()
+- ✅ 298 个 TypeScript 测试、5 个 Rust 测试、E2E/UI/视觉/无障碍回归通过
 
-### S10：Web/Desktop 手动验收
+### S10：Web/Desktop 真实验收（进行中）
 
-- ⬜ Web：聊天/附件/会话管理/设置
-- ⬜ Desktop：Agent 工具调用/工作区/审批
+- ✅ Web/Desktop Capability：聊天、流式、停止、错误、设置、主题、语言、窄窗口
+- ✅ macOS 原生：预签名窗口启动、默认 Agent、Ask 切换、设置与 Escape
+- ⬜ 真实 Provider：付费凭据和真实网络条件
+- ⬜ Desktop 原生：真实工作区多工具任务、系统权限、签名安装包
+- ⬜ Windows：构建、安装和原生 UI
 
 ### 阶段 S 完成标准
 
@@ -95,11 +99,17 @@
 - Agent UI 重构完成
 - 视觉系统统一
 - 文档与代码一致
-- Web + Desktop 手动验收通过
+- Web + Desktop 真实端到端验收通过
 
 ## 阶段 2：Desktop Agent 与内置工具
 
-交付：Ask/Plan/Agent 完整边界、Agent Loop、工作区授权、只读 Plan 工具、文件/搜索/Patch、受控终端、Git 只读工具、权限分级、审计、取消、Diff 与回滚；接入任务完成、审批和失败系统通知；支持可选 Desktop 全局快捷键。
+交付：Ask/Agent 完整边界、Agent 内部只读规划阶段、Agent Loop、工作区授权、文件/搜索/Patch、受控终端、Git 只读工具、权限分级、审计、取消、Diff 与回滚；接入任务完成、审批和失败系统通知；支持可选 Desktop 全局快捷键。
+
+### 2026-08-06 进度重审
+
+- 阶段 0：100%；阶段 1：92%；阶段 2：78%；阶段 S：90%；产品体验：88%。
+- 按 20%/30%/25%/25% 权重计算，阶段 0/1/2/S 整体约 90%。
+- 数字只表示当前已有范围的工程进度；真实 Provider、原生 Agent 完整任务、签名安装包和 Windows 是未通过硬门槛。
 
 验收：完成“只读检查并制定计划”和“读取项目 -> 修改 -> 执行验证 -> 汇报”的两个闭环。
 

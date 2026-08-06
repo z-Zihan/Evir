@@ -4,14 +4,16 @@
 
 1. Open Settings → Model providers.
 2. Choose a provider, protocol, and model, then enter your own API key.
-3. Test the connection and return to chat. Choose Ask, Plan, or Agent.
+3. Test the connection and return to chat. Web uses Ask; Desktop defaults to Agent and can switch to Ask.
 4. Send a message. Streaming can be stopped at any time.
 
-## Ask / Plan / Agent
+## Ask, Agent, and planning
 
 - Ask: chat and analysis without autonomous local access.
-- Plan: may use authorized read-only context, but cannot mutate files.
+- Plan: an internal read-only phase of Desktop Agent, not a persistent primary mode.
 - Agent: may execute tools under the selected permission policy.
+
+Web does not show Agent, Plan, local workspaces, or MCP. On Desktop, workspace context is next to the composer and is not required for ordinary questions.
 
 ## Personalization
 

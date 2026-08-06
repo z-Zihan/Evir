@@ -152,17 +152,15 @@ These are engineering budgets and must be measured in CI or release validation.
 
 ## Project status
 
-Evir is currently an **initial engineering scaffold and product specification**, not a finished product.
+Evir is in **Phase S: stability and experience remediation**, not release-ready.
 
-The repository contains:
+- Web is limited to chat and attachment analysis; it does not expose Agent, Plan, local workspaces, or MCP.
+- Desktop defaults to Agent and can switch to Ask; Plan is not a persistent primary mode.
+- Local tools, approval, Agent Activity, workspaces, and baseline recovery paths are implemented and automated.
+- Web/Desktop Capability UI has E2E, visual, accessibility, theme, language, and narrow-window coverage.
+- The native macOS window passed a startup smoke test. Real-provider flows, a native multi-tool task, signed packaging, and Windows remain unverified.
 
-- React + TypeScript + Vite + Tauri 2 scaffolding.
-- Web/Desktop Runtime and Capability foundations.
-- Chinese/English and light/dark/system theme foundations.
-- Product, architecture, design, security, performance, Skill, MCP, and provider documentation.
-- A staged Coding Agent prompt.
-
-Development must begin with Phase 0 verification rather than skipping directly to feature implementation.
+See the [automated quality report](docs/reviews/automated-quality-report.md) and [stability bug register](docs/reviews/stability-bug-register.md).
 
 ## Development
 
@@ -182,6 +180,11 @@ pnpm dev:desktop
 pnpm build:web
 pnpm build:desktop
 pnpm check
+pnpm test:e2e
+pnpm test:ui
+pnpm test:visual
+pnpm test:a11y
+pnpm benchmark
 ```
 
 Production macOS and Windows bundles should be built on their respective operating systems. A single Git tag can trigger GitHub Actions runners for both platforms and publish the artifacts into one release.

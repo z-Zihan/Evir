@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mockClear = vi.fn(() => Promise.resolve());
@@ -63,26 +63,29 @@ describe("PrivacySettings", () => {
     expect(screen.getByLabelText("chat.privateSession")).toBeDefined();
   });
 
-  it("does not clear when confirm is cancelled", async () => {
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+  it("does not clear when confirmation is cancelled", async () => {
     const { PrivacySettings } = await import("../PrivacySettings");
     render(<PrivacySettings />);
 
     fireEvent.click(screen.getByText("privacy.clearConversations"));
-    expect(confirmSpy).toHaveBeenCalled();
+    expect(screen.getByRole("alertdialog")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "confirmation.cancel" }));
     expect(mockClear).not.toHaveBeenCalled();
-    confirmSpy.mockRestore();
   });
 
-  it("clears conversations when confirmed", async () => {
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+  it("clears conversations only after confirmation", async () => {
     const { PrivacySettings } = await import("../PrivacySettings");
     render(<PrivacySettings />);
 
     fireEvent.click(screen.getByText("privacy.clearConversations"));
+    expect(mockClear).not.toHaveBeenCalled();
+    fireEvent.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "privacy.clearConversations",
+      }),
+    );
     await vi.waitFor(() => {
       expect(mockClear).toHaveBeenCalled();
     });
-    confirmSpy.mockRestore();
   });
 });

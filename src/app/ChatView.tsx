@@ -105,6 +105,7 @@ export function ChatView({
   const [localUserAvatar, setLocalUserAvatar] = useState("");
 
   const provider = getDefaultProvider();
+  const runtime = getRuntime();
   const conversationTitle =
     conversations.find((conversation) => conversation.id === currentConversationId)?.title ||
     t("chat.title");
@@ -191,7 +192,9 @@ export function ChatView({
         <div className="workspace-title-block">
           <h1>{conversationTitle}</h1>
           <span className="workspace-context">
-            {provider ? provider.name : t("runtime.chatOnly")}
+            {provider
+              ? provider.name
+              : t(runtime.target === "desktop" ? "runtime.desktopLocal" : "runtime.chatOnly")}
           </span>
         </div>
       </div>
@@ -385,7 +388,7 @@ export function ChatView({
               </button>
             </div>
             <div className="composer-context">
-              {getRuntime().target === "desktop" && <WorkspaceSelector />}
+              {runtime.target === "desktop" && <WorkspaceSelector />}
               <span className="composer-info">
                 {input.length > 0 && <span className="char-count">{input.length}</span>}
                 {tokenCount > 0 && t("chat.tokenCount", { count: tokenCount })}

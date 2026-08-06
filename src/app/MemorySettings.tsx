@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pencil, Pin, PinOff, Trash2 } from "lucide-react";
 import { useMemoryStore, type MemoryRecord } from "../features/memory/memory-store";
+import { useConfirmationDialog } from "./useConfirmationDialog";
 
 export function MemorySettings({ conversationId }: { conversationId: string | null }) {
   const { t } = useTranslation();
@@ -11,6 +12,7 @@ export function MemorySettings({ conversationId }: { conversationId: string | nu
   const [newContent, setNewContent] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
+  const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
 
   useEffect(() => {
     void loadMemories(conversationId ?? "global");
@@ -117,7 +119,16 @@ export function MemorySettings({ conversationId }: { conversationId: string | nu
                     </button>
                     <button
                       type="button"
-                      onClick={() => void deleteMemory(m.id)}
+                      onClick={() =>
+                        requestConfirmation(
+                          {
+                            title: t("confirmation.deleteTitle"),
+                            description: t("confirmation.deleteDescription", { item: m.key }),
+                            confirmLabel: t("memory.delete"),
+                          },
+                          () => deleteMemory(m.id),
+                        )
+                      }
                       aria-label={t("memory.delete")}
                     >
                       <Trash2 size={14} />
@@ -129,6 +140,7 @@ export function MemorySettings({ conversationId }: { conversationId: string | nu
           ))}
         </ul>
       )}
+      {confirmationDialog}
     </section>
   );
 }

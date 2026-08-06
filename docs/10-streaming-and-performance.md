@@ -46,3 +46,10 @@ UI 采用局部 Buffer，每 16-50ms 或每帧批量提交，不为每个 Token 
 - 日志查看器按页读取，不把全量日志放进 React State。
 - 诊断导出在后台执行、可取消，并限制内存峰值。
 - 长任务 Checkpoint 写入节流，不能因每个 Tool Delta 写一次数据库。
+
+## 6. 2026-08-06 阶段 S 快照
+
+- Web JavaScript gzip 271.08 KB，CSS gzip 21.32 KB，满足 350 KB Web 预算。
+- Vite Web build 1.57 s；298 个单测 benchmark 3.63 s。
+- 主 JavaScript chunk 约 897 KB minified，仍触发 Vite 大 chunk 告警。该项记录为性能债，未提高告警阈值；后续应按设置和 Markdown 能力做安全拆分。
+- Desktop 冷启动分位、空闲 CPU/内存、长列表 FPS、1MB/10MB 输出和签名包体积尚未完成正式测量，不得视为通过。

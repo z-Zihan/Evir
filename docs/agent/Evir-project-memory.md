@@ -204,42 +204,44 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 ## 18. Current Development Stage
 
 阶段 0 ✅ 完成
-阶段 1（Provider 与纯净聊天 MVP）✅ 完成
-阶段 2（Desktop Agent 与本地工具）🔧 核心完成 — 13 工具+快照+循环检测+验证+UI
+阶段 1（Provider 与纯净聊天 MVP）🔧 92% — 确定性自动化完成，真实多 Provider 网络验收未重复
+阶段 2（Desktop Agent 与本地工具）🔧 78% — 12 工具+快照+循环检测+验证+UI，原生真实任务未验收
 阶段 3（上下文压缩与记忆）✅ 完成 — LLM 摘要+记忆系统+Checkpoint+Handoff+隐私会话+崩溃恢复
 阶段 4（Skill 系统）🔧 核心完成 — 路由+创建/删除/导入+5 内置 Skill
+阶段 S（稳定性与体验整改）🔧 90% — 当前阶段；自动化/视觉/无障碍完成，真实端到端门槛未全部通过
 
 ## 19. Verified User Capabilities
 
-用户当前可以：添加 Provider（5 种协议）→ 测试连接 → 获取模型列表 → 新建会话 → 发送消息/附件 → 看到真实流式回复 → 停止生成 → 刷新恢复 → 快捷键操作 → 会话搜索 → 查看 Usage 统计 → 分类错误展示 → 拖拽上传图片/文本附件 → 历史附件参与多轮对话 → 会话导出/导入 → Ask/Plan/Agent 模式切换 → 个性化设置 → 切换中英文/主题 → 重新生成/编辑消息 → 会话分支 → 模型切换 → Agent 模式 L3 工具审批 → Skill 启用/禁用
+用户当前可以：添加 Provider（5 种协议）→ 测试连接 → 获取模型列表 → 新建会话 → 发送消息/附件 → 看到流式回复 → 停止生成 → 刷新恢复 → 快捷键操作 → 会话搜索 → 查看 Usage 统计 → 分类错误展示 → 拖拽上传图片/文本附件 → 历史附件参与多轮对话 → 会话导出/导入 → Web Ask / Desktop Ask 与 Agent → 个性化设置 → 切换中英文/主题 → 重新生成/编辑消息 → 会话分支 → 模型切换 → Agent 模式工具审批 → Skill 启用/禁用。Plan 是 Agent 内部阶段，不是常驻一级入口。
+
+2026-08-06 自动化证据：298 TypeScript tests、5 Rust tests、9 E2E pass + 1 Web capability skip、48 UI screenshots、6 visual baselines、4 accessibility tests。macOS 预签名原生窗口已启动并检查基础交互。
 
 ## 20. Known Gaps and Risks
 
 1. Stores 绕过 StoragePort 直接用 Dexie（架构债务）
 2. Desktop stores 未切换到 Tauri invoke（Desktop 模式仍用 Dexie）
-3. CORS 错误展示可进一步优化
-4. tool-approval.ts 行数超限（254 行 vs 200 限制）
-5. ToolCallCard Approve/Deny 缺少集成测试
-6. MCP Server 仅配置管理，无实际连接
-7. Agent 交互体验待优化（工具调用过程可见性、进度反馈）
-8. Desktop Agent 端到端验收待完成（需真实文件修改+验证任务）
-9. 快照回滚 UI 入口待添加
-10. 停止生成时 Agent Loop 中途取消待完善
+3. MCP Server 仅配置管理，无实际连接
+4. Desktop Agent 真实端到端验收待完成（真实工作区修改、验证、Diff、回滚和系统权限）
+5. macOS 签名身份缺失，`.app` 只能完成预签名烟测；Windows 未验证
+6. Web 主 JavaScript chunk 约 897 KB minified，gzip 总量 271.08 KB 在预算内但仍需拆分
+7. 真实付费 Provider、跨 Provider 网络和超时条件未在本轮自动化执行
+8. Desktop 冷启动分位、空闲 CPU/内存和大输出性能未正式测量
 
 ## 21. Active Decisions
 
-- 优先：完善错误分类 → Anthropic Adapter → 模型发现 → 快捷键 → Usage UI
+- 当前优先级是完成阶段 S 真实验收，不新增 Provider、Skill、MCP 或 Computer Use 产品能力
 - Stores 暂时直接用 Dexie，后续扩展 StoragePort
-- API Key 默认不持久化
-- 流式 UI 批量刷新 32ms
+- Web 只提供聊天/附件；Desktop 默认 Agent、可切换 Ask，Plan 不作为一级入口
+- Tool Registry 与 Tauri 命令双层强制工作区边界；清除工作区立即撤销本地工具范围
+- 流式 UI 使用 animation frame 批量刷新
 
 ## 22. Next Vertical Slice
 
-1. MCP Server 实际连接（stdio + Streamable HTTP）
-2. Desktop stores 切换到 Tauri invoke（替换 Dexie）
-3. 更多 Provider 协议（Azure, Bedrock）
-4. LLM 对话摘要（Context Builder 第二阶段）
-5. 自定义快捷键绑定（ShortcutRegistry 实际使用）
+1. 使用测试工作区完成原生 Desktop 多工具任务和回滚验收
+2. 使用真实 Provider 验证聊天、错误、超时与跨 Provider 数据去向
+3. 补测 Desktop 冷启动、空闲 CPU/内存、长会话和大输出
+4. 在具备签名身份与 Windows Runner 的环境完成安装包验收
+5. 阶段 S 硬门槛通过后再恢复后续功能开发
 
 ## 23. Relevant Source Documents
 
@@ -257,6 +259,8 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - [docs/18-final-product-review-v6.md](../18-final-product-review-v6.md)
 
 ## 24. Update Log
+
+- 2026-08-06 | working tree | 阶段 S 自动化与体验整改：298 TS + 5 Rust tests；9 E2E + 48 UI screenshots + 6 visual + 4 a11y；工作区 P0 边界、Web/Desktop 能力、确认对话框、对比度、设置键盘与 Desktop 文案修复；Web gzip 271.08 KB
 
 - 2026-08-05 | 5b5bcbd | 创建项目记忆；阶段0完成 + 聊天垂直切片完成 + P0/P1 修复完成；22 tests pass；Web gzip 184.96 KB
 - 2026-08-05 | 82f20f3 | Anthropic Messages Adapter + 模型发现 + 快捷键监听 + review 修复；30 tests pass；Web gzip 186.94 KB

@@ -4,6 +4,7 @@ import { AlertTriangle, Cable, Globe2, Pencil, Plus, Terminal, Trash2 } from "lu
 import type { McpTransport } from "../core/mcp/types";
 import { useMcpStore, type McpServerEntry } from "../features/mcp/mcp-store";
 import { SettingsFormDialog } from "./SettingsFormDialog";
+import { useConfirmationDialog } from "./useConfirmationDialog";
 
 interface FormState {
   name: string;
@@ -27,6 +28,7 @@ type FormErrors = Partial<Record<"name" | "command" | "url", string>>;
 
 export function McpSettings() {
   const { t } = useTranslation();
+  const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
   const { servers, loadServers, addServer, updateServer, removeServer, toggleServer } =
     useMcpStore();
   const [loading, setLoading] = useState(true);
@@ -194,9 +196,16 @@ export function McpSettings() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (window.confirm(t("mcp.confirmDelete"))) void removeServer(server.id);
-                  }}
+                  onClick={() =>
+                    requestConfirmation(
+                      {
+                        title: t("confirmation.deleteTitle"),
+                        description: t("confirmation.deleteDescription", { item: server.name }),
+                        confirmLabel: t("mcp.delete"),
+                      },
+                      () => removeServer(server.id),
+                    )
+                  }
                   aria-label={t("mcp.delete")}
                 >
                   <Trash2 size={14} />
@@ -320,6 +329,7 @@ export function McpSettings() {
           </form>
         </SettingsFormDialog>
       )}
+      {confirmationDialog}
     </section>
   );
 }

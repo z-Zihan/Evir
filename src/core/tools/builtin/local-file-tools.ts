@@ -35,6 +35,18 @@ function validatePath(path: string): string | undefined {
   return resolved;
 }
 
+export function validateWorkspacePath(path: string, runtime: EvirRuntime): string | undefined {
+  const safePath = validatePath(path);
+  const safeRoot = validatePath(runtime.getWorkspaceRoot?.() ?? "");
+  if (!safePath || !safeRoot) return undefined;
+  const pathForComparison = /^[A-Za-z]:\//.test(safePath) ? safePath.toLowerCase() : safePath;
+  const rootForComparison = /^[A-Za-z]:\//.test(safeRoot) ? safeRoot.toLowerCase() : safeRoot;
+  return pathForComparison === rootForComparison ||
+    pathForComparison.startsWith(`${rootForComparison}/`)
+    ? safePath
+    : undefined;
+}
+
 function pathBlocked(): ToolResult {
   return { success: false, output: "Path not allowed", error: PATH_BLOCKED };
 }
@@ -85,7 +97,7 @@ async function readFile(args: Record<string, unknown>, runtime: EvirRuntime): Pr
   if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
   const parsed = pathArgsSchema.safeParse(args);
   if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
-  const safePath = validatePath(parsed.data.path);
+  const safePath = validateWorkspacePath(parsed.data.path, runtime);
   if (!safePath) return pathBlocked();
   try {
     const content = await runtime.storage.readFile(safePath);
@@ -103,7 +115,7 @@ async function listDirectory(
   if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
   const parsed = pathArgsSchema.safeParse(args);
   if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
-  const safePath = validatePath(parsed.data.path);
+  const safePath = validateWorkspacePath(parsed.data.path, runtime);
   if (!safePath) return pathBlocked();
   try {
     const entries = await runtime.storage.listDir(safePath);
@@ -119,7 +131,7 @@ async function writeFile(args: Record<string, unknown>, runtime: EvirRuntime): P
   if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
   const parsed = writeArgsSchema.safeParse(args);
   if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
-  const safePath = validatePath(parsed.data.path);
+  const safePath = validateWorkspacePath(parsed.data.path, runtime);
   if (!safePath) return pathBlocked();
   try {
     await runtime.storage.writeFile(safePath, parsed.data.content);
@@ -137,7 +149,7 @@ async function applyPatch(
   if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
   const parsed = patchArgsSchema.safeParse(args);
   if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
-  const safePath = validatePath(parsed.data.path);
+  const safePath = validateWorkspacePath(parsed.data.path, runtime);
   if (!safePath) return pathBlocked();
   try {
     await runtime.storage.applyPatch(safePath, parsed.data.old_content, parsed.data.new_content);
@@ -154,7 +166,7 @@ async function searchFiles(
   if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
   const parsed = searchArgsSchema.safeParse(args);
   if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
-  const safePath = validatePath(parsed.data.path);
+  const safePath = validateWorkspacePath(parsed.data.path, runtime);
   if (!safePath) return pathBlocked();
   try {
     const results = await runtime.storage.searchFiles(safePath, parsed.data.pattern);
@@ -171,7 +183,7 @@ async function runCommand(
   if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
   const parsed = commandArgsSchema.safeParse(args);
   if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
-  const safeCwd = validatePath(parsed.data.cwd);
+  const safeCwd = validateWorkspacePath(parsed.data.cwd, runtime);
   if (!safeCwd) return pathBlocked();
   try {
     const result = await runtime.storage.runCommand(
@@ -191,7 +203,7 @@ async function gitStatus(args: Record<string, unknown>, runtime: EvirRuntime): P
   if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
   const parsed = gitArgsSchema.safeParse(args);
   if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
-  const safePath = validatePath(parsed.data.path);
+  const safePath = validateWorkspacePath(parsed.data.path, runtime);
   if (!safePath) return pathBlocked();
   try {
     const result = await runtime.storage.gitStatus(safePath);
@@ -207,7 +219,7 @@ async function gitDiff(args: Record<string, unknown>, runtime: EvirRuntime): Pro
   if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
   const parsed = gitDiffArgsSchema.safeParse(args);
   if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
-  const safePath = validatePath(parsed.data.path);
+  const safePath = validateWorkspacePath(parsed.data.path, runtime);
   if (!safePath) return pathBlocked();
   try {
     const diff = await runtime.storage.gitDiff(safePath, parsed.data.staged);
@@ -224,7 +236,7 @@ async function createDirectory(
   if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
   const parsed = pathArgsSchema.safeParse(args);
   if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
-  const safePath = validatePath(parsed.data.path);
+  const safePath = validateWorkspacePath(parsed.data.path, runtime);
   if (!safePath) return pathBlocked();
   try {
     await runtime.storage.createDirectory(safePath);
@@ -238,7 +250,7 @@ async function fileStat(args: Record<string, unknown>, runtime: EvirRuntime): Pr
   if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
   const parsed = pathArgsSchema.safeParse(args);
   if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
-  const safePath = validatePath(parsed.data.path);
+  const safePath = validateWorkspacePath(parsed.data.path, runtime);
   if (!safePath) return pathBlocked();
   try {
     const stat = await runtime.storage.fileStat(safePath);
@@ -266,7 +278,7 @@ async function createSnapshot(
   if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
   const parsed = snapshotArgsSchema.safeParse(args);
   if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
-  const safePath = validatePath(parsed.data.file_path);
+  const safePath = validateWorkspacePath(parsed.data.file_path, runtime);
   if (!safePath) return pathBlocked();
   try {
     const result = await runtime.storage.createSnapshot(safePath, parsed.data.run_id);
@@ -283,7 +295,7 @@ async function restoreSnapshot(
   if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
   const parsed = restoreArgsSchema.safeParse(args);
   if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
-  const safePath = validatePath(parsed.data.file_path);
+  const safePath = validateWorkspacePath(parsed.data.file_path, runtime);
   if (!safePath) return pathBlocked();
   try {
     const ok = await runtime.storage.restoreSnapshot(

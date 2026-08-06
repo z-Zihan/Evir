@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { EvirRuntime } from "../../../runtime/types";
+import { validateWorkspacePath } from "../builtin/local-file-tools";
 
 vi.mock("../../../core/tools/tool-executor", () => ({
   TOOL_NOT_AVAILABLE: "not_available_in_browser",
@@ -55,6 +57,32 @@ describe("workspace path validation", () => {
   });
 });
 
+describe("tool workspace boundary", () => {
+  const runtime = {
+    target: "desktop",
+    capabilities: new Set(["filesystem"]),
+    has: () => true,
+    getWorkspaceRoot: () => "/tmp/project",
+  } as unknown as EvirRuntime;
+
+  it("allows the workspace root and its descendants", () => {
+    expect(validateWorkspacePath("/tmp/project", runtime)).toBe("/tmp/project");
+    expect(validateWorkspacePath("/tmp/project/src/index.ts", runtime)).toBe(
+      "/tmp/project/src/index.ts",
+    );
+  });
+
+  it("blocks sibling prefixes and paths outside the selected workspace", () => {
+    expect(validateWorkspacePath("/tmp/project-copy/file.ts", runtime)).toBeUndefined();
+    expect(validateWorkspacePath("/tmp/other/file.ts", runtime)).toBeUndefined();
+  });
+
+  it("blocks all local paths when no workspace is selected", () => {
+    const noWorkspace = { ...runtime, getWorkspaceRoot: () => null };
+    expect(validateWorkspacePath("/tmp/project/file.ts", noWorkspace)).toBeUndefined();
+  });
+});
+
 describe("workspace store", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -70,6 +98,7 @@ describe("workspace store", () => {
     useWorkspaceStore.getState().setWorkspace("/tmp/my-project");
     expect(useWorkspaceStore.getState().currentWorkspace).toBe("/tmp/my-project");
     expect(useWorkspaceStore.getState().recentWorkspaces).toContain("/tmp/my-project");
+    expect(localStorage.getItem("evir-workspace-current")).toBe("/tmp/my-project");
   });
 
   it("clears workspace", async () => {
@@ -77,5 +106,9 @@ describe("workspace store", () => {
     useWorkspaceStore.getState().setWorkspace("/tmp/my-project");
     useWorkspaceStore.getState().clearWorkspace();
     expect(useWorkspaceStore.getState().currentWorkspace).toBeNull();
+    expect(localStorage.getItem("evir-workspace-current")).toBeNull();
+    useWorkspaceStore.getState().loadWorkspace();
+    expect(useWorkspaceStore.getState().currentWorkspace).toBeNull();
+    expect(useWorkspaceStore.getState().recentWorkspaces).toContain("/tmp/my-project");
   });
 });

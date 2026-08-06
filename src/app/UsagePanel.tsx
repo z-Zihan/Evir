@@ -19,6 +19,7 @@ import {
   type UsagePoint,
   type UsageRange,
 } from "./usage-analytics";
+import { useConfirmationDialog } from "./useConfirmationDialog";
 
 function compactNumber(value: number, locale: string): string {
   return new Intl.NumberFormat(locale, {
@@ -114,6 +115,7 @@ function UsageChart({
 
 export function UsagePanel() {
   const { t, i18n } = useTranslation();
+  const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
   const { records, loadRecords } = useUsageStore();
   const [range, setRange] = useState<UsageRange>("daily");
   const [isClearing, setIsClearing] = useState(false);
@@ -178,7 +180,16 @@ export function UsagePanel() {
         <button
           className="quiet-danger-button"
           type="button"
-          onClick={() => void clearRecords()}
+          onClick={() =>
+            requestConfirmation(
+              {
+                title: t("confirmation.clearTitle"),
+                description: t("confirmation.clearDescription", { item: t("usage.data") }),
+                confirmLabel: t("usage.clear"),
+              },
+              clearRecords,
+            )
+          }
           disabled={isClearing || records.length === 0}
         >
           <Trash2 size={14} />
@@ -294,6 +305,7 @@ export function UsagePanel() {
           </div>
         )}
       </section>
+      {confirmationDialog}
     </section>
   );
 }

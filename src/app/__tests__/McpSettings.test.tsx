@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const addServer = vi.fn();
 const updateServer = vi.fn();
+const removeServer = vi.fn();
 let servers: Array<{
   id: string;
   name: string;
@@ -22,7 +23,7 @@ vi.mock("../../features/mcp/mcp-store", () => ({
     loadServers: vi.fn().mockResolvedValue(undefined),
     addServer,
     updateServer,
-    removeServer: vi.fn(),
+    removeServer,
     toggleServer: vi.fn(),
   }),
 }));
@@ -69,5 +70,31 @@ describe("McpSettings", () => {
     fireEvent.change(screen.getByDisplayValue("Filesystem"), { target: { value: "Files" } });
     fireEvent.click(screen.getByRole("button", { name: "mcp.saveChanges" }));
     expect(updateServer).toHaveBeenCalledWith("mcp-1", expect.objectContaining({ name: "Files" }));
+  });
+
+  it("requires confirmation before deleting a server", async () => {
+    servers = [
+      {
+        id: "mcp-1",
+        name: "Filesystem",
+        transport: "stdio",
+        enabled: false,
+        command: "npx",
+        args: ["-y", "server-filesystem"],
+        envSecretRefs: {},
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    ];
+    const { McpSettings } = await import("../McpSettings");
+    render(<McpSettings />);
+    await waitFor(() => expect(screen.getByText("Filesystem")).toBeDefined());
+
+    fireEvent.click(screen.getByRole("button", { name: "mcp.delete" }));
+    expect(removeServer).not.toHaveBeenCalled();
+    fireEvent.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", { name: "mcp.delete" }),
+    );
+    await waitFor(() => expect(removeServer).toHaveBeenCalledWith("mcp-1"));
   });
 });

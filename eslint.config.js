@@ -8,8 +8,10 @@ export default tseslint.config(
   {
     ignores: [
       "dist",
+      "artifacts",
       "src-tauri/target",
       "scripts",
+      "e2e/fixtures",
       "vite.config.d.ts",
       "vite.config.js",
       "eslint.config.js",

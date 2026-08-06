@@ -19,6 +19,7 @@ import {
   type ProviderConfigInput,
 } from "../features/provider/provider-store";
 import { SettingsFormDialog } from "./SettingsFormDialog";
+import { useConfirmationDialog } from "./useConfirmationDialog";
 
 type ProviderField = keyof ProviderConfigInput;
 type FieldErrors = Partial<Record<ProviderField, "required" | "url">>;
@@ -73,6 +74,7 @@ const providerInitial = (name: string) => name.trim().slice(0, 1).toUpperCase();
 
 export function ProviderSettings() {
   const { t } = useTranslation();
+  const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
   const {
     providers,
     addProvider,
@@ -271,7 +273,18 @@ export function ProviderSettings() {
                   <button
                     type="button"
                     aria-label={t("provider.delete")}
-                    onClick={() => void deleteProvider(provider.id)}
+                    onClick={() =>
+                      requestConfirmation(
+                        {
+                          title: t("confirmation.deleteTitle"),
+                          description: t("confirmation.deleteDescription", {
+                            item: provider.name,
+                          }),
+                          confirmLabel: t("provider.delete"),
+                        },
+                        () => deleteProvider(provider.id),
+                      )
+                    }
                   >
                     <Trash2 size={14} />
                   </button>
@@ -494,6 +507,7 @@ export function ProviderSettings() {
           </form>
         </SettingsFormDialog>
       )}
+      {confirmationDialog}
     </div>
   );
 }

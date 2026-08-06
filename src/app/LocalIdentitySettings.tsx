@@ -12,6 +12,7 @@ import {
 } from "../features/settings/personalization-settings";
 import { AvatarCropDialog } from "./AvatarCropDialog";
 import { validateAvatarFile } from "./avatar-image";
+import { useConfirmationDialog } from "./useConfirmationDialog";
 
 type IdentityForm = Pick<PersonalizationPreferences, "displayName" | "avatarColor" | "avatarImage">;
 type FormStatus = "loading" | "idle" | "saving";
@@ -30,6 +31,7 @@ export function LocalIdentityPanel() {
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [cropSource, setCropSource] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
 
   useEffect(() => {
     let mounted = true;
@@ -148,7 +150,17 @@ export function LocalIdentityPanel() {
                   <button
                     className="danger"
                     type="button"
-                    onClick={() => update("avatarImage", "")}
+                    onClick={() =>
+                      requestConfirmation(
+                        {
+                          title: t("confirmation.deleteTitle"),
+                          description: t("confirmation.photoDescription"),
+                          confirmLabel: t("personalization.removePhoto"),
+                          tone: "warning",
+                        },
+                        () => update("avatarImage", ""),
+                      )
+                    }
                   >
                     <Trash2 size={13} /> {t("personalization.removePhoto")}
                   </button>
@@ -205,7 +217,22 @@ export function LocalIdentityPanel() {
           </div>
 
           <div className="identity-page-actions">
-            <button type="button" onClick={() => void persist({ ...DEFAULT_IDENTITY })}>
+            <button
+              type="button"
+              onClick={() =>
+                requestConfirmation(
+                  {
+                    title: t("confirmation.resetTitle"),
+                    description: t("confirmation.resetDescription", {
+                      item: t("settings.identity"),
+                    }),
+                    confirmLabel: t("personalization.resetIdentity"),
+                    tone: "warning",
+                  },
+                  () => persist({ ...DEFAULT_IDENTITY }),
+                )
+              }
+            >
               {t("personalization.resetIdentity")}
             </button>
             <button className="primary-button" type="submit">
@@ -232,6 +259,7 @@ export function LocalIdentityPanel() {
           }}
         />
       )}
+      {confirmationDialog}
     </section>
   );
 }

@@ -6,6 +6,7 @@ import { isMac } from "../core/shortcuts/platform";
 import { useChatStore } from "../features/chat/chat-store";
 import { loadPersonalizationPreferences } from "../features/settings/personalization-settings";
 import type { SettingsTab } from "./SettingsModal";
+import { useConfirmationDialog } from "./useConfirmationDialog";
 
 interface SidebarProps {
   onOpenSettings: (tab?: SettingsTab) => void;
@@ -28,6 +29,7 @@ export function Sidebar({ onOpenSettings, onNewConversation }: SidebarProps) {
     Pick<PersonalizationPreferences, "displayName" | "avatarColor" | "avatarImage">
   >({ displayName: "", avatarColor: "sage", avatarImage: "" });
   const committingRef = useRef(false);
+  const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
 
   useEffect(() => {
     let mounted = true;
@@ -128,8 +130,16 @@ export function Sidebar({ onOpenSettings, onNewConversation }: SidebarProps) {
               type="button"
               aria-label={t("provider.delete")}
               onClick={() => {
-                if (window.confirm(t("sidebar.confirmDelete")))
-                  void deleteConversation(conversation.id);
+                requestConfirmation(
+                  {
+                    title: t("confirmation.deleteTitle"),
+                    description: t("confirmation.deleteDescription", {
+                      item: conversation.title || t("chat.title"),
+                    }),
+                    confirmLabel: t("provider.delete"),
+                  },
+                  () => deleteConversation(conversation.id),
+                );
               }}
             >
               <Trash2 size={14} />
@@ -141,63 +151,66 @@ export function Sidebar({ onOpenSettings, onNewConversation }: SidebarProps) {
   };
 
   return (
-    <aside className="sidebar">
-      <div className="brand-row">
-        <div className="brand-mark" aria-hidden="true">
-          <img src="/evir-mark.svg" alt="" />
+    <>
+      <aside className="sidebar">
+        <div className="brand-row">
+          <div className="brand-mark" aria-hidden="true">
+            <img src="/evir-mark.svg" alt="" />
+          </div>
+          <div className="brand-lockup">
+            <strong className="brand-name">Evir</strong>
+            <span className="brand-caption">{t("sidebar.localAi")}</span>
+          </div>
         </div>
-        <div className="brand-lockup">
-          <strong className="brand-name">Evir</strong>
-          <span className="brand-caption">{t("sidebar.localAi")}</span>
-        </div>
-      </div>
-      <button className="new-chat-button" type="button" onClick={onNewConversation}>
-        <MessageSquarePlus size={16} /> {t("sidebar.newChat")}
-        <span className="new-chat-shortcut" aria-hidden="true">
-          {shortcutModifier}N
-        </span>
-      </button>
-      {pinned.length > 0 && (
-        <>
-          <div className="section-label">{t("sidebar.pinned")}</div>
-          <div className="conversation-list pinned-list">{pinned.map(renderConversation)}</div>
-        </>
-      )}
-      <div className="section-label">{t("sidebar.recent")}</div>
-      {conversations.length === 0 ? (
-        <div className="empty-list">{t("sidebar.noConversations")}</div>
-      ) : (
-        <div className="conversation-list">{unpinned.map(renderConversation)}</div>
-      )}
-      <div className="sidebar-footer">
-        <button
-          className="sidebar-identity"
-          type="button"
-          onClick={() => onOpenSettings("identity")}
-          aria-label={t("sidebar.editIdentity")}
-        >
-          <span className={`sidebar-identity-avatar avatar-${identity.avatarColor}`}>
-            {identity.avatarImage ? <img src={identity.avatarImage} alt="" /> : localInitial}
-          </span>
-          <span className="sidebar-identity-copy">
-            <strong>{localName}</strong>
-            <small>{t("sidebar.localIdentity")}</small>
-          </span>
-          <ChevronRight size={14} aria-hidden="true" />
-        </button>
-        <button
-          className="settings-button"
-          type="button"
-          onClick={() => onOpenSettings()}
-          aria-label={t("settings.title")}
-        >
-          <Settings2 size={17} />
-          <span>{t("settings.title")}</span>
-          <span className="settings-shortcut" aria-hidden="true">
-            {shortcutModifier},
+        <button className="new-chat-button" type="button" onClick={onNewConversation}>
+          <MessageSquarePlus size={16} /> {t("sidebar.newChat")}
+          <span className="new-chat-shortcut" aria-hidden="true">
+            {shortcutModifier}N
           </span>
         </button>
-      </div>
-    </aside>
+        {pinned.length > 0 && (
+          <>
+            <div className="section-label">{t("sidebar.pinned")}</div>
+            <div className="conversation-list pinned-list">{pinned.map(renderConversation)}</div>
+          </>
+        )}
+        <div className="section-label">{t("sidebar.recent")}</div>
+        {conversations.length === 0 ? (
+          <div className="empty-list">{t("sidebar.noConversations")}</div>
+        ) : (
+          <div className="conversation-list">{unpinned.map(renderConversation)}</div>
+        )}
+        <div className="sidebar-footer">
+          <button
+            className="sidebar-identity"
+            type="button"
+            onClick={() => onOpenSettings("identity")}
+            aria-label={t("sidebar.editIdentity")}
+          >
+            <span className={`sidebar-identity-avatar avatar-${identity.avatarColor}`}>
+              {identity.avatarImage ? <img src={identity.avatarImage} alt="" /> : localInitial}
+            </span>
+            <span className="sidebar-identity-copy">
+              <strong>{localName}</strong>
+              <small>{t("sidebar.localIdentity")}</small>
+            </span>
+            <ChevronRight size={14} aria-hidden="true" />
+          </button>
+          <button
+            className="settings-button"
+            type="button"
+            onClick={() => onOpenSettings()}
+            aria-label={t("settings.title")}
+          >
+            <Settings2 size={17} />
+            <span>{t("settings.title")}</span>
+            <span className="settings-shortcut" aria-hidden="true">
+              {shortcutModifier},
+            </span>
+          </button>
+        </div>
+      </aside>
+      {confirmationDialog}
+    </>
   );
 }

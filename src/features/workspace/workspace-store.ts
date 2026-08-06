@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 const STORAGE_KEY = "evir-workspace";
+const CURRENT_STORAGE_KEY = "evir-workspace-current";
 
 interface WorkspaceState {
   currentWorkspace: string | null;
@@ -25,6 +26,11 @@ function saveRecent(paths: string[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(paths));
 }
 
+function loadCurrent(): string | null {
+  const stored = localStorage.getItem(CURRENT_STORAGE_KEY);
+  return stored && stored.trim() ? stored : null;
+}
+
 export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   currentWorkspace: null,
   recentWorkspaces: loadRecent(),
@@ -32,12 +38,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
     set((state) => {
       const recent = [path, ...state.recentWorkspaces.filter((p) => p !== path)].slice(0, 10);
       saveRecent(recent);
+      localStorage.setItem(CURRENT_STORAGE_KEY, path);
       return { currentWorkspace: path, recentWorkspaces: recent };
     });
   },
-  clearWorkspace: () => set({ currentWorkspace: null }),
+  clearWorkspace: () => {
+    localStorage.removeItem(CURRENT_STORAGE_KEY);
+    set({ currentWorkspace: null });
+  },
   loadWorkspace: () => {
     const recent = loadRecent();
-    set({ recentWorkspaces: recent, currentWorkspace: recent[0] ?? null });
+    const current = loadCurrent();
+    set({
+      recentWorkspaces: recent,
+      currentWorkspace: current && recent.includes(current) ? current : null,
+    });
   },
 }));

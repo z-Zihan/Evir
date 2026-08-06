@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { logger } from "../core/logging/logger";
 import type { LogLevel } from "../core/logging/types";
 import { downloadBlob } from "../features/chat/conversation-export";
+import { useConfirmationDialog } from "./useConfirmationDialog";
 
 type DiagnosticsFilter = "all" | "info" | "warn" | "error";
 
@@ -18,6 +19,7 @@ function levelBadgeClass(level: LogLevel): string {
 
 export function DiagnosticsSettings() {
   const { t } = useTranslation();
+  const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
   const [filter, setFilter] = useState<DiagnosticsFilter>("all");
   const [entries, setEntries] = useState(() => logger.getEntries());
 
@@ -59,7 +61,18 @@ export function DiagnosticsSettings() {
           <button
             type="button"
             className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg cursor-pointer text-sm hover:bg-surface-hover transition danger"
-            onClick={handleClear}
+            onClick={() =>
+              requestConfirmation(
+                {
+                  title: t("confirmation.clearTitle"),
+                  description: t("confirmation.clearDescription", {
+                    item: t("diagnostics.data"),
+                  }),
+                  confirmLabel: t("diagnostics.clear"),
+                },
+                handleClear,
+              )
+            }
           >
             {t("diagnostics.clear")}
           </button>
@@ -105,6 +118,7 @@ export function DiagnosticsSettings() {
           ))}
         </ul>
       )}
+      {confirmationDialog}
     </section>
   );
 }

@@ -1,6 +1,14 @@
 #!/usr/bin/env node
 import { gzipSync } from "node:zlib";
-import { readFileSync, statSync, readdirSync, mkdirSync, writeFileSync, existsSync, rmSync } from "node:fs";
+import {
+  readFileSync,
+  statSync,
+  readdirSync,
+  mkdirSync,
+  writeFileSync,
+  existsSync,
+  rmSync,
+} from "node:fs";
 import { join, extname, relative } from "node:path";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";

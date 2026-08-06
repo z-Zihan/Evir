@@ -15,6 +15,12 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
+    "test:e2e": "playwright test --project=web-e2e --project=desktop-e2e e2e/core.spec.ts",
+    "test:ui": "playwright test --project=web-ui --project=desktop-ui e2e/ui-matrix.spec.ts",
+    "test:visual": "playwright test --project=web-visual --project=desktop-visual e2e/visual.spec.ts",
+    "test:visual:update": "pnpm test:visual --update-snapshots",
+    "test:a11y": "playwright test --project=web-a11y --project=desktop-a11y e2e/accessibility.spec.ts",
+    "benchmark": "node scripts/benchmark.mjs",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
     "tauri": "tauri",
     "dev": "tauri dev"
@@ -36,7 +42,9 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@eslint/js": "^9.0.0",
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/cli": "^2.0.0",
     "@testing-library/jest-dom": "^6.0.0",

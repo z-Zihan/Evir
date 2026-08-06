@@ -153,17 +153,15 @@ Desktop 默认使用 SQLite 作为嵌入式本地 Adapter。它只是用户电�
 
 ## 当前状态
 
-Evir 目前处于**工程骨架与产品规范阶段**，不是已完成产品。
+Evir 当前处于**阶段 S：稳定性与体验整改**，不是发布就绪产品。
 
-当前仓库包含：
+- Web 定位为聊天与附件分析，不展示 Agent、Plan、本地工作区或 MCP。
+- Desktop 默认 Agent，可切换 Ask；Plan 不作为常驻一级入口。
+- 本地工具、审批、Agent Activity、工作区和基础恢复链路已实现并有自动化覆盖。
+- Web/Desktop Capability 已覆盖 E2E、视觉、无障碍、主题、语言和窄窗口矩阵。
+- macOS 原生窗口已完成基础启动烟测；真实 Provider、原生多工具任务、签名安装包和 Windows 仍需验收。
 
-- React + TypeScript + Vite + Tauri 2 基础工程。
-- Web / Desktop Runtime 与 Capability 雏形。
-- 中英文、亮色 / 暗色 / 跟随系统主题基础。
-- 产品、技术、设计、安全、性能、Skill、MCP 和 Provider 文档。
-- Coding Agent 分阶段开发 Prompt。
-
-后续开发必须从阶段 0 工程核验开始，不允许跳过验证直接堆积功能。
+当前证据见 [自动化质量报告](docs/reviews/automated-quality-report.md) 和 [稳定性缺陷登记](docs/reviews/stability-bug-register.md)。
 
 ## 本地开发
 
@@ -183,6 +181,11 @@ pnpm dev:desktop
 pnpm build:web
 pnpm build:desktop
 pnpm check
+pnpm test:e2e
+pnpm test:ui
+pnpm test:visual
+pnpm test:a11y
+pnpm benchmark
 ```
 
 macOS 与 Windows 正式安装包需要在对应系统构建。推荐通过一次 Git Tag 触发 GitHub Actions，由 macOS Runner 和 Windows Runner 分别构建并汇总到同一个 Release。
