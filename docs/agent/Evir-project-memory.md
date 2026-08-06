@@ -2,7 +2,7 @@
 
 > Scope: This memory applies only to the Evir repository.
 > Repository: git@github.com:z-Zihan/Evir.git
-> Last reviewed commit: 29195a1
+> Last reviewed commit: 332e2d3
 > Last updated: 2026-08-06
 
 ## 1. Product Identity
@@ -122,7 +122,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - 外部输入用 Zod 验证
 - 所有长任务支持 AbortSignal
 - PR 门禁：format + ESLint + strict TS + tests + build
-- 当前 153 TS tests + 4 Rust tests pass
+- 当前 184 TS tests + 4 Rust tests pass
 
 ## 17. Current Implementation Status
 
@@ -154,6 +154,17 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - Shortcuts 设置面板（平台感知格式化）
 - Privacy 设置面板（清除本地数据 + 事务保护）
 - 共享 platform.ts（isMac + currentPlatform）
+
+**阶段 2 新增：**
+- 工作区系统（WorkspaceSelector + workspace-store + Tauri dialog）
+- 13 个本地工具（read/write/list/search/patch/stat/mkdir/snapshot/restore + run_command + git_status/diff）
+- 符号链接逃逸检测 + workspace 边界验证
+- 文件快照与回滚（FNV-1a Hash + 冲突检测）
+- Agent Loop 循环检测（6 次警告 / 12 次停止）
+- 验证循环（自动检测项目类型 → 运行 check/test/build）
+- AgentRunSummary UI（文件变更/命令结果/验证/Diff/错误）
+- Tauri capabilities（dialog/fs/shell/store 权限）
+- Desktop 已启动验证（pnpm dev:desktop ✅）
 - About 面板（版本号、描述、GitHub 链接、许可证）
 - 对话置顶 + 内联重命名（双击/按钮，Enter/Escape/blur）
 - Markdown 导出（单对话 .md，角色标签 + 附件列表）
@@ -176,6 +187,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 阶段 0 ✅ 完成
 阶段 1（Provider 与纯净聊天 MVP）✅ 完成
+阶段 2（Desktop Agent 与本地工具）🔧 开发中 — 核心工具链完成，Desktop 已启动验证
 
 ## 19. Verified User Capabilities
 
@@ -189,8 +201,10 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 4. tool-approval.ts 行数超限（254 行 vs 200 限制）
 5. ToolCallCard Approve/Deny 缺少集成测试
 6. MCP Server 仅配置管理，无实际连接
-7. tool-approval.ts 已拆分（84+176 行）
-8. chat-store.ts 已拆分（146+110 行）
+7. Agent 交互体验待优化（工具调用过程可见性、进度反馈）
+8. Desktop Agent 端到端验收待完成（需真实文件修改+验证任务）
+9. 快照回滚 UI 入口待添加
+10. 停止生成时 Agent Loop 中途取消待完善
 
 ## 21. Active Decisions
 
@@ -263,4 +277,28 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - 2026-08-06 | 68efbb0 | Combined review P1 修复（export 错误处理, escapeMd 完善, DRY 重构）；153 tests pass
 - 2026-08-06 | e61e459 | 删除确认弹窗 + 消息复制按钮（clipboard + 1.5s 反馈）；153 tests pass
 - 2026-08-06 | 29195a1 | 会话列表按 updatedAt 降序排序；153 tests pass
+- 2026-08-06 | 5c2f531 | 项目记忆更新（33 commits, 153 tests）
+- 2026-08-06 | 34aea6a | 技术债：tool-approval + chat-store 拆分到行数限制内；153 tests
+- 2026-08-06 | 5d24a45 | 消息时间戳 + Token 计数显示；153 tests
+- 2026-08-06 | 98a9379 | 快捷键帮助面板 (⌘/)；153 tests
+- 2026-08-06 | a3bfc27 | 代码块复制按钮；153 tests
+- 2026-08-06 | bf379e6 | 错误重试按钮；153 tests
+- 2026-08-06 | 5bc5697 | 输入框自动调整高度 + ChatView 拆分；153 tests
+- 2026-08-06 | 8db190c | 行数限制 200/250→600；函数 50→200
+- 2026-08-06 | 0440c79→68efbb0 | Pin/rename + Markdown export review 修复；153 tests
+- 2026-08-06 | e61e459 | 删除确认弹窗 + 消息复制按钮；153 tests
+- 2026-08-06 | 0963630 | CSS 变量别名 + 测试连接修复；153 tests
+- 2026-08-06 | 3de1594 | 设置弹窗不再因背景点击关闭
+- 2026-08-06 | 3dd3b81 | 测试连接/获取模型不要求 name 字段
+- 2026-08-06 | 5829a1b | URL 自动补 /v1
+- 2026-08-06 | 0cd01d1 | API Key 默认持久化
+- 2026-08-06 | 24035bb | 移除自动弹出设置 + 修复时间戳
+- 2026-08-06 | ca362aa | 阶段 2：workspace + file tools + terminal + git（5 Rust commands, 5 TS tools）
+- 2026-08-06 | bffc2e7 | WorkspaceSelector UI + i18n + CSS
+- 2026-08-06 | a18591d | 符号链接防护 + 快照回滚 + 循环检测 + 4 新工具
+- 2026-08-06 | 8bb132e | 验证循环 + AgentRunSummary UI
+- 2026-08-06 | 027ac75 | 21 新测试（工具/path/mode isolation）；184 tests
+- 2026-08-06 | 35142bc | Desktop layout 修复（WorkspaceSelector 不再破坏 grid）
+- 2026-08-06 | ccc8226 | Tauri capabilities（dialog/fs/shell 权限）
+- 2026-08-06 | 332e2d3 | Agent 模式系统提示加强（显式列出工具）；184 tests
 - 2026-08-06 | 1a5bb0f | Privacy review P0+P1 修复（事务保护, disabled 状态, 无障碍）；143 tests pass
