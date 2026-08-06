@@ -152,7 +152,8 @@
     "searchConversations": "搜索会话",
     "sendMessage": "发送消息",
     "stopCurrentRun": "停止当前生成",
-    "shortcutHelp": "查看快捷键"
+    "shortcutHelp": "查看快捷键",
+    "comingSoon": "自定义快捷键即将推出"
   },
   "help": {
     "quickStart": "快速开始",

@@ -152,7 +152,8 @@
     "searchConversations": "Search conversations",
     "sendMessage": "Send message",
     "stopCurrentRun": "Stop current generation",
-    "shortcutHelp": "Show shortcuts"
+    "shortcutHelp": "Show shortcuts",
+    "comingSoon": "Custom binding coming soon"
   },
   "help": {
     "quickStart": "Quick start",

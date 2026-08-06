@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Database, X } from "lucide-react";
 import { PersonalizationPanel } from "./PersonalizationSettings";
+import { ShortcutsSettings } from "./ShortcutsSettings";
 import { SkillSettings } from "./SkillSettings";
 import { McpSettings } from "./McpSettings";
 import { ProviderSettings } from "./ProviderSettings";
@@ -17,14 +18,14 @@ interface SettingsModalProps {
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const { t, i18n } = useTranslation();
   const [activeTab, setActiveTab] = useState<
-    "providers" | "personalization" | "skills" | "mcp" | "usage" | "data"
+    "providers" | "personalization" | "shortcuts" | "skills" | "mcp" | "usage" | "data"
   >("providers");
   const [importResult, setImportResult] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   if (!open) return null;
 
   const handleTabChange = (
-    tab: "providers" | "personalization" | "skills" | "mcp" | "usage" | "data",
+    tab: "providers" | "personalization" | "shortcuts" | "skills" | "mcp" | "usage" | "data",
   ) => {
     setActiveTab(tab);
     setImportResult(null);
@@ -78,6 +79,13 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             {t("settings.personalization")}
           </button>
           <button
+            className={`tab${activeTab === "shortcuts" ? " active" : ""}`}
+            type="button"
+            onClick={() => handleTabChange("shortcuts")}
+          >
+            {t("settings.shortcuts")}
+          </button>
+          <button
             className={`tab${activeTab === "skills" ? " active" : ""}`}
             type="button"
             onClick={() => handleTabChange("skills")}
@@ -114,13 +122,13 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               void i18n.changeLanguage(i18n.language.startsWith("zh") ? "en" : "zh-CN")
             }
           >
-            {/* Show target language name — standard pattern for language switchers */}
             {i18n.language.startsWith("zh") ? "EN" : "中"}
           </button>
         </div>
         <div className="modal-body">
           {activeTab === "providers" && <ProviderSettings />}
           {activeTab === "personalization" && <PersonalizationPanel />}
+          {activeTab === "shortcuts" && <ShortcutsSettings />}
           {activeTab === "skills" && <SkillSettings />}
           {activeTab === "mcp" && <McpSettings />}
           {activeTab === "usage" && <UsagePanel />}

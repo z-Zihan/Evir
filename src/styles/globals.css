@@ -1140,3 +1140,76 @@ textarea:focus-visible {
 .skill-toggle input {
   cursor: pointer;
 }
+
+/* Shortcuts Settings */
+.shortcuts-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.shortcuts-settings h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.shortcuts-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.shortcuts-scope-label {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.shortcuts-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.shortcut-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.shortcut-label {
+  font-size: 13px;
+  color: var(--foreground);
+}
+.shortcut-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.shortcut-key {
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface-elevated);
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--muted-foreground);
+}
+.shortcut-scope-badge {
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: var(--sidebar);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+}
+.shortcuts-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  padding: 4px 0;
+}
