@@ -16,7 +16,10 @@ export function asNumber(value: unknown): number | undefined {
 
 export function chatEndpoint(baseUrl: string): string {
   const clean = baseUrl.replace(/\/+$/, "");
-  return clean.endsWith("/chat/completions") ? clean : `${clean}/chat/completions`;
+  if (clean.endsWith("/chat/completions")) return clean;
+  if (clean.endsWith("/v1")) return `${clean}/chat/completions`;
+  // Try /v1/chat/completions first (most common), fallback to /chat/completions
+  return `${clean}/v1/chat/completions`;
 }
 
 function classifyMessage(message: string): ProviderErrorType | undefined {
