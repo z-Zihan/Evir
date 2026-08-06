@@ -77,11 +77,11 @@
 - 设计 token：Apple 色彩体系、间距、排版
 - 旧 globals.css 已删除，统一为 app.css + supplemental.css
 
-### S9：性能与稳定性回归
+### S9：性能与稳定性回归 ✅
 
-- ⬜ Web gzip 检查
-- ⬜ 长会话渲染性能检查
-- ⬜ 工具流式事件批量更新检查
+- ✅ Web gzip 238 KB（预算 350 KB）
+- ✅ 长会话渲染优化：MessageList 组件 memo 化，流式更新不再重渲染历史消息
+- ✅ 工具流式事件批量更新：rAF 节流，每次 animation frame 只触发一次 set()
 
 ### S10：Web/Desktop 手动验收
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, type KeyboardEvent } from "react";
+import { memo, useCallback, useEffect, useRef, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Download, Paperclip, Square, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -9,7 +9,7 @@ import { ChatMessage } from "./ChatMessage";
 import { ChatEmptyState } from "./ChatEmptyState";
 import { ModeSwitcher } from "./ModeSwitcher";
 import { ModelSwitcher } from "./ModelSwitcher";
-import type { ProviderRecord } from "../core/storage/db";
+import type { MessageRecord, ProviderRecord } from "../core/storage/db";
 import { useDragDrop } from "./use-drag-drop";
 import { WorkspaceSelector } from "./WorkspaceSelector";
 import { getRuntime } from "../runtime/use-runtime";
@@ -22,6 +22,37 @@ interface ChatViewProps {
   onSendMessage: () => void;
   onOpenSettings: () => void;
 }
+
+interface MessageListProps {
+  messages: MessageRecord[];
+  disabled: boolean;
+  onEdit: (messageId: string, content: string) => Promise<void>;
+  onRegenerate: () => Promise<void>;
+  onBranch: (messageId: string) => void;
+}
+
+const MessageList = memo(function MessageList({
+  messages,
+  disabled,
+  onEdit,
+  onRegenerate,
+  onBranch,
+}: MessageListProps) {
+  return (
+    <>
+      {messages.map((msg) => (
+        <ChatMessage
+          key={msg.id}
+          message={msg}
+          disabled={disabled}
+          onEdit={onEdit}
+          onRegenerate={onRegenerate}
+          onBranch={onBranch}
+        />
+      ))}
+    </>
+  );
+});
 
 export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }: ChatViewProps) {
   const { t, i18n } = useTranslation();
@@ -58,6 +89,11 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
   }, [messages, streamingContent]);
 
   const displayError = (value: string) => (i18n.exists(value) ? t(value) : value);
+
+  const handleBranch = useCallback(
+    (messageId: string) => void branchConversation(messageId),
+    [branchConversation],
+  );
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
@@ -128,16 +164,13 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
           <ChatEmptyState onSendMessage={(content) => void sendMessage(content)} />
         ) : (
           <div className="max-w-[780px] mx-auto flex flex-col gap-5">
-            {messages.map((msg) => (
-              <ChatMessage
-                key={msg.id}
-                message={msg}
-                disabled={isStreaming}
-                onEdit={editMessage}
-                onRegenerate={regenerate}
-                onBranch={(messageId) => void branchConversation(messageId)}
-              />
-            ))}
+            <MessageList
+              messages={messages}
+              disabled={isStreaming}
+              onEdit={editMessage}
+              onRegenerate={regenerate}
+              onBranch={handleBranch}
+            />
             {isStreaming && (
               <div className="max-w-[780px] mx-auto w-full message-assistant">
                 <div className="message-content">

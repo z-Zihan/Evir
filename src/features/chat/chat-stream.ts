@@ -33,6 +33,27 @@ export function stopActiveStream(): void {
   activeController?.abort();
 }
 
+function batchDeltas(onDelta: (content: string) => void) {
+  let frame: number | null = null;
+  let latest = "";
+  const schedule = (content: string) => {
+    latest = content;
+    if (frame !== null) return;
+    frame = requestAnimationFrame(() => {
+      frame = null;
+      onDelta(latest);
+    });
+  };
+  const flush = (content: string) => {
+    if (frame !== null) {
+      cancelAnimationFrame(frame);
+      frame = null;
+    }
+    onDelta(content);
+  };
+  return { schedule, flush };
+}
+
 export interface StreamResult {
   content: string;
   status: "complete" | "stopped" | "error";
@@ -75,6 +96,7 @@ export async function streamAssistant(
   let completed = false;
   const toolCalls = new Map<string, { id: string; toolName: string; arguments: string }>();
   const startTime = Date.now();
+  const batched = batchDeltas(onDelta);
 
   try {
     for await (const event of configuredAdapter.stream({
@@ -85,7 +107,7 @@ export async function streamAssistant(
     })) {
       if (event.type === "text-delta") {
         content += event.text;
-        onDelta(content);
+        batched.schedule(content);
       } else if (event.type === "tool-call-start") {
         toolCalls.set(event.toolCallId, {
           id: event.toolCallId,
@@ -145,6 +167,7 @@ export async function streamAssistant(
         : undefined;
   } finally {
     if (activeController === controller) activeController = undefined;
+    batched.flush(content);
   }
 
   if (!completed && status === "complete") status = "stopped";
