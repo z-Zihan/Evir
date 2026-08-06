@@ -2,7 +2,7 @@
 
 > Scope: This memory applies only to the Evir repository.
 > Repository: git@github.com:z-Zihan/Evir.git
-> Last reviewed commit: 332e2d3
+> Last reviewed commit: 604f026
 > Last updated: 2026-08-06
 
 ## 1. Product Identity
@@ -122,7 +122,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - 外部输入用 Zod 验证
 - 所有长任务支持 AbortSignal
 - PR 门禁：format + ESLint + strict TS + tests + build
-- 当前 184 TS tests + 4 Rust tests pass
+- 当前 202 TS tests + 4 Rust tests pass
 
 ## 17. Current Implementation Status
 
@@ -166,6 +166,21 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - AgentRunSummary UI（文件变更/命令结果/验证/Diff/错误）
 - Tauri capabilities（dialog/fs/shell/store 权限）
 - Desktop 已启动验证（pnpm dev:desktop ✅）
+
+**阶段 3 新增：**
+- LLM 对话摘要（>75% 自动用模型压缩旧消息，保留目标/约束/文件路径/命令/错误）
+- 记忆系统（会话/工作区/全局 + pinned + 隐私会话 + Dexie 持久化）
+- MemorySettings UI（设置面板 memory tab，增删改查+置顶）
+- Checkpoint（>90% 自动保存 + 崩溃恢复检测 + clearCheckpoint）
+- 模型切换 Handoff（buildHandoffMessage 保留目标/步骤/错误）
+- crash-recovery.ts（findUnfinishedRuns 扫描中断的 checkpoint）
+- 隐私会话 toggle（Sidebar 🔒/🔓 按钮，跳过记忆注入）
+
+**阶段 4 新增：**
+- Skill 创建/删除/导入（skill-store: importSkill/createSkill/deleteSkill）
+- Skill 路由器（关键词匹配 + 模式表 + 匹配原因，6 tests）
+- SkillSettings UI 升级（创建表单 + 删除按钮 + 源标记）
+- 路由接入 stream-response（<skill_routing> XML 注入）
 - About 面板（版本号、描述、GitHub 链接、许可证）
 - 对话置顶 + 内联重命名（双击/按钮，Enter/Escape/blur）
 - Markdown 导出（单对话 .md，角色标签 + 附件列表）
@@ -188,7 +203,9 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 阶段 0 ✅ 完成
 阶段 1（Provider 与纯净聊天 MVP）✅ 完成
-阶段 2（Desktop Agent 与本地工具）🔧 开发中 — 核心工具链完成，Desktop 已启动验证
+阶段 2（Desktop Agent 与本地工具）🔧 核心完成 — 13 工具+快照+循环检测+验证+UI
+阶段 3（上下文压缩与记忆）✅ 完成 — LLM 摘要+记忆系统+Checkpoint+Handoff+隐私会话+崩溃恢复
+阶段 4（Skill 系统）🔧 核心完成 — 路由+创建/删除/导入+5 内置 Skill
 
 ## 19. Verified User Capabilities
 
