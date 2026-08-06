@@ -1802,6 +1802,41 @@
   transition: transform 140ms var(--ease-out);
 }
 
+.data-privacy-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.settings-data-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-data-actions h4 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.settings-data-actions p {
+  max-width: 430px;
+  margin: 5px 0 0;
+  color: var(--muted-foreground);
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.settings-data-buttons {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 7px;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .message-row:hover .message-role-mark {
     border-color: color-mix(in srgb, var(--primary) 34%, var(--border));
@@ -1848,6 +1883,10 @@
   .approval-actions {
     grid-column: 1 / -1;
     justify-content: flex-end;
+  }
+  .settings-data-actions {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 

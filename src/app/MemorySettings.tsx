@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Pencil, Pin, PinOff, Trash2 } from "lucide-react";
 import { useMemoryStore, type MemoryRecord } from "../features/memory/memory-store";
 
 export function MemorySettings({ conversationId }: { conversationId: string | null }) {
@@ -86,24 +87,33 @@ export function MemorySettings({ conversationId }: { conversationId: string | nu
                 <>
                   <div className="memory-content">
                     <strong>{m.key}</strong>
-                    {m.pinned && <span className="text-xs ml-1">📌</span>}
+                    {m.pinned && <Pin size={12} className="memory-pin-indicator" />}
                     <p>{m.content}</p>
                   </div>
                   <div className="flex gap-1">
-                    <button type="button" onClick={() => void togglePin(m.id)}>
-                      {m.pinned ? "📌" : "📍"}
+                    <button
+                      type="button"
+                      onClick={() => void togglePin(m.id)}
+                      aria-label={m.pinned ? t("memory.unpin") : t("memory.pin")}
+                    >
+                      {m.pinned ? <PinOff size={14} /> : <Pin size={14} />}
                     </button>
                     <button
                       type="button"
+                      aria-label={t("memory.edit")}
                       onClick={() => {
                         setEditingId(m.id);
                         setEditContent(m.content);
                       }}
                     >
-                      ✏️
+                      <Pencil size={14} />
                     </button>
-                    <button type="button" onClick={() => void deleteMemory(m.id)}>
-                      🗑️
+                    <button
+                      type="button"
+                      onClick={() => void deleteMemory(m.id)}
+                      aria-label={t("memory.delete")}
+                    >
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </>

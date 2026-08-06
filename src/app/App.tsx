@@ -13,7 +13,9 @@ export function App() {
   const { t } = useTranslation();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
-  const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [sidebarVisible, setSidebarVisible] = useState(
+    () => typeof window === "undefined" || window.innerWidth > 820,
+  );
   const [messageInput, setMessageInput] = useState("");
   const focusSearchRef = useRef<(() => void) | null>(null);
   const { loadProviders, getDefaultProvider } = useProviderStore();
@@ -54,6 +56,16 @@ export function App() {
     void loadConversations();
     void loadUsageRecords();
   }, [loadProviders, loadConversations, loadUsageRecords]);
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const compact = window.matchMedia("(max-width: 820px)");
+    const handleViewportChange = (event: MediaQueryListEvent) => {
+      setSidebarVisible(!event.matches);
+    };
+    compact.addEventListener("change", handleViewportChange);
+    return () => compact.removeEventListener("change", handleViewportChange);
+  }, []);
 
   return (
     <div className={`app-shell${sidebarVisible ? " sidebar-visible" : ""}`}>

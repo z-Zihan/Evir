@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { FolderOpen, X } from "lucide-react";
 import { useWorkspaceStore } from "../features/workspace/workspace-store";
 
 export function WorkspaceSelector() {
@@ -43,7 +44,7 @@ export function WorkspaceSelector() {
         className="font-medium overflow-hidden text-ellipsis whitespace-nowrap max-w-[300px]"
         title={currentWorkspace}
       >
-        📁 {shortPath}
+        <FolderOpen size={14} aria-hidden="true" /> {shortPath}
       </span>
       <button
         type="button"
@@ -56,8 +57,9 @@ export function WorkspaceSelector() {
         type="button"
         className="border border-border px-1.5 py-0.5 text-base leading-none rounded hover:bg-surface-hover"
         onClick={clearWorkspace}
+        aria-label={t("workspace.clear")}
       >
-        ×
+        <X size={14} />
       </button>
       {recentWorkspaces.length > 1 && (
         <details className="relative">

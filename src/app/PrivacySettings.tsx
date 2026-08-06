@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { LockKeyhole, UnlockKeyhole } from "lucide-react";
 import { db } from "../core/storage/db";
 import { useChatStore } from "../features/chat/chat-store";
 
@@ -87,7 +88,7 @@ export function PrivacySettings() {
           aria-label={t("chat.privateSession")}
           aria-pressed={privateSession}
         >
-          {privateSession ? "🔒" : "🔓"}
+          {privateSession ? <LockKeyhole size={15} /> : <UnlockKeyhole size={15} />}
         </button>
       </div>
       <p className="privacy-warning">{t("privacy.confirmClear")}</p>

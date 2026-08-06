@@ -17,6 +17,7 @@ export interface DesktopStorageAdapter {
     program: string,
     args: string[],
     timeoutMs?: number,
+    env?: Record<string, string>,
   ): Promise<CommandResult>;
   gitStatus(path: string): Promise<GitStatusResult>;
   gitDiff(path: string, staged: boolean): Promise<string>;
@@ -83,8 +84,8 @@ export const desktopStorage: DesktopStorageAdapter = {
   applyPatch: (path, oldContent, newContent) =>
     invoke("fs_apply_patch", { path, oldContent, newContent }),
   searchFiles: (path, pattern) => invoke("fs_search_files", { path, pattern }),
-  runCommand: (cwd, program, args, timeoutMs) =>
-    invoke("run_command", { cwd, program, args, timeoutMs }),
+  runCommand: (cwd, program, args, timeoutMs, env) =>
+    invoke("run_command", { cwd, program, args, timeoutMs, env: env ?? null }),
   gitStatus: (path) => invoke("git_status", { path }),
   gitDiff: (path, staged) => invoke("git_diff", { path, staged }),
   createDirectory: (path) => invoke("fs_create_directory", { path }),

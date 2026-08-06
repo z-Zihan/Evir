@@ -107,6 +107,57 @@
     "denied": "已拒绝",
     "deniedMessage": "工具执行已被用户拒绝"
   },
+  "errors": {
+    "detail": "详情：{{message}}",
+    "AUTH_FAILED": {
+      "title": "认证失败",
+      "description": "请检查 API Key、Base URL 和模型服务权限。"
+    },
+    "CORS_BLOCKED": {
+      "title": "浏览器阻止了请求",
+      "description": "目标服务未允许浏览器跨域访问，请使用支持 CORS 的端点或桌面版。"
+    },
+    "RATE_LIMITED": {
+      "title": "请求过于频繁",
+      "description": "服务商暂时限制了请求，请稍后再试。"
+    },
+    "INSUFFICIENT_BALANCE": {
+      "title": "账户余额不足",
+      "description": "请在服务商控制台检查余额或配额。"
+    },
+    "MODEL_NOT_FOUND": {
+      "title": "找不到模型",
+      "description": "请确认模型 ID 正确且当前账户有权访问。"
+    },
+    "CONTEXT_OVERFLOW": {
+      "title": "上下文过长",
+      "description": "请缩短消息、移除附件或新建对话后重试。"
+    },
+    "TOOL_CALL_UNSUPPORTED": {
+      "title": "模型不支持工具调用",
+      "description": "请切换到支持 Tool Calling 的模型，或改用提问模式。"
+    },
+    "VISION_UNSUPPORTED": {
+      "title": "模型不支持图片",
+      "description": "请移除图片附件或切换到视觉模型。"
+    },
+    "PROTOCOL_INCOMPATIBLE": {
+      "title": "协议不兼容",
+      "description": "请检查供应商协议与 Base URL 是否匹配。"
+    },
+    "NETWORK_ERROR": {
+      "title": "网络连接失败",
+      "description": "请检查网络、Base URL 和目标服务状态。"
+    },
+    "PROVIDER_ERROR": {
+      "title": "模型服务返回错误",
+      "description": "请查看详情，或稍后重试。"
+    },
+    "CANCELLED": {
+      "title": "请求已取消",
+      "description": "本次生成已停止。"
+    }
+  },
   "settings": {
     "title": "设置",
     "close": "关闭",
@@ -121,6 +172,8 @@
     "shortcuts": "快捷键",
     "usage": "用量统计",
     "privacy": "数据与隐私",
+    "portability": "数据迁移",
+    "portabilityDescription": "导出或导入本地会话数据。API Key 不会包含在导出文件中。",
     "diagnostics": "诊断",
     "help": "帮助",
     "feedback": "提交反馈",
@@ -282,6 +335,7 @@
   "workspace": {
     "select": "选择工作区",
     "change": "切换",
+    "clear": "清除工作区",
     "recent": "最近"
   },
   "agent": {
@@ -302,6 +356,10 @@
   },
   "memory": {
     "title": "记忆",
+    "pin": "置顶记忆",
+    "unpin": "取消置顶记忆",
+    "edit": "编辑记忆",
+    "delete": "删除记忆",
     "keyPlaceholder": "键名（如 '项目结构'）",
     "contentPlaceholder": "要记住的内容...",
     "add": "添加记忆",

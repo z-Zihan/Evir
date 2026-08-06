@@ -207,7 +207,12 @@
   font-size: var(--font-size-sm);
   font-weight: 500;
   color: var(--muted-foreground);
-  transition: all var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    opacity var(--transition-fast),
+    transform var(--transition-fast);
 }
 
 .mode-switcher button:hover {
@@ -361,7 +366,12 @@
   border-radius: var(--radius-md);
   color: var(--muted-foreground);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    opacity var(--transition-fast),
+    transform var(--transition-fast);
 }
 
 .attach-button:hover {
@@ -492,7 +502,12 @@
   text-align: left;
   line-height: var(--line-height-normal);
   font-size: var(--font-size-sm);
-  transition: all var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    opacity var(--transition-fast),
+    transform var(--transition-fast);
 }
 
 .suggestion-item:hover {
@@ -560,7 +575,12 @@
   border: 1px solid var(--border);
   background: var(--surface);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    opacity var(--transition-fast),
+    transform var(--transition-fast);
 }
 
 .primary-action {
@@ -702,7 +722,12 @@
   height: 24px;
   border-radius: var(--radius-sm);
   color: var(--muted-foreground);
-  transition: all var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    opacity var(--transition-fast),
+    transform var(--transition-fast);
 }
 
 .conversation-actions button:hover {
@@ -982,7 +1007,12 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    opacity var(--transition-fast),
+    transform var(--transition-fast);
 }
 
 .message-retry:hover:not(:disabled) {
@@ -1029,7 +1059,12 @@
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
   color: var(--muted-foreground);
-  transition: all var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    opacity var(--transition-fast),
+    transform var(--transition-fast);
 }
 
 .message-actions button:hover {
@@ -1170,7 +1205,12 @@
   color: var(--muted-foreground);
   cursor: pointer;
   border-bottom: 2px solid transparent;
-  transition: all var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    opacity var(--transition-fast),
+    transform var(--transition-fast);
   white-space: nowrap;
 }
 
@@ -1276,7 +1316,12 @@
   border-radius: var(--radius-md);
   cursor: pointer;
   font-size: var(--font-size-sm);
-  transition: all var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    opacity var(--transition-fast),
+    transform var(--transition-fast);
 }
 
 .privacy-btn:hover {
@@ -1387,7 +1432,12 @@
   border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
   font-weight: 500;
-  transition: all var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    opacity var(--transition-fast),
+    transform var(--transition-fast);
 }
 
 .test-result {
@@ -1695,7 +1745,12 @@
   cursor: pointer;
   font-size: var(--font-size-xs);
   white-space: nowrap;
-  transition: all var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    opacity var(--transition-fast),
+    transform var(--transition-fast);
 }
 
 .workspace-pick:hover,

@@ -105,6 +105,9 @@ export function ChatView({
     t("chat.title");
 
   const tokenCount = useConversationTokenCount(currentConversationId);
+  const hasMessageError = messages.some(
+    (message) => message.status === "error" && Boolean(message.errorMessage),
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -281,7 +284,7 @@ export function ChatView({
           </div>
         )}
       </div>
-      {error && <div className="chat-error">{displayError(error)}</div>}
+      {error && !hasMessageError && <div className="chat-error">{displayError(error)}</div>}
       <footer className="composer-wrap">
         <div
           className={`composer${dragOver ? " drag-over" : ""}`}

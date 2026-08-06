@@ -107,6 +107,57 @@
     "denied": "Denied",
     "deniedMessage": "Tool execution denied by user"
   },
+  "errors": {
+    "detail": "Details: {{message}}",
+    "AUTH_FAILED": {
+      "title": "Authentication failed",
+      "description": "Check the API key, base URL, and access granted by your model provider."
+    },
+    "CORS_BLOCKED": {
+      "title": "Request blocked by the browser",
+      "description": "The endpoint does not allow cross-origin requests. Use a CORS-enabled endpoint or the desktop app."
+    },
+    "RATE_LIMITED": {
+      "title": "Too many requests",
+      "description": "The provider is temporarily rate limiting requests. Try again shortly."
+    },
+    "INSUFFICIENT_BALANCE": {
+      "title": "Insufficient balance",
+      "description": "Check the balance or quota in your provider console."
+    },
+    "MODEL_NOT_FOUND": {
+      "title": "Model not found",
+      "description": "Confirm the model ID and that your account can access it."
+    },
+    "CONTEXT_OVERFLOW": {
+      "title": "Context is too long",
+      "description": "Shorten the message, remove attachments, or start a new conversation."
+    },
+    "TOOL_CALL_UNSUPPORTED": {
+      "title": "Tool calling is unavailable",
+      "description": "Choose a tool-capable model or switch to Ask mode."
+    },
+    "VISION_UNSUPPORTED": {
+      "title": "Images are unsupported",
+      "description": "Remove image attachments or choose a vision-capable model."
+    },
+    "PROTOCOL_INCOMPATIBLE": {
+      "title": "Protocol mismatch",
+      "description": "Check that the provider protocol matches the base URL."
+    },
+    "NETWORK_ERROR": {
+      "title": "Network connection failed",
+      "description": "Check your connection, base URL, and provider status."
+    },
+    "PROVIDER_ERROR": {
+      "title": "Model provider error",
+      "description": "Review the details or try again later."
+    },
+    "CANCELLED": {
+      "title": "Request cancelled",
+      "description": "Generation has stopped."
+    }
+  },
   "settings": {
     "title": "Settings",
     "close": "Close",
@@ -121,6 +172,8 @@
     "shortcuts": "Keyboard shortcuts",
     "usage": "Usage",
     "privacy": "Data and privacy",
+    "portability": "Data portability",
+    "portabilityDescription": "Export or import local conversation data. API keys are never included.",
     "diagnostics": "Diagnostics",
     "help": "Help",
     "feedback": "Send feedback",
@@ -282,6 +335,7 @@
   "workspace": {
     "select": "Select Workspace",
     "change": "Change",
+    "clear": "Clear workspace",
     "recent": "Recent"
   },
   "agent": {
@@ -302,6 +356,10 @@
   },
   "memory": {
     "title": "Memory",
+    "pin": "Pin memory",
+    "unpin": "Unpin memory",
+    "edit": "Edit memory",
+    "delete": "Delete memory",
     "keyPlaceholder": "Key (e.g. 'project-structure')",
     "contentPlaceholder": "Content to remember...",
     "add": "Add Memory",

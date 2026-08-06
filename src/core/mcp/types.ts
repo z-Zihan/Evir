@@ -22,3 +22,9 @@ export interface HttpMcpServer extends McpServerBase {
 }
 
 export type McpServerConfig = StdioMcpServer | HttpMcpServer;
+
+export interface McpTool {
+  name: string;
+  description?: string;
+  inputSchema: Record<string, unknown>;
+}

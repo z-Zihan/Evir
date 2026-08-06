@@ -2,17 +2,16 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   BarChart3,
-  Bot,
   Brain,
   Boxes,
   Braces,
-  Database,
   Globe2,
   Info,
   Keyboard,
   Palette,
   ShieldCheck,
-  Sparkles,
+  ServerCog,
+  SlidersHorizontal,
   Stethoscope,
   X,
   type LucideIcon,
@@ -39,7 +38,6 @@ type SettingsTab =
   | "skills"
   | "mcp"
   | "usage"
-  | "data"
   | "privacy"
   | "theme"
   | "language"
@@ -57,8 +55,12 @@ const SETTINGS_GROUPS: Array<{ labelKey: string; items: SettingsNavItem[] }> = [
   {
     labelKey: "settings.groups.account",
     items: [
-      { tab: "providers", labelKey: "settings.providers", icon: Bot },
-      { tab: "personalization", labelKey: "settings.personalization", icon: Sparkles },
+      { tab: "providers", labelKey: "settings.providers", icon: ServerCog },
+      {
+        tab: "personalization",
+        labelKey: "settings.personalization",
+        icon: SlidersHorizontal,
+      },
       { tab: "theme", labelKey: "settings.theme", icon: Palette },
       { tab: "language", labelKey: "settings.language", icon: Globe2 },
     ],
@@ -76,7 +78,6 @@ const SETTINGS_GROUPS: Array<{ labelKey: string; items: SettingsNavItem[] }> = [
     items: [
       { tab: "shortcuts", labelKey: "settings.shortcuts", icon: Keyboard },
       { tab: "usage", labelKey: "settings.usage", icon: BarChart3 },
-      { tab: "data", labelKey: "settings.data", icon: Database },
       { tab: "privacy", labelKey: "settings.privacy", icon: ShieldCheck },
       { tab: "diagnostics", labelKey: "settings.diagnostics", icon: Stethoscope },
       { tab: "about", labelKey: "settings.about", icon: Info },
@@ -181,49 +182,54 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               {activeTab === "skills" && <SkillSettings />}
               {activeTab === "mcp" && <McpSettings />}
               {activeTab === "usage" && <UsagePanel />}
-              {activeTab === "privacy" && <PrivacySettings />}
+              {activeTab === "privacy" && (
+                <div className="data-privacy-settings">
+                  <section className="settings-data-actions">
+                    <div>
+                      <h4>{t("settings.portability")}</h4>
+                      <p>{t("settings.portabilityDescription")}</p>
+                    </div>
+                    <div className="settings-data-buttons">
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() => void handleExport()}
+                      >
+                        {t("settings.exportAll")}
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        {t("settings.importAll")}
+                      </button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="application/json,.json"
+                        className="hidden"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file) void handleImport(file);
+                          if (fileInputRef.current) fileInputRef.current.value = "";
+                        }}
+                      />
+                    </div>
+                    {importResult && (
+                      <div className="form-message" role="alert">
+                        {importResult}
+                      </div>
+                    )}
+                  </section>
+                  <PrivacySettings />
+                </div>
+              )}
               {activeTab === "about" && <AboutSettings />}
               {activeTab === "theme" && <ThemeSettings />}
               {activeTab === "language" && <LanguageSettings />}
               {activeTab === "memory" && <MemorySettings conversationId={null} />}
               {activeTab === "diagnostics" && <DiagnosticsSettings />}
-              {activeTab === "data" && (
-                <div className="flex flex-col gap-3">
-                  <h3 className="text-base font-semibold">{t("settings.data")}</h3>
-                  <div className="flex gap-2 flex-wrap">
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={() => void handleExport()}
-                    >
-                      {t("settings.exportAll")}
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      {t("settings.importAll")}
-                    </button>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="application/json,.json"
-                      style={{ display: "none" }}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) void handleImport(file);
-                        if (fileInputRef.current) fileInputRef.current.value = "";
-                      }}
-                    />
-                  </div>
-                  {importResult && (
-                    <div className="text-sm p-2 rounded-lg mt-1" role="alert">
-                      {importResult}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           </main>
         </div>

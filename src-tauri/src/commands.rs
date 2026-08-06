@@ -307,11 +307,15 @@ pub(crate) fn run_command(
     program: String,
     args: Vec<String>,
     timeout_ms: Option<u64>,
+    env: Option<std::collections::HashMap<String, String>>,
 ) -> Result<CommandResult, String> {
     let cwd = validate_path(&cwd)?;
     let mut cmd = StdCommand::new(&program);
     cmd.args(&args);
     cmd.current_dir(&cwd);
+    if let Some(env_vars) = env {
+        cmd.envs(env_vars);
+    }
     cmd.stdout(std::process::Stdio::piped());
     cmd.stderr(std::process::Stdio::piped());
 
