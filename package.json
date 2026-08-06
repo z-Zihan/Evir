@@ -9,14 +9,15 @@
     "build:web": "tsc -b && vite build --mode web",
     "build:desktop:frontend": "tsc -b && vite build --mode desktop",
     "build:desktop": "tauri build",
-    "build": "pnpm build:web",
+    "build": "tauri build",
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "dev": "tauri dev"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",

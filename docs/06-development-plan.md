@@ -34,51 +34,62 @@
 > 阶段 S 完成前，不进入阶段 2 或后续功能开发。
 
 ### S1：现有功能与文档一致性审计 ✅
+
 - 审计报告：`docs/reviews/ui-ux-stability-review.md`
 - 识别 P0/P1/P2 Bug 清单
 
 ### S2：Bug 修复 ✅
+
 - P1 修复：Web 不显示 Agent/Plan、Desktop 默认 Agent、Plan 降级、WorkspaceSelector 移位
 - CC 审查修复 7 个核心组件（10 个 bug）
 
 ### S3：产品信息架构调整 ✅
+
 - 顶部栏简化：会话标题 + 模式 + 模型
 - WorkspaceSelector 移到输入区（Desktop only）
 - 设置页 tab 分组：基础/能力/系统/支持
 
 ### S4：Desktop 主交互重构 ✅
+
 - Desktop 默认 Agent 模式
 - Plan 不作为一级模式
 - Ask 保留为可选切换
 
 ### S5：Web 主交互简化 ✅
+
 - Web 不展示 Agent/Plan/Workspace（Capability 判断）
 - Web 只展示聊天输入
 
 ### S6：Agent 对话流与工具调用 UI 重构 ✅
+
 - AgentActivity 组件：工具调用分组到紧凑活动流
 - 状态标题 + 进度计数 + 折叠详情
 - 审批 UI 内联
 
 ### S7：设置页结构整理 ✅
+
 - 11 个 tab 分 4 组，带视觉分隔
 - 主题选择移到设置页
 
 ### S8：视觉系统统一 ✅
+
 - Tailwind CSS v4 迁移（21 组件）
 - 设计 token：Apple 色彩体系、间距、排版
 - 旧 globals.css 已删除，统一为 app.css + supplemental.css
 
 ### S9：性能与稳定性回归
+
 - ⬜ Web gzip 检查
 - ⬜ 长会话渲染性能检查
 - ⬜ 工具流式事件批量更新检查
 
 ### S10：Web/Desktop 手动验收
+
 - ⬜ Web：聊天/附件/会话管理/设置
 - ⬜ Desktop：Agent 工具调用/工作区/审批
 
 ### 阶段 S 完成标准
+
 - 所有 P1 Bug 修复
 - 信息架构调整完成
 - Agent UI 重构完成
