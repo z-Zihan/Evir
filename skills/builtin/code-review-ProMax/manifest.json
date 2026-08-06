@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "code-review-ProMax",
+  "name": "code-review-ProMax",
+  "version": "2.0.2",
+  "description": "高级代码审查 Agent。对用户提供的 diff、文件、commit、GitHub PR 或 GitLab MR 进行高质量、 上下文感知、回归风险导向的代码审查，输出可执行、结构化的审查结论，适合合入决策。 触发词：code review, CR, 代码审查, 审查代码, review代码, review PR/diff/commit, review MR, review merge reque",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": [],
+  "optionalCapabilities": [],
+  "optionalMcpServers": [],
+  "riskLevel": "low"
+}

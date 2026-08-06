@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "todo-list-promax",
+  "name": "todo-list-promax",
+  "version": "2.2.0",
+  "description": "个人待办事项永久存储、智能分类与定时提醒系统。 自动从聊天消息中捕获待办（文字/图片/附件），解析时间与优先级，每日晚上9点推送未完成提醒。 当用户消息包含以下触发词时激活： 【录入】\"TODO:\"、\"帮我记录一下\"、\"记录：\"、\"待办：\"、\"加个待办\"、\"记一下\"、\"别忘了\"、\"记得提醒我\"、\"回头要做\"、\"备忘\"、\"提醒我\"、\"add todo\"、\"remind me to\"、\"don't f",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": [],
+  "optionalCapabilities": [],
+  "optionalMcpServers": [],
+  "riskLevel": "medium"
+}

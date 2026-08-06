@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "project-doc-analyst",
+  "name": "project-doc-analyst",
+  "version": "2.0.1",
+  "description": "专家级项目分析与文档生成 Agent。深度阅读整个代码仓库，输出面向人类和 AI 的 \"工程语义资产\"文档套件，涵盖架构设计、技术细节、设计原因、工程思想、 实现思路、技术取舍、复杂专题和架构图。 触发词：分析项目, 生成文档, 项目文档, 代码分析, 分析仓库, 生成项目文档, 分析这个项目, 帮我分析项目, 项目架构分析, 代码仓库分析, 生成技术文档, 项目总览, 架构图, 调用链图, 数据",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": [],
+  "optionalCapabilities": [],
+  "optionalMcpServers": [],
+  "riskLevel": "low"
+}

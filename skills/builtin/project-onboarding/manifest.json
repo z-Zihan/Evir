@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "project-onboarding",
+  "name": "project-onboarding",
+  "version": "2.0.1",
+  "description": "帮助有经验的开发者快速接手陌生项目，支持前端 Web、后端服务、 客户端（Electron/Tauri）、小程序、移动端等多种项目类型。自动识别项目类型，分阶段输出 项目概览、开发流程、工程规范、类型专项指南等，达到\"可以开始安全开发\"的状态。 触发词：接手项目, 项目上手, 快速上手, 新人接手, 项目入门, onboarding, 如何开发, 怎么启动项目, 项目怎么跑, 开发流程, onbo",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": [],
+  "optionalCapabilities": [],
+  "optionalMcpServers": [],
+  "riskLevel": "low"
+}
