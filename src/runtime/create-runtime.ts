@@ -29,8 +29,19 @@ export function createRuntime(): EvirRuntime {
       "localMcp",
       "backgroundTasks",
     ]);
-    return { ...runtime, storage: desktopStorage, toolRegistry, toolExecutor };
+    return {
+      ...runtime,
+      storage: desktopStorage,
+      toolRegistry,
+      toolExecutor,
+      mode: "agent" as const,
+    };
   }
 
-  return { ...buildRuntime("web", ["chat", "attachments"]), toolRegistry, toolExecutor };
+  return {
+    ...buildRuntime("web", ["chat", "attachments"]),
+    toolRegistry,
+    toolExecutor,
+    mode: "ask" as const,
+  };
 }

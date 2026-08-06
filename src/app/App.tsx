@@ -7,7 +7,6 @@ import { ChatView } from "./ChatView";
 import { SettingsModal } from "./SettingsModal";
 import { useShortcuts } from "./useShortcuts";
 import { ShortcutHelpOverlay } from "./ShortcutHelpOverlay";
-import { WorkspaceSelector } from "./WorkspaceSelector";
 
 export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -60,7 +59,6 @@ export function App() {
         <Sidebar onOpenSettings={() => setSettingsOpen(true)} focusSearchRef={focusSearchRef} />
       )}
       <div className="flex flex-col min-h-screen min-w-0">
-        <WorkspaceSelector />
         <ChatView
           input={messageInput}
           onInputChange={setMessageInput}

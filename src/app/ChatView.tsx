@@ -12,6 +12,8 @@ import { ModelSwitcher } from "./ModelSwitcher";
 import { Download } from "lucide-react";
 import type { ProviderRecord } from "../core/storage/db";
 import { useDragDrop } from "./use-drag-drop";
+import { WorkspaceSelector } from "./WorkspaceSelector";
+import { getRuntime } from "../runtime/use-runtime";
 import { handleExportMarkdown } from "./export-helpers";
 import { useConversationTokenCount } from "./use-token-count";
 
@@ -222,18 +224,26 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
                 <Download size={16} />
               </button>
             </span>
-            <span className="text-xs text-muted opacity-60 ml-auto flex gap-2 items-center">
-              {input.length > 0 && <span className="opacity-50">{input.length}</span>}
-              {tokenCount > 0 && t("chat.tokenCount", { count: tokenCount })}
-            </span>
+            <div className="flex items-center gap-2 ml-auto">
+              {getRuntime().target === "desktop" && <WorkspaceSelector />}
+              <span className="text-xs text-muted opacity-60 flex gap-2 items-center">
+                {input.length > 0 && <span className="opacity-50">{input.length}</span>}
+                {tokenCount > 0 && t("chat.tokenCount", { count: tokenCount })}
+              </span>
+            </div>
             {isStreaming ? (
-              <button type="button" className="stop-button" onClick={stopGeneration}>
+              <button
+                type="button"
+                className="bg-danger px-3 py-1.5 rounded-lg text-primary-fg text-sm font-medium"
+                onClick={stopGeneration}
+              >
                 <Square size={14} />
                 {t("chat.stop")}
               </button>
             ) : (
               <button
                 type="button"
+                className="bg-primary px-3 py-1.5 rounded-lg text-primary-fg text-sm font-medium disabled:opacity-50"
                 disabled={!input.trim() && pendingAttachments.length === 0}
                 onClick={onSendMessage}
               >

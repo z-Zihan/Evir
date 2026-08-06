@@ -58,7 +58,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   conversations: [],
   currentConversationId: null,
   messages: [],
-  mode: "ask",
+  mode: "agent",
   isStreaming: false,
   streamingContent: "",
   error: null,
