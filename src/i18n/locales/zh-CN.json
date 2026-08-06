@@ -238,5 +238,15 @@
     "select": "选择工作区",
     "change": "切换",
     "recent": "最近"
+  },
+  "agent": {
+    "runSummary": "Agent 运行总结",
+    "maxIterations": "达到最大迭代次数",
+    "filesModified": "修改的文件",
+    "commandsRun": "执行的命令",
+    "verification": "验证结果",
+    "unresolvedErrors": "未解决的错误",
+    "loading": "加载中",
+    "none": "无"
   }
 }

@@ -238,5 +238,15 @@
     "select": "Select Workspace",
     "change": "Change",
     "recent": "Recent"
+  },
+  "agent": {
+    "runSummary": "Agent Run Summary",
+    "maxIterations": "Max iterations reached",
+    "filesModified": "Files Modified",
+    "commandsRun": "Commands Run",
+    "verification": "Verification",
+    "unresolvedErrors": "Unresolved Errors",
+    "loading": "Loading",
+    "none": "None"
   }
 }

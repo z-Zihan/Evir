@@ -1618,3 +1618,121 @@ textarea {
 .workspace-recent button:hover {
   background: var(--surface-elevated);
 }
+
+/* Agent Run Summary */
+.agent-run-summary {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem;
+  margin: 0.5rem 0;
+  background: var(--surface);
+}
+
+.summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.summary-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.summary-warning {
+  font-size: 0.78rem;
+  color: var(--danger);
+}
+
+.summary-section {
+  margin-top: 0.75rem;
+  font-size: 0.82rem;
+}
+
+.summary-section h4 {
+  margin: 0 0 0.3rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.summary-section ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.summary-section li {
+  margin: 0.15rem 0;
+}
+
+.summary-empty {
+  color: var(--muted-foreground);
+  margin: 0;
+}
+
+.result-ok {
+  color: var(--success);
+}
+.result-fail {
+  color: var(--danger);
+}
+
+.verification-result {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.4rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+}
+
+.verification-passed {
+  background: color-mix(in srgb, var(--success) 10%, transparent);
+}
+.verification-failed {
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+.verification-skipped {
+  background: var(--surface);
+}
+.verification-cancelled {
+  background: var(--surface);
+}
+.verification-timed_out {
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+
+.verification-output {
+  margin: 0.3rem 0 0;
+  padding: 0.4rem;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  font-family: ui-monospace, monospace;
+  font-size: 0.72rem;
+  overflow-x: auto;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.git-diff-preview {
+  margin: 0.3rem 0 0;
+  padding: 0.5rem;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  font-family: ui-monospace, monospace;
+  font-size: 0.72rem;
+  overflow-x: auto;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.summary-errors {
+  border-top: 1px solid var(--border);
+  padding-top: 0.5rem;
+}
+
+.summary-loading {
+  color: var(--muted-foreground);
+  font-size: 0.78rem;
+}
