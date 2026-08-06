@@ -22,6 +22,8 @@ import {
   buildCompressedHistory,
   splitForSummarization,
 } from "../../core/context/conversation-summarizer";
+import { useMemoryStore } from "../memory/memory-store";
+import { createCheckpoint } from "../../core/context/checkpoint";
 import { estimateMessagesTokens } from "../../core/context/token-estimate";
 
 const budgetManagerInstance = createContextBudgetManager();
@@ -173,6 +175,18 @@ export async function streamResponse(
       }
     }
 
+    // Create checkpoint when utilization > 90%
+    if (snapshot.compressionStage === "checkpoint-compaction") {
+      try {
+        const objective =
+          history.find((m) => m.role === "user")?.content.slice(0, 200) ?? "Unknown objective";
+        await createCheckpoint(conversationId, effectiveHistory, objective);
+        console.debug("[evir] checkpoint created");
+      } catch (error) {
+        console.error("[evir] checkpoint failed:", error);
+      }
+    }
+
     console.debug(
       "[evir] context-budget",
       `stage=${snapshot.compressionStage}`,
@@ -192,6 +206,12 @@ export async function streamResponse(
       systemParts.push(`<active_skills>\n${skillContent}\n</active_skills>`);
     }
   }
+  // Inject memory context if available
+  const memoryContext = useMemoryStore.getState().buildMemoryContext(conversationId);
+  if (memoryContext) {
+    systemParts.push(`<memory>\n${memoryContext}\n</memory>`);
+  }
+
   if (systemParts.length > 0) {
     messages.unshift({ role: "system", content: systemParts.join("\n\n") });
   }
