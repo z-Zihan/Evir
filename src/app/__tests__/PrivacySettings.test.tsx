@@ -11,6 +11,10 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
+vi.mock("../../features/chat/chat-store", () => ({
+  useChatStore: () => ({ privateSession: false, togglePrivateSession: vi.fn() }),
+}));
+
 vi.mock("../../core/storage/db", () => ({
   db: {
     conversations: { clear: mockClear },
@@ -49,6 +53,14 @@ describe("PrivacySettings", () => {
     render(<PrivacySettings />);
 
     expect(screen.getByText("privacy.confirmClear")).toBeDefined();
+  });
+
+  it("renders the private session toggle", async () => {
+    const { PrivacySettings } = await import("../PrivacySettings");
+    render(<PrivacySettings />);
+
+    expect(screen.getByText("chat.privateSession")).toBeDefined();
+    expect(screen.getByLabelText("chat.privateSession")).toBeDefined();
   });
 
   it("does not clear when confirm is cancelled", async () => {

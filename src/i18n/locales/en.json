@@ -112,7 +112,8 @@
     "exportMdSingle": "Export Chat as .md",
     "light": "Light",
     "dark": "Dark",
-    "system": "System"
+    "system": "System",
+    "language": "Language"
   },
   "provider": {
     "add": "Add provider",

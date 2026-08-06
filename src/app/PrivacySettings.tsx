@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { db } from "../core/storage/db";
+import { useChatStore } from "../features/chat/chat-store";
 
 type ActionState = "idle" | "clearing" | "success" | "error";
 
 export function PrivacySettings() {
   const { t } = useTranslation();
+  const { privateSession, togglePrivateSession } = useChatStore();
   const [resultKey, setResultKey] = useState<ActionState>("idle");
   const [errorMessage, setErrorMessage] = useState<string>("");
 
@@ -76,6 +78,18 @@ export function PrivacySettings() {
   return (
     <section className="privacy-settings">
       <h3>{t("privacy.title")}</h3>
+      <div className="flex items-center justify-between gap-2 px-4 py-2 border border-border rounded-lg">
+        <span className="text-sm">{t("chat.privateSession")}</span>
+        <button
+          type="button"
+          className={`grid place-items-center w-8 h-8 rounded-lg text-muted hover:bg-surface-hover hover:text-foreground transition${privateSession ? " active" : ""}`}
+          onClick={togglePrivateSession}
+          aria-label={t("chat.privateSession")}
+          aria-pressed={privateSession}
+        >
+          {privateSession ? "🔒" : "🔓"}
+        </button>
+      </div>
       <p className="privacy-warning">{t("privacy.confirmClear")}</p>
       <div className="privacy-actions">
         <button

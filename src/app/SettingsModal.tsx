@@ -9,6 +9,7 @@ import { PrivacySettings } from "./PrivacySettings";
 import { AboutSettings } from "./AboutSettings";
 import { MemorySettings } from "./MemorySettings";
 import { ThemeSettings } from "./ThemeSettings";
+import { LanguageSettings } from "./LanguageSettings";
 import { ProviderSettings } from "./ProviderSettings";
 import { UsagePanel } from "./UsagePanel";
 import { downloadBlob, exportConversations } from "../features/chat/conversation-export";
@@ -24,6 +25,7 @@ type SettingsTab =
   | "data"
   | "privacy"
   | "theme"
+  | "language"
   | "memory"
   | "about";
 
@@ -33,7 +35,7 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<SettingsTab>("providers");
   const [importResult, setImportResult] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -105,6 +107,13 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           >
             {t("settings.theme")}
           </button>
+          <button
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap border-0 ${activeTab === "language" ? "bg-primary text-primary-fg" : "bg-transparent text-muted hover:bg-surface-hover hover:text-foreground"}`}
+            type="button"
+            onClick={() => handleTabChange("language")}
+          >
+            {t("settings.language")}
+          </button>
           <span className="w-px h-5 bg-border mx-1" />
           {/* 能力 */}
           <button
@@ -167,16 +176,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           >
             {t("settings.about")}
           </button>
-          <button
-            className="ml-auto px-3 py-1.5 rounded-lg text-sm font-medium text-muted hover:bg-surface-hover hover:text-foreground transition border-0 bg-transparent"
-            type="button"
-            aria-label={t("settings.switchLanguage")}
-            onClick={() =>
-              void i18n.changeLanguage(i18n.language.startsWith("zh") ? "en" : "zh-CN")
-            }
-          >
-            {i18n.language.startsWith("zh") ? "EN" : "中文"}
-          </button>
         </div>
         <div className="flex-1 overflow-y-auto p-5">
           {activeTab === "providers" && <ProviderSettings />}
@@ -188,6 +187,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           {activeTab === "privacy" && <PrivacySettings />}
           {activeTab === "about" && <AboutSettings />}
           {activeTab === "theme" && <ThemeSettings />}
+          {activeTab === "language" && <LanguageSettings />}
           {activeTab === "memory" && <MemorySettings conversationId={null} />}
           {activeTab === "data" && (
             <div className="flex flex-col gap-3">

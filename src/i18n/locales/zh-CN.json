@@ -112,7 +112,8 @@
     "exportMdSingle": "导出对话为 .md",
     "light": "浅色",
     "dark": "深色",
-    "system": "跟随系统"
+    "system": "跟随系统",
+    "language": "语言"
   },
   "provider": {
     "add": "添加供应商",

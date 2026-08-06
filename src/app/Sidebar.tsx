@@ -10,7 +10,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const {
     conversations,
     currentConversationId,
@@ -22,7 +22,6 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
   } = useChatStore();
   const { getDefaultProvider } = useProviderStore();
 
-  const { privateSession, togglePrivateSession } = useChatStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -213,22 +212,6 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
       )}
       <div className="flex gap-1 pt-3 border-t border-border mt-2">
         <button
-          className={`grid place-items-center w-8 h-8 rounded-lg text-muted hover:bg-surface-hover hover:text-foreground transition${privateSession ? " active" : ""}`}
-          type="button"
-          onClick={togglePrivateSession}
-          aria-label={t("chat.privateSession")}
-        >
-          {privateSession ? "🔒" : "🔓"}
-        </button>
-
-        <button
-          className="language-button"
-          type="button"
-          onClick={() => void i18n.changeLanguage(i18n.language.startsWith("zh") ? "en" : "zh-CN")}
-        >
-          {i18n.language.startsWith("zh") ? "EN" : "中"}
-        </button>
-        <button
           className="grid place-items-center w-8 h-8 rounded-lg text-muted hover:bg-surface-hover hover:text-foreground transition"
           type="button"
           onClick={onOpenSettings}
@@ -237,11 +220,6 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
           <Settings2 size={17} />
         </button>
       </div>
-      {provider && (
-        <div className="provider-indicator">
-          {provider.name} · {provider.modelId}
-        </div>
-      )}
     </aside>
   );
 }
