@@ -134,6 +134,7 @@ export function createBrowserTools(invoke: InvokeFn = defaultInvoke): readonly T
       description: "Open a URL in a headless browser and return the page title.",
       source: "evir-local",
       riskLevel: "L3",
+      requiredCapability: "browserAutomation",
       schema: {
         type: "object",
         properties: {
@@ -150,6 +151,7 @@ export function createBrowserTools(invoke: InvokeFn = defaultInvoke): readonly T
       description: "Click an element on the current page identified by a CSS selector.",
       source: "evir-local",
       riskLevel: "L3",
+      requiredCapability: "browserAutomation",
       schema: {
         type: "object",
         properties: {
@@ -167,6 +169,7 @@ export function createBrowserTools(invoke: InvokeFn = defaultInvoke): readonly T
         "Type text into an input field on the current page identified by a CSS selector.",
       source: "evir-local",
       riskLevel: "L3",
+      requiredCapability: "browserAutomation",
       schema: {
         type: "object",
         properties: {
@@ -184,6 +187,7 @@ export function createBrowserTools(invoke: InvokeFn = defaultInvoke): readonly T
       description: "Take a screenshot of the current page and return it as a base64-encoded PNG.",
       source: "evir-local",
       riskLevel: "L1",
+      requiredCapability: "browserAutomation",
       schema: {
         type: "object",
         properties: {},
@@ -198,6 +202,7 @@ export function createBrowserTools(invoke: InvokeFn = defaultInvoke): readonly T
         "Extract text content from the current page, or from a specific element if a CSS selector is given.",
       source: "evir-local",
       riskLevel: "L1",
+      requiredCapability: "browserAutomation",
       schema: {
         type: "object",
         properties: {

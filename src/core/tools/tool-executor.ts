@@ -1,5 +1,7 @@
 import {
   MODE_TOOL_RISK_LIMITS,
+  type InteractionMode,
+  type ToolDefinition,
   type ToolRegistry,
   type ToolResult,
 } from "../providers/tool-registry";
@@ -9,6 +11,43 @@ import { riskLevelExceeds } from "./tool-registry-impl";
 export const TOOL_PERMISSION_REQUIRED = "permission_required";
 export const TOOL_NOT_AVAILABLE = "not_available_in_browser";
 export const TOOL_DENIED = "tool_denied";
+export const TOOL_NOT_ALLOWED = "tool_not_allowed";
+export const TOOL_CAPABILITY_MISSING = "capability_not_available";
+
+/**
+ * Checks a tool against mode risk limits, runtime capabilities, and L3+ approval
+ * before it is allowed to run. Returns an error code, or null if the tool may execute.
+ */
+export function validateToolForExecution(
+  tool: ToolDefinition,
+  mode: InteractionMode,
+  runtime: EvirRuntime,
+  approved: boolean,
+): string | null {
+  if (riskLevelExceeds(tool.riskLevel, MODE_TOOL_RISK_LIMITS[mode])) {
+    return TOOL_NOT_ALLOWED;
+  }
+  if (tool.requiredCapability && !runtime.has(tool.requiredCapability)) {
+    return TOOL_CAPABILITY_MISSING;
+  }
+  if ((tool.riskLevel === "L3" || tool.riskLevel === "L4") && !approved) {
+    return TOOL_PERMISSION_REQUIRED;
+  }
+  return null;
+}
+
+function messageFor(errorCode: string, tool: ToolDefinition, mode: InteractionMode): string {
+  switch (errorCode) {
+    case TOOL_NOT_ALLOWED:
+      return `Tool ${tool.name} is not allowed in ${mode} mode`;
+    case TOOL_CAPABILITY_MISSING:
+      return `Tool ${tool.name} requires the '${tool.requiredCapability}' capability, which is not available in this runtime`;
+    case TOOL_PERMISSION_REQUIRED:
+      return "Permission required";
+    default:
+      return "Tool execution not allowed";
+  }
+}
 
 export class ToolExecutor {
   constructor(private readonly registry: ToolRegistry) {}
@@ -24,11 +63,9 @@ export class ToolExecutor {
     if (!tool) return failure(`Unknown tool: ${toolName}`, "tool_not_found");
 
     const mode = runtime.mode ?? "ask";
-    if (riskLevelExceeds(tool.riskLevel, MODE_TOOL_RISK_LIMITS[mode])) {
-      return failure(`Tool ${toolName} is not allowed in ${mode} mode`, "tool_not_allowed");
-    }
-    if ((tool.riskLevel === "L3" || tool.riskLevel === "L4") && !approved) {
-      return failure("Permission required", TOOL_PERMISSION_REQUIRED);
+    const validationError = validateToolForExecution(tool, mode, runtime, approved);
+    if (validationError) {
+      return failure(messageFor(validationError, tool, mode), validationError);
     }
 
     try {

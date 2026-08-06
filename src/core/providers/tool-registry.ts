@@ -1,4 +1,6 @@
-import type { EvirRuntime } from "../../runtime/types";
+import type { Capability, EvirRuntime } from "../../runtime/types";
+
+export type { Capability };
 
 export type ToolSource = "evir-local" | "mcp-local" | "mcp-remote" | "provider-server";
 
@@ -16,6 +18,7 @@ export interface ToolDefinition {
   description: string;
   source: ToolSource;
   riskLevel: RiskLevel;
+  requiredCapability?: Capability;
   schema: Record<string, unknown>;
   execute(args: Record<string, unknown>, runtime: EvirRuntime): Promise<ToolResult>;
 }

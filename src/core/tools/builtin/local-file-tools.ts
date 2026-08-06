@@ -304,6 +304,7 @@ export const LOCAL_FILE_TOOLS: readonly ToolDefinition[] = [
     description: "Read text from an absolute local filesystem path.",
     source: "evir-local",
     riskLevel: "L1",
+    requiredCapability: "filesystem",
     schema: pathJsonSchema,
     execute: readFile,
   },
@@ -313,6 +314,7 @@ export const LOCAL_FILE_TOOLS: readonly ToolDefinition[] = [
     description: "List files and directories at an absolute local filesystem path.",
     source: "evir-local",
     riskLevel: "L1",
+    requiredCapability: "filesystem",
     schema: pathJsonSchema,
     execute: listDirectory,
   },
@@ -322,6 +324,7 @@ export const LOCAL_FILE_TOOLS: readonly ToolDefinition[] = [
     description: "Write text content to an absolute local filesystem path.",
     source: "evir-local",
     riskLevel: "L3",
+    requiredCapability: "filesystem",
     schema: {
       ...pathJsonSchema,
       properties: {
@@ -339,6 +342,7 @@ export const LOCAL_FILE_TOOLS: readonly ToolDefinition[] = [
       "Apply a search-and-replace patch to a file. Replaces first occurrence of old_content with new_content.",
     source: "evir-local",
     riskLevel: "L3",
+    requiredCapability: "filesystem",
     schema: {
       type: "object",
       properties: {
@@ -357,6 +361,7 @@ export const LOCAL_FILE_TOOLS: readonly ToolDefinition[] = [
     description: "Search for files by name pattern in a directory tree (max depth 5).",
     source: "evir-local",
     riskLevel: "L1",
+    requiredCapability: "filesystem",
     schema: {
       type: "object",
       properties: {
@@ -375,6 +380,7 @@ export const LOCAL_FILE_TOOLS: readonly ToolDefinition[] = [
       "Execute a program with arguments in the workspace directory. Uses argument array (no shell interpolation).",
     source: "evir-local",
     riskLevel: "L3",
+    requiredCapability: "terminal",
     schema: {
       type: "object",
       properties: {
@@ -394,6 +400,7 @@ export const LOCAL_FILE_TOOLS: readonly ToolDefinition[] = [
     description: "Get git status for a directory. Returns branch and modified files.",
     source: "evir-local",
     riskLevel: "L1",
+    requiredCapability: "git",
     schema: pathJsonSchema,
     execute: gitStatus,
   },
@@ -403,6 +410,7 @@ export const LOCAL_FILE_TOOLS: readonly ToolDefinition[] = [
     description: "Get git diff for a directory. Returns unified diff text.",
     source: "evir-local",
     riskLevel: "L1",
+    requiredCapability: "git",
     schema: {
       type: "object",
       properties: {
@@ -420,6 +428,7 @@ export const LOCAL_FILE_TOOLS: readonly ToolDefinition[] = [
     description: "Create a directory and all parent directories.",
     source: "evir-local",
     riskLevel: "L2",
+    requiredCapability: "filesystem",
     schema: pathJsonSchema,
     execute: createDirectory,
   },
@@ -429,6 +438,7 @@ export const LOCAL_FILE_TOOLS: readonly ToolDefinition[] = [
     description: "Get file metadata (size, modified time, type, symlink status).",
     source: "evir-local",
     riskLevel: "L1",
+    requiredCapability: "filesystem",
     schema: pathJsonSchema,
     execute: fileStat,
   },
@@ -439,6 +449,7 @@ export const LOCAL_FILE_TOOLS: readonly ToolDefinition[] = [
       "Create a snapshot of a file before modification. Returns snapshot_id for later restore.",
     source: "evir-local",
     riskLevel: "L1",
+    requiredCapability: "filesystem",
     schema: {
       type: "object",
       properties: {
@@ -456,6 +467,7 @@ export const LOCAL_FILE_TOOLS: readonly ToolDefinition[] = [
     description: "Restore a file from a previously created snapshot.",
     source: "evir-local",
     riskLevel: "L3",
+    requiredCapability: "filesystem",
     schema: {
       type: "object",
       properties: {
