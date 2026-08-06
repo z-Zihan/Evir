@@ -38,9 +38,9 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
     setMode,
     branchConversation,
     updateConversationProvider,
+    currentConversationId,
   } = useChatStore();
   const { getDefaultProvider, switchProvider } = useProviderStore();
-  const { currentConversationId } = useChatStore();
 
   const handleExportMarkdown = async () => {
     if (!currentConversationId) return;
@@ -51,8 +51,8 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
         .conversations.find((c) => c.id === currentConversationId);
       const title = conv?.title || "conversation";
       downloadBlob(blob, `${title}.md`);
-    } catch {
-      // ignore — no conversation selected
+    } catch (e) {
+      console.error("Failed to export markdown:", e);
     }
   };
   const provider = getDefaultProvider();

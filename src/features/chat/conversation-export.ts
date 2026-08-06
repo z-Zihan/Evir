@@ -30,7 +30,7 @@ export async function exportConversations(): Promise<Blob> {
   return new Blob([JSON.stringify(result, null, 2)], { type: "application/json" });
 }
 
-export async function exportConversation(id: string): Promise<Blob> {
+async function getConversationWithMessages(id: string) {
   const conv = await db.conversations.get(id);
   if (!conv) throw new Error("Conversation not found");
   const messages = await db.messages.where("conversationId").equals(id).sortBy("createdAt");
@@ -40,10 +40,15 @@ export async function exportConversation(id: string): Promise<Blob> {
       return { ...msg, attachments };
     }),
   );
+  return { conv, messages: messagesWithAttachments };
+}
+
+export async function exportConversation(id: string): Promise<Blob> {
+  const { conv, messages } = await getConversationWithMessages(id);
   const data: ExportData = {
     version: 1,
     exportedAt: Date.now(),
-    conversations: [{ ...conv, messages: messagesWithAttachments }],
+    conversations: [{ ...conv, messages: messages }],
   };
   return new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
 }
@@ -64,7 +69,11 @@ function roleLabel(role: string): string {
 }
 
 function escapeMd(text: string): string {
-  return text.replace(/\\([*_`[\]()#])/g, "$1");
+  // Escape inline Markdown special characters
+  let escaped = text.replace(/([*_`[\]()#])/g, "\\$1");
+  // Escape line-start special characters: > -, *, #, = at beginning of line
+  escaped = escaped.replace(/^(>|-{1,2}|\*{1,2}|#{1,6}|=+)/gm, "\\$1");
+  return escaped;
 }
 
 export function exportConversationAsMarkdown(
@@ -97,16 +106,8 @@ export function exportConversationAsMarkdown(
 }
 
 export async function exportConversationMarkdown(id: string): Promise<Blob> {
-  const conv = await db.conversations.get(id);
-  if (!conv) throw new Error("Conversation not found");
-  const messages = await db.messages.where("conversationId").equals(id).sortBy("createdAt");
-  const messagesWithAttachments = await Promise.all(
-    messages.map(async (msg) => {
-      const attachments = await db.attachments.where("messageId").equals(msg.id).toArray();
-      return { ...msg, attachments };
-    }),
-  );
-  const md = exportConversationAsMarkdown(conv, messagesWithAttachments);
+  const { conv, messages } = await getConversationWithMessages(id);
+  const md = exportConversationAsMarkdown(conv, messages);
   return new Blob([md], { type: "text/markdown" });
 }
 
