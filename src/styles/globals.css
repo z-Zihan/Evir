@@ -1498,3 +1498,26 @@ textarea:focus-visible {
 .code-block-copy:hover {
   color: var(--text-primary);
 }
+
+.message-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  margin-top: 0.4rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+
+.message-retry:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+}
+
+.message-retry:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -139,7 +139,18 @@ export function ChatMessage({
           <span className="message-stopped">({t("chat.stopped")})</span>
         )}
         {message.status === "error" && message.errorMessage && (
-          <div className="message-error">{displayError(message.errorMessage)}</div>
+          <div className="message-error">
+            {displayError(message.errorMessage)}
+            <button
+              type="button"
+              className="message-retry"
+              onClick={() => void onRegenerate()}
+              disabled={disabled}
+            >
+              <RotateCcw size={13} />
+              {t("chat.retry")}
+            </button>
+          </div>
         )}
       </div>
       {!isEditing && message.role !== "system" && (

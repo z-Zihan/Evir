@@ -60,7 +60,8 @@
     "currentModel": "Current model",
     "pinFailed": "Failed to pin conversation",
     "copyMessage": "Copy",
-    "tokenCount": "{{count}} tokens"
+    "tokenCount": "{{count}} tokens",
+    "retry": "Retry"
   },
   "runtime": {
     "agentReady": "Local agent runtime",
