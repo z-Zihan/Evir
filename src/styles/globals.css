@@ -22,6 +22,15 @@
   --focus: #7a806f;
   --success: #2f7d4a;
   --danger: #b43a32;
+  /* Aliases for consistent naming */
+  --bg-primary: var(--surface-elevated);
+  --bg-secondary: var(--surface);
+  --bg-tertiary: var(--background);
+  --border-color: var(--border);
+  --text: var(--foreground);
+  --text-muted: var(--muted-foreground);
+  --text-primary: var(--foreground);
+  --input: var(--surface);
 }
 
 :root.dark {
@@ -39,6 +48,15 @@
   --focus: #a9ae9a;
   --success: #76c893;
   --danger: #ef8179;
+  /* Aliases for consistent naming */
+  --bg-primary: var(--surface-elevated);
+  --bg-secondary: var(--surface);
+  --bg-tertiary: var(--background);
+  --border-color: var(--border);
+  --text: var(--foreground);
+  --text-muted: var(--muted-foreground);
+  --text-primary: var(--foreground);
+  --input: var(--surface);
 }
 
 * {

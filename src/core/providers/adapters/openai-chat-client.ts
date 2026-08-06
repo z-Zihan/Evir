@@ -92,8 +92,8 @@ export class OpenAIChatClient implements ProtocolAdapter {
     try {
       const response = await this.request({
         model: config.modelId,
-        messages: [{ role: "user", content: "Reply OK" }],
-        max_tokens: 1,
+        messages: [{ role: "user", content: "Hi" }],
+        max_tokens: 5,
         stream: false,
       });
       return response.ok ? { ok: true } : { ok: false, error: await responseError(response) };
