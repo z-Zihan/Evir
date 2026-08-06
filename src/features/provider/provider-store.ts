@@ -19,12 +19,6 @@ export const providerSchema = z.object({
   modelId: z.string().trim().min(1),
 });
 const updateSchema = providerSchema.extend({ apiKey: z.string().optional() });
-const modelDiscoverySchema = providerSchema.pick({
-  protocolId: true,
-  baseUrl: true,
-  apiKey: true,
-});
-
 export type ProviderConfigInput = z.infer<typeof providerSchema>;
 export type ConnectionResult = { ok: boolean; error?: ProviderError };
 
@@ -141,11 +135,12 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
   },
 
   testConnection: async (input) => {
-    const config = providerSchema.parse(input);
+    const connectionSchema = providerSchema.omit({ name: true });
+    const config = connectionSchema.parse(input);
     const adapter = getAdapter(config.protocolId);
     if (!adapter) throw new Error("Provider adapter not found");
     return adapter.testConnection({
-      providerId: config.name,
+      providerId: input.name || "test",
       modelId: config.modelId,
       authConfig: { baseUrl: config.baseUrl, apiKey: config.apiKey },
     });
@@ -153,7 +148,13 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
 
   fetchModels: async (input) => {
     try {
-      const config = modelDiscoverySchema.parse(input);
+      const config = providerSchema
+        .pick({
+          protocolId: true,
+          baseUrl: true,
+          apiKey: true,
+        })
+        .parse(input);
       return (
         (await listModelsForProtocol(config.protocolId, {
           providerId: config.protocolId,
