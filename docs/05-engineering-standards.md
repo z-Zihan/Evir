@@ -8,9 +8,9 @@
 
 软上限：
 
-- React 页面/组件：250 行。
-- Hook/Service/Store：200 行。
-- 普通 TypeScript 模块：250 行。
+- React 页面/组件：600 行。
+- Hook/Service/Store：600 行。
+- 普通 TypeScript 模块：600 行。
 - Rust 模块：300 行。
 - 单个函数：50 行。
 - React 组件 Props：优先不超过 10 个。

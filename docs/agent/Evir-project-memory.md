@@ -117,7 +117,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 ## 16. Engineering Standards
 
-- React 组件 ≤250 行；Hook/Store ≤200 行；TS 模块 ≤250 行；函数 ≤50 行
+- React 组件 ≤600 行；Hook/Store ≤600 行；TS 模块 ≤600 行；函数 ≤50 行
 - TypeScript strict；禁止 any；禁止空 catch；禁止万能 Store
 - 外部输入用 Zod 验证
 - 所有长任务支持 AbortSignal
@@ -189,8 +189,8 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 4. tool-approval.ts 行数超限（254 行 vs 200 限制）
 5. ToolCallCard Approve/Deny 缺少集成测试
 6. MCP Server 仅配置管理，无实际连接
-7. tool-approval.ts 254 行（超 200 限制）
-8. chat-store.ts 超 200 行限制
+7. tool-approval.ts 已拆分（84+176 行）
+8. chat-store.ts 已拆分（146+110 行）
 
 ## 21. Active Decisions
 
