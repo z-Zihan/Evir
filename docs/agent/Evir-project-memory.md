@@ -168,6 +168,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - Desktop 已启动验证（pnpm dev:desktop ✅）
 
 **阶段 3 新增：**
+
 - LLM 对话摘要（>75% 自动用模型压缩旧消息，保留目标/约束/文件路径/命令/错误）
 - 记忆系统（会话/工作区/全局 + pinned + 隐私会话 + Dexie 持久化）
 - MemorySettings UI（设置面板 memory tab，增删改查+置顶）
@@ -177,6 +178,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - 隐私会话 toggle（Sidebar 🔒/🔓 按钮，跳过记忆注入）
 
 **阶段 4 新增：**
+
 - Skill 创建/删除/导入（skill-store: importSkill/createSkill/deleteSkill）
 - Skill 路由器（关键词匹配 + 模式表 + 匹配原因，6 tests）
 - SkillSettings UI 升级（创建表单 + 删除按钮 + 源标记）
