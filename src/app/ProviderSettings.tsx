@@ -71,25 +71,40 @@ export function ProviderSettings() {
   };
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="provider-settings flex flex-col gap-3">
       {providers.length > 0 && (
-        <div className="provider-list">
+        <div className="flex flex-col gap-2">
           {providers.map((p) => (
-            <div key={p.id} className="provider-item">
-              <div className="provider-info">
-                <strong>{p.name}</strong>
-                <span className="provider-meta">
+            <div
+              key={p.id}
+              className="flex items-center justify-between gap-2 p-3 border border-border rounded-lg bg-surface"
+            >
+              <div className="flex flex-col gap-0.5">
+                <strong className="text-sm font-semibold">{p.name}</strong>
+                <span className="text-xs text-muted">
                   {p.modelId} · {p.protocolId}
                 </span>
-                {p.isDefault && <span className="badge">{t("provider.default")}</span>}
+                {p.isDefault && (
+                  <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-primary text-primary-fg w-fit">
+                    {t("provider.default")}
+                  </span>
+                )}
               </div>
-              <div className="provider-actions">
+              <div className="flex items-center gap-2">
                 {!p.isDefault && (
-                  <button type="button" onClick={() => void setDefaultProvider(p.id)}>
+                  <button
+                    type="button"
+                    className="px-3 py-1 border border-border rounded-lg bg-surface hover:border-primary hover:text-primary cursor-pointer text-sm transition"
+                    onClick={() => void setDefaultProvider(p.id)}
+                  >
                     {t("provider.setDefault")}
                   </button>
                 )}
-                <button type="button" onClick={() => void deleteProvider(p.id)}>
+                <button
+                  type="button"
+                  className="px-3 py-1 border border-border rounded-lg bg-surface hover:border-primary hover:text-primary cursor-pointer text-sm transition"
+                  onClick={() => void deleteProvider(p.id)}
+                >
                   {t("provider.delete")}
                 </button>
               </div>
@@ -98,7 +113,7 @@ export function ProviderSettings() {
         </div>
       )}
       {showForm ? (
-        <div className="provider-form">
+        <div className="flex flex-col gap-2 p-3 border border-border rounded-lg bg-surface">
           <label>
             {t("provider.name")}
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />

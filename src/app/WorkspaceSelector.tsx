@@ -1,9 +1,15 @@
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useWorkspaceStore } from "../features/workspace/workspace-store";
 
 export function WorkspaceSelector() {
   const { t } = useTranslation();
-  const { currentWorkspace, setWorkspace, clearWorkspace, recentWorkspaces } = useWorkspaceStore();
+  const { currentWorkspace, setWorkspace, clearWorkspace, recentWorkspaces, loadWorkspace } =
+    useWorkspaceStore();
+
+  useEffect(() => {
+    loadWorkspace();
+  }, [loadWorkspace]);
 
   async function handleSelect() {
     try {
