@@ -38,14 +38,18 @@
 }
 
 .brand-mark {
+  overflow: hidden;
   width: 30px;
   height: 30px;
   border-radius: 9px;
-  background: var(--foreground);
-  color: var(--surface);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, white 12%, transparent);
-  font-size: 13px;
-  letter-spacing: -0.04em;
+  background: #14171b;
+  box-shadow: 0 2px 7px color-mix(in srgb, black 12%, transparent);
+}
+
+.brand-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .brand-lockup {

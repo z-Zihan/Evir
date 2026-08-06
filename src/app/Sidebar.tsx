@@ -162,7 +162,7 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
     <aside className="sidebar">
       <div className="brand-row">
         <div className="brand-mark" aria-hidden="true">
-          E
+          <img src="/evir-mark.svg" alt="" />
         </div>
         <div className="brand-lockup">
           <strong className="brand-name">Evir</strong>
