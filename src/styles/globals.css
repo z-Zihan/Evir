@@ -799,6 +799,60 @@ textarea:focus-visible {
   text-decoration: underline;
 }
 
+/* Conversation Pin + Rename + Actions */
+.conversation-item.pinned {
+  background: color-mix(in srgb, var(--focus) 6%, transparent);
+}
+.pin-indicator {
+  color: var(--focus);
+  flex-shrink: 0;
+}
+.conversation-actions {
+  display: none;
+  gap: 2px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.conversation-item:hover .conversation-actions {
+  display: flex;
+}
+.conversation-item.active .conversation-actions {
+  display: flex;
+}
+.conversation-action-btn {
+  background: none;
+  border: none;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.conversation-action-btn:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+.rename-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--focus);
+  border-radius: 4px;
+  color: var(--text);
+  padding: 2px 6px;
+  font-size: 13px;
+  outline: none;
+}
+.conversation-item .conversation-delete {
+  display: none;
+}
+.conversation-item:hover .conversation-delete,
+.conversation-item.active .conversation-delete {
+  display: flex;
+}
+
 /* Modal */
 .modal-backdrop {
   position: fixed;

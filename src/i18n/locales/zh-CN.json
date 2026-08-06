@@ -4,7 +4,11 @@
     "recent": "最近",
     "noConversations": "暂无会话",
     "searchPlaceholder": "搜索对话…",
-    "noResults": "无匹配结果"
+    "noResults": "无匹配结果",
+    "pin": "置顶",
+    "unpin": "取消置顶",
+    "rename": "重命名",
+    "pinned": "已置顶"
   },
   "chat": {
     "title": "新对话",

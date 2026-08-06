@@ -4,7 +4,11 @@
     "recent": "Recent",
     "noConversations": "No conversations yet",
     "searchPlaceholder": "Search conversations…",
-    "noResults": "No matches"
+    "noResults": "No matches",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "rename": "Rename",
+    "pinned": "Pinned"
   },
   "chat": {
     "title": "New conversation",

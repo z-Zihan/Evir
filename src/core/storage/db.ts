@@ -22,6 +22,7 @@ export interface ConversationRecord {
   updatedAt: number;
   parentConversationId?: string;
   branchedFromMessageId?: string;
+  pinned?: number;
 }
 
 export interface AttachmentRecord {

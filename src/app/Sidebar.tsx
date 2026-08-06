@@ -1,6 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { GitBranch, MessageSquarePlus, Moon, Search, Settings2, Sun, Trash2 } from "lucide-react";
+import {
+  Check,
+  GitBranch,
+  MessageSquarePlus,
+  Moon,
+  Pin,
+  Search,
+  Settings2,
+  Sun,
+  Trash2,
+} from "lucide-react";
 import { useChatStore } from "../features/chat/chat-store";
 import { useProviderStore } from "../features/provider/provider-store";
 import { useThemeStore } from "../features/settings/theme-store";
@@ -18,21 +28,31 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
     selectConversation,
     deleteConversation,
     createConversation,
+    renameConversation,
+    togglePin,
   } = useChatStore();
   const { getDefaultProvider } = useProviderStore();
   const { resolvedTheme, cycleTheme } = useThemeStore();
   const [searchQuery, setSearchQuery] = useState("");
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     focusSearchRef.current = () => searchRef.current?.focus();
     return () => {
       focusSearchRef.current = null;
     };
   }, [focusSearchRef]);
+
   const provider = getDefaultProvider();
+
   const filteredConversations = conversations.filter(({ title }) =>
     title.toLowerCase().includes(searchQuery.trim().toLowerCase()),
   );
+
+  const pinned = filteredConversations.filter((c) => c.pinned);
+  const unpinned = filteredConversations.filter((c) => !c.pinned);
 
   const handleNewChat = () => {
     if (provider) void createConversation(provider.id, provider.modelId);
@@ -40,8 +60,99 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
   };
 
   const handleSelectConversation = (id: string) => {
+    if (renamingId !== null) return;
     setSearchQuery("");
     void selectConversation(id);
+  };
+
+  const handleStartRename = (id: string, currentTitle: string) => {
+    setRenamingId(id);
+    setRenameValue(currentTitle);
+  };
+
+  const handleCommitRename = () => {
+    if (renamingId) {
+      void renameConversation(renamingId, renameValue);
+    }
+    setRenamingId(null);
+    setRenameValue("");
+  };
+
+  const handleRenameKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleCommitRename();
+    } else if (e.key === "Escape") {
+      setRenamingId(null);
+      setRenameValue("");
+    }
+  };
+
+  const renderConversation = (conv: (typeof conversations)[number]) => {
+    const isActive = conv.id === currentConversationId;
+    const isRenaming = renamingId === conv.id;
+
+    return (
+      <div
+        key={conv.id}
+        className={`conversation-item${isActive ? " active" : ""}${conv.pinned ? " pinned" : ""}`}
+        onClick={() => handleSelectConversation(conv.id)}
+        onDoubleClick={() => handleStartRename(conv.id, conv.title)}
+      >
+        {conv.pinned === 1 && <Pin size={11} className="pin-indicator" />}
+        {isRenaming ? (
+          <input
+            className="rename-input"
+            type="text"
+            value={renameValue}
+            autoFocus
+            onChange={(e) => setRenameValue(e.target.value)}
+            onBlur={handleCommitRename}
+            onKeyDown={handleRenameKeyDown}
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <span className="conversation-title">
+            {conv.title || t("chat.title")}
+            {conv.parentConversationId && (
+              <span className="conversation-branch-indicator">
+                <GitBranch size={11} />
+                {t("chat.branched")}
+              </span>
+            )}
+          </span>
+        )}
+        {!isRenaming && (
+          <div className="conversation-actions" onClick={(e) => e.stopPropagation()}>
+            <button
+              className="conversation-action-btn"
+              type="button"
+              aria-label={conv.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
+              title={conv.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
+              onClick={() => void togglePin(conv.id)}
+            >
+              <Pin size={13} />
+            </button>
+            <button
+              className="conversation-action-btn"
+              type="button"
+              aria-label={t("sidebar.rename")}
+              title={t("sidebar.rename")}
+              onClick={() => handleStartRename(conv.id, conv.title)}
+            >
+              <Check size={13} />
+            </button>
+            <button
+              className="conversation-delete"
+              type="button"
+              aria-label={t("provider.delete")}
+              onClick={() => void deleteConversation(conv.id)}
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -65,42 +176,19 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
           aria-label={t("sidebar.searchPlaceholder")}
         />
       </label>
+      {pinned.length > 0 && (
+        <>
+          <div className="section-label">{t("sidebar.pinned")}</div>
+          <div className="conversation-list">{pinned.map(renderConversation)}</div>
+        </>
+      )}
       <div className="section-label">{t("sidebar.recent")}</div>
       {conversations.length === 0 ? (
         <div className="empty-list">{t("sidebar.noConversations")}</div>
       ) : filteredConversations.length === 0 ? (
         <div className="empty-list">{t("sidebar.noResults")}</div>
       ) : (
-        <div className="conversation-list">
-          {filteredConversations.map((conv) => (
-            <div
-              key={conv.id}
-              className={`conversation-item${conv.id === currentConversationId ? " active" : ""}`}
-              onClick={() => handleSelectConversation(conv.id)}
-            >
-              <span className="conversation-title">
-                {conv.title || t("chat.title")}
-                {conv.parentConversationId && (
-                  <span className="conversation-branch-indicator">
-                    <GitBranch size={11} />
-                    {t("chat.branched")}
-                  </span>
-                )}
-              </span>
-              <button
-                className="conversation-delete"
-                type="button"
-                aria-label={t("provider.delete")}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  void deleteConversation(conv.id);
-                }}
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
-          ))}
-        </div>
+        <div className="conversation-list">{unpinned.map(renderConversation)}</div>
       )}
       <div className="sidebar-footer">
         <button
