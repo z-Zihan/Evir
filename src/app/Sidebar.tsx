@@ -52,8 +52,12 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
     title.toLowerCase().includes(searchQuery.trim().toLowerCase()),
   );
 
-  const pinned = filteredConversations.filter((c) => c.pinned);
-  const unpinned = filteredConversations.filter((c) => !c.pinned);
+  const pinned = filteredConversations
+    .filter((c) => c.pinned)
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+  const unpinned = filteredConversations
+    .filter((c) => !c.pinned)
+    .sort((a, b) => b.updatedAt - a.updatedAt);
 
   const handleNewChat = () => {
     if (provider) void createConversation(provider.id, provider.modelId);
