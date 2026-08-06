@@ -117,7 +117,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 ## 16. Engineering Standards
 
-- React 组件 ≤600 行；Hook/Store ≤600 行；TS 模块 ≤600 行；函数 ≤50 行
+- React 组件 ≤600 行；Hook/Store ≤600 行；TS 模块 ≤600 行；函数 ≤200 行
 - TypeScript strict；禁止 any；禁止空 catch；禁止万能 Store
 - 外部输入用 Zod 验证
 - 所有长任务支持 AbortSignal
