@@ -14,6 +14,15 @@ import { streamResponse } from "./stream-response";
 import { getRuntime } from "../../runtime/use-runtime";
 import { branchConversation as doBranchConversation } from "./branch-conversation";
 import { approveTool, denyTool, type PendingToolApproval } from "./tool-approval";
+import {
+  loadConversations as doLoadConversations,
+  createConversation as doCreateConversation,
+  selectConversation as doSelectConversation,
+  deleteConversation as doDeleteConversation,
+  renameConversation as doRenameConversation,
+  togglePin as doTogglePin,
+  updateConversationProvider as doUpdateConversationProvider,
+} from "./conversation-ops";
 export interface ChatState {
   conversations: ConversationRecord[];
   currentConversationId: string | null;
@@ -53,88 +62,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
   error: null,
   pendingAttachments: [],
   pendingToolApproval: null,
-  loadConversations: async () => {
-    set({ conversations: await db.conversations.orderBy("updatedAt").reverse().toArray() });
-  },
-  createConversation: async (providerId, modelId) => {
-    const now = Date.now();
-    const conversation: ConversationRecord = {
-      id: crypto.randomUUID(),
-      title: "",
-      providerId,
-      modelId,
-      createdAt: now,
-      updatedAt: now,
-    };
-    await db.conversations.add(conversation);
-    set(({ conversations }) => ({
-      conversations: [conversation, ...conversations],
-      currentConversationId: conversation.id,
-      messages: [],
-      error: null,
-    }));
-    return conversation.id;
-  },
-  selectConversation: async (id) => {
-    const messages = await db.messages.where("conversationId").equals(id).sortBy("createdAt");
-    set({
-      currentConversationId: id,
-      messages,
-      streamingContent: "",
-      error: null,
-      pendingAttachments: [],
-      pendingToolApproval: null,
-    });
-  },
-  deleteConversation: async (id) => {
-    await db.transaction("rw", db.conversations, db.messages, db.attachments, async () => {
-      const messageIds = await db.messages.where("conversationId").equals(id).primaryKeys();
-      await db.attachments.where("messageId").anyOf(messageIds).delete();
-      await db.messages.where("conversationId").equals(id).delete();
-      await db.conversations.delete(id);
-    });
-    set(({ conversations, currentConversationId }) => ({
-      conversations: conversations.filter((conversation) => conversation.id !== id),
-      ...(currentConversationId === id
-        ? {
-            currentConversationId: null,
-            messages: [],
-            streamingContent: "",
-            pendingAttachments: [],
-            pendingToolApproval: null,
-          }
-        : {}),
-    }));
-  },
-  renameConversation: async (id, title) => {
-    const cleanTitle = title.trim();
-    if (!cleanTitle) return;
-    await db.conversations.update(id, { title: cleanTitle, updatedAt: Date.now() });
-    set(({ conversations }) => ({
-      conversations: conversations.map((conversation) =>
-        conversation.id === id ? { ...conversation, title: cleanTitle } : conversation,
-      ),
-    }));
-  },
-  togglePin: async (id) => {
-    const conv = get().conversations.find((c) => c.id === id);
-    const newPinned = conv?.pinned ? 0 : 1;
-    await db.conversations.update(id, { pinned: newPinned, updatedAt: Date.now() });
-    set(({ conversations }) => ({
-      conversations: conversations.map((c) => (c.id === id ? { ...c, pinned: newPinned } : c)),
-    }));
-  },
-  updateConversationProvider: async (providerId, modelId) => {
-    const { currentConversationId } = get();
-    if (!currentConversationId) return;
-    const now = Date.now();
-    await db.conversations.update(currentConversationId, { providerId, modelId, updatedAt: now });
-    set(({ conversations }) => ({
-      conversations: conversations.map((c) =>
-        c.id === currentConversationId ? { ...c, providerId, modelId, updatedAt: now } : c,
-      ),
-    }));
-  },
+  loadConversations: async () => doLoadConversations(set),
+  createConversation: async (providerId, modelId) => doCreateConversation(set, providerId, modelId),
+  selectConversation: async (id) => doSelectConversation(set, id),
+  deleteConversation: async (id) => doDeleteConversation(set, id),
+  renameConversation: async (id, title) => doRenameConversation(set, id, title),
+  togglePin: async (id) => doTogglePin(set, get, id),
+  updateConversationProvider: async (providerId, modelId) =>
+    doUpdateConversationProvider(set, get, providerId, modelId),
   addAttachment: async (file) => {
     const current = get().pendingAttachments;
     if (!validateAttachmentCount(current.length)) {
