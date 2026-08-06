@@ -46,6 +46,10 @@ pub fn run() {
             commands::run_command,
             commands::git_status,
             commands::git_diff,
+            commands::fs_create_directory,
+            commands::fs_file_stat,
+            commands::fs_create_snapshot,
+            commands::fs_restore_snapshot,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Evir");

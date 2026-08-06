@@ -2,7 +2,7 @@
 use std::{
     path::{Component, Path, PathBuf},
     process::Command as StdCommand,
-    time::UNIX_EPOCH,
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use keyring::Entry;
@@ -141,7 +141,7 @@ fn validate_path(path: &str) -> Result<PathBuf, String> {
     {
         return Err("path must not contain parent directory traversal".to_owned());
     }
-    let canonical = path_buf.canonicalize().unwrap_or(path_buf);
+    let canonical = path_buf.canonicalize().unwrap_or(path_buf.clone());
     let blocked = [
         "/etc",
         "/var",
@@ -157,7 +157,42 @@ fn validate_path(path: &str) -> Result<PathBuf, String> {
             return Err(format!("access to {prefix} is not allowed"));
         }
     }
+    // Block symlink escape: if the canonical path differs from the requested path
+    // and the canonical path is a symlink target outside allowed dirs, check
+    if canonical != *path_buf {
+        // Re-validate the canonical path against blocked prefixes
+        let canon_str = canonical.to_string_lossy();
+        for prefix in blocked {
+            if canon_str.starts_with(prefix) {
+                return Err(format!("symlink escapes to blocked path: {prefix}"));
+            }
+        }
+    }
     Ok(canonical)
+}
+
+/// Validate that a path is inside the workspace root.
+fn validate_path_in_workspace(path: &str, workspace_root: &str) -> Result<PathBuf, String> {
+    let validated = validate_path(path)?;
+    let root = PathBuf::from(workspace_root);
+    let root_canonical = root.canonicalize().map_err(|e| format!("workspace root not accessible: {e}"))?;
+    let validated_str = validated.to_string_lossy();
+    let root_str = root_canonical.to_string_lossy();
+    if !validated_str.starts_with(&*root_str) {
+        return Err(format!("path '{validated_str}' is outside workspace '{root_str}'"));
+    }
+    // Check for symlink escape: resolve all symlinks and verify still inside workspace
+    let real = validated.canonicalize().map_err(|e| format!("cannot resolve path: {e}"))?;
+    let real_str = real.to_string_lossy();
+    if !real_str.starts_with(&*root_str) {
+        return Err("symlink escapes workspace boundary".to_owned());
+    }
+    Ok(real)
+}
+
+/// Check if a path is a symlink
+fn is_symlink(path: &Path) -> bool {
+    std::fs::symlink_metadata(path).map(|m| m.file_type().is_symlink()).unwrap_or(false)
 }
 
 fn file_info_from_path(path: &Path) -> Result<FileInfo, String> {
@@ -402,6 +437,185 @@ pub(crate) fn git_diff(path: String, staged: bool) -> Result<String, String> {
     let output = cmd.output().map_err(|error| error.to_string())?;
     let diff = String::from_utf8_lossy(&output.stdout);
     Ok(truncate_string(&diff, 100_000))
+}
+
+
+#[derive(Serialize)]
+pub struct FileStat {
+    name: String,
+    path: String,
+    is_dir: bool,
+    is_file: bool,
+    is_symlink: bool,
+    size: u64,
+    modified: Option<u64>,
+    exists: bool,
+}
+
+/// Create a directory (and parents) if it doesn't exist.
+#[tauri::command]
+pub(crate) fn fs_create_directory(path: String) -> Result<(), String> {
+    let validated = validate_path(&path)?;
+    std::fs::create_dir_all(&validated).map_err(|error| error.to_string())
+}
+
+/// Get detailed file metadata.
+#[tauri::command]
+pub(crate) fn fs_file_stat(path: String) -> Result<FileStat, String> {
+    let validated = validate_path(&path)?;
+    let metadata = match std::fs::metadata(&validated) {
+        Ok(m) => m,
+        Err(_) => {
+            return Ok(FileStat {
+                name: validated.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
+                path: validated.to_string_lossy().into_owned(),
+                is_dir: false,
+                is_file: false,
+                is_symlink: false,
+                size: 0,
+                modified: None,
+                exists: false,
+            });
+        }
+    };
+    let modified = metadata.modified().ok().and_then(|time| {
+        time.duration_since(UNIX_EPOCH).ok().and_then(|v| u64::try_from(v.as_millis()).ok())
+    });
+    let is_symlink = is_symlink(&validated);
+    Ok(FileStat {
+        name: validated.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
+        path: validated.to_string_lossy().into_owned(),
+        is_dir: metadata.is_dir(),
+        is_file: metadata.is_file(),
+        is_symlink,
+        size: metadata.len(),
+        modified,
+        exists: true,
+    })
+}
+
+#[derive(Serialize)]
+pub struct SnapshotResult {
+    snapshot_id: String,
+    file_path: String,
+    existed: bool,
+    original_hash: Option<String>,
+}
+
+/// Create a snapshot of a file before modification.
+/// Saves the original content to app data dir for later restoration.
+#[tauri::command]
+pub(crate) fn fs_create_snapshot(
+    app: AppHandle,
+    file_path: String,
+    run_id: String,
+) -> Result<SnapshotResult, String> {
+    let validated = validate_path(&file_path)?;
+    let data_dir = app_data_dir(&app)?;
+    let snapshot_dir = data_dir.join("snapshots").join(&run_id);
+    std::fs::create_dir_all(&snapshot_dir).map_err(|e| e.to_string())?;
+
+    let file_name = validated.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or("file".to_owned());
+    let snapshot_path = snapshot_dir.join(format!("{}_{}", uuid_string(), file_name));
+
+    let exists = validated.exists();
+    let original_hash = if exists {
+        let content = std::fs::read(&validated).map_err(|e| e.to_string())?;
+        let hash = simple_hash(&content);
+        std::fs::write(&snapshot_path, &content).map_err(|e| e.to_string())?;
+        Some(hash)
+    } else {
+        None
+    };
+
+    let snapshot_id = uuid_string();
+    // Record metadata
+    let meta = serde_json::json!({
+        "snapshot_id": &snapshot_id,
+        "file_path": validated.to_string_lossy(),
+        "snapshot_path": snapshot_path.to_string_lossy(),
+        "existed": exists,
+        "original_hash": &original_hash,
+        "run_id": &run_id,
+        "created_at": SystemTime_now_ms(),
+    });
+    let meta_path = snapshot_dir.join(format!("{}.json", &snapshot_id));
+    std::fs::write(&meta_path, meta.to_string()).map_err(|e| e.to_string())?;
+
+    Ok(SnapshotResult {
+        snapshot_id,
+        file_path: validated.to_string_lossy().into_owned(),
+        existed: exists,
+        original_hash,
+    })
+}
+
+/// Restore a file from a snapshot.
+#[tauri::command]
+pub(crate) fn fs_restore_snapshot(
+    app: AppHandle,
+    snapshot_id: String,
+    run_id: String,
+    file_path: String,
+) -> Result<bool, String> {
+    let data_dir = app_data_dir(&app)?;
+    let snapshot_dir = data_dir.join("snapshots").join(&run_id);
+    let meta_path = snapshot_dir.join(format!("{}.json", &snapshot_id));
+    let meta_str = std::fs::read_to_string(&meta_path).map_err(|e| format!("snapshot not found: {e}"))?;
+    let meta: serde_json::Value = serde_json::from_str(&meta_str).map_err(|e| e.to_string())?;
+    let snapshot_path = meta["snapshot_path"].as_str().ok_or("invalid snapshot metadata")?;
+    let existed = meta["existed"].as_bool().unwrap_or(false);
+    let original_hash = meta["original_hash"].as_str();
+
+    let target = validate_path(&file_path)?;
+
+    // Check if the file has been modified since snapshot
+    if target.exists() && original_hash.is_some() {
+        let current = std::fs::read(&target).map_err(|e| e.to_string())?;
+        let current_hash = simple_hash(&current);
+        if current_hash != original_hash.unwrap() {
+            // Check if current content matches what we'd restore (already restored)
+            let snapshot_content = std::fs::read(snapshot_path).map_err(|e| e.to_string())?;
+            if current == snapshot_content {
+                return Ok(true); // Already restored
+            }
+            return Err("file has been modified since snapshot — cannot safely auto-restore".to_owned());
+        }
+    }
+
+    if existed {
+        std::fs::copy(snapshot_path, &target).map_err(|e| e.to_string())?;
+    } else {
+        // File didn't exist before — delete it
+        if target.exists() {
+            std::fs::remove_file(&target).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(true)
+}
+
+fn uuid_string() -> String {
+    use std::time::SystemTime;
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    format!("{}-{}", now.as_millis(), now.subsec_nanos() % 100000)
+}
+
+fn simple_hash(data: &[u8]) -> String {
+    // Simple FNV-1a hash for content verification
+    let mut hash: u64 = 0xcbf29ce484222325;
+    for &byte in data {
+        hash ^= byte as u64;
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    format!("{:016x}", hash)
+}
+
+fn SystemTime_now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .ok()
+        .and_then(|v| u64::try_from(v.as_millis()).ok())
+        .unwrap_or(0)
 }
 
 fn validate_query_sql(sql: &str) -> Result<(), String> {

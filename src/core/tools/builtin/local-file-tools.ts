@@ -217,6 +217,86 @@ async function gitDiff(args: Record<string, unknown>, runtime: EvirRuntime): Pro
   }
 }
 
+async function createDirectory(
+  args: Record<string, unknown>,
+  runtime: EvirRuntime,
+): Promise<ToolResult> {
+  if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
+  const parsed = pathArgsSchema.safeParse(args);
+  if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
+  const safePath = validatePath(parsed.data.path);
+  if (!safePath) return pathBlocked();
+  try {
+    await runtime.storage.createDirectory(safePath);
+    return { success: true, output: `created directory: ${safePath}` };
+  } catch (error) {
+    return toolError(error);
+  }
+}
+
+async function fileStat(args: Record<string, unknown>, runtime: EvirRuntime): Promise<ToolResult> {
+  if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
+  const parsed = pathArgsSchema.safeParse(args);
+  if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
+  const safePath = validatePath(parsed.data.path);
+  if (!safePath) return pathBlocked();
+  try {
+    const stat = await runtime.storage.fileStat(safePath);
+    return { success: true, output: JSON.stringify(stat, null, 2) };
+  } catch (error) {
+    return toolError(error);
+  }
+}
+
+const snapshotArgsSchema = z
+  .object({ file_path: z.string().min(1), run_id: z.string().min(1) })
+  .strict();
+const restoreArgsSchema = z
+  .object({
+    snapshot_id: z.string().min(1),
+    run_id: z.string().min(1),
+    file_path: z.string().min(1),
+  })
+  .strict();
+
+async function createSnapshot(
+  args: Record<string, unknown>,
+  runtime: EvirRuntime,
+): Promise<ToolResult> {
+  if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
+  const parsed = snapshotArgsSchema.safeParse(args);
+  if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
+  const safePath = validatePath(parsed.data.file_path);
+  if (!safePath) return pathBlocked();
+  try {
+    const result = await runtime.storage.createSnapshot(safePath, parsed.data.run_id);
+    return { success: true, output: `snapshot created: ${result.snapshot_id}` };
+  } catch (error) {
+    return toolError(error);
+  }
+}
+
+async function restoreSnapshot(
+  args: Record<string, unknown>,
+  runtime: EvirRuntime,
+): Promise<ToolResult> {
+  if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
+  const parsed = restoreArgsSchema.safeParse(args);
+  if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
+  const safePath = validatePath(parsed.data.file_path);
+  if (!safePath) return pathBlocked();
+  try {
+    const ok = await runtime.storage.restoreSnapshot(
+      parsed.data.snapshot_id,
+      parsed.data.run_id,
+      safePath,
+    );
+    return { success: ok, output: ok ? "file restored from snapshot" : "restore failed" };
+  } catch (error) {
+    return toolError(error);
+  }
+}
+
 export const LOCAL_FILE_TOOLS: readonly ToolDefinition[] = [
   {
     id: "read_file",
@@ -333,5 +413,59 @@ export const LOCAL_FILE_TOOLS: readonly ToolDefinition[] = [
       additionalProperties: false,
     },
     execute: gitDiff,
+  },
+  {
+    id: "create_directory",
+    name: "create_directory",
+    description: "Create a directory and all parent directories.",
+    source: "evir-local",
+    riskLevel: "L2",
+    schema: pathJsonSchema,
+    execute: createDirectory,
+  },
+  {
+    id: "file_stat",
+    name: "file_stat",
+    description: "Get file metadata (size, modified time, type, symlink status).",
+    source: "evir-local",
+    riskLevel: "L1",
+    schema: pathJsonSchema,
+    execute: fileStat,
+  },
+  {
+    id: "create_snapshot",
+    name: "create_snapshot",
+    description:
+      "Create a snapshot of a file before modification. Returns snapshot_id for later restore.",
+    source: "evir-local",
+    riskLevel: "L1",
+    schema: {
+      type: "object",
+      properties: {
+        file_path: { type: "string", description: "Absolute file path" },
+        run_id: { type: "string", description: "Agent run ID" },
+      },
+      required: ["file_path", "run_id"],
+      additionalProperties: false,
+    },
+    execute: createSnapshot,
+  },
+  {
+    id: "restore_snapshot",
+    name: "restore_snapshot",
+    description: "Restore a file from a previously created snapshot.",
+    source: "evir-local",
+    riskLevel: "L3",
+    schema: {
+      type: "object",
+      properties: {
+        snapshot_id: { type: "string" },
+        run_id: { type: "string" },
+        file_path: { type: "string", description: "Absolute file path" },
+      },
+      required: ["snapshot_id", "run_id", "file_path"],
+      additionalProperties: false,
+    },
+    execute: restoreSnapshot,
   },
 ];

@@ -20,6 +20,10 @@ export interface DesktopStorageAdapter {
   ): Promise<CommandResult>;
   gitStatus(path: string): Promise<GitStatusResult>;
   gitDiff(path: string, staged: boolean): Promise<string>;
+  createDirectory(path: string): Promise<void>;
+  fileStat(path: string): Promise<FileStat>;
+  createSnapshot(filePath: string, runId: string): Promise<SnapshotResult>;
+  restoreSnapshot(snapshotId: string, runId: string, filePath: string): Promise<boolean>;
 }
 
 export interface FileInfo {
@@ -40,6 +44,24 @@ export interface CommandResult {
 export interface GitStatusEntry {
   status: string;
   file: string;
+}
+
+export interface FileStat {
+  name: string;
+  path: string;
+  is_dir: boolean;
+  is_file: boolean;
+  is_symlink: boolean;
+  size: number;
+  modified: number | null;
+  exists: boolean;
+}
+
+export interface SnapshotResult {
+  snapshot_id: string;
+  file_path: string;
+  existed: boolean;
+  original_hash: string | null;
 }
 
 export interface GitStatusResult {
@@ -65,4 +87,9 @@ export const desktopStorage: DesktopStorageAdapter = {
     invoke("run_command", { cwd, program, args, timeoutMs }),
   gitStatus: (path) => invoke("git_status", { path }),
   gitDiff: (path, staged) => invoke("git_diff", { path, staged }),
+  createDirectory: (path) => invoke("fs_create_directory", { path }),
+  fileStat: (path) => invoke("fs_file_stat", { path }),
+  createSnapshot: (filePath, runId) => invoke("fs_create_snapshot", { filePath, runId }),
+  restoreSnapshot: (snapshotId, runId, filePath) =>
+    invoke("fs_restore_snapshot", { snapshotId, runId, filePath }),
 };

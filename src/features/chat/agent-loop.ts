@@ -139,6 +139,46 @@ function findBlockedCall(
     : undefined;
 }
 
+// Loop detection: track repeated tool calls
+interface LoopDetector {
+  callHistory: Map<string, number>; // key: "toolName:argsHash" → count
+  errorHistory: Map<string, number>; // key: error message → count
+}
+
+function makeLoopDetector(): LoopDetector {
+  return { callHistory: new Map(), errorHistory: new Map() };
+}
+
+function toolCallKey(toolName: string, args: Record<string, unknown>): string {
+  // Only flag truly identical calls — same tool + same serialized args
+  // This is normal in agent loops (e.g. reading multiple files with same tool)
+  // Only flag when the EXACT same call (same args) happens many times
+  return `${toolName}:${JSON.stringify(args)}`;
+}
+
+function checkLoop(
+  detector: LoopDetector,
+  toolName: string,
+  args: Record<string, unknown>,
+): string | null {
+  const key = toolCallKey(toolName, args);
+  const count = (detector.callHistory.get(key) ?? 0) + 1;
+  detector.callHistory.set(key, count);
+  if (count === 6)
+    return `Warning: tool "${toolName}" called with same args twice. Consider a different approach.`;
+  if (count >= 12)
+    return `Loop detected: tool "${toolName}" called ${count} times with identical args. Stopping.`;
+  return null;
+}
+
+function trackError(detector: LoopDetector, error: string): string | null {
+  const count = (detector.errorHistory.get(error) ?? 0) + 1;
+  detector.errorHistory.set(error, count);
+  if (count >= 12)
+    return `Repeated error ${count} times: "${error}". Stopping to avoid infinite retry.`;
+  return null;
+}
+
 export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoopResult> {
   const turns: AgentLoopTurn[] = [];
   const messages = [...options.messages];
@@ -146,6 +186,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
   const tools = providerTools(definitions);
   const maximum = options.maxIterations ?? MAX_AGENT_ITERATIONS;
   const runtime = { ...options.runtime, mode: "agent" as const };
+  const loopDetector = makeLoopDetector();
 
   for (let iteration = 0; iteration < maximum; iteration += 1) {
     const stream = await streamAssistant(
@@ -159,7 +200,32 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
       turns.push({ stream });
       return { turns, maxIterationsReached: false, messages };
     }
+    // Loop detection: check each tool call
+    for (const rawCall of stream.toolCalls) {
+      const args = parseArguments(rawCall.arguments) ?? {};
+      const warning = checkLoop(loopDetector, rawCall.toolName, args);
+      if (warning) {
+        if (warning.startsWith("Loop detected")) {
+          turns.push({
+            stream: { ...stream, content: `${stream.content}\n\n⚠️ ${warning}` },
+          });
+          return { turns, maxIterationsReached: true, messages };
+        }
+      }
+    }
     const { calls, results } = await executeCalls(stream, runtime);
+    // Track errors for loop detection
+    for (const result of results) {
+      if (!result.success && result.error) {
+        const errWarning = trackError(loopDetector, result.error);
+        if (errWarning) {
+          turns.push({
+            stream: { ...stream, content: `${stream.content}\n\n⚠️ ${errWarning}` },
+          });
+          return { turns, maxIterationsReached: true, messages };
+        }
+      }
+    }
     const toolCalls = calls.map((c) => c.record);
     const turn: AgentLoopTurn = { stream, toolCalls, toolResults: results };
     if (requiresPermission(results)) {
