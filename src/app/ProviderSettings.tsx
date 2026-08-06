@@ -64,6 +64,11 @@ function validationErrors(
   if (result.success) return {};
   const fields = requiredFields ? new Set(requiredFields) : null;
   const errors: FieldErrors = {};
+  for (const field of ["name", "baseUrl", "apiKey", "modelId"] as const) {
+    if ((!fields || fields.has(field)) && form[field].trim().length === 0) {
+      errors[field] = "required";
+    }
+  }
   for (const issue of result.error.issues) {
     const field = issue.path[0];
     if (typeof field !== "string" || (fields && !fields.has(field as ProviderField))) continue;
@@ -90,7 +95,7 @@ export function ProviderSettings() {
   } = useProviderStore();
   const presets = useMemo(() => availablePresets(), []);
   const [showForm, setShowForm] = useState(false);
-  const [selectedPresetId, setSelectedPresetId] = useState<string>("custom");
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
   const [presetFilter, setPresetFilter] = useState<PresetFilter>("all");
   const [presetQuery, setPresetQuery] = useState("");
   const [testing, setTesting] = useState(false);
@@ -140,6 +145,26 @@ export function ProviderSettings() {
     setShowForm(true);
   };
 
+  const openAddFlow = () => {
+    setShowForm(true);
+    setSelectedPresetId(null);
+    setForm({ ...EMPTY_FORM });
+    setErrors({});
+    setModels([]);
+    setModelFetchError(null);
+    setTestResult(null);
+  };
+
+  const closeAddFlow = () => {
+    setShowForm(false);
+    setSelectedPresetId(null);
+    setForm({ ...EMPTY_FORM });
+    setErrors({});
+    setTestResult(null);
+    setModels([]);
+    setModelFetchError(null);
+  };
+
   const handleTest = async () => {
     const required: ProviderField[] = ["baseUrl", "apiKey", "modelId"];
     const nextErrors = validationErrors(form, required);
@@ -170,12 +195,7 @@ export function ProviderSettings() {
     if (Object.keys(nextErrors).length > 0) return;
     try {
       await addProvider(form);
-      setShowForm(false);
-      setSelectedPresetId("custom");
-      setForm({ ...EMPTY_FORM });
-      setTestResult(null);
-      setModels([]);
-      setModelFetchError(null);
+      closeAddFlow();
     } catch (error) {
       setTestResult(error instanceof Error ? error.message : String(error));
     }
@@ -220,7 +240,7 @@ export function ProviderSettings() {
               <h4>{t("provider.configured")}</h4>
               <span>{t("provider.configuredDescription")}</span>
             </div>
-            <button className="secondary-button" type="button" onClick={() => choosePreset(null)}>
+            <button className="secondary-button" type="button" onClick={openAddFlow}>
               <Plus size={14} />
               {t("provider.add")}
             </button>
@@ -260,70 +280,75 @@ export function ProviderSettings() {
         </section>
       )}
 
-      <section className="provider-preset-section">
-        <div className="provider-section-heading">
-          <div>
-            <h4>{t("provider.presets")}</h4>
-            <span>{t("provider.presetsDescription")}</span>
-          </div>
-          <label className="provider-preset-search">
-            <Search size={13} aria-hidden="true" />
-            <span className="sr-only">{t("provider.searchPresets")}</span>
-            <input
-              type="search"
-              value={presetQuery}
-              placeholder={t("provider.searchPresets")}
-              onChange={(event) => setPresetQuery(event.target.value)}
-            />
-          </label>
-        </div>
-        <div className="provider-region-tabs" role="group" aria-label={t("provider.region")}>
-          {(["all", "international", "china", "local"] as const).map((region) => (
-            <button
-              type="button"
-              key={region}
-              className={presetFilter === region ? "active" : ""}
-              aria-pressed={presetFilter === region}
-              onClick={() => setPresetFilter(region)}
-            >
-              {t(`provider.regions.${region}`)}
-            </button>
-          ))}
-        </div>
-        <div className="provider-preset-grid">
-          <button
-            className={`provider-preset-tile custom ${selectedPresetId === "custom" ? "selected" : ""}`}
-            type="button"
-            onClick={() => choosePreset(null)}
-          >
-            <SlidersHorizontal size={16} aria-hidden="true" />
-            <span>
-              <strong>{t("provider.custom")}</strong>
-              <small>{t("provider.customDescription")}</small>
-            </span>
-            <ChevronRight size={14} aria-hidden="true" />
-          </button>
-          {filteredPresets.map((preset) => (
-            <button
-              className={`provider-preset-tile ${selectedPresetId === preset.id ? "selected" : ""}`}
-              type="button"
-              key={preset.id}
-              onClick={() => choosePreset(preset)}
-            >
-              <span className="provider-preset-mark" aria-hidden="true">
-                {providerInitial(preset.name)}
-              </span>
-              <span>
-                <strong>{preset.name}</strong>
-                <small>{t(`provider.regions.${preset.region}`)}</small>
-              </span>
-              {selectedPresetId === preset.id ? <Check size={14} /> : <ChevronRight size={14} />}
-            </button>
-          ))}
-        </div>
-      </section>
-
       {showForm && (
+        <section className="provider-preset-section">
+          <div className="provider-section-heading">
+            <div>
+              <h4>{t("provider.presets")}</h4>
+              <span>{t("provider.presetsDescription")}</span>
+            </div>
+            <label className="provider-preset-search">
+              <Search size={13} aria-hidden="true" />
+              <span className="sr-only">{t("provider.searchPresets")}</span>
+              <input
+                type="search"
+                value={presetQuery}
+                placeholder={t("provider.searchPresets")}
+                onChange={(event) => setPresetQuery(event.target.value)}
+              />
+            </label>
+            <button className="text-button provider-add-close" type="button" onClick={closeAddFlow}>
+              {t("provider.cancel")}
+            </button>
+          </div>
+          <div className="provider-region-tabs" role="group" aria-label={t("provider.region")}>
+            {(["all", "international", "china", "local"] as const).map((region) => (
+              <button
+                type="button"
+                key={region}
+                className={presetFilter === region ? "active" : ""}
+                aria-pressed={presetFilter === region}
+                onClick={() => setPresetFilter(region)}
+              >
+                {t(`provider.regions.${region}`)}
+              </button>
+            ))}
+          </div>
+          <div className="provider-preset-grid">
+            <button
+              className={`provider-preset-tile custom ${selectedPresetId === "custom" ? "selected" : ""}`}
+              type="button"
+              onClick={() => choosePreset(null)}
+            >
+              <SlidersHorizontal size={16} aria-hidden="true" />
+              <span>
+                <strong>{t("provider.custom")}</strong>
+                <small>{t("provider.customDescription")}</small>
+              </span>
+              <ChevronRight size={14} aria-hidden="true" />
+            </button>
+            {filteredPresets.map((preset) => (
+              <button
+                className={`provider-preset-tile ${selectedPresetId === preset.id ? "selected" : ""}`}
+                type="button"
+                key={preset.id}
+                onClick={() => choosePreset(preset)}
+              >
+                <span className="provider-preset-mark" aria-hidden="true">
+                  {providerInitial(preset.name)}
+                </span>
+                <span>
+                  <strong>{preset.name}</strong>
+                  <small>{t(`provider.regions.${preset.region}`)}</small>
+                </span>
+                {selectedPresetId === preset.id ? <Check size={14} /> : <ChevronRight size={14} />}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {showForm && selectedPresetId !== null && (
         <form className="provider-form" noValidate onSubmit={(event) => void handleSave(event)}>
           <div className="provider-form-heading">
             <div>
@@ -446,17 +471,7 @@ export function ProviderSettings() {
             >
               {testing ? "…" : t("provider.testConnection")}
             </button>
-            <button
-              className="text-button"
-              type="button"
-              onClick={() => {
-                setShowForm(false);
-                setErrors({});
-                setTestResult(null);
-                setModels([]);
-                setModelFetchError(null);
-              }}
-            >
+            <button className="text-button" type="button" onClick={closeAddFlow}>
               {t("provider.cancel")}
             </button>
           </div>
@@ -464,9 +479,16 @@ export function ProviderSettings() {
       )}
 
       {providers.length === 0 && !showForm && (
-        <div className="provider-guidance">
-          <Server size={15} aria-hidden="true" />
-          <span>{t("provider.addFirst")}</span>
+        <div className="provider-empty-panel">
+          <div className="provider-empty-panel-icon" aria-hidden="true">
+            <Server size={20} />
+          </div>
+          <strong>{t("provider.noProviders")}</strong>
+          <p>{t("provider.addDescription")}</p>
+          <button type="button" onClick={openAddFlow}>
+            <Plus size={15} aria-hidden="true" />
+            {t("provider.add")}
+          </button>
         </div>
       )}
     </div>

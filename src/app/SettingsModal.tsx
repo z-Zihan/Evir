@@ -95,6 +95,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("providers");
   const [importResult, setImportResult] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (open) setActiveTab("providers");
@@ -105,6 +106,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const handleTabChange = (tab: SettingsTab) => {
     setActiveTab(tab);
     setImportResult(null);
+    contentRef.current?.scrollTo?.({ top: 0 });
   };
 
   const activeItem = SETTINGS_GROUPS.flatMap((group) => group.items).find(
@@ -175,7 +177,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             <div className="settings-section-heading">
               <h3>{activeItem ? t(activeItem.labelKey) : t("settings.title")}</h3>
             </div>
-            <div className="settings-content">
+            <div className="settings-content" ref={contentRef}>
               {activeTab === "providers" && <ProviderSettings />}
               {activeTab === "personalization" && <PersonalizationPanel />}
               {activeTab === "shortcuts" && <ShortcutsSettings />}
