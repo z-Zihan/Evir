@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Database, X } from "lucide-react";
+import { X } from "lucide-react";
 import { PersonalizationPanel } from "./PersonalizationSettings";
 import { ShortcutsSettings } from "./ShortcutsSettings";
 import { SkillSettings } from "./SkillSettings";
@@ -79,92 +79,100 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             <X size={17} />
           </button>
         </div>
-        <div className="flex gap-0.5 px-4 border-b border-border overflow-x-auto">
+        <div className="flex gap-1 px-4 py-2 border-b border-border overflow-x-auto items-center">
+          {/* 基础 */}
           <button
-            className={`px-3 py-3 bg-transparent text-sm font-medium text-muted cursor-pointer border-b-2 border-transparent hover:text-foreground transition whitespace-nowrap${activeTab === "providers" ? " active" : ""}`}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap border-0 ${activeTab === "providers" ? "bg-primary text-primary-fg" : "bg-transparent text-muted hover:bg-surface-hover hover:text-foreground"}`}
             type="button"
             onClick={() => handleTabChange("providers")}
           >
             {t("settings.providers")}
           </button>
           <button
-            className={`px-3 py-3 bg-transparent text-sm font-medium text-muted cursor-pointer border-b-2 border-transparent hover:text-foreground transition whitespace-nowrap${activeTab === "personalization" ? " active" : ""}`}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap border-0 ${activeTab === "personalization" ? "bg-primary text-primary-fg" : "bg-transparent text-muted hover:bg-surface-hover hover:text-foreground"}`}
             type="button"
             onClick={() => handleTabChange("personalization")}
           >
             {t("settings.personalization")}
           </button>
           <button
-            className={`px-3 py-3 bg-transparent text-sm font-medium text-muted cursor-pointer border-b-2 border-transparent hover:text-foreground transition whitespace-nowrap${activeTab === "shortcuts" ? " active" : ""}`}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap border-0 ${activeTab === "theme" ? "bg-primary text-primary-fg" : "bg-transparent text-muted hover:bg-surface-hover hover:text-foreground"}`}
             type="button"
-            onClick={() => handleTabChange("shortcuts")}
+            onClick={() => handleTabChange("theme")}
           >
-            {t("settings.shortcuts")}
+            {t("settings.theme")}
           </button>
+          <span className="w-px h-5 bg-border mx-1" />
+          {/* 能力 */}
           <button
-            className={`px-3 py-3 bg-transparent text-sm font-medium text-muted cursor-pointer border-b-2 border-transparent hover:text-foreground transition whitespace-nowrap${activeTab === "skills" ? " active" : ""}`}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap border-0 ${activeTab === "skills" ? "bg-primary text-primary-fg" : "bg-transparent text-muted hover:bg-surface-hover hover:text-foreground"}`}
             type="button"
             onClick={() => handleTabChange("skills")}
           >
             {t("settings.skills")}
           </button>
           <button
-            className={`px-3 py-3 bg-transparent text-sm font-medium text-muted cursor-pointer border-b-2 border-transparent hover:text-foreground transition whitespace-nowrap${activeTab === "mcp" ? " active" : ""}`}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap border-0 ${activeTab === "mcp" ? "bg-primary text-primary-fg" : "bg-transparent text-muted hover:bg-surface-hover hover:text-foreground"}`}
             type="button"
             onClick={() => handleTabChange("mcp")}
           >
             {t("settings.mcp")}
           </button>
+          <span className="w-px h-5 bg-border mx-1" />
+          {/* 系统 */}
           <button
-            className={`px-3 py-3 bg-transparent text-sm font-medium text-muted cursor-pointer border-b-2 border-transparent hover:text-foreground transition whitespace-nowrap${activeTab === "usage" ? " active" : ""}`}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap border-0 ${activeTab === "shortcuts" ? "bg-primary text-primary-fg" : "bg-transparent text-muted hover:bg-surface-hover hover:text-foreground"}`}
+            type="button"
+            onClick={() => handleTabChange("shortcuts")}
+          >
+            {t("settings.shortcuts")}
+          </button>
+          <button
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap border-0 ${activeTab === "usage" ? "bg-primary text-primary-fg" : "bg-transparent text-muted hover:bg-surface-hover hover:text-foreground"}`}
             type="button"
             onClick={() => handleTabChange("usage")}
           >
             {t("settings.usage")}
           </button>
           <button
-            className={`px-3 py-3 bg-transparent text-sm font-medium text-muted cursor-pointer border-b-2 border-transparent hover:text-foreground transition whitespace-nowrap${activeTab === "data" ? " active" : ""}`}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap border-0 ${activeTab === "memory" ? "bg-primary text-primary-fg" : "bg-transparent text-muted hover:bg-surface-hover hover:text-foreground"}`}
+            type="button"
+            onClick={() => handleTabChange("memory")}
+          >
+            {t("memory.title")}
+          </button>
+          <button
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap border-0 ${activeTab === "data" ? "bg-primary text-primary-fg" : "bg-transparent text-muted hover:bg-surface-hover hover:text-foreground"}`}
             type="button"
             onClick={() => handleTabChange("data")}
           >
-            <Database size={14} style={{ display: "inline", marginRight: 4 }} />
             {t("settings.data")}
           </button>
           <button
-            className={`px-3 py-3 bg-transparent text-sm font-medium text-muted cursor-pointer border-b-2 border-transparent hover:text-foreground transition whitespace-nowrap${activeTab === "privacy" ? " active" : ""}`}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap border-0 ${activeTab === "privacy" ? "bg-primary text-primary-fg" : "bg-transparent text-muted hover:bg-surface-hover hover:text-foreground"}`}
             type="button"
             onClick={() => handleTabChange("privacy")}
           >
             {t("settings.privacy")}
           </button>
+          <span className="w-px h-5 bg-border mx-1" />
+          {/* 支持 */}
           <button
-            className={`px-3 py-3 bg-transparent text-sm font-medium text-muted cursor-pointer border-b-2 border-transparent hover:text-foreground transition whitespace-nowrap${activeTab === "about" ? " active" : ""}`}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap border-0 ${activeTab === "about" ? "bg-primary text-primary-fg" : "bg-transparent text-muted hover:bg-surface-hover hover:text-foreground"}`}
             type="button"
             onClick={() => handleTabChange("about")}
           >
             {t("settings.about")}
           </button>
           <button
-            className={`px-3 py-3 bg-transparent text-sm font-medium text-muted cursor-pointer border-b-2 border-transparent hover:text-foreground transition whitespace-nowrap${activeTab === "memory" ? " active" : ""}`}
-            onClick={() => handleTabChange("memory")}
-          >
-            {t("settings.theme")}
-          </button>
-          <button
-            className={`tab${activeTab === "theme" ? " active" : ""}`}
-            onClick={() => handleTabChange("theme")}
-          >
-            {t("memory.title")}
-          </button>
-          <button
-            className="language-button settings-language"
+            className="ml-auto px-3 py-1.5 rounded-lg text-sm font-medium text-muted hover:bg-surface-hover hover:text-foreground transition border-0 bg-transparent"
             type="button"
             aria-label={t("settings.switchLanguage")}
             onClick={() =>
               void i18n.changeLanguage(i18n.language.startsWith("zh") ? "en" : "zh-CN")
             }
           >
-            {i18n.language.startsWith("zh") ? "EN" : "中"}
+            {i18n.language.startsWith("zh") ? "EN" : "中文"}
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-5">

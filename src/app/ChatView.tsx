@@ -43,6 +43,7 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
     branchConversation,
     updateConversationProvider,
     currentConversationId,
+    conversations,
   } = useChatStore();
   const { getDefaultProvider, switchProvider } = useProviderStore();
 
@@ -86,6 +87,25 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
   if (!provider) {
     return (
       <main className="min-w-0 flex-1 grid grid-rows-[auto_1fr_auto] bg-background">
+        <header className="flex items-center justify-between px-6 py-3 border-b border-border bg-surface">
+          <div className="flex items-center gap-3 min-w-0">
+            <h1 className="text-sm font-semibold truncate">
+              {conversations.find((c) => c.id === currentConversationId)?.title ||
+                t("chat.newChat")}
+            </h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <ModeSwitcher mode={mode} onModeChange={setMode} />
+            <ModelSwitcher
+              onSwitch={(p: ProviderRecord) => {
+                void (async () => {
+                  await switchProvider(p.id);
+                  await updateConversationProvider(p.id, p.modelId);
+                })();
+              }}
+            />
+          </div>
+        </header>
         <section className="grid place-content-center w-[min(720px,calc(100%-40px))] m-auto text-center py-12 px-4">
           <div className="empty-copy">
             <h2>{t("chat.noProvider")}</h2>
@@ -139,7 +159,6 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
         </div>
       )}
       <footer className="w-[min(820px,calc(100%-40px))] mx-auto py-3 pb-4">
-        <ModeSwitcher mode={mode} onModeChange={setMode} />
         <div
           className={`border border-border rounded-2xl bg-surface shadow-md focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/12 transition${dragOver ? " drag-over" : ""}`}
           onDrop={handleDrop}
@@ -205,14 +224,7 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
               >
                 <Paperclip size={16} />
               </button>
-              <ModelSwitcher
-                onSwitch={(p: ProviderRecord) => {
-                  void (async () => {
-                    await switchProvider(p.id);
-                    await updateConversationProvider(p.id, p.modelId);
-                  })();
-                }}
-              />
+
               <button
                 type="button"
                 className="grid place-items-center w-8 h-8 rounded-lg text-muted hover:bg-surface-hover hover:text-foreground transition"
