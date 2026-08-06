@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Copy, GitBranch, Pencil, RotateCcw } from "lucide-react";
-import { format } from "date-fns";
+
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { MessageRecord } from "../core/storage/db";
@@ -155,7 +155,13 @@ export function ChatMessage({
       </div>
       {!isEditing && message.role !== "system" && (
         <div className="message-meta">
-          <span className="message-timestamp">{format(new Date(message.createdAt), "HH:mm")}</span>
+          <span className="message-timestamp">
+            {new Date(message.createdAt).toLocaleTimeString("zh-CN", {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+            })}
+          </span>
           <div className="message-actions">
             <button
               type="button"

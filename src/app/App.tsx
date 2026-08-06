@@ -14,7 +14,7 @@ export function App() {
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [messageInput, setMessageInput] = useState("");
   const focusSearchRef = useRef<(() => void) | null>(null);
-  const { providers, loadProviders, getDefaultProvider } = useProviderStore();
+  const { loadProviders, getDefaultProvider } = useProviderStore();
   const { loadConversations, createConversation, sendMessage, stopGeneration, isStreaming } =
     useChatStore();
   const loadUsageRecords = useUsageStore((state) => state.loadRecords);
@@ -52,10 +52,6 @@ export function App() {
     void loadConversations();
     void loadUsageRecords();
   }, [loadProviders, loadConversations, loadUsageRecords]);
-
-  useEffect(() => {
-    if (providers.length === 0) setSettingsOpen(true);
-  }, [providers.length]);
 
   return (
     <div className="app-shell">
