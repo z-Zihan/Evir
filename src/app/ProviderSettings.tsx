@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useProviderStore, type ProviderConfigInput } from "../features/provider/provider-store";
+import { Plus, Server } from "lucide-react";
 
 export function ProviderSettings() {
   const { t } = useTranslation();
@@ -196,13 +197,17 @@ export function ProviderSettings() {
           </div>
         </div>
       ) : (
-        <button
-          type="button"
-          className="flex items-center justify-center gap-2 min-h-[38px] rounded-lg font-semibold border border-border bg-surface hover:bg-surface-hover transition"
-          onClick={() => setShowForm(true)}
-        >
-          {t("provider.add")}
-        </button>
+        <div className="provider-empty-panel">
+          <div className="provider-empty-panel-icon" aria-hidden="true">
+            <Server size={20} />
+          </div>
+          <strong>{t("provider.noProviders")}</strong>
+          <p>{t("provider.addDescription")}</p>
+          <button type="button" onClick={() => setShowForm(true)}>
+            <Plus size={15} aria-hidden="true" />
+            {t("provider.add")}
+          </button>
+        </div>
       )}
     </div>
   );

@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { ArrowUpRight, FileText, Lightbulb, PenLine, type LucideIcon } from "lucide-react";
 
 interface ChatEmptyStateProps {
   onSendMessage: (content: string) => void;
@@ -6,22 +7,32 @@ interface ChatEmptyStateProps {
 
 export function ChatEmptyState({ onSendMessage }: ChatEmptyStateProps) {
   const { t } = useTranslation();
+  const suggestions: Array<{ key: string; icon: LucideIcon }> = [
+    { key: "summarize", icon: FileText },
+    { key: "write", icon: PenLine },
+    { key: "explain", icon: Lightbulb },
+  ];
 
   return (
-    <section className="grid place-content-center w-[min(720px,calc(100%-40px))] m-auto text-center py-12 px-4">
+    <section className="conversation-empty">
       <div className="empty-copy">
+        <span className="empty-eyebrow">{t("chat.startHere")}</span>
         <h2>{t("chat.emptyTitle")}</h2>
         <p>{t("chat.emptyDescription")}</p>
       </div>
-      <div className="grid grid-cols-3 gap-2.5">
-        {["summarize", "write", "explain"].map((key) => (
+      <div className="suggestions">
+        {suggestions.map(({ key, icon: Icon }) => (
           <button
             key={key}
             type="button"
-            className="min-h-[80px] p-4 rounded-xl text-left leading-normal text-sm border border-border bg-surface hover:bg-surface-hover hover:border-primary hover:-translate-y-0.5 hover:shadow-md transition"
+            className="suggestion-item"
             onClick={() => void onSendMessage(t(`chat.suggestions.${key}`))}
           >
-            {t(`chat.suggestions.${key}`)}
+            <span className="suggestion-icon" aria-hidden="true">
+              <Icon size={16} />
+            </span>
+            <span>{t(`chat.suggestions.${key}`)}</span>
+            <ArrowUpRight className="suggestion-arrow" size={15} aria-hidden="true" />
           </button>
         ))}
       </div>

@@ -26,22 +26,20 @@ export function ModeSwitcher({ mode, onModeChange }: ModeSwitcherProps) {
   // If current mode not available, fall back to ask
   const effectiveMode = modes.some((m) => m.mode === mode) ? mode : "ask";
 
+  if (runtime.target !== "desktop") return null;
+
   return (
-    <div className="flex gap-0.5 p-0.5 border border-border rounded-lg bg-surface">
+    <div className="mode-switcher" aria-label={t("chat.modeLabel")}>
       {modes.map(({ mode: option, icon: Icon }) => (
         <button
           key={option}
           type="button"
-          className={`px-2.5 py-1 rounded text-xs font-medium transition border-0 ${
-            effectiveMode === option
-              ? "bg-primary text-primary-fg"
-              : "bg-transparent text-muted hover:text-foreground"
-          }`}
+          className={effectiveMode === option ? "active" : ""}
           title={t(`chat.modes.${option}Desc`)}
           aria-pressed={effectiveMode === option}
           onClick={() => onModeChange(option)}
         >
-          <Icon size={14} aria-hidden="true" />
+          <Icon size={13} aria-hidden="true" />
           <span>{t(`chat.modes.${option}`)}</span>
         </button>
       ))}

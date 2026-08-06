@@ -7,8 +7,10 @@ import { ChatView } from "./ChatView";
 import { SettingsModal } from "./SettingsModal";
 import { useShortcuts } from "./useShortcuts";
 import { ShortcutHelpOverlay } from "./ShortcutHelpOverlay";
+import { useTranslation } from "react-i18next";
 
 export function App() {
+  const { t } = useTranslation();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
@@ -62,7 +64,7 @@ export function App() {
         <button
           className="sidebar-backdrop"
           type="button"
-          aria-label={"Close sidebar"}
+          aria-label={t("sidebar.hide")}
           onClick={() => setSidebarVisible(false)}
         />
       )}

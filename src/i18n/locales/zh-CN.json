@@ -9,12 +9,17 @@
     "unpin": "取消置顶",
     "rename": "重命名",
     "pinned": "已置顶",
+    "hide": "隐藏侧边栏",
+    "show": "显示侧边栏",
     "confirmDelete": "删除此对话？此操作不可撤销。"
   },
   "chat": {
     "title": "新对话",
+    "startHere": "从这里开始",
+    "readyWhenYouAre": "准备就绪",
+    "modeLabel": "交互模式",
     "emptyTitle": "现在需要处理什么？",
-    "emptyDescription": "选择模型后开始对话。桌面端会根据权限提供本地 Agent 能力。",
+    "emptyDescription": "描述你的目标，或选择一个示例开始。Evir 会在需要使用工具前说明操作和权限。",
     "suggestions": {
       "summarize": "总结一份文档，并提取下一步行动",
       "write": "把零散需求整理成完整产品方案",
@@ -43,6 +48,8 @@
     "stopped": "已停止",
     "disclaimer": "Evir 可能出错。重要结果请核验。",
     "noProvider": "尚未配置模型供应商。打开设置添加一个。",
+    "noProviderTitle": "连接你的第一个模型",
+    "noProviderDescription": "添加 API、选择模型，即可开始对话。密钥和会话数据默认保存在本地。",
     "addProviderFirst": "添加供应商",
     "streamEnded": "流式响应意外结束",
     "copyCode": "复制代码",
@@ -115,7 +122,13 @@
     "light": "浅色",
     "dark": "深色",
     "system": "跟随系统",
-    "language": "语言"
+    "language": "语言",
+    "navigation": "设置导航",
+    "groups": {
+      "account": "基础",
+      "capabilities": "能力",
+      "system": "系统"
+    }
   },
   "provider": {
     "add": "添加供应商",
@@ -137,6 +150,7 @@
     "save": "保存",
     "cancel": "取消",
     "noProviders": "尚未配置供应商",
+    "addDescription": "连接你使用的模型服务。Evir 不要求账号，也不会通过自有服务器转发请求。",
     "addFirst": "添加供应商后开始聊天"
   },
   "personalization": {

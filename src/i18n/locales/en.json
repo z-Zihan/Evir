@@ -9,12 +9,17 @@
     "unpin": "Unpin",
     "rename": "Rename",
     "pinned": "Pinned",
+    "hide": "Hide sidebar",
+    "show": "Show sidebar",
     "confirmDelete": "Delete this conversation? This cannot be undone."
   },
   "chat": {
     "title": "New conversation",
+    "startHere": "Start here",
+    "readyWhenYouAre": "Ready when you are",
+    "modeLabel": "Interaction mode",
     "emptyTitle": "What needs attention?",
-    "emptyDescription": "Choose a model to start. Desktop exposes local agent capabilities according to your permissions.",
+    "emptyDescription": "Describe your goal or choose an example. Evir explains tool use and permissions before acting.",
     "suggestions": {
       "summarize": "Summarize a document and extract next actions",
       "write": "Turn rough requirements into a complete product plan",
@@ -43,6 +48,8 @@
     "stopped": "stopped",
     "disclaimer": "Evir can make mistakes. Verify important results.",
     "noProvider": "No model provider configured. Open settings to add one.",
+    "noProviderTitle": "Connect your first model",
+    "noProviderDescription": "Add an API and choose a model to begin. Keys and conversation data stay local by default.",
     "addProviderFirst": "Add Provider",
     "streamEnded": "Stream ended unexpectedly",
     "copyCode": "Copy code",
@@ -115,7 +122,13 @@
     "light": "Light",
     "dark": "Dark",
     "system": "System",
-    "language": "Language"
+    "language": "Language",
+    "navigation": "Settings navigation",
+    "groups": {
+      "account": "Basics",
+      "capabilities": "Capabilities",
+      "system": "System"
+    }
   },
   "provider": {
     "add": "Add provider",
@@ -137,6 +150,7 @@
     "save": "Save",
     "cancel": "Cancel",
     "noProviders": "No providers configured",
+    "addDescription": "Connect the model service you use. Evir requires no account and does not proxy requests through its own servers.",
     "addFirst": "Add a provider to start chatting"
   },
   "personalization": {

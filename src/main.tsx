@@ -5,6 +5,7 @@ import { ErrorBoundary } from "./app/ErrorBoundary";
 import "./i18n/config";
 import "./styles/app.css";
 import "./styles/supplemental.css";
+import "./styles/shell.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

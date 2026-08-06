@@ -67,7 +67,7 @@ export function buildCompressedHistory(
   conversationId: string,
 ): MessageRecord[] {
   const summaryMessage: MessageRecord = {
-    id: `summary-${Date.now()}`,
+    id: `summary-${crypto.randomUUID()}`,
     conversationId,
     role: "system",
     content: `[Previous conversation summary]\n${summary}`,

@@ -36,11 +36,16 @@ export function ModelSwitcher({ onSwitch }: ModelSwitcherProps) {
   }, [open]);
 
   if (!current || enabled.length <= 1) {
-    return <span className="model-label">{current?.modelId ?? t("chat.modelPlaceholder")}</span>;
+    return (
+      <span className={`model-label${current ? "" : " empty"}`}>
+        <span className="model-status-dot" aria-hidden="true" />
+        {current?.modelId ?? t("chat.modelPlaceholder")}
+      </span>
+    );
   }
 
   return (
-    <div className="flex items-center gap-1" ref={containerRef}>
+    <div className="model-switcher" ref={containerRef}>
       <button
         type="button"
         className="model-switcher-button"
@@ -51,10 +56,7 @@ export function ModelSwitcher({ onSwitch }: ModelSwitcherProps) {
       >
         <span>{current.name}</span>
         <span className="model-switcher-model">{current.modelId}</span>
-        <ChevronDown
-          size={12}
-          className={`flex items-center gap-1-chevron${open ? " open" : ""}`}
-        />
+        <ChevronDown size={12} className={`model-switcher-chevron${open ? " open" : ""}`} />
       </button>
       {open && (
         <div className="model-switcher-dropdown" role="listbox" aria-label={t("chat.switchModel")}>
@@ -64,7 +66,7 @@ export function ModelSwitcher({ onSwitch }: ModelSwitcherProps) {
               type="button"
               role="option"
               aria-selected={provider.id === current.id}
-              className={`flex items-center gap-1-item${provider.id === current.id ? " active" : ""}`}
+              className={`model-switcher-item${provider.id === current.id ? " active" : ""}`}
               onClick={() => {
                 onSwitch(provider);
                 setOpen(false);

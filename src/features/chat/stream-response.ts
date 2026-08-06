@@ -28,6 +28,8 @@ import { createCheckpoint } from "../../core/context/checkpoint";
 import { estimateMessagesTokens } from "../../core/context/token-estimate";
 
 const budgetManagerInstance = createContextBudgetManager();
+const MAX_SUMMARIZATION_ROUNDS = 2;
+const INITIAL_SUMMARY_KEEP_RATIO = 0.4;
 
 type ChatStoreSet = StoreApi<ChatState>["setState"];
 type ChatStoreGet = StoreApi<ChatState>["getState"];
@@ -122,6 +124,62 @@ async function persistResponse(
   return updatedAt;
 }
 
+async function persistSummarization(
+  toSummarize: MessageRecord[],
+  summaryMessage: MessageRecord,
+): Promise<void> {
+  const idsToDelete = toSummarize.map((message) => message.id);
+  await db.transaction("rw", db.messages, db.attachments, async () => {
+    if (idsToDelete.length > 0) {
+      await db.attachments.where("messageId").anyOf(idsToDelete).delete();
+      await db.messages.bulkDelete(idsToDelete);
+    }
+    await db.messages.add(summaryMessage);
+  });
+}
+
+async function summarizeAndPersist(
+  provider: ProviderRecord,
+  conversationId: string,
+  history: MessageRecord[],
+  maxContextTokens: number,
+): Promise<MessageRecord[]> {
+  let current = history;
+  let keepRatio = INITIAL_SUMMARY_KEEP_RATIO;
+
+  for (let round = 0; round < MAX_SUMMARIZATION_ROUNDS; round++) {
+    if (current.length <= 6) break;
+    const targetBudget = Math.floor(maxContextTokens * keepRatio);
+    const { toSummarize, toKeep } = splitForSummarization(current, targetBudget);
+    if (toSummarize.length < 3) break;
+
+    try {
+      console.debug(
+        "[evir] context-summary",
+        `round ${round + 1}: summarizing ${toSummarize.length} messages`,
+      );
+      const summary = await summarizeConversation(provider, toSummarize);
+      const compressed = buildCompressedHistory(summary, toKeep, conversationId);
+      await persistSummarization(toSummarize, compressed[0]!);
+      current = compressed;
+      console.debug(
+        "[evir] context-summary",
+        `round ${round + 1}: compressed to ${current.length} messages`,
+      );
+    } catch (error) {
+      console.error("[evir] context-summary failed:", error);
+      break;
+    }
+
+    // Token estimates ignore toolCalls/toolResults content, so rather than re-checking
+    // the budget snapshot here, let the next iteration's own toSummarize.length guard
+    // decide whether further compression is warranted.
+    keepRatio = keepRatio / 2;
+  }
+
+  return current;
+}
+
 export async function streamResponse(
   set: ChatStoreSet,
   get: ChatStoreGet,
@@ -153,26 +211,21 @@ export async function streamResponse(
     const maxToolChars = snapshot.reservedToolTokens * 4;
     effectiveHistory = compactToolOutputs(history, maxToolChars);
 
-    // LLM-based conversation summary when utilization > 75%
+    // LLM-based conversation summary when utilization > 75%; persisted to DB so the
+    // next request doesn't re-load the un-summarized messages and lose the compaction.
     if (
       (snapshot.compressionStage === "conversation-summary" ||
         snapshot.compressionStage === "checkpoint-compaction") &&
       effectiveHistory.length > 6
     ) {
-      const targetBudget = Math.floor(DEFAULT_MAX_CONTEXT_TOKENS * 0.4);
-      const { toSummarize, toKeep } = splitForSummarization(effectiveHistory, targetBudget);
-      if (toSummarize.length >= 3) {
-        try {
-          console.debug("[evir] context-summary", `summarizing ${toSummarize.length} messages`);
-          const summary = await summarizeConversation(provider, toSummarize);
-          effectiveHistory = buildCompressedHistory(summary, toKeep, conversationId);
-          console.debug(
-            "[evir] context-summary",
-            `compressed to ${effectiveHistory.length} messages`,
-          );
-        } catch (error) {
-          console.error("[evir] context-summary failed:", error);
-        }
+      effectiveHistory = await summarizeAndPersist(
+        provider,
+        conversationId,
+        effectiveHistory,
+        DEFAULT_MAX_CONTEXT_TOKENS,
+      );
+      if (get().currentConversationId === conversationId) {
+        set({ messages: effectiveHistory });
       }
     }
 

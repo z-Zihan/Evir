@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Pencil, GitBranch, MessageSquarePlus, Pin, Search, Settings2, Trash2 } from "lucide-react";
 import { useChatStore } from "../features/chat/chat-store";
 import { useProviderStore } from "../features/provider/provider-store";
+import { isMac } from "../core/shortcuts/platform";
 
 interface SidebarProps {
   onOpenSettings: () => void;
@@ -36,6 +37,7 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
   }, [focusSearchRef]);
 
   const provider = getDefaultProvider();
+  const shortcutModifier = isMac() ? "⌘" : "Ctrl+";
 
   const filteredConversations = conversations.filter(({ title }) =>
     title.toLowerCase().includes(searchQuery.trim().toLowerCase()),
@@ -171,7 +173,7 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
         <MessageSquarePlus size={16} />
         {t("sidebar.newChat")}
         <span className="new-chat-shortcut" aria-hidden="true">
-          ⌘N
+          {shortcutModifier}N
         </span>
       </button>
       <label className="conversation-search">
@@ -209,7 +211,7 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
           <Settings2 size={17} />
           <span>{t("settings.title")}</span>
           <span className="settings-shortcut" aria-hidden="true">
-            ⌘,
+            {shortcutModifier},
           </span>
         </button>
       </div>
