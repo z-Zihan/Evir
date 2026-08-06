@@ -1,7 +1,7 @@
 import type {
   ModelSwitchAssessment,
   ModelSwitchRequest,
-  ModelSwitchStatus,
+  ModelSwitchResult,
 } from "./model-switching";
 
 export interface ModelSwitchCoordinator {
@@ -9,6 +9,6 @@ export interface ModelSwitchCoordinator {
   execute(
     request: ModelSwitchRequest,
     assessment: ModelSwitchAssessment,
-  ): Promise<ModelSwitchStatus>;
+  ): Promise<ModelSwitchResult>;
   cancel(conversationId: string): void;
 }

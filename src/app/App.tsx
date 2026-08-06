@@ -54,16 +54,26 @@ export function App() {
   }, [loadProviders, loadConversations, loadUsageRecords]);
 
   return (
-    <div className="grid grid-cols-[260px_minmax(0,1fr)] min-h-screen">
+    <div className={`app-shell${sidebarVisible ? " sidebar-visible" : ""}`}>
       {sidebarVisible && (
         <Sidebar onOpenSettings={() => setSettingsOpen(true)} focusSearchRef={focusSearchRef} />
       )}
-      <div className="flex flex-col min-h-screen min-w-0">
+      {sidebarVisible && (
+        <button
+          className="sidebar-backdrop"
+          type="button"
+          aria-label={"Close sidebar"}
+          onClick={() => setSidebarVisible(false)}
+        />
+      )}
+      <div className="main-area">
         <ChatView
           input={messageInput}
           onInputChange={setMessageInput}
           onSendMessage={handleSendMessage}
           onOpenSettings={() => setSettingsOpen(true)}
+          onToggleSidebar={() => setSidebarVisible((visible) => !visible)}
+          sidebarVisible={sidebarVisible}
         />
       </div>
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />

@@ -59,6 +59,8 @@
     "switchModel": "切换模型",
     "currentModel": "当前模型",
     "pinFailed": "置顶失败",
+    "modelSwitchBlocked": "模型切换已阻止：{{reason}}",
+    "modelSwitchFailed": "模型切换失败",
     "copyMessage": "复制",
     "tokenCount": "{{count}} tokens",
     "retry": "重试",

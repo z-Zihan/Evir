@@ -1,6 +1,15 @@
 import { memo, useCallback, useEffect, useRef, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Download, Paperclip, Square, X } from "lucide-react";
+import {
+  ArrowUp,
+  Download,
+  KeyRound,
+  PanelLeft,
+  Paperclip,
+  Settings2,
+  Square,
+  X,
+} from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useChatStore } from "../features/chat/chat-store";
@@ -15,12 +24,18 @@ import { WorkspaceSelector } from "./WorkspaceSelector";
 import { getRuntime } from "../runtime/use-runtime";
 import { handleExportMarkdown } from "./export-helpers";
 import { useConversationTokenCount } from "./use-token-count";
+import { ModelSwitchCoordinatorImpl } from "../core/providers/model-switch-coordinator-impl";
+import type { ModelSwitchRequest } from "../core/providers/model-switching";
+
+const modelSwitchCoordinator = new ModelSwitchCoordinatorImpl();
 
 interface ChatViewProps {
   input: string;
   onInputChange: (input: string) => void;
   onSendMessage: () => void;
   onOpenSettings: () => void;
+  onToggleSidebar: () => void;
+  sidebarVisible: boolean;
 }
 
 interface MessageListProps {
@@ -54,7 +69,14 @@ const MessageList = memo(function MessageList({
   );
 });
 
-export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }: ChatViewProps) {
+export function ChatView({
+  input,
+  onInputChange,
+  onSendMessage,
+  onOpenSettings,
+  onToggleSidebar,
+  sidebarVisible,
+}: ChatViewProps) {
   const { t, i18n } = useTranslation();
   const {
     messages,
@@ -78,6 +100,9 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
   const { getDefaultProvider, switchProvider } = useProviderStore();
 
   const provider = getDefaultProvider();
+  const conversationTitle =
+    conversations.find((conversation) => conversation.id === currentConversationId)?.title ||
+    t("chat.title");
 
   const tokenCount = useConversationTokenCount(currentConversationId);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -119,51 +144,102 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
     ta.style.height = `${Math.min(ta.scrollHeight, 200)}px`;
   }, [input]);
 
+  const header = (
+    <header className="workspace-header">
+      <div className="workspace-heading">
+        <button
+          className="header-icon-button"
+          type="button"
+          onClick={onToggleSidebar}
+          aria-label={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")}
+          title={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")}
+        >
+          <PanelLeft size={18} aria-hidden="true" />
+        </button>
+        <div className="workspace-title-block">
+          <h1>{conversationTitle}</h1>
+          <span className="workspace-context">
+            {provider ? provider.name : t("runtime.chatOnly")}
+          </span>
+        </div>
+      </div>
+      <div className="workspace-controls">
+        <ModeSwitcher mode={mode} onModeChange={setMode} />
+        <ModelSwitcher
+          onSwitch={(nextProvider: ProviderRecord) => {
+            void (async () => {
+              try {
+                if (!currentConversationId) {
+                  await switchProvider(nextProvider.id);
+                  await updateConversationProvider(nextProvider.id, nextProvider.modelId);
+                  return;
+                }
+                const request: ModelSwitchRequest = {
+                  conversationId: currentConversationId,
+                  fromProviderId: provider?.id ?? "",
+                  fromModelId: provider?.modelId ?? "",
+                  toProviderId: nextProvider.id,
+                  toModelId: nextProvider.modelId,
+                  requestedAt: Date.now(),
+                };
+                const assessment = await modelSwitchCoordinator.assess(request);
+                if (assessment.status === "blocked") {
+                  useChatStore.setState({
+                    error: t("chat.modelSwitchBlocked", {
+                      reason: assessment.blockReason ?? "unknown",
+                    }),
+                  });
+                  return;
+                }
+                const result = await modelSwitchCoordinator.execute(request, assessment);
+                if (result.status !== "switched") {
+                  useChatStore.setState({
+                    error: t("chat.modelSwitchBlocked", { reason: result.status }),
+                  });
+                  return;
+                }
+                await switchProvider(nextProvider.id);
+                await updateConversationProvider(nextProvider.id, nextProvider.modelId);
+              } catch {
+                useChatStore.setState({ error: t("chat.modelSwitchFailed") });
+              }
+            })();
+          }}
+        />
+      </div>
+    </header>
+  );
+
   if (!provider) {
     return (
-      <main className="min-w-0 flex-1 grid grid-rows-[auto_1fr_auto] bg-background">
-        <header className="flex items-center justify-between px-6 py-3 border-b border-border bg-surface">
-          <div className="flex items-center gap-3 min-w-0">
-            <h1 className="text-sm font-semibold truncate">
-              {conversations.find((c) => c.id === currentConversationId)?.title ||
-                t("chat.newChat")}
-            </h1>
+      <main className="workspace">
+        {header}
+        <section className="provider-empty-state">
+          <div className="provider-empty-icon" aria-hidden="true">
+            <KeyRound size={22} />
           </div>
-          <div className="flex items-center gap-2">
-            <ModeSwitcher mode={mode} onModeChange={setMode} />
-            <ModelSwitcher
-              onSwitch={(p: ProviderRecord) => {
-                void (async () => {
-                  await switchProvider(p.id);
-                  await updateConversationProvider(p.id, p.modelId);
-                })();
-              }}
-            />
+          <div className="provider-empty-copy">
+            <span className="empty-eyebrow">{t("chat.readyWhenYouAre")}</span>
+            <h2>{t("chat.noProviderTitle")}</h2>
+            <p>{t("chat.noProviderDescription")}</p>
           </div>
-        </header>
-        <section className="grid place-content-center w-[min(720px,calc(100%-40px))] m-auto text-center py-12 px-4">
-          <div className="empty-copy">
-            <h2>{t("chat.noProvider")}</h2>
-            <button
-              className="flex items-center justify-center gap-2 min-h-[38px] rounded-lg font-semibold border border-border bg-surface hover:bg-surface-hover transition"
-              type="button"
-              onClick={onOpenSettings}
-            >
-              {t("chat.addProviderFirst")}
-            </button>
-          </div>
+          <button className="primary-button" type="button" onClick={onOpenSettings}>
+            <Settings2 size={16} aria-hidden="true" />
+            {t("chat.addProviderFirst")}
+          </button>
         </section>
       </main>
     );
   }
 
   return (
-    <main className="min-w-0 flex-1 grid grid-rows-[auto_1fr_auto] bg-background">
-      <div className="overflow-y-auto p-6 px-4" ref={scrollRef}>
+    <main className="workspace">
+      {header}
+      <div className="messages-area" ref={scrollRef}>
         {messages.length === 0 && !isStreaming ? (
           <ChatEmptyState onSendMessage={(content) => void sendMessage(content)} />
         ) : (
-          <div className="max-w-[780px] mx-auto flex flex-col gap-5">
+          <div className="message-list">
             <MessageList
               messages={messages}
               disabled={isStreaming}
@@ -172,7 +248,7 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
               onBranch={handleBranch}
             />
             {isStreaming && (
-              <div className="max-w-[780px] mx-auto w-full message-assistant">
+              <div className="message message-assistant">
                 <div className="message-content">
                   {streamingContent ? (
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamingContent}</ReactMarkdown>
@@ -185,31 +261,20 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
           </div>
         )}
       </div>
-      {error && (
-        <div className="max-w-[780px] mx-auto mb-3 p-3 bg-danger/8 border border-danger/20 rounded-lg text-danger text-sm">
-          {displayError(error)}
-        </div>
-      )}
-      <footer className="w-[min(820px,calc(100%-40px))] mx-auto py-3 pb-4">
+      {error && <div className="chat-error">{displayError(error)}</div>}
+      <footer className="composer-wrap">
         <div
-          className={`border border-border rounded-2xl bg-surface shadow-md focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/12 transition${dragOver ? " border-primary bg-primary/4" : ""}`}
+          className={`composer${dragOver ? " drag-over" : ""}`}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
         >
           {pendingAttachments.length > 0 && (
-            <div className="flex flex-wrap gap-2 px-4 pt-2">
+            <div className="pending-attachments">
               {pendingAttachments.map((att) =>
                 att.type === "image" ? (
-                  <div
-                    key={att.id}
-                    className="flex items-center gap-1 px-2 py-1 bg-surface-hover border border-border rounded-lg text-xs"
-                  >
-                    <img
-                      src={att.data}
-                      alt={att.fileName}
-                      className="w-8 h-8 rounded object-cover"
-                    />
+                  <div key={att.id} className="pending-attachment-chip">
+                    <img src={att.data} alt={att.fileName} className="pending-attachment-thumb" />
                     <button
                       type="button"
                       onClick={() => removeAttachment(att.id)}
@@ -219,11 +284,8 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
                     </button>
                   </div>
                 ) : (
-                  <div
-                    key={att.id}
-                    className="flex items-center gap-1 px-2 py-1 bg-surface-hover border border-border rounded-lg text-xs"
-                  >
-                    <span className="max-w-[140px] truncate">{att.fileName}</span>
+                  <div key={att.id} className="pending-attachment-chip">
+                    <span className="attachment-name">{att.fileName}</span>
                     <button
                       type="button"
                       onClick={() => removeAttachment(att.id)}
@@ -245,11 +307,11 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
             onKeyDown={handleKeyDown}
             disabled={isStreaming}
           />
-          <div className="flex justify-between items-center px-3 pb-3 text-muted text-xs">
-            <span>
+          <div className="composer-footer">
+            <div className="composer-tools">
               <button
                 type="button"
-                className="grid place-items-center w-8 h-8 rounded-lg text-muted hover:bg-surface-hover hover:text-foreground transition"
+                className="composer-tool-button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isStreaming}
                 aria-label={t("chat.attachFile")}
@@ -259,7 +321,7 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
 
               <button
                 type="button"
-                className="grid place-items-center w-8 h-8 rounded-lg text-muted hover:bg-surface-hover hover:text-foreground transition"
+                className="composer-tool-button"
                 onClick={() => void handleExportMarkdown(currentConversationId ?? "")}
                 disabled={isStreaming || !currentConversationId}
                 aria-label={t("settings.exportMarkdown")}
@@ -267,31 +329,28 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
               >
                 <Download size={16} />
               </button>
-            </span>
-            <div className="flex items-center gap-2 ml-auto">
+            </div>
+            <div className="composer-context">
               {getRuntime().target === "desktop" && <WorkspaceSelector />}
-              <span className="text-xs text-muted opacity-60 flex gap-2 items-center">
-                {input.length > 0 && <span className="opacity-50">{input.length}</span>}
+              <span className="composer-info">
+                {input.length > 0 && <span className="char-count">{input.length}</span>}
                 {tokenCount > 0 && t("chat.tokenCount", { count: tokenCount })}
               </span>
             </div>
             {isStreaming ? (
-              <button
-                type="button"
-                className="bg-danger px-3 py-1.5 rounded-lg text-primary-fg text-sm font-medium"
-                onClick={stopGeneration}
-              >
+              <button type="button" className="send-button stop-button" onClick={stopGeneration}>
                 <Square size={14} />
                 {t("chat.stop")}
               </button>
             ) : (
               <button
                 type="button"
-                className="bg-primary px-3 py-1.5 rounded-lg text-primary-fg text-sm font-medium disabled:opacity-50"
+                className="send-button"
                 disabled={!input.trim() && pendingAttachments.length === 0}
                 onClick={onSendMessage}
               >
                 {t("chat.send")}
+                <ArrowUp size={15} aria-hidden="true" />
               </button>
             )}
           </div>
@@ -304,9 +363,7 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
             accept="image/*,text/*,.md,.json,.js,.jsx,.ts,.tsx,.py,.rs,.go,.java,.c,.cpp,.h,.css,.html,.xml,.yaml,.yml,.toml,.csv,.sh,.bash,.sql"
           />
         </div>
-        <p className="text-center text-xs text-muted py-1 pb-2 opacity-60">
-          {t("chat.disclaimer")}
-        </p>
+        <p className="disclaimer">{t("chat.disclaimer")}</p>
       </footer>
     </main>
   );

@@ -59,6 +59,8 @@
     "switchModel": "Switch model",
     "currentModel": "Current model",
     "pinFailed": "Failed to pin conversation",
+    "modelSwitchBlocked": "Model switch blocked: {{reason}}",
+    "modelSwitchFailed": "Model switch failed",
     "copyMessage": "Copy",
     "tokenCount": "{{count}} tokens",
     "retry": "Retry",

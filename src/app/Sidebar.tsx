@@ -92,14 +92,14 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
     return (
       <div
         key={conv.id}
-        className={`group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-sm hover:bg-surface-hover transition relative${isActive ? " active" : ""}${conv.pinned ? " pinned" : ""}`}
+        className={`conversation-item group${isActive ? " active" : ""}${conv.pinned ? " pinned" : ""}`}
         onClick={() => handleSelectConversation(conv.id)}
         onDoubleClick={() => handleStartRename(conv.id, conv.title)}
       >
-        {conv.pinned && <Pin size={11} className="pin-indicator" />}
+        {conv.pinned && <Pin size={12} className="pin-indicator" aria-hidden="true" />}
         {isRenaming ? (
           <input
-            className="flex-1 border border-primary rounded px-2 py-0.5 text-sm bg-surface outline-none"
+            className="rename-input"
             type="text"
             value={renameValue}
             autoFocus
@@ -110,7 +110,7 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
-          <span className="flex-1 whitespace-nowrap overflow-hidden text-ellipsis">
+          <span className="conversation-title">
             {conv.title || t("chat.title")}
             {conv.parentConversationId && (
               <span className="conversation-branch-indicator">
@@ -121,10 +121,7 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
           </span>
         )}
         {!isRenaming && (
-          <div
-            className={`hidden group-hover:flex gap-1 flex-shrink-0${isActive ? " flex" : ""}`}
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="conversation-actions" onClick={(e) => e.stopPropagation()}>
             <button
               className="conversation-action-btn"
               type="button"
@@ -144,7 +141,7 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
               <Pencil size={13} />
             </button>
             <button
-              className=""
+              className="conversation-action-btn conversation-delete"
               type="button"
               aria-label={t("provider.delete")}
               onClick={() => {
@@ -160,22 +157,24 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
   };
 
   return (
-    <aside className="flex flex-col min-h-screen p-3 border-r border-border bg-sidebar">
-      <div className="flex items-center gap-2.5 px-1.5 pb-4">
-        <div className="grid place-items-center w-7 h-7 rounded-lg bg-primary text-primary-fg font-bold text-sm">
+    <aside className="sidebar">
+      <div className="brand-row">
+        <div className="brand-mark" aria-hidden="true">
           E
         </div>
-        <strong>Evir</strong>
+        <div className="brand-lockup">
+          <strong className="brand-name">Evir</strong>
+          <span className="brand-caption">Local AI</span>
+        </div>
       </div>
-      <button
-        className="flex items-center justify-center gap-2 min-h-[38px] rounded-lg font-semibold border border-border bg-surface hover:bg-surface-hover transition"
-        type="button"
-        onClick={handleNewChat}
-      >
+      <button className="new-chat-button" type="button" onClick={handleNewChat}>
         <MessageSquarePlus size={16} />
         {t("sidebar.newChat")}
+        <span className="new-chat-shortcut" aria-hidden="true">
+          ⌘N
+        </span>
       </button>
-      <label className="flex items-center gap-2 mb-2 px-3 py-2 border border-border rounded-lg bg-surface">
+      <label className="conversation-search">
         <Search size={15} />
         <input
           ref={searchRef}
@@ -188,36 +187,30 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
       </label>
       {pinned.length > 0 && (
         <>
-          <div className="text-xs font-semibold uppercase tracking-wider text-muted px-2 pt-3 pb-1">
-            {t("sidebar.pinned")}
-          </div>
-          <div className="flex flex-col gap-0.5 flex-1 overflow-y-auto">
-            {pinned.map(renderConversation)}
-          </div>
+          <div className="section-label">{t("sidebar.pinned")}</div>
+          <div className="conversation-list pinned-list">{pinned.map(renderConversation)}</div>
         </>
       )}
-      <div className="text-xs font-semibold uppercase tracking-wider text-muted px-2 pt-3 pb-1">
-        {t("sidebar.recent")}
-      </div>
+      <div className="section-label">{t("sidebar.recent")}</div>
       {conversations.length === 0 ? (
-        <div className="text-muted text-sm px-2 py-4 text-center">
-          {t("sidebar.noConversations")}
-        </div>
+        <div className="empty-list">{t("sidebar.noConversations")}</div>
       ) : filteredConversations.length === 0 ? (
-        <div className="text-muted text-sm px-2 py-4 text-center">{t("sidebar.noResults")}</div>
+        <div className="empty-list">{t("sidebar.noResults")}</div>
       ) : (
-        <div className="flex flex-col gap-0.5 flex-1 overflow-y-auto">
-          {unpinned.map(renderConversation)}
-        </div>
+        <div className="conversation-list">{unpinned.map(renderConversation)}</div>
       )}
-      <div className="flex gap-1 pt-3 border-t border-border mt-2">
+      <div className="sidebar-footer">
         <button
-          className="grid place-items-center w-8 h-8 rounded-lg text-muted hover:bg-surface-hover hover:text-foreground transition"
+          className="settings-button"
           type="button"
           onClick={onOpenSettings}
           aria-label={t("settings.title")}
         >
           <Settings2 size={17} />
+          <span>{t("settings.title")}</span>
+          <span className="settings-shortcut" aria-hidden="true">
+            ⌘,
+          </span>
         </button>
       </div>
     </aside>

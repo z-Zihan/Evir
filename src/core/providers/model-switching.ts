@@ -1,4 +1,5 @@
 import type { ModelHandoffCheckpoint } from "../context/types";
+import type { MessageRecord } from "../storage/db";
 
 export type ModelSwitchStatus =
   | "idle"
@@ -38,4 +39,9 @@ export interface ModelSwitchAssessment {
   blockReason?: ModelSwitchBlockReason;
   handoff?: ModelHandoffCheckpoint;
   warnings: string[];
+}
+
+export interface ModelSwitchResult {
+  status: ModelSwitchStatus;
+  handoffMessage?: MessageRecord;
 }
