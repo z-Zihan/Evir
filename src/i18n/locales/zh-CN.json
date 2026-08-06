@@ -8,7 +8,8 @@
     "pin": "置顶",
     "unpin": "取消置顶",
     "rename": "重命名",
-    "pinned": "已置顶"
+    "pinned": "已置顶",
+    "confirmDelete": "删除此对话？此操作不可撤销。"
   },
   "chat": {
     "title": "新对话",
@@ -45,7 +46,7 @@
     "addProviderFirst": "添加供应商",
     "streamEnded": "流式响应意外结束",
     "copyCode": "复制代码",
-    "copied": "已复制",
+    "copied": "已复制！",
     "attachFile": "添加附件",
     "attachments": "附件",
     "unsupportedFileType": "不支持的文件类型。支持图片和文本文件。",
@@ -57,7 +58,8 @@
     "branched": "(已分支)",
     "switchModel": "切换模型",
     "currentModel": "当前模型",
-    "pinFailed": "置顶失败"
+    "pinFailed": "置顶失败",
+    "copyMessage": "复制"
   },
   "runtime": {
     "agentReady": "本地 Agent Runtime",

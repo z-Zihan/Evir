@@ -151,7 +151,9 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
               className="conversation-delete"
               type="button"
               aria-label={t("provider.delete")}
-              onClick={() => void deleteConversation(conv.id)}
+              onClick={() => {
+                if (window.confirm(t("sidebar.confirmDelete"))) void deleteConversation(conv.id);
+              }}
             >
               <Trash2 size={14} />
             </button>

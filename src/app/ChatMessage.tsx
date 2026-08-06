@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { GitBranch, Pencil, RotateCcw } from "lucide-react";
+import { Copy, GitBranch, Pencil, RotateCcw } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { MessageRecord } from "../core/storage/db";
@@ -23,6 +23,7 @@ export function ChatMessage({
 }: ChatMessageProps) {
   const { t, i18n } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [draft, setDraft] = useState(message.content);
   useEffect(() => {
     if (!isEditing) setDraft(message.content);
@@ -105,6 +106,19 @@ export function ChatMessage({
       </div>
       {!isEditing && message.role !== "system" && (
         <div className="message-actions">
+          <button
+            type="button"
+            onClick={() => {
+              void navigator.clipboard.writeText(message.content).then(() => {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1500);
+              });
+            }}
+            aria-label={t("chat.copyMessage")}
+          >
+            <Copy size={14} />
+            {copied ? t("chat.copied") : t("chat.copyMessage")}
+          </button>
           {message.role === "assistant" ? (
             <button type="button" onClick={() => void onRegenerate()} disabled={disabled}>
               <RotateCcw size={14} />

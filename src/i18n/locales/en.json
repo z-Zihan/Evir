@@ -8,7 +8,8 @@
     "pin": "Pin",
     "unpin": "Unpin",
     "rename": "Rename",
-    "pinned": "Pinned"
+    "pinned": "Pinned",
+    "confirmDelete": "Delete this conversation? This cannot be undone."
   },
   "chat": {
     "title": "New conversation",
@@ -45,7 +46,7 @@
     "addProviderFirst": "Add Provider",
     "streamEnded": "Stream ended unexpectedly",
     "copyCode": "Copy code",
-    "copied": "Copied",
+    "copied": "Copied!",
     "attachFile": "Attach file",
     "attachments": "Attachments",
     "unsupportedFileType": "Unsupported file type. Images and text files are supported.",
@@ -57,7 +58,8 @@
     "branched": "(branched)",
     "switchModel": "Switch model",
     "currentModel": "Current model",
-    "pinFailed": "Failed to pin conversation"
+    "pinFailed": "Failed to pin conversation",
+    "copyMessage": "Copy"
   },
   "runtime": {
     "agentReady": "Local agent runtime",
