@@ -190,7 +190,13 @@
     "builtin": "内置",
     "low": "低",
     "medium": "中",
-    "high": "高"
+    "high": "高",
+    "create": "创建 Skill",
+    "cancel": "取消",
+    "save": "保存",
+    "namePlaceholder": "Skill 名称",
+    "descPlaceholder": "简短描述",
+    "contentPlaceholder": "Skill 指令内容（Markdown）..."
   },
   "mcp": {
     "title": "MCP 服务器",

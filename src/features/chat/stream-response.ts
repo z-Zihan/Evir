@@ -12,6 +12,7 @@ import { runAgentLoop, type AgentLoopResult } from "./agent-loop";
 import type { ChatState } from "./chat-store";
 import { providerReadinessError, streamAssistant, type StreamResult } from "./chat-stream";
 import { useSkillStore } from "../skills/skill-store";
+import { routeSkill } from "../../core/skills/skill-router";
 import type { EvirRuntime } from "../../runtime/types";
 import type { PendingToolApproval } from "./tool-approval";
 import { toMessage, sorted } from "./chat-helpers";
@@ -201,9 +202,28 @@ export async function streamResponse(
   const hint = modeHint(mode);
   if (hint) systemParts.push(hint);
   if (mode === "agent" || mode === "plan") {
-    const skillContent = await useSkillStore.getState().getEnabledContent();
+    const skillStore = useSkillStore.getState();
+    const skillContent = await skillStore.getEnabledContent();
     if (skillContent) {
       systemParts.push(`<active_skills>\n${skillContent}\n</active_skills>`);
+    }
+    // Auto-route skills based on user input
+    const lastUserMessage = [...history].reverse().find((m) => m.role === "user");
+    if (lastUserMessage) {
+      const routeResult = routeSkill(
+        lastUserMessage.content,
+        skillStore.skills,
+        skillStore.enabledSkillIds,
+      );
+      if (routeResult.matchedSkills.length > 0) {
+        const routeInfo = routeResult.matchedSkills
+          .map((s) => {
+            const reasons = routeResult.matchReasons.get(s.manifest.id) ?? [];
+            return `- ${s.manifest.name}: ${reasons.join(", ")}`;
+          })
+          .join("\n");
+        systemParts.push(`<skill_routing>\nMatched skills:\n${routeInfo}\n</skill_routing>`);
+      }
     }
   }
   // Inject memory context if available (skip in private sessions)

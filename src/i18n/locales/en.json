@@ -190,7 +190,13 @@
     "builtin": "Built-in",
     "low": "Low",
     "medium": "Medium",
-    "high": "High"
+    "high": "High",
+    "create": "Create Skill",
+    "cancel": "Cancel",
+    "save": "Save",
+    "namePlaceholder": "Skill name",
+    "descPlaceholder": "Short description",
+    "contentPlaceholder": "Skill instructions (Markdown)..."
   },
   "mcp": {
     "title": "MCP Servers",

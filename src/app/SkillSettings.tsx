@@ -8,17 +8,70 @@ export function SkillSettings() {
   const enabledSkillIds = useSkillStore((s) => s.enabledSkillIds);
   const loadSkills = useSkillStore((s) => s.loadSkills);
   const toggleSkill = useSkillStore((s) => s.toggleSkill);
+  const createSkill = useSkillStore((s) => s.createSkill);
+  const deleteSkill = useSkillStore((s) => s.deleteSkill);
   const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [name, setName] = useState("");
+  const [desc, setDesc] = useState("");
+  const [content, setContent] = useState("");
 
   useEffect(() => {
     void loadSkills().finally(() => setLoading(false));
   }, [loadSkills]);
 
+  const handleCreate = async () => {
+    if (!name.trim() || !content.trim()) return;
+    await createSkill(name.trim(), desc.trim() || name.trim(), content.trim());
+    setName("");
+    setDesc("");
+    setContent("");
+    setShowCreate(false);
+  };
+
   if (loading) return <p>{t("common.loading")}</p>;
 
   return (
     <section className="skill-settings">
-      <h3>{t("skill.title")}</h3>
+      <div className="skill-header-row">
+        <h3>{t("skill.title")}</h3>
+        <button
+          type="button"
+          className="skill-create-btn"
+          onClick={() => setShowCreate(!showCreate)}
+        >
+          {showCreate ? t("skill.cancel") : t("skill.create")}
+        </button>
+      </div>
+
+      {showCreate && (
+        <div className="skill-create-form">
+          <input
+            placeholder={t("skill.namePlaceholder")}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <input
+            placeholder={t("skill.descPlaceholder")}
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
+          />
+          <textarea
+            placeholder={t("skill.contentPlaceholder")}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            rows={6}
+          />
+          <button
+            type="button"
+            onClick={() => void handleCreate()}
+            disabled={!name.trim() || !content.trim()}
+          >
+            {t("skill.save")}
+          </button>
+        </div>
+      )}
+
       {skills.length === 0 ? (
         <p className="empty-list">{t("skill.noSkills")}</p>
       ) : (
@@ -26,6 +79,7 @@ export function SkillSettings() {
           {skills.map((skill) => {
             const isEnabled = enabledSkillIds.has(skill.manifest.id);
             const riskLevel = skill.manifest.riskLevel;
+            const isCustom = !skill.builtIn;
 
             return (
               <li key={skill.manifest.id} className="skill-item">
@@ -38,14 +92,25 @@ export function SkillSettings() {
                   <span className="skill-source">
                     {skill.builtIn ? t("skill.builtin") : skill.manifest.source}
                   </span>
-                  <label className="skill-toggle">
-                    <input
-                      type="checkbox"
-                      checked={isEnabled}
-                      onChange={() => void toggleSkill(skill.manifest.id)}
-                    />
-                    <span>{isEnabled ? t("skill.enabled") : t("skill.disabled")}</span>
-                  </label>
+                  <div className="skill-item-actions">
+                    {isCustom && (
+                      <button
+                        type="button"
+                        className="skill-delete-btn"
+                        onClick={() => void deleteSkill(skill.manifest.id)}
+                      >
+                        🗑️
+                      </button>
+                    )}
+                    <label className="skill-toggle">
+                      <input
+                        type="checkbox"
+                        checked={isEnabled}
+                        onChange={() => void toggleSkill(skill.manifest.id)}
+                      />
+                      <span>{isEnabled ? t("skill.enabled") : t("skill.disabled")}</span>
+                    </label>
+                  </div>
                 </div>
               </li>
             );

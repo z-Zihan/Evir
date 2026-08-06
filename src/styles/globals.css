@@ -1859,3 +1859,63 @@ textarea {
   color: var(--muted-foreground);
   font-size: 0.82rem;
 }
+
+.skill-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+.skill-create-btn {
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-elevated);
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+.skill-create-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.skill-create-form input,
+.skill-create-form textarea {
+  padding: 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-elevated);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 0.82rem;
+}
+.skill-create-form button {
+  align-self: flex-start;
+  padding: 0.4rem 0.8rem;
+  border: 0;
+  border-radius: 6px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+.skill-create-form button:disabled {
+  opacity: 0.5;
+}
+.skill-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.skill-delete-btn {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0.1rem;
+}
