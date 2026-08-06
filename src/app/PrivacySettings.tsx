@@ -78,8 +78,13 @@ export function PrivacySettings() {
 
   return (
     <section className="privacy-settings">
-      <h3>{t("privacy.title")}</h3>
-      <div className="flex items-center justify-between gap-2 px-4 py-2 border border-border rounded-lg">
+      <div className="settings-page-intro compact">
+        <div>
+          <span className="settings-page-eyebrow">{t("settingsDescriptions.localData")}</span>
+          <p>{t("settingsDescriptions.privacy")}</p>
+        </div>
+      </div>
+      <div className="privacy-session-card">
         <span className="text-sm">{t("chat.privateSession")}</span>
         <button
           type="button"
@@ -91,7 +96,10 @@ export function PrivacySettings() {
           {privateSession ? <LockKeyhole size={15} /> : <UnlockKeyhole size={15} />}
         </button>
       </div>
-      <p className="privacy-warning">{t("privacy.confirmClear")}</p>
+      <div className="danger-zone-heading">
+        <strong>{t("privacy.dangerZone")}</strong>
+        <span>{t("privacy.confirmClear")}</span>
+      </div>
       <div className="privacy-actions">
         <button
           type="button"

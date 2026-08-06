@@ -103,9 +103,14 @@ export function SkillSettings() {
   if (loading) return <p>{t("common.loading")}</p>;
 
   return (
-    <section className="flex flex-col gap-3">
-      <div className="flex justify-between items-center mb-3">
-        <h3>{t("skill.title")}</h3>
+    <section className="skill-settings settings-designed-page">
+      <div className="settings-page-intro compact">
+        <div>
+          <span className="settings-page-eyebrow">
+            {t("settingsDescriptions.optionalCapabilities")}
+          </span>
+          <p>{t("settingsDescriptions.skills")}</p>
+        </div>
         <div className="flex items-center gap-2">
           <input
             ref={fileInputRef}
@@ -138,7 +143,7 @@ export function SkillSettings() {
       )}
 
       {showCreate && (
-        <div className="flex flex-col gap-2 mb-4 p-3 border border-border rounded-lg bg-surface">
+        <div className="skill-create-form">
           <input
             placeholder={t("skill.namePlaceholder")}
             value={name}
@@ -166,19 +171,19 @@ export function SkillSettings() {
       )}
 
       {skills.length === 0 ? (
-        <p className="text-muted text-sm px-2 py-4 text-center">{t("skill.noSkills")}</p>
+        <div className="settings-empty-state">
+          <strong>{t("skill.noSkills")}</strong>
+          <span>{t("settingsDescriptions.skillsEmpty")}</span>
+        </div>
       ) : (
-        <ul className="list-none p-0 m-0 flex flex-col gap-2">
+        <ul className="skill-list">
           {skills.map((skill) => {
             const isEnabled = enabledSkillIds.has(skill.manifest.id);
             const riskLevel = skill.manifest.riskLevel;
             const isCustom = !skill.builtIn;
 
             return (
-              <li
-                key={skill.manifest.id}
-                className="p-3 border border-border rounded-lg bg-surface"
-              >
+              <li key={skill.manifest.id} className="skill-item">
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-sm font-semibold">{skill.manifest.name}</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${riskLevel}`}>

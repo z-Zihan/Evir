@@ -1,43 +1,60 @@
 import { useTranslation } from "react-i18next";
+import { Check, Monitor, Moon, Sun, type LucideIcon } from "lucide-react";
 import { useThemeStore } from "../features/settings/theme-store";
-import { Monitor, Moon, Sun, type LucideIcon } from "lucide-react";
 
 export function ThemeSettings() {
   const { t } = useTranslation();
   const { theme, setTheme } = useThemeStore();
-
   const options: Array<{
     value: "light" | "dark" | "system";
     label: string;
+    description: string;
     icon: LucideIcon;
   }> = [
-    { value: "light", label: t("settings.light"), icon: Sun },
-    { value: "dark", label: t("settings.dark"), icon: Moon },
-    { value: "system", label: t("settings.system"), icon: Monitor },
+    {
+      value: "light",
+      label: t("settings.light"),
+      description: t("settingsDescriptions.themeLight"),
+      icon: Sun,
+    },
+    {
+      value: "dark",
+      label: t("settings.dark"),
+      description: t("settingsDescriptions.themeDark"),
+      icon: Moon,
+    },
+    {
+      value: "system",
+      label: t("settings.system"),
+      description: t("settingsDescriptions.themeSystem"),
+      icon: Monitor,
+    },
   ];
-
   return (
-    <section className="flex flex-col gap-3">
-      <h3 className="text-sm font-semibold m-0">{t("settings.theme")}</h3>
-      <div className="flex gap-2">
-        {options.map((opt) => {
-          const Icon = opt.icon;
-          return (
-            <button
-              key={opt.value}
-              type="button"
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm transition ${
-                theme === opt.value
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-surface text-muted hover:bg-surface-hover hover:text-foreground"
-              }`}
-              onClick={() => setTheme(opt.value)}
-            >
-              <Icon size={15} aria-hidden="true" />
-              <span>{opt.label}</span>
-            </button>
-          );
-        })}
+    <section className="settings-designed-page">
+      <div className="settings-page-intro compact">
+        <div>
+          <span className="settings-page-eyebrow">{t("settingsDescriptions.appearance")}</span>
+          <p>{t("settingsDescriptions.theme")}</p>
+        </div>
+      </div>
+      <div className="choice-card-grid">
+        {options.map(({ value, label, description, icon: Icon }) => (
+          <button
+            key={value}
+            type="button"
+            className={`choice-card${theme === value ? " active" : ""}`}
+            aria-pressed={theme === value}
+            onClick={() => setTheme(value)}
+          >
+            <span className="choice-card-icon">
+              <Icon size={18} />
+            </span>
+            <strong>{label}</strong>
+            <span>{description}</span>
+            {theme === value && <Check className="choice-check" size={15} />}
+          </button>
+        ))}
       </div>
     </section>
   );

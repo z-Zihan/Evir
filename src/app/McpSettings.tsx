@@ -69,13 +69,21 @@ export function McpSettings() {
 
   return (
     <section className="mcp-settings">
-      <h3>{t("mcp.title")}</h3>
+      <div className="settings-page-intro compact">
+        <div>
+          <span className="settings-page-eyebrow">{t("settingsDescriptions.toolConnections")}</span>
+          <p>{t("settingsDescriptions.mcp")}</p>
+        </div>
+      </div>
       <p className="mcp-security-notice">
         <AlertTriangle size={14} />
         {t("mcp.securityNotice")}
       </p>
       {servers.length === 0 ? (
-        <p className="text-muted text-sm px-2 py-4 text-center">{t("mcp.noServers")}</p>
+        <div className="settings-empty-state">
+          <strong>{t("mcp.noServers")}</strong>
+          <span>{t("settingsDescriptions.mcpEmpty")}</span>
+        </div>
       ) : (
         <ul className="mcp-list">
           {servers.map((server) => (

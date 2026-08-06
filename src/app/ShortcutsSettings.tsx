@@ -40,7 +40,12 @@ export function ShortcutsSettings() {
 
   return (
     <section className="shortcuts-settings">
-      <h3>{t("settings.shortcuts")}</h3>
+      <div className="settings-page-intro compact">
+        <div>
+          <span className="settings-page-eyebrow">{t("settingsDescriptions.keyboard")}</span>
+          <p>{t("settingsDescriptions.shortcuts")}</p>
+        </div>
+      </div>
       {[...groups.entries()].map(([scope, shortcuts]) => (
         <div key={scope} className="shortcuts-group">
           <span className="shortcuts-scope-label">{scope}</span>

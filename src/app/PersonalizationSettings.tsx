@@ -64,7 +64,14 @@ export function PersonalizationPanel() {
 
   return (
     <section className="personalization-settings">
-      <h3>{t("personalization.title")}</h3>
+      <div className="settings-page-intro compact">
+        <div>
+          <span className="settings-page-eyebrow">
+            {t("settingsDescriptions.responsePreferences")}
+          </span>
+          <p>{t("settingsDescriptions.personalization")}</p>
+        </div>
+      </div>
       <form onSubmit={handleSubmit}>
         <fieldset disabled={status !== "idle"}>
           <label className="personalization-toggle">

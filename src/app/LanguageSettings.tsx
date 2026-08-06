@@ -1,30 +1,46 @@
 import { useTranslation } from "react-i18next";
+import { Check, Languages } from "lucide-react";
 
 export function LanguageSettings() {
   const { t, i18n } = useTranslation();
   const current = i18n.language.startsWith("zh") ? "zh-CN" : "en";
-
-  const options: Array<{ value: "en" | "zh-CN"; label: string }> = [
-    { value: "en", label: t("personalization.english") },
-    { value: "zh-CN", label: t("personalization.chinese") },
+  const options = [
+    {
+      value: "zh-CN" as const,
+      label: t("personalization.chinese"),
+      sample: t("settingsDescriptions.chineseSample"),
+    },
+    {
+      value: "en" as const,
+      label: t("personalization.english"),
+      sample: t("settingsDescriptions.englishSample"),
+    },
   ];
-
   return (
-    <section className="flex flex-col gap-3">
-      <h3 className="text-sm font-semibold m-0">{t("settings.language")}</h3>
-      <div className="flex gap-2">
-        {options.map((opt) => (
+    <section className="settings-designed-page">
+      <div className="settings-page-intro compact">
+        <div>
+          <span className="settings-page-eyebrow">{t("settingsDescriptions.localization")}</span>
+          <p>{t("settingsDescriptions.language")}</p>
+        </div>
+      </div>
+      <div className="language-choice-list">
+        {options.map((option) => (
           <button
-            key={opt.value}
+            key={option.value}
             type="button"
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm transition ${
-              current === opt.value
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border bg-surface text-muted hover:bg-surface-hover hover:text-foreground"
-            }`}
-            onClick={() => void i18n.changeLanguage(opt.value)}
+            className={`language-choice${current === option.value ? " active" : ""}`}
+            aria-pressed={current === option.value}
+            onClick={() => void i18n.changeLanguage(option.value)}
           >
-            <span>{opt.label}</span>
+            <span className="choice-card-icon">
+              <Languages size={18} />
+            </span>
+            <span>
+              <strong>{option.label}</strong>
+              <small>{option.sample}</small>
+            </span>
+            {current === option.value && <Check size={16} />}
           </button>
         ))}
       </div>

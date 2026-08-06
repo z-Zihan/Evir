@@ -173,7 +173,6 @@ export function UsagePanel() {
       <div className="settings-page-intro">
         <div>
           <span className="settings-page-eyebrow">{t("usage.insights")}</span>
-          <h3>{t("usage.title")}</h3>
           <p>{t("usage.description")}</p>
         </div>
         <button

@@ -73,6 +73,17 @@ export function ProviderSettings() {
 
   return (
     <div className="provider-settings flex flex-col gap-3">
+      <div className="settings-page-intro compact">
+        <div>
+          <span className="settings-page-eyebrow">
+            {t("settingsDescriptions.modelConnections")}
+          </span>
+          <p>{t("provider.addDescription")}</p>
+        </div>
+        <span className="settings-count-badge">
+          {t("settingsDescriptions.providerCount", { count: providers.length })}
+        </span>
+      </div>
       {providers.length > 0 && (
         <div className="flex flex-col gap-2">
           {providers.map((p) => (

@@ -44,9 +44,14 @@ export function DiagnosticsSettings() {
   };
 
   return (
-    <section className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h3 className="text-base font-semibold">{t("diagnostics.title")}</h3>
+    <section className="diagnostics-settings settings-designed-page">
+      <div className="settings-page-intro compact">
+        <div>
+          <span className="settings-page-eyebrow">
+            {t("settingsDescriptions.localDiagnostics")}
+          </span>
+          <p>{t("settingsDescriptions.diagnostics")}</p>
+        </div>
         <div className="flex gap-2">
           <button type="button" className="secondary-button" onClick={handleExport}>
             {t("diagnostics.export")}

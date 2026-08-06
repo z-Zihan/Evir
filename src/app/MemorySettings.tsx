@@ -36,10 +36,15 @@ export function MemorySettings({ conversationId }: { conversationId: string | nu
   };
 
   return (
-    <section className="flex flex-col gap-3">
-      <h3>{t("memory.title")}</h3>
+    <section className="memory-settings settings-designed-page">
+      <div className="settings-page-intro compact">
+        <div>
+          <span className="settings-page-eyebrow">{t("settingsDescriptions.localContext")}</span>
+          <p>{t("settingsDescriptions.memory")}</p>
+        </div>
+      </div>
 
-      <div className="flex flex-col gap-2 mb-4">
+      <div className="memory-create-card">
         <input
           placeholder={t("memory.keyPlaceholder")}
           value={newKey}
@@ -52,6 +57,7 @@ export function MemorySettings({ conversationId }: { conversationId: string | nu
           rows={2}
         />
         <button
+          className="primary-button"
           type="button"
           onClick={() => void handleAdd()}
           disabled={!newKey.trim() || !newContent.trim()}
@@ -61,14 +67,15 @@ export function MemorySettings({ conversationId }: { conversationId: string | nu
       </div>
 
       {memories.length === 0 ? (
-        <p className="text-muted text-sm">{t("memory.empty")}</p>
+        <div className="settings-empty-state">
+          <Pin size={20} />
+          <strong>{t("memory.empty")}</strong>
+          <span>{t("settingsDescriptions.memoryEmpty")}</span>
+        </div>
       ) : (
-        <ul className="list-none p-0 m-0 flex flex-col gap-2">
+        <ul className="memory-list">
           {memories.map((m: MemoryRecord) => (
-            <li
-              key={m.id}
-              className={`flex justify-between items-start p-3 border border-border rounded-lg bg-surface${m.pinned ? " pinned" : ""}`}
-            >
+            <li key={m.id} className={`memory-item${m.pinned ? " pinned" : ""}`}>
               {editingId === m.id ? (
                 <div className="w-full flex flex-col gap-1">
                   <textarea
@@ -90,7 +97,7 @@ export function MemorySettings({ conversationId }: { conversationId: string | nu
                     {m.pinned && <Pin size={12} className="memory-pin-indicator" />}
                     <p>{m.content}</p>
                   </div>
-                  <div className="flex gap-1">
+                  <div className="memory-item-actions">
                     <button
                       type="button"
                       onClick={() => void togglePin(m.id)}
