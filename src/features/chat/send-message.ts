@@ -48,6 +48,17 @@ export async function sendChatMessage(
     }));
   }
   await db.messages.add(userMessage);
+
+  // Auto-generate title
+  const conversation = get().conversations.find((c) => c.id === conversationId);
+  if (conversation && !conversation.title && text) {
+    const autoTitle = text.length > 30 ? `${text.slice(0, 30)}…` : text;
+    await db.conversations.update(conversationId, { title: autoTitle, updatedAt: Date.now() });
+    set(({ conversations: convs }) => ({
+      conversations: convs.map((c) => (c.id === conversationId ? { ...c, title: autoTitle } : c)),
+    }));
+  }
+
   if (attachments.length > 0) {
     await db.attachments.bulkPut(
       attachments.map((attachment) => ({
