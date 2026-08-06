@@ -1551,3 +1551,70 @@ textarea {
   max-height: 200px;
   overflow-y: auto;
 }
+
+/* Workspace selector */
+.workspace-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 0.8rem;
+}
+
+.workspace-current {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 300px;
+}
+
+.workspace-pick,
+.workspace-change,
+.workspace-clear {
+  border: 1px solid var(--border);
+  background: var(--surface-elevated);
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.workspace-pick:hover,
+.workspace-change:hover {
+  border-color: var(--focus);
+}
+
+.workspace-clear {
+  padding: 0.15rem 0.4rem;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.workspace-recent {
+  position: relative;
+}
+
+.workspace-recent summary {
+  cursor: pointer;
+  color: var(--muted-foreground);
+  font-size: 0.72rem;
+}
+
+.workspace-recent button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: var(--surface);
+  padding: 0.3rem 0.5rem;
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+
+.workspace-recent button:hover {
+  background: var(--surface-elevated);
+}

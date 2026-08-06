@@ -233,5 +233,10 @@
     "github": "GitHub",
     "license": "License",
     "mit": "MIT License"
+  },
+  "workspace": {
+    "select": "Select Workspace",
+    "change": "Change",
+    "recent": "Recent"
   }
 }

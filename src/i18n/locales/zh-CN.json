@@ -233,5 +233,10 @@
     "github": "GitHub",
     "license": "许可证",
     "mit": "MIT 许可证"
+  },
+  "workspace": {
+    "select": "选择工作区",
+    "change": "切换",
+    "recent": "最近"
   }
 }

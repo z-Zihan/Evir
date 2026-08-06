@@ -7,6 +7,7 @@ import { ChatView } from "./ChatView";
 import { SettingsModal } from "./SettingsModal";
 import { useShortcuts } from "./useShortcuts";
 import { ShortcutHelpOverlay } from "./ShortcutHelpOverlay";
+import { WorkspaceSelector } from "./WorkspaceSelector";
 
 export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -58,6 +59,7 @@ export function App() {
       {sidebarVisible && (
         <Sidebar onOpenSettings={() => setSettingsOpen(true)} focusSearchRef={focusSearchRef} />
       )}
+      <WorkspaceSelector />
       <ChatView
         input={messageInput}
         onInputChange={setMessageInput}
