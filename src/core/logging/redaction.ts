@@ -6,7 +6,7 @@ const SECRET_VALUE_PATTERNS: RegExp[] = [
   /\bBearer\s+[A-Za-z0-9._~+/=-]{8,}\b/gi,
 ];
 
-export function redactLogValue(value: unknown): unknown {
+export function redactLogValue(value: unknown, seen: WeakSet<object> = new WeakSet()): unknown {
   if (typeof value === "string") {
     return SECRET_VALUE_PATTERNS.reduce(
       (current, pattern) => current.replace(pattern, "[REDACTED]"),
@@ -15,14 +15,18 @@ export function redactLogValue(value: unknown): unknown {
   }
 
   if (Array.isArray(value)) {
-    return value.map(redactLogValue);
+    if (seen.has(value)) return "[CIRCULAR]";
+    seen.add(value);
+    return value.map((entryValue) => redactLogValue(entryValue, seen));
   }
 
   if (value !== null && typeof value === "object") {
+    if (seen.has(value)) return "[CIRCULAR]";
+    seen.add(value);
     return Object.fromEntries(
       Object.entries(value).map(([key, entryValue]) => [
         key,
-        SENSITIVE_KEY_PATTERN.test(key) ? "[REDACTED]" : redactLogValue(entryValue),
+        SENSITIVE_KEY_PATTERN.test(key) ? "[REDACTED]" : redactLogValue(entryValue, seen),
       ]),
     );
   }

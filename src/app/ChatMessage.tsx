@@ -16,23 +16,24 @@ interface ChatMessageProps {
 }
 
 function CodeBlock({ className, children }: { className?: string; children: ReactNode }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const code = typeof children === "string" ? children : JSON.stringify(children);
   return (
-    <div className="relative my-3 rounded-lg overflow-hidden border border-border">
+    <div className="code-block">
       <button
         type="button"
-        className="absolute top-2 right-2 flex items-center gap-1 text-xs px-2 py-1 bg-surface-hover border border-border rounded opacity-0 hover:opacity-100 transition text-muted z-10"
+        className="code-block-copy"
         onClick={() => {
           void navigator.clipboard.writeText(code).then(() => {
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
           });
         }}
-        aria-label="Copy code"
+        aria-label={t("chat.copyCode")}
       >
         <Copy size={13} />
-        {copied ? "Copied!" : "Copy"}
+        {copied ? t("chat.copied") : t("chat.copyCode")}
       </button>
       <pre>
         <code className={className}>{children}</code>
@@ -72,99 +73,105 @@ export function ChatMessage({
     });
   };
 
+  const roleLabel = message.role === "assistant" ? "Evir" : t("chat.you");
+
   return (
-    <div className={`max-w-[780px] mx-auto w-full message-${message.role}`}>
-      <div className="message-content">
-        {message.attachments && message.attachments.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-3">
-            {message.attachments.map((attachment) =>
-              attachment.type === "image" ? (
-                <img
-                  key={attachment.id}
-                  src={attachment.data}
-                  alt={attachment.fileName}
-                  className="max-w-[200px] max-h-[200px] rounded-lg object-cover"
-                />
-              ) : (
-                <span
-                  key={attachment.id}
-                  className="inline-flex items-center gap-1 px-2 py-1 bg-surface-hover rounded text-xs"
-                >
-                  {attachment.fileName}
-                </span>
-              ),
-            )}
-          </div>
-        )}
-        {isEditing ? (
-          <div className="message-edit-form">
-            <textarea
-              aria-label={t("chat.edit")}
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              autoFocus
-            />
-            <div className="flex gap-2 mt-2">
-              <button type="button" onClick={cancelEdit}>
-                {t("chat.cancel")}
-              </button>
-              <button
-                type="button"
-                className="bg-primary text-primary-fg border-primary"
-                onClick={saveEdit}
-                disabled={!canSave}
-              >
-                {t("chat.save")}
-              </button>
-            </div>
-          </div>
-        ) : message.role === "assistant" ? (
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={{
-              code({ className: cn, children: ch, ...props }) {
-                const isInline = !cn;
-                if (isInline) return <code {...props}>{ch}</code>;
-                return <CodeBlock className={cn}>{ch}</CodeBlock>;
-              },
-            }}
-          >
-            {message.content}
-          </ReactMarkdown>
-        ) : (
-          <p>{message.content}</p>
-        )}
-        {message.toolCalls && message.toolCalls.length > 0 && (
-          <AgentActivity toolCalls={message.toolCalls} toolResults={message.toolResults ?? []} />
-        )}
-        {message.status === "stopped" && (
-          <span className="text-muted text-xs italic">({t("chat.stopped")})</span>
-        )}
-        {message.status === "error" && message.errorMessage && (
-          <div className="text-danger text-sm p-2 bg-danger/8 rounded-lg mt-2">
-            {displayError(message.errorMessage)}
-            <button
-              type="button"
-              className="inline-flex items-center gap-1 text-xs px-2 py-1 mt-2 bg-surface border border-border rounded hover:border-primary hover:text-primary transition"
-              onClick={() => void onRegenerate()}
-              disabled={disabled}
-            >
-              <RotateCcw size={13} />
-              {t("chat.retry")}
-            </button>
-          </div>
-        )}
+    <article className={`message-row message-${message.role}`}>
+      <div className="message-rail" aria-hidden="true">
+        <span className="message-role-mark">{message.role === "assistant" ? "E" : "Y"}</span>
+        <span className="message-rail-line" />
       </div>
-      {!isEditing && message.role !== "system" && (
-        <div className="flex items-center gap-2 mt-1 px-1">
-          <span className="text-xs text-muted opacity-60">
-            {new Date(message.createdAt).toLocaleTimeString("zh-CN", {
+      <div className="message-main">
+        <header className="message-header">
+          <span className="message-author">{roleLabel}</span>
+          <time dateTime={new Date(message.createdAt).toISOString()}>
+            {new Date(message.createdAt).toLocaleTimeString(i18n.language, {
               hour: "2-digit",
               minute: "2-digit",
               hour12: false,
             })}
-          </span>
-          <div className="flex gap-1 opacity-0 hover:opacity-100 transition">
+          </time>
+        </header>
+        <div className="message-content">
+          {message.attachments && message.attachments.length > 0 && (
+            <div className="message-attachments">
+              {message.attachments.map((attachment) =>
+                attachment.type === "image" ? (
+                  <img
+                    key={attachment.id}
+                    src={attachment.data}
+                    alt={attachment.fileName}
+                    className="message-attachment-image"
+                  />
+                ) : (
+                  <span key={attachment.id} className="message-attachment-file">
+                    {attachment.fileName}
+                  </span>
+                ),
+              )}
+            </div>
+          )}
+          {isEditing ? (
+            <div className="message-edit-form">
+              <textarea
+                aria-label={t("chat.edit")}
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                autoFocus
+              />
+              <div className="message-edit-actions">
+                <button type="button" onClick={cancelEdit}>
+                  {t("chat.cancel")}
+                </button>
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={saveEdit}
+                  disabled={!canSave}
+                >
+                  {t("chat.save")}
+                </button>
+              </div>
+            </div>
+          ) : message.role === "assistant" ? (
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                code({ className: cn, children: ch, ...props }) {
+                  const isInline = !cn;
+                  if (isInline) return <code {...props}>{ch}</code>;
+                  return <CodeBlock className={cn}>{ch}</CodeBlock>;
+                },
+              }}
+            >
+              {message.content}
+            </ReactMarkdown>
+          ) : (
+            <p>{message.content}</p>
+          )}
+          {message.toolCalls && message.toolCalls.length > 0 && (
+            <AgentActivity toolCalls={message.toolCalls} toolResults={message.toolResults ?? []} />
+          )}
+          {message.status === "stopped" && (
+            <span className="message-state message-state-stopped">{t("chat.stopped")}</span>
+          )}
+          {message.status === "error" && message.errorMessage && (
+            <div className="message-state message-state-error">
+              {displayError(message.errorMessage)}
+              <button
+                type="button"
+                className="message-retry-button"
+                onClick={() => void onRegenerate()}
+                disabled={disabled}
+              >
+                <RotateCcw size={13} />
+                {t("chat.retry")}
+              </button>
+            </div>
+          )}
+        </div>
+        {!isEditing && message.role !== "system" && (
+          <div className="message-actions">
             <button
               type="button"
               onClick={() => {
@@ -199,8 +206,8 @@ export function ChatMessage({
               {t("chat.branchFromHere")}
             </button>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </article>
   );
 }

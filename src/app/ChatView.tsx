@@ -248,15 +248,35 @@ export function ChatView({
               onBranch={handleBranch}
             />
             {isStreaming && (
-              <div className="message message-assistant">
-                <div className="message-content">
-                  {streamingContent ? (
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamingContent}</ReactMarkdown>
-                  ) : (
-                    <span className="text-muted text-lg tracking-widest animate-pulse">…</span>
-                  )}
+              <article
+                className="message-row message-assistant message-streaming"
+                aria-live="polite"
+              >
+                <div className="message-rail" aria-hidden="true">
+                  <span className="message-role-mark">E</span>
+                  <span className="message-rail-line" />
                 </div>
-              </div>
+                <div className="message-main">
+                  <header className="message-header">
+                    <span className="message-author">Evir</span>
+                    <span className="stream-status">
+                      <span className="signal-dot" aria-hidden="true" />
+                      {streamingContent ? t("chat.responding") : t("chat.preparingResponse")}
+                    </span>
+                  </header>
+                  <div className="message-content stream-surface">
+                    {streamingContent ? (
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamingContent}</ReactMarkdown>
+                    ) : (
+                      <div className="stream-placeholder" aria-hidden="true">
+                        <span />
+                        <span />
+                        <span />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </article>
             )}
           </div>
         )}

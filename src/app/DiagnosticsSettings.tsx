@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { logger } from "../core/logging/logger";
 import type { LogLevel } from "../core/logging/types";
@@ -20,6 +20,13 @@ export function DiagnosticsSettings() {
   const { t } = useTranslation();
   const [filter, setFilter] = useState<DiagnosticsFilter>("all");
   const [entries, setEntries] = useState(() => logger.getEntries());
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      setEntries(logger.getEntries());
+    }, 2000);
+    return () => clearInterval(intervalId);
+  }, []);
 
   const visibleEntries = useMemo(() => {
     const matched = filter === "all" ? entries : entries.filter((entry) => entry.level === filter);

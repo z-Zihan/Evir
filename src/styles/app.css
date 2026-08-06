@@ -8,44 +8,44 @@
   --font-sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
 
-  --color-background: #f7f7f5;
+  --color-background: #f6f7f8;
   --color-surface: #ffffff;
-  --color-surface-hover: #f1f2ef;
+  --color-surface-hover: #f0f3f6;
   --color-surface-elevated: #ffffff;
-  --color-foreground: #1b1d1f;
-  --color-muted: #73777c;
-  --color-border: #e2e3df;
-  --color-border-strong: #cfd1cc;
-  --color-primary: #2563eb;
-  --color-primary-hover: #1d4ed8;
+  --color-foreground: #171a1f;
+  --color-muted: #68717d;
+  --color-border: #dfe3e8;
+  --color-border-strong: #c8ced6;
+  --color-primary: #1769e0;
+  --color-primary-hover: #1159c2;
   --color-primary-fg: #ffffff;
-  --color-sidebar: #f2f3f0;
-  --color-focus: #2563eb;
-  --color-success: #16875b;
-  --color-danger: #d83a36;
-  --color-warning: #b86b10;
-  --color-accent: #4f46e5;
+  --color-sidebar: #f0f2f4;
+  --color-focus: #1769e0;
+  --color-success: #167a52;
+  --color-danger: #c93632;
+  --color-warning: #a8600b;
+  --color-accent: #2678e8;
 }
 
 /* Dark mode tokens — applied via .dark class on :root */
 :root.dark {
-  --color-background: #111315;
-  --color-surface: #181a1d;
-  --color-surface-hover: #222529;
-  --color-surface-elevated: #1d2024;
-  --color-foreground: #f3f4f5;
-  --color-muted: #989da4;
-  --color-border: #2d3035;
-  --color-border-strong: #41454c;
-  --color-primary: #6695ff;
-  --color-primary-hover: #83a9ff;
+  --color-background: #0f1217;
+  --color-surface: #161a20;
+  --color-surface-hover: #20262e;
+  --color-surface-elevated: #1a2028;
+  --color-foreground: #f1f4f7;
+  --color-muted: #98a2ae;
+  --color-border: #29313a;
+  --color-border-strong: #3c4652;
+  --color-primary: #70a2ff;
+  --color-primary-hover: #8db4ff;
   --color-primary-fg: #ffffff;
-  --color-sidebar: #151719;
-  --color-focus: #6695ff;
-  --color-success: #51c794;
+  --color-sidebar: #12161b;
+  --color-focus: #70a2ff;
+  --color-success: #54c392;
   --color-danger: #ff7770;
   --color-warning: #e7a751;
-  --color-accent: #8c86ff;
+  --color-accent: #70a2ff;
 }
 
 :root {
@@ -79,6 +79,11 @@
   --space-12: 48px;
   --line-height-normal: 1.55;
   --line-height-relaxed: 1.7;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --motion-fast: 140ms;
+  --motion-standard: 220ms;
+  --signal: var(--primary);
 }
 
 :root.dark {

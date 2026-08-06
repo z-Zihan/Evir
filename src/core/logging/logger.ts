@@ -15,12 +15,13 @@ class Logger {
   private readonly sessionId = crypto.randomUUID();
 
   log(level: LogLevel, channel: LogChannel, message: string, data?: Record<string, unknown>): void {
+    const redactedMessage = redactLogValue(message) as string;
     const entry: LogEvent = {
       timestamp: new Date().toISOString(),
       level,
       channel,
-      event: message,
-      message,
+      event: redactedMessage,
+      message: redactedMessage,
       appVersion: packageJson.version,
       platform: currentPlatform(),
       sessionId: this.sessionId,

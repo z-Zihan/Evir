@@ -1,5 +1,14 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Circle, Check, X, Loader } from "lucide-react";
+import {
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Circle,
+  CircleDashed,
+  LoaderCircle,
+  ShieldAlert,
+  XCircle,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { ToolCallRecord, ToolResultRecord } from "../core/storage/db";
 import {
@@ -14,158 +23,197 @@ interface AgentActivityProps {
   toolResults: ToolResultRecord[];
 }
 
+function getArgumentSummary(call: ToolCallRecord): string {
+  const path = call.arguments["path"] ?? call.arguments["file_path"];
+  if (typeof path === "string") return path.split("/").slice(-2).join("/");
+
+  const program = call.arguments["program"];
+  const args = call.arguments["args"];
+  if (typeof program === "string") {
+    return [
+      program,
+      ...(Array.isArray(args) ? args.filter((arg): arg is string => typeof arg === "string") : []),
+    ].join(" ");
+  }
+  return "";
+}
+
 export function AgentActivity({ toolCalls, toolResults }: AgentActivityProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [expanded, setExpanded] = useState(false);
-  const isStreaming = useChatStore((s) => s.isStreaming);
-  const approveTool = useChatStore((s) => s.approveTool);
-  const denyTool = useChatStore((s) => s.denyTool);
+  const isStreaming = useChatStore((state) => state.isStreaming);
+  const approveTool = useChatStore((state) => state.approveTool);
+  const denyTool = useChatStore((state) => state.denyTool);
+  const resultsByCallId = new Map(toolResults.map((result) => [result.toolCallId, result]));
 
-  const resultsByCallId = new Map(toolResults.map((r) => [r.toolCallId, r]));
-
-  const completed = toolCalls.filter((tc) => {
-    const r = resultsByCallId.get(tc.id);
-    return r && r.error !== TOOL_PERMISSION_REQUIRED;
+  const completed = toolCalls.filter((call) => {
+    const result = resultsByCallId.get(call.id);
+    return result && result.error !== TOOL_PERMISSION_REQUIRED;
   }).length;
-
-  const total = toolCalls.length;
   const hasPending = toolCalls.some(
-    (tc) => resultsByCallId.get(tc.id)?.error === TOOL_PERMISSION_REQUIRED,
+    (call) => resultsByCallId.get(call.id)?.error === TOOL_PERMISSION_REQUIRED,
   );
-
   const hasFailed = toolResults.some(
-    (r) => !r.success && r.error !== TOOL_PERMISSION_REQUIRED && r.error !== TOOL_DENIED,
+    (result) =>
+      !result.success && result.error !== TOOL_PERMISSION_REQUIRED && result.error !== TOOL_DENIED,
   );
+  const status = hasPending
+    ? "approval"
+    : isStreaming && completed < toolCalls.length
+      ? "running"
+      : hasFailed
+        ? "failed"
+        : "complete";
+  const statusLabel =
+    status === "approval"
+      ? t("tools.waitingApproval")
+      : status === "running"
+        ? t("agent.processing")
+        : status === "failed"
+          ? t("agent.completedWithErrors")
+          : t("agent.completed");
 
   return (
-    <div className="mt-3 border border-border rounded-lg overflow-hidden bg-surface">
-      {/* Header — always visible */}
+    <section className={`agent-activity agent-activity-${status}`} aria-label={t("tools.title")}>
       <button
         type="button"
-        className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface-hover transition"
-        onClick={() => setExpanded(!expanded)}
+        className="activity-header"
+        onClick={() => setExpanded((value) => !value)}
+        aria-expanded={expanded}
       >
-        {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-        <span className="font-medium text-muted">
-          {isStreaming && completed < total
-            ? t("agent.processing")
-            : hasFailed
-              ? t("agent.completedWithErrors")
-              : t("agent.completed")}
+        <span className="activity-state-icon" aria-hidden="true">
+          {status === "running" ? (
+            <LoaderCircle size={15} />
+          ) : status === "approval" ? (
+            <ShieldAlert size={15} />
+          ) : status === "failed" ? (
+            <XCircle size={15} />
+          ) : (
+            <CheckCircle2 size={15} />
+          )}
         </span>
-        <span className="text-xs text-muted ml-auto">
-          {completed}/{total}
+        <span className="activity-heading-copy">
+          <strong>{statusLabel}</strong>
+          <span>{t("tools.progress", { completed, total: toolCalls.length })}</span>
         </span>
+        {expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
       </button>
 
-      {/* Compact step list — always visible */}
-      <div className="px-3 pb-2 flex flex-col gap-1">
+      <div className="execution-timeline">
         {(expanded ? toolCalls : toolCalls.slice(-3)).map((call) => {
           const result = resultsByCallId.get(call.id);
           const permissionRequired = result?.error === TOOL_PERMISSION_REQUIRED;
-          const isRunning = isStreaming && !result;
-          const isDenied = result?.error === TOOL_DENIED;
-
-          const icon = isRunning ? (
-            <Loader size={12} className="animate-spin text-primary" />
-          ) : permissionRequired ? (
-            <Circle size={12} className="text-warning" />
-          ) : result?.success ? (
-            <Check size={12} className="text-success" />
-          ) : isDenied ? (
-            <X size={12} className="text-muted" />
-          ) : result ? (
-            <X size={12} className="text-danger" />
-          ) : (
-            <Circle size={12} className="text-muted" />
-          );
-
-          // Get short summary of args
-          const rawPath = call.arguments["path"] ?? call.arguments["file_path"];
-          const rawProgram = call.arguments["program"];
-          const argSummary: string =
-            typeof rawPath === "string"
-              ? rawPath
-              : typeof rawProgram === "string"
-                ? `${rawProgram} ${Array.isArray(call.arguments["args"]) ? (call.arguments["args"] as string[]).join(" ") : ""}`
-                : "";
-
-          const shortPath = argSummary.split("/").slice(-2).join("/");
+          const running = isStreaming && !result;
+          const denied = result?.error === TOOL_DENIED;
+          const toolKey = `tools.${call.toolName}`;
+          const toolName = i18n.exists(toolKey) ? t(toolKey) : call.toolName;
+          const summary = getArgumentSummary(call);
 
           return (
-            <div key={call.id} className="flex items-center gap-2 text-xs text-muted py-0.5">
-              {icon}
-              <span className="font-mono">{call.toolName}</span>
-              {shortPath && <span className="truncate text-muted/70">{shortPath}</span>}
+            <div
+              key={call.id}
+              className={`execution-step${running ? " is-running" : ""}${permissionRequired ? " is-pending" : ""}`}
+            >
+              <span className="execution-marker" aria-hidden="true">
+                {running ? (
+                  <LoaderCircle size={13} />
+                ) : permissionRequired ? (
+                  <ShieldAlert size={13} />
+                ) : result?.success ? (
+                  <CheckCircle2 size={13} />
+                ) : denied ? (
+                  <Circle size={13} />
+                ) : result ? (
+                  <XCircle size={13} />
+                ) : (
+                  <CircleDashed size={13} />
+                )}
+              </span>
+              <span className="execution-copy">
+                <strong>{toolName}</strong>
+                {summary && <span title={summary}>{summary}</span>}
+              </span>
+              <span className="execution-status">
+                {running
+                  ? t("tools.executing")
+                  : permissionRequired
+                    ? t("tools.permissionRequired")
+                    : denied
+                      ? t("tools.denied")
+                      : result?.success
+                        ? t("tools.success")
+                        : result
+                          ? t("tools.failed")
+                          : t("tools.queued")}
+              </span>
             </div>
           );
         })}
-        {!expanded && total > 3 && (
-          <button
-            type="button"
-            className="text-xs text-primary hover:underline mt-1"
-            onClick={() => setExpanded(true)}
-          >
-            +{total - 3} more
-          </button>
-        )}
       </div>
 
-      {/* Approval UI */}
+      {!expanded && toolCalls.length > 3 && (
+        <button type="button" className="activity-more" onClick={() => setExpanded(true)}>
+          {t("tools.showMore", { count: toolCalls.length - 3 })}
+        </button>
+      )}
+
       {hasPending && (
-        <div className="px-3 pb-3 border-t border-border pt-2">
-          <p className="text-xs text-muted mb-2">{t("tools.permissionRequired")}</p>
-          <div className="flex gap-2">
+        <div className="approval-panel">
+          <ShieldAlert size={18} aria-hidden="true" />
+          <div className="approval-copy">
+            <strong>{t("tools.approvalTitle")}</strong>
+            <p>{t("tools.approvalDescription")}</p>
+          </div>
+          <div className="approval-actions">
             <button
               type="button"
-              className="px-3 py-1 rounded-lg bg-primary text-primary-fg text-xs font-medium disabled:opacity-50"
-              disabled={isStreaming}
-              onClick={() => void approveTool()}
-            >
-              {t("tools.approve")}
-            </button>
-            <button
-              type="button"
-              className="px-3 py-1 rounded-lg border border-border text-xs font-medium hover:bg-surface-hover"
+              className="secondary-button"
               disabled={isStreaming}
               onClick={() => void denyTool()}
             >
               {t("tools.deny")}
             </button>
+            <button
+              type="button"
+              className="primary-button"
+              disabled={isStreaming}
+              onClick={() => void approveTool()}
+            >
+              {t("tools.approveOnce")}
+            </button>
           </div>
         </div>
       )}
 
-      {/* Expanded details */}
       {expanded && (
-        <div className="border-t border-border px-3 py-2 flex flex-col gap-2">
+        <div className="execution-details">
           {toolCalls.map((call) => {
             const result = resultsByCallId.get(call.id);
             const resultText =
               result?.error === TOOL_NOT_AVAILABLE ? t("tools.notAvailable") : result?.output;
-
             return (
-              <div key={call.id} className="text-xs">
-                <div className="font-mono font-medium mb-1">{call.toolName}</div>
-                <details>
-                  <summary className="text-muted cursor-pointer">{t("tools.arguments")}</summary>
-                  <pre className="mt-1 p-2 bg-surface-hover rounded text-xs overflow-x-auto">
-                    {JSON.stringify(call.arguments, null, 2)}
-                  </pre>
-                </details>
-                {result && (
-                  <details>
-                    <summary className="text-muted cursor-pointer">{t("tools.result")}</summary>
-                    <pre className="mt-1 p-2 bg-surface-hover rounded text-xs overflow-x-auto max-h-[200px] overflow-y-auto">
-                      {resultText}
-                    </pre>
-                  </details>
-                )}
-              </div>
+              <details key={call.id}>
+                <summary>
+                  <span>{call.toolName}</span>
+                  <span>{t("tools.inspectStep")}</span>
+                </summary>
+                <div className="execution-detail-grid">
+                  <div>
+                    <span>{t("tools.arguments")}</span>
+                    <pre>{JSON.stringify(call.arguments, null, 2)}</pre>
+                  </div>
+                  {result && (
+                    <div>
+                      <span>{t("tools.result")}</span>
+                      <pre>{resultText}</pre>
+                    </div>
+                  )}
+                </div>
+              </details>
             );
           })}
         </div>
       )}
-    </div>
+    </section>
   );
 }
