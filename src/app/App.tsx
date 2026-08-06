@@ -59,13 +59,15 @@ export function App() {
       {sidebarVisible && (
         <Sidebar onOpenSettings={() => setSettingsOpen(true)} focusSearchRef={focusSearchRef} />
       )}
-      <WorkspaceSelector />
-      <ChatView
-        input={messageInput}
-        onInputChange={setMessageInput}
-        onSendMessage={handleSendMessage}
-        onOpenSettings={() => setSettingsOpen(true)}
-      />
+      <div className="main-area">
+        <WorkspaceSelector />
+        <ChatView
+          input={messageInput}
+          onInputChange={setMessageInput}
+          onSendMessage={handleSendMessage}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
+      </div>
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <ShortcutHelpOverlay open={shortcutHelpOpen} onClose={() => setShortcutHelpOpen(false)} />
     </div>

@@ -87,6 +87,13 @@ textarea:focus-visible {
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
 }
+
+.main-area {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-width: 0;
+}
 .sidebar {
   display: flex;
   flex-direction: column;
