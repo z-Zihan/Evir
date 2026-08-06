@@ -61,7 +61,8 @@
     "pinFailed": "Failed to pin conversation",
     "copyMessage": "Copy",
     "tokenCount": "{{count}} tokens",
-    "retry": "Retry"
+    "retry": "Retry",
+    "privateSession": "Private Session"
   },
   "runtime": {
     "agentReady": "Local agent runtime",

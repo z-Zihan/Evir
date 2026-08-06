@@ -61,7 +61,8 @@
     "pinFailed": "置顶失败",
     "copyMessage": "复制",
     "tokenCount": "{{count}} tokens",
-    "retry": "重试"
+    "retry": "重试",
+    "privateSession": "隐私会话"
   },
   "runtime": {
     "agentReady": "本地 Agent Runtime",

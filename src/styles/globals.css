@@ -1919,3 +1919,8 @@ textarea {
   font-size: 0.85rem;
   padding: 0.1rem;
 }
+
+.icon-button.active {
+  background: var(--focus);
+  color: var(--primary-foreground);
+}

@@ -33,6 +33,7 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
   } = useChatStore();
   const { getDefaultProvider } = useProviderStore();
   const { resolvedTheme, cycleTheme } = useThemeStore();
+  const { privateSession, togglePrivateSession } = useChatStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -203,6 +204,14 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
         <div className="conversation-list">{unpinned.map(renderConversation)}</div>
       )}
       <div className="sidebar-footer">
+        <button
+          className={`icon-button${privateSession ? " active" : ""}`}
+          type="button"
+          onClick={togglePrivateSession}
+          aria-label={t("chat.privateSession")}
+        >
+          {privateSession ? "🔒" : "🔓"}
+        </button>
         <button
           className="icon-button"
           type="button"
