@@ -7,6 +7,7 @@ import { SkillSettings } from "./SkillSettings";
 import { McpSettings } from "./McpSettings";
 import { PrivacySettings } from "./PrivacySettings";
 import { AboutSettings } from "./AboutSettings";
+import { MemorySettings } from "./MemorySettings";
 import { ProviderSettings } from "./ProviderSettings";
 import { UsagePanel } from "./UsagePanel";
 import { downloadBlob, exportConversations } from "../features/chat/conversation-export";
@@ -21,6 +22,7 @@ type SettingsTab =
   | "usage"
   | "data"
   | "privacy"
+  | "memory"
   | "about";
 
 interface SettingsModalProps {
@@ -138,6 +140,12 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             {t("settings.about")}
           </button>
           <button
+            className={`tab${activeTab === "memory" ? " active" : ""}`}
+            onClick={() => handleTabChange("memory")}
+          >
+            {t("memory.title")}
+          </button>
+          <button
             className="language-button settings-language"
             type="button"
             aria-label={t("settings.switchLanguage")}
@@ -157,6 +165,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           {activeTab === "usage" && <UsagePanel />}
           {activeTab === "privacy" && <PrivacySettings />}
           {activeTab === "about" && <AboutSettings />}
+          {activeTab === "memory" && <MemorySettings conversationId={null} />}
           {activeTab === "data" && (
             <div className="data-settings">
               <h3>{t("settings.data")}</h3>

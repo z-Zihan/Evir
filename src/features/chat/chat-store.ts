@@ -33,6 +33,7 @@ export interface ChatState {
   error: string | null;
   pendingAttachments: ProcessedAttachment[];
   pendingToolApproval: PendingToolApproval | null;
+  privateSession: boolean;
   loadConversations: () => Promise<void>;
   createConversation: (providerId: string, modelId: string) => Promise<string>;
   selectConversation: (id: string) => Promise<void>;
@@ -48,6 +49,7 @@ export interface ChatState {
   removeAttachment: (id: string) => void;
   clearAttachments: () => void;
   setMode: (mode: InteractionMode) => void;
+  togglePrivateSession: () => void;
   approveTool: () => Promise<void>;
   denyTool: () => Promise<void>;
   branchConversation: (messageId: string) => Promise<string>;
@@ -62,6 +64,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   error: null,
   pendingAttachments: [],
   pendingToolApproval: null,
+  privateSession: false,
   loadConversations: async () => doLoadConversations(set),
   createConversation: async (providerId, modelId) => doCreateConversation(set, providerId, modelId),
   selectConversation: async (id) => doSelectConversation(set, id),
@@ -91,6 +94,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   clearAttachments: () => set({ pendingAttachments: [] }),
   setMode: (mode) => set({ mode }),
+  togglePrivateSession: () => set((s) => ({ privateSession: !s.privateSession })),
   approveTool: async () => {
     const pending = get().pendingToolApproval;
     if (!pending) return;

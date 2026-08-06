@@ -248,5 +248,14 @@
     "unresolvedErrors": "Unresolved Errors",
     "loading": "Loading",
     "none": "None"
+  },
+  "memory": {
+    "title": "Memory",
+    "keyPlaceholder": "Key (e.g. 'project-structure')",
+    "contentPlaceholder": "Content to remember...",
+    "add": "Add Memory",
+    "empty": "No memories yet",
+    "save": "Save",
+    "cancel": "Cancel"
   }
 }

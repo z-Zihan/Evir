@@ -1743,3 +1743,119 @@ textarea {
   color: var(--muted-foreground);
   font-size: 0.78rem;
 }
+
+/* Memory settings */
+.memory-settings h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.memory-add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.memory-add-form input,
+.memory-add-form textarea {
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-elevated);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+.memory-add-form button {
+  align-self: flex-start;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+
+.memory-add-form button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.memory-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.memory-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.memory-item.pinned {
+  border-color: var(--focus);
+}
+
+.memory-content strong {
+  font-size: 0.82rem;
+}
+.memory-content p {
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
+  color: var(--muted-foreground);
+}
+
+.pin-badge {
+  font-size: 0.7rem;
+  margin-left: 0.3rem;
+}
+
+.memory-actions {
+  display: flex;
+  gap: 0.3rem;
+}
+.memory-actions button {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0.1rem 0.3rem;
+}
+
+.memory-edit {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.memory-edit textarea {
+  padding: 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font: inherit;
+  font-size: 0.78rem;
+}
+.memory-edit button {
+  align-self: flex-start;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.72rem;
+}
+
+.memory-empty {
+  color: var(--muted-foreground);
+  font-size: 0.82rem;
+}

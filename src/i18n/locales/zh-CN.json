@@ -248,5 +248,14 @@
     "unresolvedErrors": "未解决的错误",
     "loading": "加载中",
     "none": "无"
+  },
+  "memory": {
+    "title": "记忆",
+    "keyPlaceholder": "键名（如 '项目结构'）",
+    "contentPlaceholder": "要记住的内容...",
+    "add": "添加记忆",
+    "empty": "暂无记忆",
+    "save": "保存",
+    "cancel": "取消"
   }
 }

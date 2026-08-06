@@ -206,8 +206,10 @@ export async function streamResponse(
       systemParts.push(`<active_skills>\n${skillContent}\n</active_skills>`);
     }
   }
-  // Inject memory context if available
-  const memoryContext = useMemoryStore.getState().buildMemoryContext(conversationId);
+  // Inject memory context if available (skip in private sessions)
+  const memoryContext = get().privateSession
+    ? ""
+    : useMemoryStore.getState().buildMemoryContext(conversationId);
   if (memoryContext) {
     systemParts.push(`<memory>\n${memoryContext}\n</memory>`);
   }
