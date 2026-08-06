@@ -109,7 +109,10 @@
     "importSuccess": "Imported {{imported}} conversations ({{skipped}} skipped)",
     "importFailed": "Import failed: {{message}}",
     "exportMarkdown": "Export as Markdown",
-    "exportMdSingle": "Export Chat as .md"
+    "exportMdSingle": "Export Chat as .md",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
   },
   "provider": {
     "add": "Add provider",

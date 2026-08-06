@@ -109,7 +109,10 @@
     "importSuccess": "已导入 {{imported}} 个会话（跳过 {{skipped}} 个）",
     "importFailed": "导入失败：{{message}}",
     "exportMarkdown": "导出为 Markdown",
-    "exportMdSingle": "导出对话为 .md"
+    "exportMdSingle": "导出对话为 .md",
+    "light": "浅色",
+    "dark": "深色",
+    "system": "跟随系统"
   },
   "provider": {
     "add": "添加供应商",

@@ -8,6 +8,7 @@ import { McpSettings } from "./McpSettings";
 import { PrivacySettings } from "./PrivacySettings";
 import { AboutSettings } from "./AboutSettings";
 import { MemorySettings } from "./MemorySettings";
+import { ThemeSettings } from "./ThemeSettings";
 import { ProviderSettings } from "./ProviderSettings";
 import { UsagePanel } from "./UsagePanel";
 import { downloadBlob, exportConversations } from "../features/chat/conversation-export";
@@ -22,6 +23,7 @@ type SettingsTab =
   | "usage"
   | "data"
   | "privacy"
+  | "theme"
   | "memory"
   | "about";
 
@@ -146,6 +148,12 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             className={`px-3 py-3 bg-transparent text-sm font-medium text-muted cursor-pointer border-b-2 border-transparent hover:text-foreground transition whitespace-nowrap${activeTab === "memory" ? " active" : ""}`}
             onClick={() => handleTabChange("memory")}
           >
+            {t("settings.theme")}
+          </button>
+          <button
+            className={`tab${activeTab === "theme" ? " active" : ""}`}
+            onClick={() => handleTabChange("theme")}
+          >
             {t("memory.title")}
           </button>
           <button
@@ -168,6 +176,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           {activeTab === "usage" && <UsagePanel />}
           {activeTab === "privacy" && <PrivacySettings />}
           {activeTab === "about" && <AboutSettings />}
+          {activeTab === "theme" && <ThemeSettings />}
           {activeTab === "memory" && <MemorySettings conversationId={null} />}
           {activeTab === "data" && (
             <div className="data-settings">

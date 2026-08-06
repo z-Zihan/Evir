@@ -1,19 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Pencil,
-  GitBranch,
-  MessageSquarePlus,
-  Moon,
-  Pin,
-  Search,
-  Settings2,
-  Sun,
-  Trash2,
-} from "lucide-react";
+import { Pencil, GitBranch, MessageSquarePlus, Pin, Search, Settings2, Trash2 } from "lucide-react";
 import { useChatStore } from "../features/chat/chat-store";
 import { useProviderStore } from "../features/provider/provider-store";
-import { useThemeStore } from "../features/settings/theme-store";
 
 interface SidebarProps {
   onOpenSettings: () => void;
@@ -32,7 +21,7 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
     togglePin,
   } = useChatStore();
   const { getDefaultProvider } = useProviderStore();
-  const { resolvedTheme, cycleTheme } = useThemeStore();
+
   const { privateSession, togglePrivateSession } = useChatStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -228,14 +217,7 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
         >
           {privateSession ? "🔒" : "🔓"}
         </button>
-        <button
-          className="grid place-items-center w-8 h-8 rounded-lg text-muted hover:bg-surface-hover hover:text-foreground transition"
-          type="button"
-          onClick={cycleTheme}
-          aria-label={t("settings.theme")}
-        >
-          {resolvedTheme === "dark" ? <Moon size={17} /> : <Sun size={17} />}
-        </button>
+
         <button
           className="language-button"
           type="button"
