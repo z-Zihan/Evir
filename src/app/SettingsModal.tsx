@@ -12,6 +12,17 @@ import { UsagePanel } from "./UsagePanel";
 import { downloadBlob, exportConversations } from "../features/chat/conversation-export";
 import { importConversations } from "../features/chat/conversation-import";
 
+type SettingsTab =
+  | "providers"
+  | "personalization"
+  | "shortcuts"
+  | "skills"
+  | "mcp"
+  | "usage"
+  | "data"
+  | "privacy"
+  | "about";
+
 interface SettingsModalProps {
   open: boolean;
   onClose: () => void;
@@ -19,33 +30,12 @@ interface SettingsModalProps {
 
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const { t, i18n } = useTranslation();
-  const [activeTab, setActiveTab] = useState<
-    | "providers"
-    | "personalization"
-    | "shortcuts"
-    | "skills"
-    | "mcp"
-    | "usage"
-    | "data"
-    | "privacy"
-    | "about"
-  >("providers");
+  const [activeTab, setActiveTab] = useState<SettingsTab>("providers");
   const [importResult, setImportResult] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   if (!open) return null;
 
-  const handleTabChange = (
-    tab:
-      | "providers"
-      | "personalization"
-      | "shortcuts"
-      | "skills"
-      | "mcp"
-      | "usage"
-      | "data"
-      | "privacy"
-      | "about",
-  ) => {
+  const handleTabChange = (tab: SettingsTab) => {
     setActiveTab(tab);
     setImportResult(null);
   };

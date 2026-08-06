@@ -1,6 +1,8 @@
 import { useTranslation } from "react-i18next";
 
-const EVIR_VERSION = "0.1.0";
+import packageJson from "../../package.json";
+
+const EVIR_VERSION = packageJson.version;
 
 export function AboutSettings() {
   const { t } = useTranslation();
