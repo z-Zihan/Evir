@@ -1,6 +1,7 @@
 import { create } from "zustand";
 // NOTE: Uses Dexie directly for settings; StoragePort covers basic CRUD
 import { db } from "../../core/storage/db";
+import type { SkillManifest } from "../../core/skills/types";
 import { createSkillRegistry, type SkillRegistry } from "../../core/skills/skill-registry";
 import type { InstalledSkill } from "../../core/skills/types";
 
@@ -13,6 +14,10 @@ interface SkillState {
   toggleSkill: (id: string) => Promise<void>;
   isEnabled: (id: string) => boolean;
   getEnabledContent: () => Promise<string>;
+  importSkill: (manifest: SkillManifest, content: string) => Promise<string>;
+  createSkill: (name: string, description: string, content: string) => Promise<string>;
+  deleteSkill: (id: string) => Promise<void>;
+  listAll: () => InstalledSkill[];
 }
 
 let registry: SkillRegistry | null = null;
@@ -79,6 +84,66 @@ export const useSkillStore = create<SkillState>((set, get) => ({
   },
 
   isEnabled: (id: string) => get().enabledSkillIds.has(id),
+
+  importSkill: async (manifest, content) => {
+    const id = `imported-${manifest.id}-${Date.now()}`;
+    const setting = { name: `skill:${id}`, value: { manifest, content, imported: true } };
+    await db.settings.put(setting);
+    const skill: InstalledSkill = {
+      manifest: { ...manifest, source: "imported" },
+      rootPath: "",
+      builtIn: false,
+    };
+    set((state) => ({ skills: [...state.skills, skill] }));
+    return id;
+  },
+
+  createSkill: async (name, description, content) => {
+    const id = `created-${name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .slice(0, 30)}-${Date.now()}`;
+    const manifest: SkillManifest = {
+      schemaVersion: 1,
+      id,
+      name,
+      version: "0.1.0",
+      description,
+      entry: "SKILL.md",
+      source: "created",
+      capabilities: [],
+      optionalCapabilities: [],
+      optionalMcpServers: [],
+      riskLevel: "low",
+    };
+    await db.settings.put({ name: `skill:${id}`, value: { manifest, content } });
+    const skill: InstalledSkill = { manifest, rootPath: "", builtIn: false };
+    set((state) => ({ skills: [...state.skills, skill] }));
+    return id;
+  },
+
+  deleteSkill: async (id) => {
+    await db.settings.delete(`skill:${id}`);
+    set((state) => ({
+      skills: state.skills.filter((s) => s.manifest.id !== id),
+      enabledSkillIds: (() => {
+        const next = new Set(state.enabledSkillIds);
+        next.delete(id);
+        return next;
+      })(),
+    }));
+    const remaining = get().enabledSkillIds;
+    if (remaining.size === 0) {
+      await db.settings.delete("skillEnabledIds");
+    } else {
+      await db.settings.put({
+        name: "skillEnabledIds",
+        value: [...remaining],
+      });
+    }
+  },
+
+  listAll: () => get().skills,
 
   getEnabledContent: async () => {
     const { enabledSkillIds } = get();
