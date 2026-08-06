@@ -1,0 +1,84 @@
+/* ===== Chat workspace ===== */
+
+.workspace {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  background: var(--background);
+}
+
+.workspace-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.workspace-header h1 {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 600;
+}
+
+.eyebrow {
+  color: var(--muted-foreground);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.capability-chip {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted-foreground);
+  font-size: var(--font-size-xs);
+}
+
+/* Mode switcher */
+.mode-switcher {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.mode-switcher button {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--muted-foreground);
+  transition: all var(--transition-fast);
+}
+
+.mode-switcher button:hover {
+  color: var(--foreground);
+}
+
+.mode-switcher button.active {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+/* Model switcher */
+.model-switcher {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.model-switcher select {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  background: var(--surface);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  outline: none;
+}

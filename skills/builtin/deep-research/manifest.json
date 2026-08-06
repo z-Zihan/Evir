@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "deep-research",
+  "name": "deep-research",
+  "version": "1.0.0",
+  "description": "多 agent 深度调研,4 路由(看是否提供文件 + 集合是否已知):\n  ① 无文件 + 集合未定 → 撒网模式(找 sibling + 多 worker 探广)\n  ② 无文件 + 集合已知 → 锁定模式(实体已知,直接 ≥6 维度切分)\n  ③ 有文件 + 用户明示\"只看文件 / 基于这些 / 不要外搜\" → 纯文件深析(不外搜)\n  ④ 有文件 + 无限制(参考 / 结合 / 帮我完成)",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": [],
+  "optionalCapabilities": [],
+  "optionalMcpServers": [],
+  "riskLevel": "low"
+}

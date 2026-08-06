@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "frontend-design",
+  "name": "frontend-design",
+  "version": "1.0.0",
+  "description": "Create distinctive, production-grade frontend interfaces with high design quality. Use this skill when building web components, pages, or applications. Generates creative, polished code that avoids ge",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": [],
+  "optionalCapabilities": [],
+  "optionalMcpServers": [],
+  "riskLevel": "low"
+}

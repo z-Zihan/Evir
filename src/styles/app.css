@@ -3,7 +3,7 @@
 /* Dark mode via .dark class */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Design tokens */
+/* Design tokens — Tailwind v4 @theme generates utilities automatically */
 @theme {
   --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
@@ -49,8 +49,11 @@
 
 /* Base */
 body {
-  @apply bg-background text-foreground antialiased;
+  background: var(--color-background);
+  color: var(--color-foreground);
   font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Scrollbar */
@@ -66,19 +69,109 @@ body {
   border-radius: 9999px;
 }
 
-/* Code blocks */
+/* Code blocks — use raw CSS vars to avoid conflicts */
 .message-content pre {
-  @apply bg-surface border border-border rounded-lg p-3 overflow-x-auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 12px;
+  overflow-x: auto;
   font-family: var(--font-mono);
   font-size: 0.875rem;
+  color: var(--color-foreground);
 }
 
 .message-content code {
   font-family: var(--font-mono);
   font-size: 0.85em;
-  @apply bg-surface-hover px-1 py-0.5 rounded;
+  padding: 1px 4px;
+  background: var(--color-surface-hover);
+  border-radius: 4px;
+  color: var(--color-foreground);
 }
 
 .message-content pre code {
-  @apply bg-transparent p-0;
+  padding: 0;
+  background: transparent;
+  color: var(--color-foreground);
+}
+
+/* User message card */
+.message-user .message-content {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-left: 60px;
+  color: var(--color-foreground);
+}
+
+/* Assistant message — clean, no background */
+.message-assistant .message-content {
+  padding: 0;
+  color: var(--color-foreground);
+}
+
+/* Markdown elements */
+.message-content p {
+  margin: 0 0 8px;
+  line-height: 1.75;
+  color: var(--color-foreground);
+}
+
+.message-content p:last-child {
+  margin-bottom: 0;
+}
+
+.message-content ul,
+.message-content ol {
+  margin: 8px 0;
+  padding-left: 24px;
+  color: var(--color-foreground);
+}
+
+.message-content h1,
+.message-content h2,
+.message-content h3 {
+  margin: 16px 0 8px;
+  color: var(--color-foreground);
+  font-weight: 600;
+}
+
+.message-content h1 {
+  font-size: 1.3em;
+}
+.message-content h2 {
+  font-size: 1.15em;
+}
+.message-content h3 {
+  font-size: 1em;
+}
+
+.message-content a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+.message-content a:hover {
+  text-decoration: underline;
+}
+
+.message-content blockquote {
+  border-left: 3px solid var(--color-border);
+  padding-left: 12px;
+  margin: 8px 0;
+  color: var(--color-muted);
+}
+
+.message-content table {
+  border-collapse: collapse;
+  margin: 8px 0;
+  color: var(--color-foreground);
+}
+
+.message-content th,
+.message-content td {
+  border: 1px solid var(--color-border);
+  padding: 6px 12px;
+  text-align: left;
 }

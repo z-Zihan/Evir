@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "code",
+  "name": "Code",
+  "version": "1.0.4",
+  "description": "Coding workflow with planning, implementation, verification, and testing for clean software development.",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": [],
+  "optionalCapabilities": [],
+  "optionalMcpServers": [],
+  "riskLevel": "low"
+}

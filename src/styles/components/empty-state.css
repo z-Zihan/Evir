@@ -1,0 +1,48 @@
+/* ===== Empty state ===== */
+
+.conversation-empty {
+  display: grid;
+  place-content: center;
+  width: min(720px, calc(100% - 40px));
+  margin: auto;
+  text-align: center;
+  padding: var(--space-12) var(--space-4);
+}
+
+.empty-copy h2 {
+  margin: 0;
+  font-size: var(--font-size-2xl);
+  letter-spacing: -0.03em;
+  font-weight: 700;
+}
+
+.empty-copy p {
+  max-width: 520px;
+  margin: var(--space-3) auto var(--space-6);
+  color: var(--muted-foreground);
+  line-height: var(--line-height-relaxed);
+  font-size: var(--font-size-md);
+}
+
+.suggestions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+}
+
+.suggestion-item {
+  min-height: 80px;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  text-align: left;
+  line-height: var(--line-height-normal);
+  font-size: var(--font-size-sm);
+  transition: all var(--transition-fast);
+}
+
+.suggestion-item:hover {
+  background: var(--surface-hover);
+  border-color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
