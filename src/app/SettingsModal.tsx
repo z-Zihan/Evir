@@ -13,10 +13,12 @@ import {
   ServerCog,
   SlidersHorizontal,
   Stethoscope,
+  UserRound,
   X,
   type LucideIcon,
 } from "lucide-react";
 import { PersonalizationPanel } from "./PersonalizationSettings";
+import { LocalIdentityPanel } from "./LocalIdentitySettings";
 import { ShortcutsSettings } from "./ShortcutsSettings";
 import { SkillSettings } from "./SkillSettings";
 import { McpSettings } from "./McpSettings";
@@ -33,6 +35,7 @@ import { importConversations } from "../features/chat/conversation-import";
 
 export type SettingsTab =
   | "providers"
+  | "identity"
   | "personalization"
   | "shortcuts"
   | "skills"
@@ -56,6 +59,7 @@ const SETTINGS_GROUPS: Array<{ labelKey: string; items: SettingsNavItem[] }> = [
     labelKey: "settings.groups.account",
     items: [
       { tab: "providers", labelKey: "settings.providers", icon: ServerCog },
+      { tab: "identity", labelKey: "settings.identity", icon: UserRound },
       {
         tab: "personalization",
         labelKey: "settings.personalization",
@@ -180,6 +184,7 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
             </div>
             <div className="settings-content" ref={contentRef}>
               {activeTab === "providers" && <ProviderSettings />}
+              {activeTab === "identity" && <LocalIdentityPanel />}
               {activeTab === "personalization" && <PersonalizationPanel />}
               {activeTab === "shortcuts" && <ShortcutsSettings />}
               {activeTab === "skills" && <SkillSettings />}

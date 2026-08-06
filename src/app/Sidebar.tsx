@@ -173,7 +173,7 @@ export function Sidebar({ onOpenSettings, onNewConversation }: SidebarProps) {
         <button
           className="sidebar-identity"
           type="button"
-          onClick={() => onOpenSettings("personalization")}
+          onClick={() => onOpenSettings("identity")}
           aria-label={t("sidebar.editIdentity")}
         >
           <span className={`sidebar-identity-avatar avatar-${identity.avatarColor}`}>
