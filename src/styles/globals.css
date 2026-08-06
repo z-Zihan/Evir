@@ -688,6 +688,63 @@ textarea:focus-visible {
   margin: 0;
 }
 
+/* Privacy Settings */
+.privacy-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.privacy-settings h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.privacy-warning {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.privacy-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.privacy-btn {
+  padding: 8px 14px;
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 13px;
+  text-align: left;
+}
+.privacy-btn:hover {
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+}
+.privacy-btn.danger-danger {
+  background: var(--danger);
+  color: #fff;
+}
+.privacy-btn.danger-danger:hover {
+  opacity: 0.9;
+}
+.privacy-result {
+  font-size: 13px;
+  padding: 10px;
+  border-radius: 8px;
+}
+.privacy-result.success {
+  background: color-mix(in srgb, var(--success) 12%, var(--surface));
+  color: var(--success);
+}
+.privacy-result.error {
+  background: color-mix(in srgb, var(--danger) 12%, var(--surface));
+  color: var(--danger);
+}
+
 /* Modal */
 .modal-backdrop {
   position: fixed;

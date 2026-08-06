@@ -203,5 +203,16 @@
     "securityNotice": "New servers are disabled by default. Tools require per-item authorization.",
     "save": "Save",
     "cancel": "Cancel"
+  },
+  "privacy": {
+    "title": "Data and privacy",
+    "clearConversations": "Clear all conversations",
+    "clearProviders": "Clear all providers",
+    "clearUsage": "Clear usage data",
+    "clearMcp": "Clear MCP servers",
+    "clearAll": "Reset all data",
+    "confirmClear": "Are you sure? This cannot be undone.",
+    "cleared": "Cleared successfully",
+    "clearFailed": "Failed to clear"
   }
 }

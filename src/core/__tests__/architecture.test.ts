@@ -200,6 +200,15 @@ describe("architecture dependency direction", () => {
       "mcp.securityNotice",
       "mcp.save",
       "mcp.cancel",
+      "privacy.title",
+      "privacy.clearConversations",
+      "privacy.clearProviders",
+      "privacy.clearUsage",
+      "privacy.clearMcp",
+      "privacy.clearAll",
+      "privacy.confirmClear",
+      "privacy.cleared",
+      "privacy.clearFailed",
     ];
 
     for (const locale of ["en.json", "zh-CN.json"]) {

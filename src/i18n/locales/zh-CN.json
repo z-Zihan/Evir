@@ -203,5 +203,16 @@
     "securityNotice": "新服务器默认禁用。工具需要逐项授权。",
     "save": "保存",
     "cancel": "取消"
+  },
+  "privacy": {
+    "title": "数据与隐私",
+    "clearConversations": "清除所有对话",
+    "clearProviders": "清除所有供应商",
+    "clearUsage": "清除用量数据",
+    "clearMcp": "清除 MCP 服务器",
+    "clearAll": "重置所有数据",
+    "confirmClear": "确定吗？此操作不可撤销。",
+    "cleared": "已清除",
+    "clearFailed": "清除失败"
   }
 }
