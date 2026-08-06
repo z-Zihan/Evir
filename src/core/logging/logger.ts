@@ -10,7 +10,7 @@ export interface LogFilter {
 
 const MAX_ENTRIES = 1000;
 
-class Logger {
+export class Logger {
   private readonly buffer: LogEvent[] = [];
   private readonly sessionId = crypto.randomUUID();
 

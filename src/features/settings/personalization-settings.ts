@@ -31,7 +31,11 @@ export async function loadPersonalizationPreferences(
 ): Promise<PersonalizationPreferences> {
   const record = await database.settings.get(PERSONALIZATION_SETTING_NAME);
   const result = personalizationSchema.safeParse(record?.value);
-  return result.success ? result.data : defaults();
+  if (!result.success) return defaults();
+  // “子涵” was used by an early UI prototype as demo content, not as a user default.
+  return result.data.displayName.trim() === "子涵"
+    ? { ...result.data, displayName: "" }
+    : result.data;
 }
 
 export async function savePersonalizationPreferences(
