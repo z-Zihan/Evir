@@ -1,0 +1,35 @@
+name: Benchmark
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm build:web
+      - run: node scripts/benchmark.mjs
+      - name: Check gzip size budget
+        run: |
+          GZIP_BYTES=$(node -e "console.log(require('./docs/benchmarks/latest.json').web.jsGzipSizeBytes)")
+          BUDGET_BYTES=$((350 * 1024))
+          echo "JS gzip size: $GZIP_BYTES bytes (budget: $BUDGET_BYTES bytes)"
+          if [ "$GZIP_BYTES" -gt "$BUDGET_BYTES" ]; then
+            echo "::error::JS gzip size ($GZIP_BYTES bytes) exceeds budget of 350KB ($BUDGET_BYTES bytes)"
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-results
+          path: docs/benchmarks/latest.json
