@@ -7,10 +7,12 @@ const EVIR_VERSION = packageJson.version;
 export function AboutSettings() {
   const { t } = useTranslation();
   return (
-    <section className="about-settings">
+    <section className="text-center p-6 px-4 flex flex-col gap-3">
       <h3>{t("about.title")}</h3>
-      <div className="about-logo">
-        <div className="brand-mark large">E</div>
+      <div className="text-2xl font-extrabold tracking-tight mb-2">
+        <div className="grid place-items-center w-7 h-7 rounded-lg bg-primary text-primary-fg font-bold text-sm large">
+          E
+        </div>
         <strong>Evir</strong>
       </div>
       <p className="about-description">{t("about.description")}</p>

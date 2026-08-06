@@ -21,16 +21,19 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     if (error === null) return this.props.children;
 
     return (
-      <main className="workspace">
+      <main className="min-w-0 flex-1 grid grid-rows-[auto_1fr_auto] bg-background">
         <div />
-        <section className="conversation-empty" role="alert">
+        <section
+          className="grid place-content-center w-[min(720px,calc(100%-40px))] m-auto text-center py-12 px-4"
+          role="alert"
+        >
           <div className="empty-copy">
             <h1>Something went wrong</h1>
             <p>
               {error.name}: {error.message}
             </p>
             <button
-              className="primary-action"
+              className="flex items-center justify-center gap-2 min-h-[38px] rounded-lg font-semibold border border-border bg-surface hover:bg-surface-hover transition"
               type="button"
               onClick={() => window.location.reload()}
             >

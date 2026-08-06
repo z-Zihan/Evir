@@ -37,9 +37,9 @@ export function ToolCallCard({ call, result }: ToolCallCardProps) {
   const toolName = i18n.exists(toolKey) ? t(toolKey) : call.toolName;
 
   return (
-    <section className="tool-call-card">
-      <div className="tool-call-header">
-        <span className="tool-call-name">
+    <section className="border border-border rounded-lg p-3 my-2 bg-surface">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="font-mono text-sm font-semibold">
           <Wrench size={15} aria-hidden="true" />
           <span>{t("tools.title")}</span>
           <strong>{toolName}</strong>

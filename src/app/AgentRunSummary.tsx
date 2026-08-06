@@ -60,20 +60,20 @@ export function AgentRunSummary({
   const failed = toolResults.filter((r) => !r.success);
 
   return (
-    <div className="agent-run-summary">
-      <div className="summary-header">
+    <div className="border border-border rounded-xl p-4 my-2 bg-surface max-w-[780px] mx-auto">
+      <div className="flex justify-between items-center mb-2">
         <h3>{t("agent.runSummary")}</h3>
         {maxIterationsReached && (
-          <span className="summary-warning">⚠️ {t("agent.maxIterations")}</span>
+          <span className="text-xs text-warning">⚠️ {t("agent.maxIterations")}</span>
         )}
       </div>
 
-      <div className="summary-section">
+      <div className="mt-3 text-sm">
         <h4>
           {t("agent.filesModified")} ({fileModifications.length})
         </h4>
         {fileModifications.length === 0 ? (
-          <p className="summary-empty">{t("agent.none")}</p>
+          <p className="text-muted m-0">{t("agent.none")}</p>
         ) : (
           <ul>
             {fileModifications.map((c, i) => (
@@ -89,7 +89,7 @@ export function AgentRunSummary({
       </div>
 
       {commands.length > 0 && (
-        <div className="summary-section">
+        <div className="mt-3 text-sm">
           <h4>
             {t("agent.commandsRun")} ({commands.length})
           </h4>
@@ -116,9 +116,11 @@ export function AgentRunSummary({
       )}
 
       {verification && (
-        <div className="summary-section">
+        <div className="mt-3 text-sm">
           <h4>{t("agent.verification")}</h4>
-          <div className={`verification-result verification-${verification.status}`}>
+          <div
+            className={`flex items-center gap-2 flex-wrap p-2 rounded-lg text-sm verification-${verification.status}`}
+          >
             <span className="verification-status">
               {verification.status === "passed"
                 ? "✅"
@@ -134,24 +136,28 @@ export function AgentRunSummary({
               {(verification.durationMs / 1000).toFixed(1)}s
             </span>
             {verification.stderrPreview && (
-              <pre className="verification-output">{verification.stderrPreview.slice(0, 500)}</pre>
+              <pre className="mt-1 p-2 bg-surface-hover rounded font-mono text-xs overflow-x-auto max-h-[150px] overflow-y-auto">
+                {verification.stderrPreview.slice(0, 500)}
+              </pre>
             )}
           </div>
         </div>
       )}
 
       {gitInfo?.isRepo && diff && diff !== "no changes" && (
-        <div className="summary-section">
+        <div className="mt-3 text-sm">
           <h4>Git Diff ({gitInfo.branch})</h4>
           <details>
             <summary>{gitInfo.entries.length} files changed</summary>
-            <pre className="git-diff-preview">{diff.slice(0, 3000)}</pre>
+            <pre className="mt-1 p-3 bg-surface-hover rounded font-mono text-xs overflow-x-auto max-h-[300px] overflow-y-auto">
+              {diff.slice(0, 3000)}
+            </pre>
           </details>
         </div>
       )}
 
       {failed.length > 0 && (
-        <div className="summary-section summary-errors">
+        <div className="mt-3 text-sm border-t border-border pt-2">
           <h4>
             ⚠️ {t("agent.unresolvedErrors")} ({failed.length})
           </h4>
@@ -165,7 +171,7 @@ export function AgentRunSummary({
         </div>
       )}
 
-      {loading && <p className="summary-loading">{t("agent.loading")}...</p>}
+      {loading && <p className="text-muted text-sm">{t("agent.loading")}...</p>}
     </div>
   );
 }

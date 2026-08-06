@@ -61,7 +61,7 @@ export function UsagePanel() {
   };
 
   return (
-    <section className="usage-panel">
+    <section className="flex flex-col gap-3">
       <div className="usage-heading">
         <h3>{t("usage.title")}</h3>
         <button type="button" onClick={() => void clearRecords()} disabled={isClearing}>

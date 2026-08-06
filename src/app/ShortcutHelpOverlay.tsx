@@ -32,19 +32,32 @@ export function ShortcutHelpOverlay({ open, onClose }: ShortcutHelpOverlayProps)
   );
 
   return (
-    <div className="overlay-backdrop" onClick={onClose}>
-      <div className="overlay-panel shortcut-help" onClick={(e) => e.stopPropagation()}>
-        <div className="overlay-header">
+    <div
+      className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[100]"
+      onClick={onClose}
+    >
+      <div
+        className="bg-surface border border-border rounded-2xl p-6 min-w-[360px] max-w-[480px] shadow-xl shortcut-help"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-center mb-4">
           <h2>{t("shortcuts.title")}</h2>
-          <button type="button" className="overlay-close" onClick={onClose} aria-label="Close">
+          <button
+            type="button"
+            className="bg-transparent border-0 text-xl cursor-pointer text-muted hover:text-foreground px-1 leading-none"
+            onClick={onClose}
+            aria-label="Close"
+          >
             ×
           </button>
         </div>
-        <div className="shortcut-list">
+        <div className="flex flex-col gap-2">
           {visible.map((s) => (
-            <div key={s.id} className="shortcut-row">
-              <span className="shortcut-label">{t(s.labelKey)}</span>
-              <kbd className="shortcut-key">{formatAccelerator(s.defaultAccelerator)}</kbd>
+            <div key={s.id} className="flex justify-between items-center py-1">
+              <span className="text-sm">{t(s.labelKey)}</span>
+              <kbd className="font-mono text-xs px-2 py-1 bg-surface-hover border border-border rounded">
+                {formatAccelerator(s.defaultAccelerator)}
+              </kbd>
             </div>
           ))}
         </div>

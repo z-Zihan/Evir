@@ -40,7 +40,7 @@ export function ModelSwitcher({ onSwitch }: ModelSwitcherProps) {
   }
 
   return (
-    <div className="model-switcher" ref={containerRef}>
+    <div className="flex items-center gap-1" ref={containerRef}>
       <button
         type="button"
         className="model-switcher-button"
@@ -51,7 +51,10 @@ export function ModelSwitcher({ onSwitch }: ModelSwitcherProps) {
       >
         <span>{current.name}</span>
         <span className="model-switcher-model">{current.modelId}</span>
-        <ChevronDown size={12} className={`model-switcher-chevron${open ? " open" : ""}`} />
+        <ChevronDown
+          size={12}
+          className={`flex items-center gap-1-chevron${open ? " open" : ""}`}
+        />
       </button>
       {open && (
         <div className="model-switcher-dropdown" role="listbox" aria-label={t("chat.switchModel")}>
@@ -61,7 +64,7 @@ export function ModelSwitcher({ onSwitch }: ModelSwitcherProps) {
               type="button"
               role="option"
               aria-selected={provider.id === current.id}
-              className={`model-switcher-item${provider.id === current.id ? " active" : ""}`}
+              className={`flex items-center gap-1-item${provider.id === current.id ? " active" : ""}`}
               onClick={() => {
                 onSwitch(provider);
                 setOpen(false);

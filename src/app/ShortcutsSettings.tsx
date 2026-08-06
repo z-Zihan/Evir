@@ -47,9 +47,9 @@ export function ShortcutsSettings() {
           <ul className="shortcuts-list">
             {shortcuts.map((shortcut) => (
               <li key={shortcut.id} className="shortcut-item">
-                <span className="shortcut-label">{t(shortcut.labelKey)}</span>
+                <span className="text-sm">{t(shortcut.labelKey)}</span>
                 <div className="shortcut-right">
-                  <kbd className="shortcut-key">
+                  <kbd className="font-mono text-xs px-2 py-1 bg-surface-hover border border-border rounded">
                     {formatAccelerator(shortcut.defaultAccelerator)}
                   </kbd>
                   <span className="shortcut-scope-badge">{scope}</span>

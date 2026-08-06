@@ -35,10 +35,10 @@ export function MemorySettings({ conversationId }: { conversationId: string | nu
   };
 
   return (
-    <section className="memory-settings">
+    <section className="flex flex-col gap-3">
       <h3>{t("memory.title")}</h3>
 
-      <div className="memory-add-form">
+      <div className="flex flex-col gap-2 mb-4">
         <input
           placeholder={t("memory.keyPlaceholder")}
           value={newKey}
@@ -60,13 +60,16 @@ export function MemorySettings({ conversationId }: { conversationId: string | nu
       </div>
 
       {memories.length === 0 ? (
-        <p className="memory-empty">{t("memory.empty")}</p>
+        <p className="text-muted text-sm">{t("memory.empty")}</p>
       ) : (
-        <ul className="memory-list">
+        <ul className="list-none p-0 m-0 flex flex-col gap-2">
           {memories.map((m: MemoryRecord) => (
-            <li key={m.id} className={`memory-item${m.pinned ? " pinned" : ""}`}>
+            <li
+              key={m.id}
+              className={`flex justify-between items-start p-3 border border-border rounded-lg bg-surface${m.pinned ? " pinned" : ""}`}
+            >
               {editingId === m.id ? (
-                <div className="memory-edit">
+                <div className="w-full flex flex-col gap-1">
                   <textarea
                     value={editContent}
                     onChange={(e) => setEditContent(e.target.value)}
@@ -83,10 +86,10 @@ export function MemorySettings({ conversationId }: { conversationId: string | nu
                 <>
                   <div className="memory-content">
                     <strong>{m.key}</strong>
-                    {m.pinned && <span className="pin-badge">📌</span>}
+                    {m.pinned && <span className="text-xs ml-1">📌</span>}
                     <p>{m.content}</p>
                   </div>
-                  <div className="memory-actions">
+                  <div className="flex gap-1">
                     <button type="button" onClick={() => void togglePin(m.id)}>
                       {m.pinned ? "📌" : "📍"}
                     </button>

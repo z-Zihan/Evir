@@ -17,8 +17,12 @@ export function WorkspaceSelector() {
 
   if (!currentWorkspace) {
     return (
-      <div className="workspace-selector">
-        <button type="button" className="workspace-pick" onClick={() => void handleSelect()}>
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-surface text-sm min-h-[40px]">
+        <button
+          type="button"
+          className="border border-border bg-surface px-3 py-1 rounded text-xs whitespace-nowrap hover:border-primary hover:text-primary transition"
+          onClick={() => void handleSelect()}
+        >
           {t("workspace.select")}
         </button>
       </div>
@@ -28,18 +32,29 @@ export function WorkspaceSelector() {
   const shortPath = currentWorkspace.split("/").slice(-2).join("/");
 
   return (
-    <div className="workspace-selector">
-      <span className="workspace-current" title={currentWorkspace}>
+    <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-surface text-sm min-h-[40px]">
+      <span
+        className="font-medium overflow-hidden text-ellipsis whitespace-nowrap max-w-[300px]"
+        title={currentWorkspace}
+      >
         📁 {shortPath}
       </span>
-      <button type="button" className="workspace-change" onClick={() => void handleSelect()}>
+      <button
+        type="button"
+        className="border border-border bg-surface px-3 py-1 rounded text-xs whitespace-nowrap hover:border-primary hover:text-primary transition"
+        onClick={() => void handleSelect()}
+      >
         {t("workspace.change")}
       </button>
-      <button type="button" className="workspace-clear" onClick={clearWorkspace}>
+      <button
+        type="button"
+        className="border border-border px-1.5 py-0.5 text-base leading-none rounded hover:bg-surface-hover"
+        onClick={clearWorkspace}
+      >
         ×
       </button>
       {recentWorkspaces.length > 1 && (
-        <details className="workspace-recent">
+        <details className="relative">
           <summary>{t("workspace.recent")}</summary>
           {recentWorkspaces
             .filter((p) => p !== currentWorkspace)

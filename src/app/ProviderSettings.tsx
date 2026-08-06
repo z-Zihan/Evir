@@ -71,7 +71,7 @@ export function ProviderSettings() {
   };
 
   return (
-    <div className="provider-settings">
+    <div className="flex flex-col gap-3">
       {providers.length > 0 && (
         <div className="provider-list">
           {providers.map((p) => (
@@ -138,7 +138,7 @@ export function ProviderSettings() {
           </label>
           <label>
             {t("provider.modelId")}
-            <div className="model-input-row">
+            <div className="flex gap-2">
               <input
                 list="model-options"
                 value={form.modelId}
@@ -158,9 +158,9 @@ export function ProviderSettings() {
               ))}
             </datalist>
           </label>
-          {modelFetchError && <div className="test-result">{modelFetchError}</div>}
-          {testResult && <div className="test-result">{testResult}</div>}
-          <div className="form-actions">
+          {modelFetchError && <div className="text-sm p-2 rounded-lg mt-2">{modelFetchError}</div>}
+          {testResult && <div className="text-sm p-2 rounded-lg mt-2">{testResult}</div>}
+          <div className="flex gap-2 mt-3">
             <button type="button" disabled={testing} onClick={() => void handleTest()}>
               {testing ? "…" : t("provider.testConnection")}
             </button>
@@ -181,7 +181,11 @@ export function ProviderSettings() {
           </div>
         </div>
       ) : (
-        <button type="button" className="primary-action" onClick={() => setShowForm(true)}>
+        <button
+          type="button"
+          className="flex items-center justify-center gap-2 min-h-[38px] rounded-lg font-semibold border border-border bg-surface hover:bg-surface-hover transition"
+          onClick={() => setShowForm(true)}
+        >
           {t("provider.add")}
         </button>
       )}

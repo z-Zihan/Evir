@@ -55,11 +55,11 @@ export function App() {
   }, [loadProviders, loadConversations, loadUsageRecords]);
 
   return (
-    <div className="app-shell">
+    <div className="grid grid-cols-[260px_minmax(0,1fr)] min-h-screen">
       {sidebarVisible && (
         <Sidebar onOpenSettings={() => setSettingsOpen(true)} focusSearchRef={focusSearchRef} />
       )}
-      <div className="main-area">
+      <div className="flex flex-col min-h-screen min-w-0">
         <WorkspaceSelector />
         <ChatView
           input={messageInput}

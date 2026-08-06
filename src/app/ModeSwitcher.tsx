@@ -17,7 +17,7 @@ export function ModeSwitcher({ mode, onModeChange }: ModeSwitcherProps) {
   const { t } = useTranslation();
 
   return (
-    <div className="mode-switcher">
+    <div className="flex gap-0.5 p-0.5 border border-border rounded-lg bg-surface">
       {MODES.map(({ mode: option, icon: Icon }) => (
         <button
           key={option}

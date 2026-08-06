@@ -75,7 +75,7 @@ export function McpSettings() {
         {t("mcp.securityNotice")}
       </p>
       {servers.length === 0 ? (
-        <p className="empty-list">{t("mcp.noServers")}</p>
+        <p className="text-muted text-sm px-2 py-4 text-center">{t("mcp.noServers")}</p>
       ) : (
         <ul className="mcp-list">
           {servers.map((server) => (
@@ -175,7 +175,7 @@ export function McpSettings() {
               </label>
             </>
           )}
-          <div className="form-actions">
+          <div className="flex gap-2 mt-3">
             <button
               type="button"
               onClick={() => {

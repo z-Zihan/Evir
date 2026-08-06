@@ -19,10 +19,10 @@ function CodeBlock({ className, children }: { className?: string; children: Reac
   const [copied, setCopied] = useState(false);
   const code = typeof children === "string" ? children : JSON.stringify(children);
   return (
-    <div className="code-block">
+    <div className="relative my-3 rounded-lg overflow-hidden border border-border">
       <button
         type="button"
-        className="code-block-copy"
+        className="absolute top-2 right-2 flex items-center gap-1 text-xs px-2 py-1 bg-surface-hover border border-border rounded opacity-0 hover:opacity-100 transition text-muted z-10"
         onClick={() => {
           void navigator.clipboard.writeText(code).then(() => {
             setCopied(true);
@@ -73,20 +73,23 @@ export function ChatMessage({
   };
 
   return (
-    <div className={`message message-${message.role}`}>
+    <div className={`max-w-[780px] mx-auto w-full message-${message.role}`}>
       <div className="message-content">
         {message.attachments && message.attachments.length > 0 && (
-          <div className="message-attachments">
+          <div className="flex flex-wrap gap-2 mb-3">
             {message.attachments.map((attachment) =>
               attachment.type === "image" ? (
                 <img
                   key={attachment.id}
                   src={attachment.data}
                   alt={attachment.fileName}
-                  className="message-attachment-image"
+                  className="max-w-[200px] max-h-[200px] rounded-lg object-cover"
                 />
               ) : (
-                <span key={attachment.id} className="message-attachment-file">
+                <span
+                  key={attachment.id}
+                  className="inline-flex items-center gap-1 px-2 py-1 bg-surface-hover rounded text-xs"
+                >
                   {attachment.fileName}
                 </span>
               ),
@@ -101,13 +104,13 @@ export function ChatMessage({
               onChange={(event) => setDraft(event.target.value)}
               autoFocus
             />
-            <div className="message-edit-actions">
+            <div className="flex gap-2 mt-2">
               <button type="button" onClick={cancelEdit}>
                 {t("chat.cancel")}
               </button>
               <button
                 type="button"
-                className="message-edit-save"
+                className="bg-primary text-primary-fg border-primary"
                 onClick={saveEdit}
                 disabled={!canSave}
               >
@@ -136,14 +139,14 @@ export function ChatMessage({
           return <ToolCallCard key={call.id} call={call} {...(result ? { result } : {})} />;
         })}
         {message.status === "stopped" && (
-          <span className="message-stopped">({t("chat.stopped")})</span>
+          <span className="text-muted text-xs italic">({t("chat.stopped")})</span>
         )}
         {message.status === "error" && message.errorMessage && (
-          <div className="message-error">
+          <div className="text-danger text-sm p-2 bg-danger/8 rounded-lg mt-2">
             {displayError(message.errorMessage)}
             <button
               type="button"
-              className="message-retry"
+              className="inline-flex items-center gap-1 text-xs px-2 py-1 mt-2 bg-surface border border-border rounded hover:border-primary hover:text-primary transition"
               onClick={() => void onRegenerate()}
               disabled={disabled}
             >
@@ -154,15 +157,15 @@ export function ChatMessage({
         )}
       </div>
       {!isEditing && message.role !== "system" && (
-        <div className="message-meta">
-          <span className="message-timestamp">
+        <div className="flex items-center gap-2 mt-1 px-1">
+          <span className="text-xs text-muted opacity-60">
             {new Date(message.createdAt).toLocaleTimeString("zh-CN", {
               hour: "2-digit",
               minute: "2-digit",
               hour12: false,
             })}
           </span>
-          <div className="message-actions">
+          <div className="flex gap-1 opacity-0 hover:opacity-100 transition">
             <button
               type="button"
               onClick={() => {

@@ -61,12 +61,15 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   };
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[200]">
+      <div
+        className="bg-surface border border-border rounded-2xl w-[min(640px,calc(100%-40px))] max-h-[80vh] flex flex-col shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-center p-4 px-5 border-b border-border">
           <h2>{t("settings.title")}</h2>
           <button
-            className="icon-button"
+            className="grid place-items-center w-8 h-8 rounded-lg text-muted hover:bg-surface-hover hover:text-foreground transition"
             type="button"
             onClick={onClose}
             aria-label={t("settings.close")}
@@ -74,51 +77,51 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             <X size={17} />
           </button>
         </div>
-        <div className="modal-tabs">
+        <div className="flex gap-0.5 px-4 border-b border-border overflow-x-auto">
           <button
-            className={`tab${activeTab === "providers" ? " active" : ""}`}
+            className={`px-3 py-3 bg-transparent text-sm font-medium text-muted cursor-pointer border-b-2 border-transparent hover:text-foreground transition whitespace-nowrap${activeTab === "providers" ? " active" : ""}`}
             type="button"
             onClick={() => handleTabChange("providers")}
           >
             {t("settings.providers")}
           </button>
           <button
-            className={`tab${activeTab === "personalization" ? " active" : ""}`}
+            className={`px-3 py-3 bg-transparent text-sm font-medium text-muted cursor-pointer border-b-2 border-transparent hover:text-foreground transition whitespace-nowrap${activeTab === "personalization" ? " active" : ""}`}
             type="button"
             onClick={() => handleTabChange("personalization")}
           >
             {t("settings.personalization")}
           </button>
           <button
-            className={`tab${activeTab === "shortcuts" ? " active" : ""}`}
+            className={`px-3 py-3 bg-transparent text-sm font-medium text-muted cursor-pointer border-b-2 border-transparent hover:text-foreground transition whitespace-nowrap${activeTab === "shortcuts" ? " active" : ""}`}
             type="button"
             onClick={() => handleTabChange("shortcuts")}
           >
             {t("settings.shortcuts")}
           </button>
           <button
-            className={`tab${activeTab === "skills" ? " active" : ""}`}
+            className={`px-3 py-3 bg-transparent text-sm font-medium text-muted cursor-pointer border-b-2 border-transparent hover:text-foreground transition whitespace-nowrap${activeTab === "skills" ? " active" : ""}`}
             type="button"
             onClick={() => handleTabChange("skills")}
           >
             {t("settings.skills")}
           </button>
           <button
-            className={`tab${activeTab === "mcp" ? " active" : ""}`}
+            className={`px-3 py-3 bg-transparent text-sm font-medium text-muted cursor-pointer border-b-2 border-transparent hover:text-foreground transition whitespace-nowrap${activeTab === "mcp" ? " active" : ""}`}
             type="button"
             onClick={() => handleTabChange("mcp")}
           >
             {t("settings.mcp")}
           </button>
           <button
-            className={`tab${activeTab === "usage" ? " active" : ""}`}
+            className={`px-3 py-3 bg-transparent text-sm font-medium text-muted cursor-pointer border-b-2 border-transparent hover:text-foreground transition whitespace-nowrap${activeTab === "usage" ? " active" : ""}`}
             type="button"
             onClick={() => handleTabChange("usage")}
           >
             {t("settings.usage")}
           </button>
           <button
-            className={`tab${activeTab === "data" ? " active" : ""}`}
+            className={`px-3 py-3 bg-transparent text-sm font-medium text-muted cursor-pointer border-b-2 border-transparent hover:text-foreground transition whitespace-nowrap${activeTab === "data" ? " active" : ""}`}
             type="button"
             onClick={() => handleTabChange("data")}
           >
@@ -126,21 +129,21 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             {t("settings.data")}
           </button>
           <button
-            className={`tab${activeTab === "privacy" ? " active" : ""}`}
+            className={`px-3 py-3 bg-transparent text-sm font-medium text-muted cursor-pointer border-b-2 border-transparent hover:text-foreground transition whitespace-nowrap${activeTab === "privacy" ? " active" : ""}`}
             type="button"
             onClick={() => handleTabChange("privacy")}
           >
             {t("settings.privacy")}
           </button>
           <button
-            className={`tab${activeTab === "about" ? " active" : ""}`}
+            className={`px-3 py-3 bg-transparent text-sm font-medium text-muted cursor-pointer border-b-2 border-transparent hover:text-foreground transition whitespace-nowrap${activeTab === "about" ? " active" : ""}`}
             type="button"
             onClick={() => handleTabChange("about")}
           >
             {t("settings.about")}
           </button>
           <button
-            className={`tab${activeTab === "memory" ? " active" : ""}`}
+            className={`px-3 py-3 bg-transparent text-sm font-medium text-muted cursor-pointer border-b-2 border-transparent hover:text-foreground transition whitespace-nowrap${activeTab === "memory" ? " active" : ""}`}
             onClick={() => handleTabChange("memory")}
           >
             {t("memory.title")}
@@ -156,7 +159,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             {i18n.language.startsWith("zh") ? "EN" : "中"}
           </button>
         </div>
-        <div className="modal-body">
+        <div className="flex-1 overflow-y-auto p-5">
           {activeTab === "providers" && <ProviderSettings />}
           {activeTab === "personalization" && <PersonalizationPanel />}
           {activeTab === "shortcuts" && <ShortcutsSettings />}

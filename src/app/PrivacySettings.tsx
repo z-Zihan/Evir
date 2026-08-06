@@ -80,7 +80,7 @@ export function PrivacySettings() {
       <div className="privacy-actions">
         <button
           type="button"
-          className="privacy-btn danger"
+          className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg cursor-pointer text-sm hover:bg-surface-hover transition danger"
           disabled={resultKey === "clearing"}
           onClick={() => void clearConversations()}
         >
@@ -88,7 +88,7 @@ export function PrivacySettings() {
         </button>
         <button
           type="button"
-          className="privacy-btn danger"
+          className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg cursor-pointer text-sm hover:bg-surface-hover transition danger"
           disabled={resultKey === "clearing"}
           onClick={() => void clearProviders()}
         >
@@ -96,7 +96,7 @@ export function PrivacySettings() {
         </button>
         <button
           type="button"
-          className="privacy-btn danger"
+          className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg cursor-pointer text-sm hover:bg-surface-hover transition danger"
           disabled={resultKey === "clearing"}
           onClick={() => void clearUsage()}
         >
@@ -104,7 +104,7 @@ export function PrivacySettings() {
         </button>
         <button
           type="button"
-          className="privacy-btn danger"
+          className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg cursor-pointer text-sm hover:bg-surface-hover transition danger"
           disabled={resultKey === "clearing"}
           onClick={() => void clearMcp()}
         >
@@ -112,7 +112,7 @@ export function PrivacySettings() {
         </button>
         <button
           type="button"
-          className="privacy-btn danger severe"
+          className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg cursor-pointer text-sm hover:bg-surface-hover transition danger severe"
           disabled={resultKey === "clearing"}
           onClick={() => void clearAll()}
         >
@@ -120,17 +120,17 @@ export function PrivacySettings() {
         </button>
       </div>
       {resultKey === "clearing" && (
-        <div className="privacy-result" role="alert">
+        <div className="text-sm p-2 rounded-lg mt-1" role="alert">
           {t("privacy.confirmClear")}
         </div>
       )}
       {resultKey === "success" && (
-        <div className="privacy-result success" role="alert">
+        <div className="text-sm p-2 rounded-lg mt-1 success" role="alert">
           {t("privacy.cleared")}
         </div>
       )}
       {resultKey === "error" && (
-        <div className="privacy-result error" role="alert">
+        <div className="text-sm p-2 rounded-lg mt-1 error" role="alert">
           {t("privacy.clearFailed")}
           {errorMessage ? `: ${errorMessage}` : ""}
         </div>

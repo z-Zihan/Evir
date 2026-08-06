@@ -32,12 +32,12 @@ export function SkillSettings() {
   if (loading) return <p>{t("common.loading")}</p>;
 
   return (
-    <section className="skill-settings">
-      <div className="skill-header-row">
+    <section className="flex flex-col gap-3">
+      <div className="flex justify-between items-center mb-3">
         <h3>{t("skill.title")}</h3>
         <button
           type="button"
-          className="skill-create-btn"
+          className="px-3 py-1 border border-border rounded-lg bg-surface hover:border-primary hover:text-primary cursor-pointer text-sm transition"
           onClick={() => setShowCreate(!showCreate)}
         >
           {showCreate ? t("skill.cancel") : t("skill.create")}
@@ -45,7 +45,7 @@ export function SkillSettings() {
       </div>
 
       {showCreate && (
-        <div className="skill-create-form">
+        <div className="flex flex-col gap-2 mb-4 p-3 border border-border rounded-lg bg-surface">
           <input
             placeholder={t("skill.namePlaceholder")}
             value={name}
@@ -73,36 +73,41 @@ export function SkillSettings() {
       )}
 
       {skills.length === 0 ? (
-        <p className="empty-list">{t("skill.noSkills")}</p>
+        <p className="text-muted text-sm px-2 py-4 text-center">{t("skill.noSkills")}</p>
       ) : (
-        <ul className="skill-list">
+        <ul className="list-none p-0 m-0 flex flex-col gap-2">
           {skills.map((skill) => {
             const isEnabled = enabledSkillIds.has(skill.manifest.id);
             const riskLevel = skill.manifest.riskLevel;
             const isCustom = !skill.builtIn;
 
             return (
-              <li key={skill.manifest.id} className="skill-item">
-                <div className="skill-item-header">
-                  <span className="skill-item-name">{skill.manifest.name}</span>
-                  <span className={`skill-risk-badge ${riskLevel}`}>{t(`skill.${riskLevel}`)}</span>
+              <li
+                key={skill.manifest.id}
+                className="p-3 border border-border rounded-lg bg-surface"
+              >
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-sm font-semibold">{skill.manifest.name}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${riskLevel}`}>
+                    {t(`skill.${riskLevel}`)}
+                  </span>
                 </div>
-                <p className="skill-item-description">{skill.manifest.description}</p>
-                <div className="skill-item-footer">
-                  <span className="skill-source">
+                <p className="m-0 mb-2 text-sm text-muted">{skill.manifest.description}</p>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-muted">
                     {skill.builtIn ? t("skill.builtin") : skill.manifest.source}
                   </span>
-                  <div className="skill-item-actions">
+                  <div className="flex items-center gap-2">
                     {isCustom && (
                       <button
                         type="button"
-                        className="skill-delete-btn"
+                        className="bg-transparent border-0 cursor-pointer text-base p-0.5"
                         onClick={() => void deleteSkill(skill.manifest.id)}
                       >
                         🗑️
                       </button>
                     )}
-                    <label className="skill-toggle">
+                    <label className="flex items-center gap-1 text-sm cursor-pointer">
                       <input
                         type="checkbox"
                         checked={isEnabled}

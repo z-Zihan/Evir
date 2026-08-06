@@ -83,11 +83,15 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
 
   if (!provider) {
     return (
-      <main className="workspace">
-        <section className="conversation-empty">
+      <main className="min-w-0 flex-1 grid grid-rows-[auto_1fr_auto] bg-background">
+        <section className="grid place-content-center w-[min(720px,calc(100%-40px))] m-auto text-center py-12 px-4">
           <div className="empty-copy">
             <h2>{t("chat.noProvider")}</h2>
-            <button className="primary-action" type="button" onClick={onOpenSettings}>
+            <button
+              className="flex items-center justify-center gap-2 min-h-[38px] rounded-lg font-semibold border border-border bg-surface hover:bg-surface-hover transition"
+              type="button"
+              onClick={onOpenSettings}
+            >
               {t("chat.addProviderFirst")}
             </button>
           </div>
@@ -97,12 +101,12 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
   }
 
   return (
-    <main className="workspace">
-      <div className="messages-area" ref={scrollRef}>
+    <main className="min-w-0 flex-1 grid grid-rows-[auto_1fr_auto] bg-background">
+      <div className="overflow-y-auto p-6 px-4" ref={scrollRef}>
         {messages.length === 0 && !isStreaming ? (
           <ChatEmptyState onSendMessage={(content) => void sendMessage(content)} />
         ) : (
-          <div className="message-list">
+          <div className="max-w-[780px] mx-auto flex flex-col gap-5">
             {messages.map((msg) => (
               <ChatMessage
                 key={msg.id}
@@ -114,12 +118,12 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
               />
             ))}
             {isStreaming && (
-              <div className="message message-assistant">
+              <div className="max-w-[780px] mx-auto w-full message-assistant">
                 <div className="message-content">
                   {streamingContent ? (
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamingContent}</ReactMarkdown>
                   ) : (
-                    <span className="message-typing">…</span>
+                    <span className="text-muted text-lg tracking-widest animate-pulse">…</span>
                   )}
                 </div>
               </div>
@@ -127,21 +131,32 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
           </div>
         )}
       </div>
-      {error && <div className="chat-error">{displayError(error)}</div>}
-      <footer className="composer-wrap">
+      {error && (
+        <div className="max-w-[780px] mx-auto mb-3 p-3 bg-danger/8 border border-danger/20 rounded-lg text-danger text-sm">
+          {displayError(error)}
+        </div>
+      )}
+      <footer className="w-[min(820px,calc(100%-40px))] mx-auto py-3 pb-4">
         <ModeSwitcher mode={mode} onModeChange={setMode} />
         <div
-          className={`composer${dragOver ? " drag-over" : ""}`}
+          className={`border border-border rounded-2xl bg-surface shadow-md focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/12 transition${dragOver ? " drag-over" : ""}`}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
         >
           {pendingAttachments.length > 0 && (
-            <div className="pending-attachments">
+            <div className="flex flex-wrap gap-2 px-4 pt-2">
               {pendingAttachments.map((att) =>
                 att.type === "image" ? (
-                  <div key={att.id} className="pending-attachment-chip">
-                    <img src={att.data} alt={att.fileName} className="pending-attachment-thumb" />
+                  <div
+                    key={att.id}
+                    className="flex items-center gap-1 px-2 py-1 bg-surface-hover border border-border rounded-lg text-xs"
+                  >
+                    <img
+                      src={att.data}
+                      alt={att.fileName}
+                      className="w-8 h-8 rounded object-cover"
+                    />
                     <button
                       type="button"
                       onClick={() => removeAttachment(att.id)}
@@ -151,7 +166,10 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
                     </button>
                   </div>
                 ) : (
-                  <div key={att.id} className="pending-attachment-chip">
+                  <div
+                    key={att.id}
+                    className="flex items-center gap-1 px-2 py-1 bg-surface-hover border border-border rounded-lg text-xs"
+                  >
                     <span className="pending-attachment-name">{att.fileName}</span>
                     <button
                       type="button"
@@ -174,11 +192,11 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
             onKeyDown={handleKeyDown}
             disabled={isStreaming}
           />
-          <div className="composer-footer">
+          <div className="flex justify-between items-center px-3 pb-3 text-muted text-xs">
             <span>
               <button
                 type="button"
-                className="attach-button"
+                className="grid place-items-center w-8 h-8 rounded-lg text-muted hover:bg-surface-hover hover:text-foreground transition"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isStreaming}
                 aria-label={t("chat.attachFile")}
@@ -195,7 +213,7 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
               />
               <button
                 type="button"
-                className="attach-button"
+                className="grid place-items-center w-8 h-8 rounded-lg text-muted hover:bg-surface-hover hover:text-foreground transition"
                 onClick={() => void handleExportMarkdown(currentConversationId ?? "")}
                 disabled={isStreaming || !currentConversationId}
                 aria-label={t("settings.exportMarkdown")}
@@ -204,8 +222,8 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
                 <Download size={16} />
               </button>
             </span>
-            <span className="composer-info">
-              {input.length > 0 && <span className="char-count">{input.length}</span>}
+            <span className="text-xs text-muted opacity-60 ml-auto flex gap-2 items-center">
+              {input.length > 0 && <span className="opacity-50">{input.length}</span>}
               {tokenCount > 0 && t("chat.tokenCount", { count: tokenCount })}
             </span>
             {isStreaming ? (
@@ -232,7 +250,9 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
             accept="image/*,text/*,.md,.json,.js,.jsx,.ts,.tsx,.py,.rs,.go,.java,.c,.cpp,.h,.css,.html,.xml,.yaml,.yml,.toml,.csv,.sh,.bash,.sql"
           />
         </div>
-        <p className="disclaimer">{t("chat.disclaimer")}</p>
+        <p className="text-center text-xs text-muted py-1 pb-2 opacity-60">
+          {t("chat.disclaimer")}
+        </p>
       </footer>
     </main>
   );
