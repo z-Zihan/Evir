@@ -160,7 +160,7 @@ export function ChatView({ input, onInputChange, onSendMessage, onOpenSettings }
       )}
       <footer className="w-[min(820px,calc(100%-40px))] mx-auto py-3 pb-4">
         <div
-          className={`border border-border rounded-2xl bg-surface shadow-md focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/12 transition${dragOver ? " drag-over" : ""}`}
+          className={`border border-border rounded-2xl bg-surface shadow-md focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/12 transition${dragOver ? " border-primary bg-primary/4" : ""}`}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}

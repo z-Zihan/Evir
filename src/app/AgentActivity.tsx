@@ -22,16 +22,15 @@ export function AgentActivity({ toolCalls, toolResults }: AgentActivityProps) {
   const approveTool = useChatStore((s) => s.approveTool);
   const denyTool = useChatStore((s) => s.denyTool);
 
+  const resultsByCallId = new Map(toolResults.map((r) => [r.toolCallId, r]));
+
   const completed = toolCalls.filter((tc) => {
-    const r = toolResults.find((tr) => tr.toolCallId === tc.id);
+    const r = resultsByCallId.get(tc.id);
     return r && r.error !== TOOL_PERMISSION_REQUIRED;
   }).length;
 
   const total = toolCalls.length;
-  const hasPending = toolCalls.some((tc) => {
-    const r = toolResults.find((tr) => tr.toolCallId === tc.id);
-    return r?.error === TOOL_PERMISSION_REQUIRED;
-  });
+  const hasPending = toolCalls.some((tc) => resultsByCallId.get(tc.id)?.error === TOOL_PERMISSION_REQUIRED);
 
   const hasFailed = toolResults.some(
     (r) => !r.success && r.error !== TOOL_PERMISSION_REQUIRED && r.error !== TOOL_DENIED,
