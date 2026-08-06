@@ -156,6 +156,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - 共享 platform.ts（isMac + currentPlatform）
 
 **阶段 2 新增：**
+
 - 工作区系统（WorkspaceSelector + workspace-store + Tauri dialog）
 - 13 个本地工具（read/write/list/search/patch/stat/mkdir/snapshot/restore + run_command + git_status/diff）
 - 符号链接逃逸检测 + workspace 边界验证

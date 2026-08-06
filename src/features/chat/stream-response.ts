@@ -17,6 +17,11 @@ import type { PendingToolApproval } from "./tool-approval";
 import { toMessage, sorted } from "./chat-helpers";
 import { createContextBudgetManager } from "../../core/context/context-budget-manager";
 import { compactToolOutputs } from "../../core/context/compact-tool-outputs";
+import {
+  summarizeConversation,
+  buildCompressedHistory,
+  splitForSummarization,
+} from "../../core/context/conversation-summarizer";
 import { estimateMessagesTokens } from "../../core/context/token-estimate";
 
 const budgetManagerInstance = createContextBudgetManager();
@@ -144,6 +149,30 @@ export async function streamResponse(
   if (budgetManager.shouldCompact(snapshot)) {
     const maxToolChars = snapshot.reservedToolTokens * 4;
     effectiveHistory = compactToolOutputs(history, maxToolChars);
+
+    // LLM-based conversation summary when utilization > 75%
+    if (
+      (snapshot.compressionStage === "conversation-summary" ||
+        snapshot.compressionStage === "checkpoint-compaction") &&
+      effectiveHistory.length > 6
+    ) {
+      const targetBudget = Math.floor(DEFAULT_MAX_CONTEXT_TOKENS * 0.4);
+      const { toSummarize, toKeep } = splitForSummarization(effectiveHistory, targetBudget);
+      if (toSummarize.length >= 3) {
+        try {
+          console.debug("[evir] context-summary", `summarizing ${toSummarize.length} messages`);
+          const summary = await summarizeConversation(provider, toSummarize);
+          effectiveHistory = buildCompressedHistory(summary, toKeep, conversationId);
+          console.debug(
+            "[evir] context-summary",
+            `compressed to ${effectiveHistory.length} messages`,
+          );
+        } catch (error) {
+          console.error("[evir] context-summary failed:", error);
+        }
+      }
+    }
+
     console.debug(
       "[evir] context-budget",
       `stage=${snapshot.compressionStage}`,
