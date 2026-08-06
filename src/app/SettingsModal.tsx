@@ -31,7 +31,7 @@ import { UsagePanel } from "./UsagePanel";
 import { downloadBlob, exportConversations } from "../features/chat/conversation-export";
 import { importConversations } from "../features/chat/conversation-import";
 
-type SettingsTab =
+export type SettingsTab =
   | "providers"
   | "personalization"
   | "shortcuts"
@@ -88,9 +88,10 @@ const SETTINGS_GROUPS: Array<{ labelKey: string; items: SettingsNavItem[] }> = [
 interface SettingsModalProps {
   open: boolean;
   onClose: () => void;
+  initialTab?: SettingsTab;
 }
 
-export function SettingsModal({ open, onClose }: SettingsModalProps) {
+export function SettingsModal({ open, onClose, initialTab = "providers" }: SettingsModalProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<SettingsTab>("providers");
   const [importResult, setImportResult] = useState<string | null>(null);
@@ -98,8 +99,8 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (open) setActiveTab("providers");
-  }, [open]);
+    if (open) setActiveTab(initialTab);
+  }, [initialTab, open]);
 
   if (!open) return null;
 

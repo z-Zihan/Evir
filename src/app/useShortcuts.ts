@@ -7,7 +7,6 @@ interface ShortcutCallbacks {
   onNewConversation: () => void;
   onOpenSettings: () => void;
   onToggleSidebar: () => void;
-  onSearchConversations: () => void;
   onSendMessage: () => void;
   onStop: () => void;
 }
@@ -19,7 +18,6 @@ const callbackById: Partial<
   "new-conversation": "onNewConversation",
   "open-settings": "onOpenSettings",
   "toggle-sidebar": "onToggleSidebar",
-  "search-conversations": "onSearchConversations",
   "send-message": "onSendMessage",
   "stop-current-run": "onStop",
 };

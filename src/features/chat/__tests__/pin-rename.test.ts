@@ -6,7 +6,7 @@ vi.mock("../../../core/storage/db", () => {
     db: {
       conversations: {
         toArray: vi.fn(() => Promise.resolve([])),
-        add: vi.fn(() => Promise.resolve()),
+        add: convAdd,
         update: convUpdate,
         delete: vi.fn(() => Promise.resolve()),
         where: vi.fn(() => ({ equals: () => ({ toArray: () => Promise.resolve([]) }) })),
@@ -36,6 +36,7 @@ vi.mock("../../../core/storage/db", () => {
 import { useChatStore } from "../chat-store";
 
 const convUpdate = vi.hoisted(() => vi.fn(() => Promise.resolve()));
+const convAdd = vi.hoisted(() => vi.fn(() => Promise.resolve()));
 
 beforeEach(() => {
   useChatStore.setState({
@@ -86,5 +87,13 @@ describe("renameConversation", () => {
   it("does nothing for empty title", async () => {
     await useChatStore.getState().renameConversation("c1", "   ");
     expect(convUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe("createOrReuseConversation", () => {
+  it("reuses the current empty conversation", async () => {
+    const id = await useChatStore.getState().createOrReuseConversation("p1", "m1");
+    expect(id).toBe("c1");
+    expect(convAdd).not.toHaveBeenCalled();
   });
 });

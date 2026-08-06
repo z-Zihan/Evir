@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { AlignLeft, Languages, MessageSquareText, ShieldCheck, UserRound } from "lucide-react";
 import {
   DEFAULT_PERSONALIZATION_PREFERENCES,
+  AVATAR_COLORS,
   type PersonalizationPreferences,
 } from "../core/personalization/types";
 import {
@@ -102,16 +103,40 @@ export function PersonalizationPanel() {
                 <p>{t("personalization.identityDescription")}</p>
               </div>
             </div>
-            <label className="personalization-name-field">
-              <span>{t("personalization.displayName")}</span>
-              <input
-                type="text"
-                value={form.displayName}
-                placeholder={t("personalization.displayNamePlaceholder")}
-                onChange={(event) => update("displayName", event.target.value)}
-              />
-              <small>{t("personalization.displayNameHint")}</small>
-            </label>
+            <div className="personalization-identity-editor">
+              <span
+                className={`identity-avatar-preview avatar-${form.avatarColor}`}
+                aria-hidden="true"
+              >
+                {Array.from(form.displayName.trim())[0] ?? t("chat.you")}
+              </span>
+              <label className="personalization-name-field">
+                <span>{t("personalization.displayName")}</span>
+                <input
+                  type="text"
+                  value={form.displayName}
+                  placeholder={t("personalization.displayNamePlaceholder")}
+                  onChange={(event) => update("displayName", event.target.value)}
+                />
+                <small>{t("personalization.displayNameHint")}</small>
+              </label>
+            </div>
+            <div className="avatar-color-field">
+              <span>{t("personalization.avatarColor")}</span>
+              <div role="radiogroup" aria-label={t("personalization.avatarColor")}>
+                {AVATAR_COLORS.map((color) => (
+                  <button
+                    className={`avatar-color-option avatar-${color}${form.avatarColor === color ? " active" : ""}`}
+                    type="button"
+                    role="radio"
+                    aria-checked={form.avatarColor === color}
+                    aria-label={t(`personalization.avatarColors.${color}`)}
+                    key={color}
+                    onClick={() => update("avatarColor", color)}
+                  />
+                ))}
+              </div>
+            </div>
           </section>
 
           <section className="personalization-section">

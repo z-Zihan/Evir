@@ -12,7 +12,9 @@
     "pinned": "Pinned",
     "hide": "Hide sidebar",
     "show": "Show sidebar",
-    "confirmDelete": "Delete this conversation? This cannot be undone."
+    "confirmDelete": "Delete this conversation? This cannot be undone.",
+    "localIdentity": "Local identity",
+    "editIdentity": "Edit avatar and nickname"
   },
   "chat": {
     "title": "New conversation",
@@ -71,7 +73,7 @@
     "modelSwitchFailed": "Model switch failed",
     "copyMessage": "Copy",
     "you": "You",
-    "localUser": "Local user",
+    "localUser": "Me",
     "responding": "Writing response",
     "preparingResponse": "Preparing response",
     "tokenCount": "{{count}} tokens",
@@ -235,6 +237,11 @@
     "custom": "Custom configuration",
     "customDescription": "Enter a protocol and endpoint manually",
     "formDescription": "Complete required fields, test the connection, then save",
+    "chooseProvider": "Choose a model provider",
+    "configureProvider": "Configure model provider",
+    "editProvider": "Edit model provider",
+    "backToPresets": "Back to provider list",
+    "saveChanges": "Save changes",
     "validation": {
       "required": "This field is required",
       "url": "Enter a complete, valid URL"
@@ -297,6 +304,14 @@
     "identity": "Local identity",
     "identityDescription": "Used for your chat name and initial avatar, stored only on this device",
     "displayNamePlaceholder": "For example: Alex",
+    "avatarColor": "Avatar color",
+    "avatarColors": {
+      "sage": "Sage",
+      "ocean": "Ocean",
+      "clay": "Clay",
+      "gold": "Gold",
+      "slate": "Slate"
+    },
     "displayNameHint": "Used only as response context. It does not create an account or upload identity data.",
     "languageDescription": "Choose the model's default response language",
     "languageOptions": {
@@ -433,7 +448,23 @@
     "desktopOnly": "stdio transport requires Desktop mode",
     "securityNotice": "New servers are disabled by default. Tools require per-item authorization.",
     "save": "Save",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "edit": "Edit server",
+    "addServer": "Add MCP server",
+    "editServer": "Edit MCP server",
+    "saveChanges": "Save changes",
+    "dialogDescription": "Connect a local process or remote MCP service, then enable it when ready.",
+    "serverSummary": "{{enabled}} / {{total}} enabled",
+    "localProcess": "Local process",
+    "remoteServer": "Remote server",
+    "stdioDescription": "Evir starts a command on this device",
+    "httpDescription": "Connect to an HTTPS MCP endpoint",
+    "namePlaceholder": "For example: Filesystem tools",
+    "argumentsHint": "Separate multiple arguments with commas",
+    "disabledByDefault": "New servers stay disabled after saving",
+    "required": "This field is required",
+    "invalidUrl": "Enter a complete HTTP(S) URL",
+    "confirmDelete": "Delete this MCP server? This cannot be undone."
   },
   "privacy": {
     "title": "Data and privacy",

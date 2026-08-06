@@ -6,7 +6,6 @@ import {
   Keyboard,
   MessageSquarePlus,
   PanelLeft,
-  Search,
   Send,
   Settings2,
   Square,
@@ -39,11 +38,6 @@ const SHORTCUT_PRESENTATION: Record<string, ShortcutPresentation> = {
     group: "navigation",
     icon: PanelLeft,
     descriptionKey: "shortcuts.toggleSidebarDescription",
-  },
-  "search-conversations": {
-    group: "navigation",
-    icon: Search,
-    descriptionKey: "shortcuts.searchConversationsDescription",
   },
   "shortcut-help": {
     group: "navigation",

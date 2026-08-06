@@ -33,6 +33,17 @@ export async function createConversation(
   return conversation.id;
 }
 
+export async function createOrReuseConversation(
+  set: ChatStoreSet,
+  get: ChatStoreGet,
+  providerId: string,
+  modelId: string,
+): Promise<string> {
+  const { currentConversationId, messages } = get();
+  if (currentConversationId && messages.length === 0) return currentConversationId;
+  return createConversation(set, providerId, modelId);
+}
+
 export async function selectConversation(set: ChatStoreSet, id: string): Promise<void> {
   const messages = await db.messages.where("conversationId").equals(id).sortBy("createdAt");
   set({

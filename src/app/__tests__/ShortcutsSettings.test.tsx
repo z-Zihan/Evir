@@ -15,7 +15,7 @@ afterEach(() => {
 });
 
 describe("ShortcutsSettings", () => {
-  it("renders all 9 shortcuts", async () => {
+  it("renders all 8 shortcuts", async () => {
     const { ShortcutsSettings } = await import("../ShortcutsSettings");
     render(<ShortcutsSettings />);
 
@@ -24,7 +24,6 @@ describe("ShortcutsSettings", () => {
     expect(screen.getByText("shortcuts.openSettings")).toBeDefined();
     expect(screen.getByText("shortcuts.toggleSidebar")).toBeDefined();
     // open-workspace excluded on web platform
-    expect(screen.getByText("shortcuts.searchConversations")).toBeDefined();
     expect(screen.getByText("shortcuts.sendMessage")).toBeDefined();
     expect(screen.getByText("shortcuts.stopCurrentRun")).toBeDefined();
     expect(screen.getByText("shortcuts.shortcutHelp")).toBeDefined();

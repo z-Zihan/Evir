@@ -36,8 +36,11 @@ jobs:
           fs.writeFileSync('./src-tauri/tauri.conf.json', JSON.stringify(conf, null, 2) + '\n');
           "
 
+      # Signing is optional: when the certificate secrets are unset, the steps below
+      # are skipped and tauri-action produces unsigned artifacts. Unsigned builds are
+      # for development/testing only — do not distribute them as release binaries.
       - name: Import Apple Developer Certificate
-        if: matrix.platform == 'macos-latest'
+        if: matrix.platform == 'macos-latest' && secrets.APPLE_CERTIFICATE != ''
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -53,7 +56,7 @@ jobs:
           echo "APPLE_SIGNING_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
 
       - name: Import Windows Certificate
-        if: matrix.platform == 'windows-latest'
+        if: matrix.platform == 'windows-latest' && secrets.WINDOWS_CERTIFICATE != ''
         shell: pwsh
         env:
           WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
@@ -79,7 +82,7 @@ jobs:
           releaseName: Evir ${{ github.ref_name }}
           releaseDraft: true
           prerelease: false
-          args: ${{ matrix.platform == 'windows-latest' && format('--config {"bundle":{"windows":{"certificateThumbprint":"{0}"}}}', env.WINDOWS_CERTIFICATE_THUMBPRINT) || '' }}
+          args: ${{ matrix.platform == 'windows-latest' && secrets.WINDOWS_CERTIFICATE != '' && format('--config {"bundle":{"windows":{"certificateThumbprint":"{0}"}}}', env.WINDOWS_CERTIFICATE_THUMBPRINT) || '' }}
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4

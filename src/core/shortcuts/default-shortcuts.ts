@@ -47,15 +47,6 @@ export const DEFAULT_SHORTCUTS = [
     enabledByDefault: true,
   },
   {
-    id: "search-conversations",
-    labelKey: "shortcuts.searchConversations",
-    defaultAccelerator: "CmdOrCtrl+Shift+F",
-    scope: "app",
-    platforms: ["all"],
-    editable: true,
-    enabledByDefault: true,
-  },
-  {
     id: "send-message",
     labelKey: "shortcuts.sendMessage",
     defaultAccelerator: "CmdOrCtrl+Enter",

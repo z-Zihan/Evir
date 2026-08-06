@@ -17,6 +17,7 @@ import { approveTool, denyTool, type PendingToolApproval } from "./tool-approval
 import {
   loadConversations as doLoadConversations,
   createConversation as doCreateConversation,
+  createOrReuseConversation as doCreateOrReuseConversation,
   selectConversation as doSelectConversation,
   deleteConversation as doDeleteConversation,
   renameConversation as doRenameConversation,
@@ -36,6 +37,7 @@ export interface ChatState {
   privateSession: boolean;
   loadConversations: () => Promise<void>;
   createConversation: (providerId: string, modelId: string) => Promise<string>;
+  createOrReuseConversation: (providerId: string, modelId: string) => Promise<string>;
   selectConversation: (id: string) => Promise<void>;
   deleteConversation: (id: string) => Promise<void>;
   renameConversation: (id: string, title: string) => Promise<void>;
@@ -67,6 +69,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   privateSession: false,
   loadConversations: async () => doLoadConversations(set),
   createConversation: async (providerId, modelId) => doCreateConversation(set, providerId, modelId),
+  createOrReuseConversation: async (providerId, modelId) =>
+    doCreateOrReuseConversation(set, get, providerId, modelId),
   selectConversation: async (id) => doSelectConversation(set, id),
   deleteConversation: async (id) => doDeleteConversation(set, id),
   renameConversation: async (id, title) => doRenameConversation(set, id, title),

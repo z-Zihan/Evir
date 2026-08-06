@@ -22,10 +22,12 @@ export interface PersonalizationSettings {
 export const RESPONSE_LANGUAGES = ["follow-app", "en", "zh-CN"] as const;
 export const RESPONSE_DETAIL_LEVELS = ["concise", "balanced", "detailed"] as const;
 export const RESPONSE_STYLES = ["professional", "casual", "academic"] as const;
+export const AVATAR_COLORS = ["sage", "ocean", "clay", "gold", "slate"] as const;
 
 export interface PersonalizationPreferences {
   enabled: boolean;
   displayName: string;
+  avatarColor: (typeof AVATAR_COLORS)[number];
   responseLanguage: (typeof RESPONSE_LANGUAGES)[number];
   detailLevel: (typeof RESPONSE_DETAIL_LEVELS)[number];
   style: (typeof RESPONSE_STYLES)[number];
@@ -35,6 +37,7 @@ export interface PersonalizationPreferences {
 export const DEFAULT_PERSONALIZATION_PREFERENCES: PersonalizationPreferences = {
   enabled: false,
   displayName: "",
+  avatarColor: "sage",
   responseLanguage: "follow-app",
   detailLevel: "balanced",
   style: "professional",

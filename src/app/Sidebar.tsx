@@ -1,127 +1,114 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pencil, MessageSquarePlus, Pin, Search, Settings2, Trash2 } from "lucide-react";
-import { useChatStore } from "../features/chat/chat-store";
-import { useProviderStore } from "../features/provider/provider-store";
+import { ChevronRight, MessageSquarePlus, Pencil, Pin, Settings2, Trash2 } from "lucide-react";
+import type { PersonalizationPreferences } from "../core/personalization/types";
 import { isMac } from "../core/shortcuts/platform";
+import { useChatStore } from "../features/chat/chat-store";
+import { loadPersonalizationPreferences } from "../features/settings/personalization-settings";
+import type { SettingsTab } from "./SettingsModal";
 
 interface SidebarProps {
-  onOpenSettings: () => void;
-  focusSearchRef: React.RefObject<(() => void) | null>;
+  onOpenSettings: (tab?: SettingsTab) => void;
+  onNewConversation: () => void;
 }
 
-export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
+export function Sidebar({ onOpenSettings, onNewConversation }: SidebarProps) {
   const { t } = useTranslation();
   const {
     conversations,
     currentConversationId,
     selectConversation,
     deleteConversation,
-    createConversation,
     renameConversation,
     togglePin,
   } = useChatStore();
-  const { getDefaultProvider } = useProviderStore();
-
-  const [searchQuery, setSearchQuery] = useState("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [identity, setIdentity] = useState<
+    Pick<PersonalizationPreferences, "displayName" | "avatarColor">
+  >({ displayName: "", avatarColor: "sage" });
   const committingRef = useRef(false);
-  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    focusSearchRef.current = () => searchRef.current?.focus();
-    return () => {
-      focusSearchRef.current = null;
+    let mounted = true;
+    const loadIdentity = () => {
+      void loadPersonalizationPreferences().then((preferences) => {
+        if (mounted) setIdentity(preferences);
+      });
     };
-  }, [focusSearchRef]);
+    loadIdentity();
+    window.addEventListener("evir:personalization-updated", loadIdentity);
+    return () => {
+      mounted = false;
+      window.removeEventListener("evir:personalization-updated", loadIdentity);
+    };
+  }, []);
 
-  const provider = getDefaultProvider();
   const shortcutModifier = isMac() ? "⌘" : "Ctrl+";
-
-  const filteredConversations = conversations.filter(({ title }) =>
-    title.toLowerCase().includes(searchQuery.trim().toLowerCase()),
-  );
-
-  const pinned = filteredConversations
-    .filter((c) => c.pinned)
+  const localName = identity.displayName.trim() || t("chat.localUser");
+  const localInitial = Array.from(localName)[0] ?? "•";
+  const pinned = conversations
+    .filter((item) => item.pinned)
     .sort((a, b) => b.updatedAt - a.updatedAt);
-  const unpinned = filteredConversations
-    .filter((c) => !c.pinned)
+  const unpinned = conversations
+    .filter((item) => !item.pinned)
     .sort((a, b) => b.updatedAt - a.updatedAt);
-
-  const handleNewChat = () => {
-    if (provider) void createConversation(provider.id, provider.modelId);
-    else onOpenSettings();
-  };
-
-  const handleSelectConversation = (id: string) => {
-    if (renamingId !== null) return;
-    setSearchQuery("");
-    void selectConversation(id);
-  };
-
-  const handleStartRename = (id: string, currentTitle: string) => {
-    setRenamingId(id);
-    setRenameValue(currentTitle);
-  };
 
   const handleCommitRename = () => {
     if (committingRef.current) return;
     committingRef.current = true;
-    const id = renamingId;
-    if (id) {
-      void renameConversation(id, renameValue);
-    }
+    if (renamingId) void renameConversation(renamingId, renameValue);
     setRenamingId(null);
     setRenameValue("");
     committingRef.current = false;
   };
 
-  const handleRenameKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleCommitRename();
-    } else if (e.key === "Escape") {
-      setRenamingId(null);
-      setRenameValue("");
-    }
-  };
-
-  const renderConversation = (conv: (typeof conversations)[number]) => {
-    const isActive = conv.id === currentConversationId;
-    const isRenaming = renamingId === conv.id;
-
+  const renderConversation = (conversation: (typeof conversations)[number]) => {
+    const isActive = conversation.id === currentConversationId;
+    const isRenaming = renamingId === conversation.id;
     return (
       <div
-        key={conv.id}
-        className={`conversation-item group${isActive ? " active" : ""}${conv.pinned ? " pinned" : ""}`}
-        onClick={() => handleSelectConversation(conv.id)}
-        onDoubleClick={() => handleStartRename(conv.id, conv.title)}
+        key={conversation.id}
+        className={`conversation-item group${isActive ? " active" : ""}${conversation.pinned ? " pinned" : ""}`}
+        onClick={() => {
+          if (!isRenaming) void selectConversation(conversation.id);
+        }}
+        onDoubleClick={() => {
+          setRenamingId(conversation.id);
+          setRenameValue(conversation.title);
+        }}
       >
-        {conv.pinned && <Pin size={12} className="pin-indicator" aria-hidden="true" />}
+        {conversation.pinned ? (
+          <Pin size={12} className="pin-indicator" aria-hidden="true" />
+        ) : null}
         {isRenaming ? (
           <input
             className="rename-input"
             type="text"
             value={renameValue}
             autoFocus
-            onChange={(e) => setRenameValue(e.target.value)}
             maxLength={100}
+            onChange={(event) => setRenameValue(event.target.value)}
             onBlur={handleCommitRename}
-            onKeyDown={handleRenameKeyDown}
-            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") handleCommitRename();
+              if (event.key === "Escape") {
+                setRenamingId(null);
+                setRenameValue("");
+              }
+            }}
+            onClick={(event) => event.stopPropagation()}
           />
         ) : (
-          <span className="conversation-title">{conv.title || t("chat.title")}</span>
+          <span className="conversation-title">{conversation.title || t("chat.title")}</span>
         )}
         {!isRenaming && (
-          <div className="conversation-actions" onClick={(e) => e.stopPropagation()}>
+          <div className="conversation-actions" onClick={(event) => event.stopPropagation()}>
             <button
               className="conversation-action-btn"
               type="button"
-              aria-label={conv.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
-              title={conv.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
-              onClick={() => void togglePin(conv.id)}
+              aria-label={conversation.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
+              onClick={() => void togglePin(conversation.id)}
             >
               <Pin size={13} />
             </button>
@@ -129,8 +116,10 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
               className="conversation-action-btn"
               type="button"
               aria-label={t("sidebar.rename")}
-              title={t("sidebar.rename")}
-              onClick={() => handleStartRename(conv.id, conv.title)}
+              onClick={() => {
+                setRenamingId(conversation.id);
+                setRenameValue(conversation.title);
+              }}
             >
               <Pencil size={13} />
             </button>
@@ -139,7 +128,8 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
               type="button"
               aria-label={t("provider.delete")}
               onClick={() => {
-                if (window.confirm(t("sidebar.confirmDelete"))) void deleteConversation(conv.id);
+                if (window.confirm(t("sidebar.confirmDelete")))
+                  void deleteConversation(conversation.id);
               }}
             >
               <Trash2 size={14} />
@@ -161,24 +151,12 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
           <span className="brand-caption">{t("sidebar.localAi")}</span>
         </div>
       </div>
-      <button className="new-chat-button" type="button" onClick={handleNewChat}>
-        <MessageSquarePlus size={16} />
-        {t("sidebar.newChat")}
+      <button className="new-chat-button" type="button" onClick={onNewConversation}>
+        <MessageSquarePlus size={16} /> {t("sidebar.newChat")}
         <span className="new-chat-shortcut" aria-hidden="true">
           {shortcutModifier}N
         </span>
       </button>
-      <label className="conversation-search">
-        <Search size={15} />
-        <input
-          ref={searchRef}
-          type="search"
-          value={searchQuery}
-          onChange={(event) => setSearchQuery(event.target.value)}
-          placeholder={t("sidebar.searchPlaceholder")}
-          aria-label={t("sidebar.searchPlaceholder")}
-        />
-      </label>
       {pinned.length > 0 && (
         <>
           <div className="section-label">{t("sidebar.pinned")}</div>
@@ -188,16 +166,29 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
       <div className="section-label">{t("sidebar.recent")}</div>
       {conversations.length === 0 ? (
         <div className="empty-list">{t("sidebar.noConversations")}</div>
-      ) : filteredConversations.length === 0 ? (
-        <div className="empty-list">{t("sidebar.noResults")}</div>
       ) : (
         <div className="conversation-list">{unpinned.map(renderConversation)}</div>
       )}
       <div className="sidebar-footer">
         <button
+          className="sidebar-identity"
+          type="button"
+          onClick={() => onOpenSettings("personalization")}
+          aria-label={t("sidebar.editIdentity")}
+        >
+          <span className={`sidebar-identity-avatar avatar-${identity.avatarColor}`}>
+            {localInitial}
+          </span>
+          <span className="sidebar-identity-copy">
+            <strong>{localName}</strong>
+            <small>{t("sidebar.localIdentity")}</small>
+          </span>
+          <ChevronRight size={14} aria-hidden="true" />
+        </button>
+        <button
           className="settings-button"
           type="button"
-          onClick={onOpenSettings}
+          onClick={() => onOpenSettings()}
           aria-label={t("settings.title")}
         >
           <Settings2 size={17} />

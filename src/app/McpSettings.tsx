@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Trash2, Plus, AlertTriangle } from "lucide-react";
-import { useMcpStore } from "../features/mcp/mcp-store";
+import { AlertTriangle, Cable, Globe2, Pencil, Plus, Terminal, Trash2 } from "lucide-react";
 import type { McpTransport } from "../core/mcp/types";
+import { useMcpStore, type McpServerEntry } from "../features/mcp/mcp-store";
+import { SettingsFormDialog } from "./SettingsFormDialog";
 
 interface FormState {
   name: string;
@@ -11,106 +12,192 @@ interface FormState {
   args: string;
   cwd: string;
   url: string;
-  headers: string;
 }
 
-const emptyForm: FormState = {
+const EMPTY_FORM: FormState = {
   name: "",
   transport: "stdio",
   command: "",
   args: "",
   cwd: "",
   url: "",
-  headers: "",
 };
+
+type FormErrors = Partial<Record<"name" | "command" | "url", string>>;
 
 export function McpSettings() {
   const { t } = useTranslation();
-  const servers = useMcpStore((s) => s.servers);
-  const loadServers = useMcpStore((s) => s.loadServers);
-  const addServer = useMcpStore((s) => s.addServer);
-  const removeServer = useMcpStore((s) => s.removeServer);
-  const toggleServer = useMcpStore((s) => s.toggleServer);
+  const { servers, loadServers, addServer, updateServer, removeServer, toggleServer } =
+    useMcpStore();
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState<FormState>(emptyForm);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<FormState>({ ...EMPTY_FORM });
+  const [errors, setErrors] = useState<FormErrors>({});
 
   useEffect(() => {
     void loadServers().finally(() => setLoading(false));
   }, [loadServers]);
 
-  const handleSubmit = async () => {
-    if (!form.name.trim()) return;
-    if (form.transport === "stdio") {
-      await addServer({
-        name: form.name.trim(),
-        transport: "stdio",
-        command: form.command.trim(),
-        args: form.args
-          .split(",")
-          .map((a) => a.trim())
-          .filter(Boolean),
-        ...(form.cwd.trim() ? { cwd: form.cwd.trim() } : {}),
-        envSecretRefs: {},
-      });
-    } else {
-      await addServer({
-        name: form.name.trim(),
-        transport: "streamable-http",
-        url: form.url.trim(),
-        headerSecretRefs: {},
-      });
-    }
-    setForm(emptyForm);
-    setShowForm(false);
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setEditingId(null);
+    setForm({ ...EMPTY_FORM });
+    setErrors({});
   };
 
-  if (loading) return <p>{t("common.loading")}</p>;
+  const openAdd = () => {
+    closeDialog();
+    setDialogOpen(true);
+  };
+
+  const openEdit = (server: McpServerEntry) => {
+    setEditingId(server.id);
+    setForm({
+      name: server.name,
+      transport: server.transport,
+      command: server.transport === "stdio" ? server.command : "",
+      args: server.transport === "stdio" ? server.args.join(", ") : "",
+      cwd: server.transport === "stdio" ? (server.cwd ?? "") : "",
+      url: server.transport === "streamable-http" ? server.url : "",
+    });
+    setErrors({});
+    setDialogOpen(true);
+  };
+
+  const update = <Key extends keyof FormState>(key: Key, value: FormState[Key]) => {
+    setForm((current) => ({ ...current, [key]: value }));
+    if (key === "name" || key === "command" || key === "url") {
+      setErrors((current) => ({ ...current, [key]: undefined }));
+    }
+  };
+
+  const validate = (): FormErrors => {
+    const next: FormErrors = {};
+    if (!form.name.trim()) next.name = t("mcp.required");
+    if (form.transport === "stdio" && !form.command.trim()) next.command = t("mcp.required");
+    if (form.transport === "streamable-http") {
+      try {
+        const url = new URL(form.url);
+        if (url.protocol !== "http:" && url.protocol !== "https:") next.url = t("mcp.invalidUrl");
+      } catch {
+        next.url = form.url.trim() ? t("mcp.invalidUrl") : t("mcp.required");
+      }
+    }
+    return next;
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const nextErrors = validate();
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) return;
+
+    const config =
+      form.transport === "stdio"
+        ? {
+            name: form.name.trim(),
+            transport: "stdio" as const,
+            command: form.command.trim(),
+            args: form.args
+              .split(",")
+              .map((item) => item.trim())
+              .filter(Boolean),
+            ...(form.cwd.trim() ? { cwd: form.cwd.trim() } : {}),
+            envSecretRefs: {},
+          }
+        : {
+            name: form.name.trim(),
+            transport: "streamable-http" as const,
+            url: form.url.trim(),
+            headerSecretRefs: {},
+          };
+
+    if (editingId) await updateServer(editingId, config);
+    else await addServer(config);
+    closeDialog();
+  };
+
+  const enabledCount = servers.filter((server) => server.enabled).length;
 
   return (
     <section className="mcp-settings">
-      <div className="settings-page-intro compact">
+      <div className="settings-page-intro compact mcp-overview">
         <div>
           <span className="settings-page-eyebrow">{t("settingsDescriptions.toolConnections")}</span>
           <p>{t("settingsDescriptions.mcp")}</p>
         </div>
+        <div className="mcp-overview-actions">
+          <span className="settings-count-badge">
+            {t("mcp.serverSummary", { enabled: enabledCount, total: servers.length })}
+          </span>
+          <button className="primary-button" type="button" onClick={openAdd}>
+            <Plus size={14} /> {t("mcp.add")}
+          </button>
+        </div>
       </div>
-      <p className="mcp-security-notice">
+
+      <div className="mcp-security-notice">
         <AlertTriangle size={14} />
-        {t("mcp.securityNotice")}
-      </p>
-      {servers.length === 0 ? (
-        <div className="settings-empty-state">
+        <span>{t("mcp.securityNotice")}</span>
+      </div>
+
+      {loading ? (
+        <p>{t("common.loading")}</p>
+      ) : servers.length === 0 ? (
+        <div className="mcp-empty-state">
+          <span className="mcp-empty-icon">
+            <Cable size={20} />
+          </span>
           <strong>{t("mcp.noServers")}</strong>
-          <span>{t("settingsDescriptions.mcpEmpty")}</span>
+          <p>{t("settingsDescriptions.mcpEmpty")}</p>
+          <button className="secondary-button" type="button" onClick={openAdd}>
+            <Plus size={14} /> {t("mcp.add")}
+          </button>
         </div>
       ) : (
         <ul className="mcp-list">
           {servers.map((server) => (
             <li key={server.id} className="mcp-item">
-              <div className="mcp-item-header">
-                <span className="mcp-item-name">{server.name}</span>
-                <span className="mcp-transport-badge">{server.transport}</span>
+              <span
+                className={`mcp-status-dot${server.enabled ? " enabled" : ""}`}
+                aria-hidden="true"
+              />
+              <span className="mcp-transport-icon" aria-hidden="true">
+                {server.transport === "stdio" ? <Terminal size={16} /> : <Globe2 size={16} />}
+              </span>
+              <div className="mcp-item-copy">
+                <div>
+                  <strong>{server.name}</strong>
+                  <span>
+                    {server.transport === "stdio" ? t("mcp.localProcess") : t("mcp.remoteServer")}
+                  </span>
+                </div>
+                <p>
+                  {server.transport === "stdio"
+                    ? `${server.command} ${server.args.join(" ")}`.trim()
+                    : server.url}
+                </p>
               </div>
-              <p className="mcp-item-detail">
-                {server.transport === "stdio"
-                  ? `${server.command} ${server.args.join(" ")}`
-                  : server.url}
-              </p>
-              <div className="mcp-item-footer">
-                <label className="mcp-toggle">
-                  <input
-                    type="checkbox"
-                    checked={server.enabled}
-                    onChange={() => void toggleServer(server.id)}
-                  />
-                  <span>{server.enabled ? t("mcp.enabled") : t("mcp.disabled")}</span>
-                </label>
+              <label className="mcp-toggle">
+                <span>{server.enabled ? t("mcp.enabled") : t("mcp.disabled")}</span>
+                <input
+                  type="checkbox"
+                  checked={server.enabled}
+                  onChange={() => void toggleServer(server.id)}
+                />
+                <i aria-hidden="true" />
+              </label>
+              <div className="mcp-item-actions">
+                <button type="button" onClick={() => openEdit(server)} aria-label={t("mcp.edit")}>
+                  <Pencil size={14} />
+                </button>
                 <button
                   type="button"
-                  className="mcp-delete"
+                  onClick={() => {
+                    if (window.confirm(t("mcp.confirmDelete"))) void removeServer(server.id);
+                  }}
                   aria-label={t("mcp.delete")}
-                  onClick={() => void removeServer(server.id)}
                 >
                   <Trash2 size={14} />
                 </button>
@@ -119,90 +206,119 @@ export function McpSettings() {
           ))}
         </ul>
       )}
-      {showForm ? (
-        <div className="mcp-form">
-          <label>
-            <span>{t("mcp.name")}</span>
-            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          </label>
-          <label>
-            <span>{t("mcp.transport")}</span>
-            <select
-              value={form.transport}
-              onChange={(e) => setForm({ ...form, transport: e.target.value as McpTransport })}
+
+      {dialogOpen && (
+        <SettingsFormDialog
+          title={editingId ? t("mcp.editServer") : t("mcp.addServer")}
+          description={t("mcp.dialogDescription")}
+          onClose={closeDialog}
+        >
+          <form
+            className="mcp-form modal-form"
+            noValidate
+            onSubmit={(event) => void handleSubmit(event)}
+          >
+            <div
+              className="mcp-transport-options"
+              role="radiogroup"
+              aria-label={t("mcp.transport")}
             >
-              <option value="stdio">{t("mcp.stdio")}</option>
-              <option value="streamable-http">{t("mcp.streamableHttp")}</option>
-            </select>
-          </label>
-          {form.transport === "stdio" ? (
-            <>
+              {(["stdio", "streamable-http"] as const).map((transport) => (
+                <button
+                  key={transport}
+                  type="button"
+                  role="radio"
+                  aria-checked={form.transport === transport}
+                  className={form.transport === transport ? "active" : ""}
+                  onClick={() => update("transport", transport)}
+                >
+                  {transport === "stdio" ? <Terminal size={17} /> : <Globe2 size={17} />}
+                  <span>
+                    <strong>
+                      {transport === "stdio" ? t("mcp.localProcess") : t("mcp.remoteServer")}
+                    </strong>
+                    <small>
+                      {transport === "stdio" ? t("mcp.stdioDescription") : t("mcp.httpDescription")}
+                    </small>
+                  </span>
+                </button>
+              ))}
+            </div>
+            <div className="mcp-form-fields">
               <label>
-                <span>{t("mcp.command")}</span>
+                <span>
+                  {t("mcp.name")} <em>*</em>
+                </span>
                 <input
-                  value={form.command}
-                  onChange={(e) => setForm({ ...form, command: e.target.value })}
-                  placeholder="npx"
+                  autoFocus
+                  value={form.name}
+                  aria-invalid={Boolean(errors.name)}
+                  onChange={(event) => update("name", event.target.value)}
+                  placeholder={t("mcp.namePlaceholder")}
                 />
+                {errors.name && <small className="field-error">{errors.name}</small>}
               </label>
-              <label>
-                <span>{t("mcp.arguments")}</span>
-                <input
-                  value={form.args}
-                  onChange={(e) => setForm({ ...form, args: e.target.value })}
-                  placeholder="-y, @modelcontextprotocol/server-filesystem, /path"
-                />
-              </label>
-              <label>
-                <span>{t("mcp.workingDirectory")}</span>
-                <input
-                  value={form.cwd}
-                  onChange={(e) => setForm({ ...form, cwd: e.target.value })}
-                  placeholder="/optional/cwd"
-                />
-              </label>
-              <p className="mcp-desktop-notice">{t("mcp.desktopOnly")}</p>
-            </>
-          ) : (
-            <>
-              <label>
-                <span>{t("mcp.url")}</span>
-                <input
-                  value={form.url}
-                  onChange={(e) => setForm({ ...form, url: e.target.value })}
-                  placeholder="https://example.com/mcp"
-                />
-              </label>
-              <label>
-                <span>{t("mcp.headers")}</span>
-                <input
-                  value={form.headers}
-                  onChange={(e) => setForm({ ...form, headers: e.target.value })}
-                  placeholder="Authorization: Bearer ..."
-                />
-              </label>
-            </>
-          )}
-          <div className="flex gap-2 mt-3">
-            <button
-              type="button"
-              onClick={() => {
-                setForm(emptyForm);
-                setShowForm(false);
-              }}
-            >
-              {t("mcp.cancel")}
-            </button>
-            <button type="button" onClick={() => void handleSubmit()} disabled={!form.name.trim()}>
-              {t("mcp.save")}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button type="button" className="mcp-add" onClick={() => setShowForm(true)}>
-          <Plus size={15} />
-          {t("mcp.add")}
-        </button>
+              {form.transport === "stdio" ? (
+                <>
+                  <label>
+                    <span>
+                      {t("mcp.command")} <em>*</em>
+                    </span>
+                    <input
+                      value={form.command}
+                      aria-invalid={Boolean(errors.command)}
+                      onChange={(event) => update("command", event.target.value)}
+                      placeholder="npx"
+                    />
+                    {errors.command && <small className="field-error">{errors.command}</small>}
+                  </label>
+                  <label>
+                    <span>{t("mcp.arguments")}</span>
+                    <input
+                      value={form.args}
+                      onChange={(event) => update("args", event.target.value)}
+                      placeholder="-y, @modelcontextprotocol/server-filesystem"
+                    />
+                    <small>{t("mcp.argumentsHint")}</small>
+                  </label>
+                  <label>
+                    <span>{t("mcp.workingDirectory")}</span>
+                    <input
+                      value={form.cwd}
+                      onChange={(event) => update("cwd", event.target.value)}
+                      placeholder="/optional/cwd"
+                    />
+                  </label>
+                </>
+              ) : (
+                <label>
+                  <span>
+                    {t("mcp.url")} <em>*</em>
+                  </span>
+                  <input
+                    value={form.url}
+                    aria-invalid={Boolean(errors.url)}
+                    onChange={(event) => update("url", event.target.value)}
+                    placeholder="https://example.com/mcp"
+                  />
+                  {errors.url && <small className="field-error">{errors.url}</small>}
+                </label>
+              )}
+            </div>
+            <div className="mcp-default-note">
+              <AlertTriangle size={13} /> {t("mcp.disabledByDefault")}
+            </div>
+            <div className="form-actions dialog-form-actions">
+              <span />
+              <button className="text-button" type="button" onClick={closeDialog}>
+                {t("mcp.cancel")}
+              </button>
+              <button className="primary-button" type="submit">
+                {editingId ? t("mcp.saveChanges") : t("mcp.save")}
+              </button>
+            </div>
+          </form>
+        </SettingsFormDialog>
       )}
     </section>
   );

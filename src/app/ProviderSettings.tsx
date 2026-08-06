@@ -1,9 +1,10 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  ArrowLeft,
   Check,
   ChevronRight,
-  Globe2,
+  Pencil,
   Plus,
   Search,
   Server,
@@ -17,10 +18,12 @@ import {
   useProviderStore,
   type ProviderConfigInput,
 } from "../features/provider/provider-store";
+import { SettingsFormDialog } from "./SettingsFormDialog";
 
 type ProviderField = keyof ProviderConfigInput;
-type FieldErrors = Partial<Record<ProviderField, string>>;
+type FieldErrors = Partial<Record<ProviderField, "required" | "url">>;
 type PresetFilter = "all" | Exclude<ProviderRegion, "custom">;
+type DialogStep = "closed" | "presets" | "form";
 
 const SUPPORTED_PROTOCOLS = new Set<ProviderConfigInput["protocolId"]>([
   "openai-chat-completions",
@@ -39,9 +42,8 @@ const EMPTY_FORM: ProviderConfigInput = {
 };
 
 function supportedProtocol(preset: ProviderPreset): ProviderConfigInput["protocolId"] | null {
-  const preferred = preset.recommendedProtocol;
-  if (SUPPORTED_PROTOCOLS.has(preferred as ProviderConfigInput["protocolId"])) {
-    return preferred as ProviderConfigInput["protocolId"];
+  if (SUPPORTED_PROTOCOLS.has(preset.recommendedProtocol as ProviderConfigInput["protocolId"])) {
+    return preset.recommendedProtocol as ProviderConfigInput["protocolId"];
   }
   return (
     (preset.protocols.find((protocol) =>
@@ -50,77 +52,87 @@ function supportedProtocol(preset: ProviderPreset): ProviderConfigInput["protoco
   );
 }
 
-function availablePresets(): ProviderPreset[] {
-  return PROVIDER_PRESETS.filter(
-    (preset) => supportedProtocol(preset) !== null && preset.endpoints.length > 0,
-  );
-}
-
-function validationErrors(
-  form: ProviderConfigInput,
-  requiredFields?: ProviderField[],
-): FieldErrors {
+function validationErrors(form: ProviderConfigInput, required?: ProviderField[]): FieldErrors {
   const result = providerSchema.safeParse(form);
   if (result.success) return {};
-  const fields = requiredFields ? new Set(requiredFields) : null;
+  const fields = required ? new Set(required) : null;
   const errors: FieldErrors = {};
   for (const field of ["name", "baseUrl", "apiKey", "modelId"] as const) {
-    if ((!fields || fields.has(field)) && form[field].trim().length === 0) {
-      errors[field] = "required";
-    }
+    if ((!fields || fields.has(field)) && !form[field].trim()) errors[field] = "required";
   }
   for (const issue of result.error.issues) {
     const field = issue.path[0];
     if (typeof field !== "string" || (fields && !fields.has(field as ProviderField))) continue;
-    const typedField = field as ProviderField;
-    if (errors[typedField]) continue;
-    errors[typedField] = issue.code === "invalid_format" ? "url" : "required";
+    const typed = field as ProviderField;
+    if (!errors[typed]) errors[typed] = issue.code === "invalid_format" ? "url" : "required";
   }
   return errors;
 }
 
-function providerInitial(name: string): string {
-  return name.trim().slice(0, 1).toUpperCase();
-}
+const providerInitial = (name: string) => name.trim().slice(0, 1).toUpperCase();
 
 export function ProviderSettings() {
   const { t } = useTranslation();
   const {
     providers,
     addProvider,
+    updateProvider,
     deleteProvider,
     setDefaultProvider,
     testConnection,
     fetchModels,
   } = useProviderStore();
-  const presets = useMemo(() => availablePresets(), []);
-  const [showForm, setShowForm] = useState(false);
+  const presets = useMemo(
+    () =>
+      PROVIDER_PRESETS.filter(
+        (preset) => supportedProtocol(preset) !== null && preset.endpoints.length > 0,
+      ),
+    [],
+  );
+  const [step, setStep] = useState<DialogStep>("closed");
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
   const [presetFilter, setPresetFilter] = useState<PresetFilter>("all");
   const [presetQuery, setPresetQuery] = useState("");
+  const [form, setForm] = useState<ProviderConfigInput>({ ...EMPTY_FORM });
+  const [errors, setErrors] = useState<FieldErrors>({});
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
   const [models, setModels] = useState<string[]>([]);
   const [fetchingModels, setFetchingModels] = useState(false);
-  const [modelFetchError, setModelFetchError] = useState<string | null>(null);
-  const [errors, setErrors] = useState<FieldErrors>({});
-  const [form, setForm] = useState<ProviderConfigInput>({ ...EMPTY_FORM });
 
-  const filteredPresets = presets.filter((preset) => {
-    const matchesRegion = presetFilter === "all" || preset.region === presetFilter;
-    const matchesQuery = preset.name.toLowerCase().includes(presetQuery.trim().toLowerCase());
-    return matchesRegion && matchesQuery;
-  });
-
-  const updateField = <Key extends ProviderField>(field: Key, value: ProviderConfigInput[Key]) => {
-    setForm((current) => ({ ...current, [field]: value }));
-    setErrors((current) => ({ ...current, [field]: undefined }));
+  const resetDialog = () => {
+    setStep("closed");
+    setEditingId(null);
+    setSelectedPresetId(null);
+    setPresetQuery("");
+    setForm({ ...EMPTY_FORM });
+    setErrors({});
     setTestResult(null);
+    setModels([]);
   };
 
-  const validateField = (field: ProviderField) => {
-    const next = validationErrors(form, [field]);
-    setErrors((current) => ({ ...current, [field]: next[field] }));
+  const openAdd = () => {
+    resetDialog();
+    setStep("presets");
+  };
+
+  const openEdit = (id: string) => {
+    const provider = providers.find((item) => item.id === id);
+    if (!provider) return;
+    setEditingId(id);
+    setSelectedPresetId(null);
+    setForm({
+      name: provider.name,
+      protocolId: provider.protocolId as ProviderConfigInput["protocolId"],
+      baseUrl: provider.baseUrl,
+      apiKey: provider.apiKey,
+      modelId: provider.modelId,
+    });
+    setErrors({});
+    setTestResult(null);
+    setModels([]);
+    setStep("form");
   };
 
   const choosePreset = (preset: ProviderPreset | null) => {
@@ -139,41 +151,39 @@ export function ProviderSettings() {
       });
     }
     setErrors({});
-    setModels([]);
-    setModelFetchError(null);
-    setTestResult(null);
-    setShowForm(true);
+    setStep("form");
   };
 
-  const openAddFlow = () => {
-    setShowForm(true);
-    setSelectedPresetId(null);
-    setForm({ ...EMPTY_FORM });
-    setErrors({});
-    setModels([]);
-    setModelFetchError(null);
+  const updateField = <Key extends ProviderField>(field: Key, value: ProviderConfigInput[Key]) => {
+    setForm((current) => ({ ...current, [field]: value }));
+    setErrors((current) => ({ ...current, [field]: undefined }));
     setTestResult(null);
   };
 
-  const closeAddFlow = () => {
-    setShowForm(false);
-    setSelectedPresetId(null);
-    setForm({ ...EMPTY_FORM });
-    setErrors({});
-    setTestResult(null);
-    setModels([]);
-    setModelFetchError(null);
+  const fieldError = (field: ProviderField) =>
+    errors[field] ? t(`provider.validation.${errors[field]}`) : null;
+
+  const handleSave = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const nextErrors = validationErrors(form);
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) return;
+    try {
+      if (editingId) await updateProvider(editingId, form);
+      else await addProvider(form);
+      resetDialog();
+    } catch (error) {
+      setTestResult(error instanceof Error ? error.message : String(error));
+    }
   };
 
   const handleTest = async () => {
-    const required: ProviderField[] = ["baseUrl", "apiKey", "modelId"];
-    const nextErrors = validationErrors(form, required);
-    if (Object.keys(nextErrors).length > 0) {
+    const nextErrors = validationErrors(form, ["baseUrl", "apiKey", "modelId"]);
+    if (Object.keys(nextErrors).length) {
       setErrors((current) => ({ ...current, ...nextErrors }));
       return;
     }
     setTesting(true);
-    setTestResult(null);
     try {
       const result = await testConnection(form);
       setTestResult(
@@ -188,36 +198,26 @@ export function ProviderSettings() {
     }
   };
 
-  const handleSave = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const nextErrors = validationErrors(form);
-    setErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) return;
-    try {
-      await addProvider(form);
-      closeAddFlow();
-    } catch (error) {
-      setTestResult(error instanceof Error ? error.message : String(error));
-    }
-  };
-
   const handleFetchModels = async () => {
-    const required: ProviderField[] = ["baseUrl", "apiKey"];
-    const nextErrors = validationErrors(form, required);
-    if (Object.keys(nextErrors).length > 0) {
+    const nextErrors = validationErrors(form, ["baseUrl", "apiKey"]);
+    if (Object.keys(nextErrors).length) {
       setErrors((current) => ({ ...current, ...nextErrors }));
       return;
     }
     setFetchingModels(true);
-    setModelFetchError(null);
-    const discoveredModels = await fetchModels(form);
-    setModels(discoveredModels);
-    if (discoveredModels.length === 0) setModelFetchError(t("provider.fetchModelsFailed"));
+    const discovered = await fetchModels(form);
+    setModels(discovered);
+    setTestResult(discovered.length ? null : t("provider.fetchModelsFailed"));
     setFetchingModels(false);
   };
 
-  const fieldError = (field: ProviderField) =>
-    errors[field] ? t(`provider.validation.${errors[field]}`) : null;
+  const filteredPresets = presets.filter((preset) => {
+    const query = presetQuery.trim().toLowerCase();
+    return (
+      (presetFilter === "all" || preset.region === presetFilter) &&
+      (!query || preset.name.toLowerCase().includes(query))
+    );
+  });
 
   return (
     <div className="provider-settings">
@@ -233,16 +233,15 @@ export function ProviderSettings() {
         </span>
       </div>
 
-      {providers.length > 0 && (
+      {providers.length ? (
         <section className="provider-connections" aria-label={t("provider.configured")}>
           <div className="provider-section-heading">
             <div>
               <h4>{t("provider.configured")}</h4>
               <span>{t("provider.configuredDescription")}</span>
             </div>
-            <button className="secondary-button" type="button" onClick={openAddFlow}>
-              <Plus size={14} />
-              {t("provider.add")}
+            <button className="secondary-button" type="button" onClick={openAdd}>
+              <Plus size={14} /> {t("provider.add")}
             </button>
           </div>
           <div className="provider-connection-list">
@@ -266,6 +265,9 @@ export function ProviderSettings() {
                       {t("provider.setDefault")}
                     </button>
                   )}
+                  <button type="button" onClick={() => openEdit(provider.id)}>
+                    <Pencil size={13} /> <span>{t("provider.edit")}</span>
+                  </button>
                   <button
                     type="button"
                     aria-label={t("provider.delete")}
@@ -278,65 +280,72 @@ export function ProviderSettings() {
             ))}
           </div>
         </section>
+      ) : (
+        <div className="provider-empty-panel">
+          <div className="provider-empty-panel-icon" aria-hidden="true">
+            <Server size={20} />
+          </div>
+          <strong>{t("provider.noProviders")}</strong>
+          <p>{t("provider.addDescription")}</p>
+          <button type="button" onClick={openAdd}>
+            <Plus size={15} /> {t("provider.add")}
+          </button>
+        </div>
       )}
 
-      {showForm && (
-        <section className="provider-preset-section">
-          <div className="provider-section-heading">
-            <div>
-              <h4>{t("provider.presets")}</h4>
-              <span>{t("provider.presetsDescription")}</span>
+      {step === "presets" && (
+        <SettingsFormDialog
+          title={t("provider.chooseProvider")}
+          description={t("provider.presetsDescription")}
+          onClose={resetDialog}
+          wide
+        >
+          <div className="provider-catalog-toolbar">
+            <div className="provider-region-tabs" role="group" aria-label={t("provider.region")}>
+              {(["all", "international", "china", "local"] as const).map((region) => (
+                <button
+                  type="button"
+                  key={region}
+                  className={presetFilter === region ? "active" : ""}
+                  aria-pressed={presetFilter === region}
+                  onClick={() => setPresetFilter(region)}
+                >
+                  {t(`provider.regions.${region}`)}
+                </button>
+              ))}
             </div>
             <label className="provider-preset-search">
-              <Search size={13} aria-hidden="true" />
-              <span className="sr-only">{t("provider.searchPresets")}</span>
+              <Search size={14} />
               <input
                 type="search"
                 value={presetQuery}
                 placeholder={t("provider.searchPresets")}
+                aria-label={t("provider.searchPresets")}
                 onChange={(event) => setPresetQuery(event.target.value)}
               />
             </label>
-            <button className="text-button provider-add-close" type="button" onClick={closeAddFlow}>
-              {t("provider.cancel")}
-            </button>
-          </div>
-          <div className="provider-region-tabs" role="group" aria-label={t("provider.region")}>
-            {(["all", "international", "china", "local"] as const).map((region) => (
-              <button
-                type="button"
-                key={region}
-                className={presetFilter === region ? "active" : ""}
-                aria-pressed={presetFilter === region}
-                onClick={() => setPresetFilter(region)}
-              >
-                {t(`provider.regions.${region}`)}
-              </button>
-            ))}
           </div>
           <div className="provider-preset-grid">
             <button
-              className={`provider-preset-tile custom ${selectedPresetId === "custom" ? "selected" : ""}`}
+              className="provider-preset-tile custom"
               type="button"
               onClick={() => choosePreset(null)}
             >
-              <SlidersHorizontal size={16} aria-hidden="true" />
+              <SlidersHorizontal size={16} />
               <span>
                 <strong>{t("provider.custom")}</strong>
                 <small>{t("provider.customDescription")}</small>
               </span>
-              <ChevronRight size={14} aria-hidden="true" />
+              <ChevronRight size={14} />
             </button>
             {filteredPresets.map((preset) => (
               <button
-                className={`provider-preset-tile ${selectedPresetId === preset.id ? "selected" : ""}`}
+                className="provider-preset-tile"
                 type="button"
                 key={preset.id}
                 onClick={() => choosePreset(preset)}
               >
-                <span className="provider-preset-mark" aria-hidden="true">
-                  {providerInitial(preset.name)}
-                </span>
+                <span className="provider-preset-mark">{providerInitial(preset.name)}</span>
                 <span>
                   <strong>{preset.name}</strong>
                   <small>{t(`provider.regions.${preset.region}`)}</small>
@@ -345,151 +354,145 @@ export function ProviderSettings() {
               </button>
             ))}
           </div>
-        </section>
+        </SettingsFormDialog>
       )}
 
-      {showForm && selectedPresetId !== null && (
-        <form className="provider-form" noValidate onSubmit={(event) => void handleSave(event)}>
-          <div className="provider-form-heading">
-            <div>
-              <h4>{form.name || t("provider.custom")}</h4>
-              <span>{t("provider.formDescription")}</span>
-            </div>
-            <Globe2 size={18} aria-hidden="true" />
-          </div>
-          <div className="provider-form-grid">
-            <label>
-              <span>
-                {t("provider.name")} <em>*</em>
-              </span>
-              <input
-                value={form.name}
-                aria-invalid={Boolean(errors.name)}
-                onBlur={() => validateField("name")}
-                onChange={(event) => updateField("name", event.target.value)}
-              />
-              {fieldError("name") && <small className="field-error">{fieldError("name")}</small>}
-            </label>
-            <label>
-              <span>
-                {t("provider.protocol")} <em>*</em>
-              </span>
-              <select
-                value={form.protocolId}
-                onChange={(event) =>
-                  updateField("protocolId", event.target.value as ProviderConfigInput["protocolId"])
-                }
+      {step === "form" && (
+        <SettingsFormDialog
+          title={editingId ? t("provider.editProvider") : t("provider.configureProvider")}
+          description={t("provider.formDescription")}
+          onClose={resetDialog}
+        >
+          <form
+            className="provider-form modal-form"
+            noValidate
+            onSubmit={(event) => void handleSave(event)}
+          >
+            {!editingId && (
+              <button
+                className="dialog-back-button"
+                type="button"
+                onClick={() => setStep("presets")}
               >
-                <option value="openai-chat-completions">OpenAI Chat Completions</option>
-                <option value="openai-compatible-chat">OpenAI Compatible</option>
-                <option value="openai-responses">OpenAI Responses</option>
-                <option value="anthropic-messages">Anthropic Messages</option>
-                <option value="gemini-generate-content">Gemini GenerateContent</option>
-              </select>
-            </label>
-            <label className="provider-field-wide">
-              <span>
-                {t("provider.baseUrl")} <em>*</em>
-              </span>
-              <input
-                value={form.baseUrl}
-                aria-invalid={Boolean(errors.baseUrl)}
-                placeholder="https://api.example.com/v1"
-                onBlur={() => validateField("baseUrl")}
-                onChange={(event) => updateField("baseUrl", event.target.value)}
-              />
-              {fieldError("baseUrl") && (
-                <small className="field-error">{fieldError("baseUrl")}</small>
-              )}
-            </label>
-            <label className="provider-field-wide">
-              <span>
-                {t("provider.apiKey")} <em>*</em>
-              </span>
-              <input
-                type="password"
-                autoComplete="off"
-                value={form.apiKey}
-                aria-invalid={Boolean(errors.apiKey)}
-                onBlur={() => validateField("apiKey")}
-                onChange={(event) => updateField("apiKey", event.target.value)}
-              />
-              {fieldError("apiKey") && (
-                <small className="field-error">{fieldError("apiKey")}</small>
-              )}
-            </label>
-            <label className="provider-field-wide">
-              <span>
-                {t("provider.modelId")} <em>*</em>
-              </span>
-              <div className="model-input-row">
+                <ArrowLeft size={14} /> {t("provider.backToPresets")}
+              </button>
+            )}
+            <div className="provider-form-grid">
+              <label>
+                <span>
+                  {t("provider.name")} <em>*</em>
+                </span>
                 <input
-                  list="model-options"
-                  value={form.modelId}
-                  aria-invalid={Boolean(errors.modelId)}
-                  onBlur={() => validateField("modelId")}
-                  onChange={(event) => updateField("modelId", event.target.value)}
+                  autoFocus
+                  value={form.name}
+                  aria-invalid={Boolean(errors.name)}
+                  onChange={(event) => updateField("name", event.target.value)}
                 />
-                <button
-                  className="secondary-button"
-                  type="button"
-                  disabled={fetchingModels}
-                  onClick={() => void handleFetchModels()}
+                {fieldError("name") && <small className="field-error">{fieldError("name")}</small>}
+              </label>
+              <label>
+                <span>
+                  {t("provider.protocol")} <em>*</em>
+                </span>
+                <select
+                  value={form.protocolId}
+                  onChange={(event) =>
+                    updateField(
+                      "protocolId",
+                      event.target.value as ProviderConfigInput["protocolId"],
+                    )
+                  }
                 >
-                  {fetchingModels ? t("provider.fetchingModels") : t("provider.fetchModels")}
-                </button>
+                  <option value="openai-chat-completions">OpenAI Chat Completions</option>
+                  <option value="openai-compatible-chat">OpenAI Compatible</option>
+                  <option value="openai-responses">OpenAI Responses</option>
+                  <option value="anthropic-messages">Anthropic Messages</option>
+                  <option value="gemini-generate-content">Gemini GenerateContent</option>
+                </select>
+              </label>
+              <label className="provider-field-wide">
+                <span>
+                  {t("provider.baseUrl")} <em>*</em>
+                </span>
+                <input
+                  value={form.baseUrl}
+                  aria-invalid={Boolean(errors.baseUrl)}
+                  placeholder="https://api.example.com/v1"
+                  onChange={(event) => updateField("baseUrl", event.target.value)}
+                />
+                {fieldError("baseUrl") && (
+                  <small className="field-error">{fieldError("baseUrl")}</small>
+                )}
+              </label>
+              <label className="provider-field-wide">
+                <span>
+                  {t("provider.apiKey")} <em>*</em>
+                </span>
+                <input
+                  type="password"
+                  autoComplete="off"
+                  value={form.apiKey}
+                  aria-invalid={Boolean(errors.apiKey)}
+                  onChange={(event) => updateField("apiKey", event.target.value)}
+                />
+                {fieldError("apiKey") && (
+                  <small className="field-error">{fieldError("apiKey")}</small>
+                )}
+              </label>
+              <label className="provider-field-wide">
+                <span>
+                  {t("provider.modelId")} <em>*</em>
+                </span>
+                <div className="model-input-row">
+                  <input
+                    list="provider-model-options"
+                    value={form.modelId}
+                    aria-invalid={Boolean(errors.modelId)}
+                    onChange={(event) => updateField("modelId", event.target.value)}
+                  />
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    disabled={fetchingModels}
+                    onClick={() => void handleFetchModels()}
+                  >
+                    {fetchingModels ? t("provider.fetchingModels") : t("provider.fetchModels")}
+                  </button>
+                </div>
+                {fieldError("modelId") && (
+                  <small className="field-error">{fieldError("modelId")}</small>
+                )}
+                <datalist id="provider-model-options">
+                  {models.map((model) => (
+                    <option key={model} value={model} />
+                  ))}
+                </datalist>
+              </label>
+            </div>
+            {testResult && (
+              <div className="form-message" role="status">
+                {testResult}
               </div>
-              {fieldError("modelId") && (
-                <small className="field-error">{fieldError("modelId")}</small>
-              )}
-              <datalist id="model-options">
-                {models.map((model) => (
-                  <option key={model} value={model} />
-                ))}
-              </datalist>
-            </label>
-          </div>
-          {modelFetchError && (
-            <div className="form-message" role="status">
-              {modelFetchError}
+            )}
+            <div className="form-actions dialog-form-actions">
+              <button
+                className="secondary-button"
+                type="button"
+                disabled={testing}
+                onClick={() => void handleTest()}
+              >
+                {testing ? "…" : t("provider.testConnection")}
+              </button>
+              <span />
+              <button className="text-button" type="button" onClick={resetDialog}>
+                {t("provider.cancel")}
+              </button>
+              <button className="primary-button" type="submit">
+                {editingId ? t("provider.saveChanges") : t("provider.save")}
+              </button>
             </div>
-          )}
-          {testResult && (
-            <div className="form-message" role="status">
-              {testResult}
-            </div>
-          )}
-          <div className="form-actions">
-            <button className="primary-button" type="submit">
-              {t("provider.save")}
-            </button>
-            <button
-              className="secondary-button"
-              type="button"
-              disabled={testing}
-              onClick={() => void handleTest()}
-            >
-              {testing ? "…" : t("provider.testConnection")}
-            </button>
-            <button className="text-button" type="button" onClick={closeAddFlow}>
-              {t("provider.cancel")}
-            </button>
-          </div>
-        </form>
-      )}
-
-      {providers.length === 0 && !showForm && (
-        <div className="provider-empty-panel">
-          <div className="provider-empty-panel-icon" aria-hidden="true">
-            <Server size={20} />
-          </div>
-          <strong>{t("provider.noProviders")}</strong>
-          <p>{t("provider.addDescription")}</p>
-          <button type="button" onClick={openAddFlow}>
-            <Plus size={15} aria-hidden="true" />
-            {t("provider.add")}
-          </button>
-        </div>
+          </form>
+        </SettingsFormDialog>
       )}
     </div>
   );

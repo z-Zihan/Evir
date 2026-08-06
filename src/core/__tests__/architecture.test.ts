@@ -163,7 +163,6 @@ describe("architecture dependency direction", () => {
       "shortcuts.openSettings",
       "shortcuts.toggleSidebar",
       "shortcuts.openWorkspace",
-      "shortcuts.searchConversations",
       "shortcuts.sendMessage",
       "shortcuts.stopCurrentRun",
       "shortcuts.shortcutHelp",

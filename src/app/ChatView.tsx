@@ -138,6 +138,12 @@ export function ChatView({
     };
   }, []);
 
+  useEffect(() => {
+    const focusComposer = () => textareaRef.current?.focus();
+    window.addEventListener("evir:focus-composer", focusComposer);
+    return () => window.removeEventListener("evir:focus-composer", focusComposer);
+  }, []);
+
   const localUserName = localDisplayName || t("chat.localUser");
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {

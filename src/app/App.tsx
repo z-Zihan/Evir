@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useProviderStore } from "../features/provider/provider-store";
 import { useChatStore } from "../features/chat/chat-store";
 import { useUsageStore } from "../features/usage/usage-store";
 import { Sidebar } from "./Sidebar";
 import { ChatView } from "./ChatView";
-import { SettingsModal } from "./SettingsModal";
+import { SettingsModal, type SettingsTab } from "./SettingsModal";
 import { useShortcuts } from "./useShortcuts";
 import { ShortcutHelpOverlay } from "./ShortcutHelpOverlay";
 import { useTranslation } from "react-i18next";
@@ -12,22 +12,32 @@ import { useTranslation } from "react-i18next";
 export function App() {
   const { t } = useTranslation();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("providers");
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(
     () => typeof window === "undefined" || window.innerWidth > 820,
   );
   const [messageInput, setMessageInput] = useState("");
-  const focusSearchRef = useRef<(() => void) | null>(null);
   const { loadProviders, getDefaultProvider } = useProviderStore();
-  const { loadConversations, createConversation, sendMessage, stopGeneration, isStreaming } =
+  const { loadConversations, createOrReuseConversation, sendMessage, stopGeneration, isStreaming } =
     useChatStore();
   const loadUsageRecords = useUsageStore((state) => state.loadRecords);
 
   const handleNewConversation = useCallback(() => {
     const provider = getDefaultProvider();
-    if (provider) void createConversation(provider.id, provider.modelId);
-    else setSettingsOpen(true);
-  }, [createConversation, getDefaultProvider]);
+    if (!provider) {
+      setSettingsTab("providers");
+      setSettingsOpen(true);
+      return;
+    }
+    const focusComposer = () => window.dispatchEvent(new Event("evir:focus-composer"));
+    void createOrReuseConversation(provider.id, provider.modelId).then(focusComposer);
+  }, [createOrReuseConversation, getDefaultProvider]);
+
+  const openSettings = useCallback((tab: SettingsTab = "providers") => {
+    setSettingsTab(tab);
+    setSettingsOpen(true);
+  }, []);
 
   const handleSendMessage = useCallback(() => {
     if (!messageInput.trim() || isStreaming) return;
@@ -38,13 +48,8 @@ export function App() {
   useShortcuts({
     onShortcutHelp: () => setShortcutHelpOpen(true),
     onNewConversation: handleNewConversation,
-    onOpenSettings: () => setSettingsOpen(true),
+    onOpenSettings: () => openSettings(),
     onToggleSidebar: () => setSidebarVisible((visible) => !visible),
-    onSearchConversations: () => {
-      if (!sidebarVisible) setSidebarVisible(true);
-      // Use rAF to wait for sidebar to mount if it was hidden
-      requestAnimationFrame(() => focusSearchRef.current?.());
-    },
     onSendMessage: handleSendMessage,
     onStop: () => {
       if (isStreaming) stopGeneration();
@@ -70,7 +75,7 @@ export function App() {
   return (
     <div className={`app-shell${sidebarVisible ? " sidebar-visible" : ""}`}>
       {sidebarVisible && (
-        <Sidebar onOpenSettings={() => setSettingsOpen(true)} focusSearchRef={focusSearchRef} />
+        <Sidebar onOpenSettings={openSettings} onNewConversation={handleNewConversation} />
       )}
       {sidebarVisible && (
         <button
@@ -85,12 +90,16 @@ export function App() {
           input={messageInput}
           onInputChange={setMessageInput}
           onSendMessage={handleSendMessage}
-          onOpenSettings={() => setSettingsOpen(true)}
+          onOpenSettings={() => openSettings()}
           onToggleSidebar={() => setSidebarVisible((visible) => !visible)}
           sidebarVisible={sidebarVisible}
         />
       </div>
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SettingsModal
+        open={settingsOpen}
+        initialTab={settingsTab}
+        onClose={() => setSettingsOpen(false)}
+      />
       <ShortcutHelpOverlay open={shortcutHelpOpen} onClose={() => setShortcutHelpOpen(false)} />
     </div>
   );
