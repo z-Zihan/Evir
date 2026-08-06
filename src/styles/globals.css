@@ -724,11 +724,11 @@ textarea:focus-visible {
 .privacy-btn:hover {
   background: color-mix(in srgb, var(--danger) 8%, var(--surface));
 }
-.privacy-btn.danger-danger {
+.privacy-btn.danger.severe {
   background: var(--danger);
   color: #fff;
 }
-.privacy-btn.danger-danger:hover {
+.privacy-btn.danger.severe:hover {
   opacity: 0.9;
 }
 .privacy-result {

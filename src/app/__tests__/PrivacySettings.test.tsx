@@ -20,6 +20,10 @@ vi.mock("../../core/storage/db", () => ({
     usage_records: { clear: mockClear },
     mcpServers: { clear: mockClear },
     settings: { clear: mockClear },
+    transaction: (...args: unknown[]) => {
+      const fn = args[args.length - 1];
+      return typeof fn === "function" ? (fn as () => Promise<void>)() : Promise.resolve();
+    },
   },
 }));
 
