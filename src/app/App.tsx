@@ -6,9 +6,11 @@ import { Sidebar } from "./Sidebar";
 import { ChatView } from "./ChatView";
 import { SettingsModal } from "./SettingsModal";
 import { useShortcuts } from "./useShortcuts";
+import { ShortcutHelpOverlay } from "./ShortcutHelpOverlay";
 
 export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [messageInput, setMessageInput] = useState("");
   const focusSearchRef = useRef<(() => void) | null>(null);
@@ -30,6 +32,7 @@ export function App() {
   }, [isStreaming, messageInput, sendMessage]);
 
   useShortcuts({
+    onShortcutHelp: () => setShortcutHelpOpen(true),
     onNewConversation: handleNewConversation,
     onOpenSettings: () => setSettingsOpen(true),
     onToggleSidebar: () => setSidebarVisible((visible) => !visible),
@@ -66,6 +69,7 @@ export function App() {
         onOpenSettings={() => setSettingsOpen(true)}
       />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <ShortcutHelpOverlay open={shortcutHelpOpen} onClose={() => setShortcutHelpOpen(false)} />
     </div>
   );
 }

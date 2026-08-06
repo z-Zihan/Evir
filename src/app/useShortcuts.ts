@@ -3,6 +3,7 @@ import { DEFAULT_SHORTCUTS } from "../core/shortcuts/default-shortcuts";
 import { isMac } from "../core/shortcuts/platform";
 
 interface ShortcutCallbacks {
+  onShortcutHelp: () => void;
   onNewConversation: () => void;
   onOpenSettings: () => void;
   onToggleSidebar: () => void;
@@ -14,6 +15,7 @@ interface ShortcutCallbacks {
 const callbackById: Partial<
   Record<(typeof DEFAULT_SHORTCUTS)[number]["id"], keyof ShortcutCallbacks>
 > = {
+  "shortcut-help": "onShortcutHelp",
   "new-conversation": "onNewConversation",
   "open-settings": "onOpenSettings",
   "toggle-sidebar": "onToggleSidebar",
