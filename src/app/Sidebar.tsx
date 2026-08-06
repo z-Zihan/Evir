@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pencil, GitBranch, MessageSquarePlus, Pin, Search, Settings2, Trash2 } from "lucide-react";
+import { Pencil, MessageSquarePlus, Pin, Search, Settings2, Trash2 } from "lucide-react";
 import { useChatStore } from "../features/chat/chat-store";
 import { useProviderStore } from "../features/provider/provider-store";
 import { isMac } from "../core/shortcuts/platform";
@@ -112,15 +112,7 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
-          <span className="conversation-title">
-            {conv.title || t("chat.title")}
-            {conv.parentConversationId && (
-              <span className="conversation-branch-indicator">
-                <GitBranch size={11} />
-                {t("chat.branched")}
-              </span>
-            )}
-          </span>
+          <span className="conversation-title">{conv.title || t("chat.title")}</span>
         )}
         {!isRenaming && (
           <div className="conversation-actions" onClick={(e) => e.stopPropagation()}>

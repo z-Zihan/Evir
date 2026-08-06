@@ -6,7 +6,14 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["dist", "src-tauri/target", "scripts", "vite.config.d.ts", "vite.config.js", "eslint.config.js"],
+    ignores: [
+      "dist",
+      "src-tauri/target",
+      "scripts",
+      "vite.config.d.ts",
+      "vite.config.js",
+      "eslint.config.js",
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,

@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Copy, GitBranch, Pencil, RotateCcw } from "lucide-react";
+import { Copy, Pencil, RotateCcw } from "lucide-react";
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -10,9 +10,9 @@ import { AgentActivity } from "./AgentActivity";
 interface ChatMessageProps {
   message: MessageRecord;
   disabled: boolean;
+  localUserName: string;
   onEdit: (messageId: string, content: string) => Promise<void>;
   onRegenerate: () => Promise<void>;
-  onBranch: (messageId: string) => void;
 }
 
 function CodeBlock({ className, children }: { className?: string; children: ReactNode }) {
@@ -45,9 +45,9 @@ function CodeBlock({ className, children }: { className?: string; children: Reac
 export function ChatMessage({
   message,
   disabled,
+  localUserName,
   onEdit,
   onRegenerate,
-  onBranch,
 }: ChatMessageProps) {
   const { t, i18n } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
@@ -73,13 +73,16 @@ export function ChatMessage({
     });
   };
 
-  const roleLabel = message.role === "assistant" ? "Evir" : t("chat.you");
+  const isAssistant = message.role === "assistant";
+  const roleLabel = isAssistant ? "Evir" : localUserName;
+  const localInitial = Array.from(localUserName.trim())[0]?.toLocaleUpperCase(i18n.language) ?? "•";
 
   return (
     <article className={`message-row message-${message.role}`}>
       <div className="message-rail" aria-hidden="true">
-        <span className="message-role-mark">{message.role === "assistant" ? "E" : "Y"}</span>
-        <span className="message-rail-line" />
+        <span className="message-role-mark">
+          {isAssistant ? <img src="/evir-mark.svg" alt="" /> : localInitial}
+        </span>
       </div>
       <div className="message-main">
         <header className="message-header">
@@ -133,7 +136,7 @@ export function ChatMessage({
                 </button>
               </div>
             </div>
-          ) : message.role === "assistant" ? (
+          ) : isAssistant ? (
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
@@ -185,7 +188,7 @@ export function ChatMessage({
               <Copy size={14} />
               {copied ? t("chat.copied") : t("chat.copyMessage")}
             </button>
-            {message.role === "assistant" ? (
+            {isAssistant ? (
               <button type="button" onClick={() => void onRegenerate()} disabled={disabled}>
                 <RotateCcw size={14} />
                 {t("chat.regenerate")}
@@ -196,15 +199,6 @@ export function ChatMessage({
                 {t("chat.edit")}
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => onBranch(message.id)}
-              disabled={disabled}
-              aria-label={t("chat.branchFromHere")}
-            >
-              <GitBranch size={14} />
-              {t("chat.branchFromHere")}
-            </button>
           </div>
         )}
       </div>

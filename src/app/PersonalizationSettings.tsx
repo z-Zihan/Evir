@@ -49,6 +49,7 @@ export function PersonalizationPanel() {
     try {
       await savePersonalizationPreferences(preferences);
       setForm(preferences);
+      window.dispatchEvent(new Event("evir:personalization-updated"));
     } catch {
       setError("save");
     } finally {

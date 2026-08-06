@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, type KeyboardEvent } from "react";
+import { memo, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ArrowUp,
@@ -26,6 +26,7 @@ import { handleExportMarkdown } from "./export-helpers";
 import { useConversationTokenCount } from "./use-token-count";
 import { ModelSwitchCoordinatorImpl } from "../core/providers/model-switch-coordinator-impl";
 import type { ModelSwitchRequest } from "../core/providers/model-switching";
+import { loadPersonalizationPreferences } from "../features/settings/personalization-settings";
 
 const modelSwitchCoordinator = new ModelSwitchCoordinatorImpl();
 
@@ -41,17 +42,17 @@ interface ChatViewProps {
 interface MessageListProps {
   messages: MessageRecord[];
   disabled: boolean;
+  localUserName: string;
   onEdit: (messageId: string, content: string) => Promise<void>;
   onRegenerate: () => Promise<void>;
-  onBranch: (messageId: string) => void;
 }
 
 const MessageList = memo(function MessageList({
   messages,
   disabled,
+  localUserName,
   onEdit,
   onRegenerate,
-  onBranch,
 }: MessageListProps) {
   return (
     <>
@@ -60,9 +61,9 @@ const MessageList = memo(function MessageList({
           key={msg.id}
           message={msg}
           disabled={disabled}
+          localUserName={localUserName}
           onEdit={onEdit}
           onRegenerate={onRegenerate}
-          onBranch={onBranch}
         />
       ))}
     </>
@@ -92,12 +93,12 @@ export function ChatView({
     addAttachment,
     removeAttachment,
     setMode,
-    branchConversation,
     updateConversationProvider,
     currentConversationId,
     conversations,
   } = useChatStore();
   const { getDefaultProvider, switchProvider } = useProviderStore();
+  const [localDisplayName, setLocalDisplayName] = useState("");
 
   const provider = getDefaultProvider();
   const conversationTitle =
@@ -118,10 +119,26 @@ export function ChatView({
 
   const displayError = (value: string) => (i18n.exists(value) ? t(value) : value);
 
-  const handleBranch = useCallback(
-    (messageId: string) => void branchConversation(messageId),
-    [branchConversation],
-  );
+  useEffect(() => {
+    let mounted = true;
+    const loadLocalIdentity = () => {
+      void loadPersonalizationPreferences()
+        .then((preferences) => {
+          if (mounted) setLocalDisplayName(preferences.displayName.trim());
+        })
+        .catch(() => {
+          if (mounted) setLocalDisplayName("");
+        });
+    };
+    loadLocalIdentity();
+    window.addEventListener("evir:personalization-updated", loadLocalIdentity);
+    return () => {
+      mounted = false;
+      window.removeEventListener("evir:personalization-updated", loadLocalIdentity);
+    };
+  }, []);
+
+  const localUserName = localDisplayName || t("chat.localUser");
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
@@ -246,9 +263,9 @@ export function ChatView({
             <MessageList
               messages={messages}
               disabled={isStreaming}
+              localUserName={localUserName}
               onEdit={editMessage}
               onRegenerate={regenerate}
-              onBranch={handleBranch}
             />
             {isStreaming && (
               <article
@@ -256,8 +273,9 @@ export function ChatView({
                 aria-live="polite"
               >
                 <div className="message-rail" aria-hidden="true">
-                  <span className="message-role-mark">E</span>
-                  <span className="message-rail-line" />
+                  <span className="message-role-mark">
+                    <img src="/evir-mark.svg" alt="" />
+                  </span>
                 </div>
                 <div className="message-main">
                   <header className="message-header">

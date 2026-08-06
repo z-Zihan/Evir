@@ -35,6 +35,21 @@ function message(role: MessageRecord["role"], content: string): MessageRecord {
 afterEach(cleanup);
 
 describe("ChatMessage actions", () => {
+  it("uses the local nickname and does not expose conversation branching", () => {
+    render(
+      <ChatMessage
+        message={message("user", "Local message")}
+        disabled={false}
+        localUserName="Zihan"
+        onEdit={vi.fn()}
+        onRegenerate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Zihan")).toBeDefined();
+    expect(screen.queryByRole("button", { name: "chat.branchFromHere" })).toBeNull();
+  });
+
   it("edits and saves a user message", () => {
     const onEdit = vi.fn<(messageId: string, content: string) => Promise<void>>();
     onEdit.mockResolvedValue(undefined);
@@ -43,9 +58,9 @@ describe("ChatMessage actions", () => {
       <ChatMessage
         message={message("user", "Original")}
         disabled={false}
+        localUserName="Local user"
         onEdit={onEdit}
         onRegenerate={vi.fn()}
-        onBranch={vi.fn()}
       />,
     );
 
@@ -65,9 +80,9 @@ describe("ChatMessage actions", () => {
       <ChatMessage
         message={message("assistant", "Response")}
         disabled={false}
+        localUserName="Local user"
         onEdit={vi.fn()}
         onRegenerate={onRegenerate}
-        onBranch={vi.fn()}
       />,
     );
 
@@ -97,9 +112,9 @@ describe("ChatMessage actions", () => {
       <ChatMessage
         message={assistant}
         disabled={false}
+        localUserName="Local user"
         onEdit={vi.fn()}
         onRegenerate={vi.fn()}
-        onBranch={vi.fn()}
       />,
     );
 
