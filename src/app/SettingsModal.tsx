@@ -6,6 +6,7 @@ import { ShortcutsSettings } from "./ShortcutsSettings";
 import { SkillSettings } from "./SkillSettings";
 import { McpSettings } from "./McpSettings";
 import { PrivacySettings } from "./PrivacySettings";
+import { AboutSettings } from "./AboutSettings";
 import { ProviderSettings } from "./ProviderSettings";
 import { UsagePanel } from "./UsagePanel";
 import { downloadBlob, exportConversations } from "../features/chat/conversation-export";
@@ -19,7 +20,15 @@ interface SettingsModalProps {
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const { t, i18n } = useTranslation();
   const [activeTab, setActiveTab] = useState<
-    "providers" | "personalization" | "shortcuts" | "skills" | "mcp" | "usage" | "data" | "privacy"
+    | "providers"
+    | "personalization"
+    | "shortcuts"
+    | "skills"
+    | "mcp"
+    | "usage"
+    | "data"
+    | "privacy"
+    | "about"
   >("providers");
   const [importResult, setImportResult] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -34,7 +43,8 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       | "mcp"
       | "usage"
       | "data"
-      | "privacy",
+      | "privacy"
+      | "about",
   ) => {
     setActiveTab(tab);
     setImportResult(null);
@@ -131,6 +141,13 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             {t("settings.privacy")}
           </button>
           <button
+            className={`tab${activeTab === "about" ? " active" : ""}`}
+            type="button"
+            onClick={() => handleTabChange("about")}
+          >
+            {t("settings.about")}
+          </button>
+          <button
             className="language-button settings-language"
             type="button"
             aria-label={t("settings.switchLanguage")}
@@ -149,6 +166,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           {activeTab === "mcp" && <McpSettings />}
           {activeTab === "usage" && <UsagePanel />}
           {activeTab === "privacy" && <PrivacySettings />}
+          {activeTab === "about" && <AboutSettings />}
           {activeTab === "data" && (
             <div className="data-settings">
               <h3>{t("settings.data")}</h3>

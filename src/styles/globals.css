@@ -745,6 +745,60 @@ textarea:focus-visible {
   color: var(--danger);
 }
 
+/* About Settings */
+.about-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.about-settings h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.about-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.about-logo .brand-mark.large {
+  width: 40px;
+  height: 40px;
+  font-size: 20px;
+  border-radius: 10px;
+}
+.about-logo strong {
+  font-size: 20px;
+}
+.about-description {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.about-info {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  margin: 0;
+}
+.about-info dt {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.about-info dd {
+  margin: 0;
+  font-size: 13px;
+}
+.about-info a {
+  color: var(--focus);
+  text-decoration: none;
+}
+.about-info a:hover {
+  text-decoration: underline;
+}
+
 /* Modal */
 .modal-backdrop {
   position: fixed;

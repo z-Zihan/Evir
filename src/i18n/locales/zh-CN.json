@@ -214,5 +214,13 @@
     "confirmClear": "确定吗？此操作不可撤销。",
     "cleared": "已清除",
     "clearFailed": "清除失败"
+  },
+  "about": {
+    "title": "关于 Evir",
+    "version": "版本",
+    "description": "本地优先、自带模型的多模型 AI 客户端与桌面 Agent。",
+    "github": "GitHub",
+    "license": "许可证",
+    "mit": "MIT 许可证"
   }
 }

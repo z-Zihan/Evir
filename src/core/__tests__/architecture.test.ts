@@ -209,6 +209,12 @@ describe("architecture dependency direction", () => {
       "privacy.confirmClear",
       "privacy.cleared",
       "privacy.clearFailed",
+      "about.title",
+      "about.version",
+      "about.description",
+      "about.github",
+      "about.license",
+      "about.mit",
     ];
 
     for (const locale of ["en.json", "zh-CN.json"]) {

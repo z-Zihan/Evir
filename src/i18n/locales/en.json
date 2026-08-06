@@ -214,5 +214,13 @@
     "confirmClear": "Are you sure? This cannot be undone.",
     "cleared": "Cleared successfully",
     "clearFailed": "Failed to clear"
+  },
+  "about": {
+    "title": "About Evir",
+    "version": "Version",
+    "description": "Local-first, BYOM multi-model AI client and desktop agent.",
+    "github": "GitHub",
+    "license": "License",
+    "mit": "MIT License"
   }
 }
