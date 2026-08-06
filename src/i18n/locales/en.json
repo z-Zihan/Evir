@@ -217,7 +217,27 @@
     "cancel": "Cancel",
     "noProviders": "No providers configured",
     "addDescription": "Connect the model service you use. Evir requires no account and does not proxy requests through its own servers.",
-    "addFirst": "Add a provider to start chatting"
+    "addFirst": "Add a provider to start chatting",
+    "configured": "Connected providers",
+    "configuredDescription": "The default connection is used for new conversations",
+    "presets": "Provider presets",
+    "presetsDescription": "Choose a preset to fill the protocol and API endpoint",
+    "searchPresets": "Search providers",
+    "region": "Provider region",
+    "regions": {
+      "all": "All",
+      "international": "International",
+      "china": "Mainland China",
+      "local": "Local",
+      "custom": "Custom"
+    },
+    "custom": "Custom configuration",
+    "customDescription": "Enter a protocol and endpoint manually",
+    "formDescription": "Complete required fields, test the connection, then save",
+    "validation": {
+      "required": "This field is required",
+      "url": "Enter a complete, valid URL"
+    }
   },
   "settingsDescriptions": {
     "appearance": "Appearance",
@@ -269,19 +289,76 @@
     "casual": "Casual",
     "academic": "Academic",
     "loadError": "Failed to load personalization settings",
-    "saveError": "Failed to save personalization settings"
+    "saveError": "Failed to save personalization settings",
+    "on": "On",
+    "off": "Off",
+    "saving": "Saving…",
+    "identity": "How to address you",
+    "identityDescription": "Use a familiar name in responses",
+    "displayNamePlaceholder": "For example: Alex",
+    "displayNameHint": "Used only as response context. It does not create an account or upload identity data.",
+    "languageDescription": "Choose the model's default response language",
+    "languageOptions": {
+      "follow-app": {
+        "label": "Follow app",
+        "description": "Match the current Evir interface language"
+      },
+      "zh-CN": { "label": "简体中文", "description": "默认使用简体中文回复" },
+      "en": { "label": "English", "description": "Respond in English by default" }
+    },
+    "detailDescription": "Control how far responses expand",
+    "detailOptions": {
+      "concise": "Keep only the outcome and essential steps",
+      "balanced": "Balance the answer, reasoning, and steps",
+      "detailed": "Include background, reasoning, and more detail"
+    },
+    "styleDescription": "Choose a default writing voice",
+    "styleOptions": {
+      "professional": "Precise, direct, and structured",
+      "casual": "Natural, relaxed, and less formal",
+      "academic": "Rigorous, well-defined, and evidence-led"
+    },
+    "instructionsDescription": "Add durable preferences; these cannot override safety, permission, or tool rules",
+    "instructionsPlaceholder": "For example: lead with the outcome, then explain the key reasons; use TypeScript for code examples.",
+    "localNote": "These preferences stay local and can be disabled or reset at any time."
   },
   "shortcuts": {
+    "title": "Shortcut map",
+    "availableCount": "{{count}} shortcuts available",
+    "platform": {
+      "macos": "macOS keys",
+      "windows": "Windows keys",
+      "web": "Browser keys"
+    },
+    "groups": {
+      "navigation": "Navigation",
+      "conversation": "Conversation",
+      "workspace": "Workspace"
+    },
+    "groupDescriptions": {
+      "navigation": "Move between the interface and conversations",
+      "conversation": "Create, send, and stop without leaving the keyboard",
+      "workspace": "Enter the context of a local project"
+    },
     "commandPalette": "Open command palette",
+    "commandPaletteDescription": "Find and run available actions in Evir",
     "newConversation": "New conversation",
+    "newConversationDescription": "Start a blank conversation immediately",
     "openSettings": "Open settings",
+    "openSettingsDescription": "Enter settings from anywhere in the app",
     "toggleSidebar": "Toggle sidebar",
+    "toggleSidebarDescription": "Make more room for the current content",
     "openWorkspace": "Open workspace",
+    "openWorkspaceDescription": "Choose a local folder the Agent can access",
     "searchConversations": "Search conversations",
+    "searchConversationsDescription": "Find past conversations by title or content",
     "sendMessage": "Send message",
+    "sendMessageDescription": "Submit the current composer content",
     "stopCurrentRun": "Stop current generation",
+    "stopCurrentRunDescription": "Interrupt the active response or task",
     "shortcutHelp": "Show shortcuts",
-    "comingSoon": "Custom binding coming soon"
+    "shortcutHelpDescription": "Open this keyboard reference at any time",
+    "comingSoon": "Evir currently manages these bindings. Custom keys will follow conflict detection."
   },
   "help": {
     "quickStart": "Quick start",
@@ -318,7 +395,21 @@
     "uninstall": "Uninstall",
     "missingFrontmatter": "File is missing YAML frontmatter (--- ... ---)",
     "missingFrontmatterFields": "Frontmatter must include name, version, description, and riskLevel",
-    "invalidRiskLevel": "Invalid riskLevel \"{{riskLevel}}\" — must be low, medium, or high"
+    "invalidRiskLevel": "Invalid riskLevel \"{{riskLevel}}\" — must be low, medium, or high",
+    "library": "Skill library",
+    "summary": "Skill summary",
+    "installed": "Installed",
+    "active": "Active",
+    "custom": "Custom",
+    "createTitle": "Create an instruction Skill",
+    "createDescription": "Define a reusable method and execution guidance",
+    "name": "Name",
+    "description": "Description",
+    "instructions": "Skill instructions",
+    "localOnly": "Skill content is stored locally.",
+    "installedSkills": "Installed Skills",
+    "installedDescription": "Loaded only for relevant tasks, never all at application startup",
+    "capabilityCount": "{{count}} capabilities"
   },
   "mcp": {
     "title": "MCP Servers",

@@ -1,7 +1,9 @@
 import type { ProtocolAdapter } from "./stream-events";
 import type { ProtocolAdapterId } from "./types";
 import { AnthropicMessagesAdapter } from "./adapters/anthropic-messages";
+import { AzureOpenAIClient } from "./adapters/azure-openai-client";
 import { GeminiGenerateContentAdapter } from "./adapters/gemini-generate-content";
+import { OllamaClient } from "./adapters/ollama-client";
 import { OpenAIChatCompletionsAdapter } from "./adapters/openai-chat-completions";
 import { OpenAICompatibleChatAdapter } from "./adapters/openai-compatible-chat";
 import { OpenAIResponsesAdapter } from "./adapters/openai-responses";
@@ -9,7 +11,9 @@ import type { OpenAIConnectionConfig } from "./adapters/openai-chat-client";
 
 export function getAdapter(protocolId: ProtocolAdapterId): ProtocolAdapter | undefined {
   if (protocolId === "anthropic-messages") return new AnthropicMessagesAdapter();
+  if (protocolId === "azure-openai-chat") return new AzureOpenAIClient();
   if (protocolId === "gemini-generate-content") return new GeminiGenerateContentAdapter();
+  if (protocolId === "ollama-native") return new OllamaClient();
   if (protocolId === "openai-chat-completions") return new OpenAIChatCompletionsAdapter();
   if (protocolId === "openai-compatible-chat") return new OpenAICompatibleChatAdapter();
   if (protocolId === "openai-responses") return new OpenAIResponsesAdapter();
@@ -21,9 +25,11 @@ export function createConfiguredAdapter(
   config: OpenAIConnectionConfig,
 ): ProtocolAdapter | undefined {
   if (protocolId === "anthropic-messages") return new AnthropicMessagesAdapter(config);
+  if (protocolId === "azure-openai-chat") return new AzureOpenAIClient(config);
   if (protocolId === "gemini-generate-content") {
     return new GeminiGenerateContentAdapter(config);
   }
+  if (protocolId === "ollama-native") return new OllamaClient(config);
   if (protocolId === "openai-chat-completions") {
     return new OpenAIChatCompletionsAdapter(config);
   }

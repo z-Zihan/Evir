@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Evir">
+  <rect width="1024" height="1024" rx="224" fill="#14171B"/>
+  <rect x="32" y="32" width="960" height="960" rx="196" fill="none" stroke="#2D323A" stroke-width="16"/>
+  <path
+    d="M704 286H382C316 286 278 324 278 390V634C278 700 316 738 382 738H704"
+    fill="none"
+    stroke="#F5F7FA"
+    stroke-width="84"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M294 512H660M610 454L668 512L610 570"
+    fill="none"
+    stroke="#2F7CF6"
+    stroke-width="70"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

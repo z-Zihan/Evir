@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { BookOpenText, FileUp, Plus, ShieldCheck, Trash2, X } from "lucide-react";
 import { useSkillStore } from "../features/skills/skill-store";
 import type { SkillManifest, SkillRiskLevel } from "../core/skills/types";
 
@@ -102,16 +103,34 @@ export function SkillSettings() {
 
   if (loading) return <p>{t("common.loading")}</p>;
 
+  const enabledCount = skills.filter((skill) => enabledSkillIds.has(skill.manifest.id)).length;
+  const customCount = skills.filter((skill) => !skill.builtIn).length;
+
   return (
     <section className="skill-settings settings-designed-page">
-      <div className="settings-page-intro compact">
-        <div>
+      <div className="skill-overview">
+        <div className="skill-overview-copy">
           <span className="settings-page-eyebrow">
             {t("settingsDescriptions.optionalCapabilities")}
           </span>
+          <h3>{t("skill.library")}</h3>
           <p>{t("settingsDescriptions.skills")}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="skill-overview-stats" aria-label={t("skill.summary")}>
+          <div>
+            <strong>{skills.length}</strong>
+            <span>{t("skill.installed")}</span>
+          </div>
+          <div>
+            <strong>{enabledCount}</strong>
+            <span>{t("skill.active")}</span>
+          </div>
+          <div>
+            <strong>{customCount}</strong>
+            <span>{t("skill.custom")}</span>
+          </div>
+        </div>
+        <div className="skill-toolbar">
           <input
             ref={fileInputRef}
             type="file"
@@ -121,16 +140,22 @@ export function SkillSettings() {
           />
           <button
             type="button"
-            className="px-3 py-1 border border-border rounded-lg bg-surface hover:border-primary hover:text-primary cursor-pointer text-sm transition"
+            className="secondary-button"
             onClick={() => fileInputRef.current?.click()}
           >
+            <FileUp size={14} aria-hidden="true" />
             {t("skill.installFromFile")}
           </button>
           <button
             type="button"
-            className="px-3 py-1 border border-border rounded-lg bg-surface hover:border-primary hover:text-primary cursor-pointer text-sm transition"
+            className={showCreate ? "secondary-button" : "primary-button"}
             onClick={() => setShowCreate(!showCreate)}
           >
+            {showCreate ? (
+              <X size={14} aria-hidden="true" />
+            ) : (
+              <Plus size={14} aria-hidden="true" />
+            )}
             {showCreate ? t("skill.cancel") : t("skill.create")}
           </button>
         </div>
@@ -144,29 +169,50 @@ export function SkillSettings() {
 
       {showCreate && (
         <div className="skill-create-form">
-          <input
-            placeholder={t("skill.namePlaceholder")}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <input
-            placeholder={t("skill.descPlaceholder")}
-            value={desc}
-            onChange={(e) => setDesc(e.target.value)}
-          />
-          <textarea
-            placeholder={t("skill.contentPlaceholder")}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={6}
-          />
-          <button
-            type="button"
-            onClick={() => void handleCreate()}
-            disabled={!name.trim() || !content.trim()}
-          >
-            {t("skill.save")}
-          </button>
+          <div className="skill-create-heading">
+            <div>
+              <strong>{t("skill.createTitle")}</strong>
+              <span>{t("skill.createDescription")}</span>
+            </div>
+            <BookOpenText size={17} aria-hidden="true" />
+          </div>
+          <div className="skill-create-fields">
+            <label>
+              <span>{t("skill.name")}</span>
+              <input
+                placeholder={t("skill.namePlaceholder")}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </label>
+            <label>
+              <span>{t("skill.description")}</span>
+              <input
+                placeholder={t("skill.descPlaceholder")}
+                value={desc}
+                onChange={(e) => setDesc(e.target.value)}
+              />
+            </label>
+            <label className="skill-instructions-field">
+              <span>{t("skill.instructions")}</span>
+              <textarea
+                placeholder={t("skill.contentPlaceholder")}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                rows={7}
+              />
+            </label>
+          </div>
+          <div className="skill-create-actions">
+            <span>{t("skill.localOnly")}</span>
+            <button
+              type="button"
+              onClick={() => void handleCreate()}
+              disabled={!name.trim() || !content.trim()}
+            >
+              {t("skill.save")}
+            </button>
+          </div>
         </div>
       )}
 
@@ -176,49 +222,65 @@ export function SkillSettings() {
           <span>{t("settingsDescriptions.skillsEmpty")}</span>
         </div>
       ) : (
-        <ul className="skill-list">
-          {skills.map((skill) => {
-            const isEnabled = enabledSkillIds.has(skill.manifest.id);
-            const riskLevel = skill.manifest.riskLevel;
-            const isCustom = !skill.builtIn;
+        <>
+          <div className="skill-library-heading">
+            <div>
+              <h4>{t("skill.installedSkills")}</h4>
+              <span>{t("skill.installedDescription")}</span>
+            </div>
+            <ShieldCheck size={16} aria-hidden="true" />
+          </div>
+          <ul className="skill-list">
+            {skills.map((skill) => {
+              const isEnabled = enabledSkillIds.has(skill.manifest.id);
+              const riskLevel = skill.manifest.riskLevel;
+              const isCustom = !skill.builtIn;
 
-            return (
-              <li key={skill.manifest.id} className="skill-item">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm font-semibold">{skill.manifest.name}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${riskLevel}`}>
-                    {t(`skill.${riskLevel}`)}
+              return (
+                <li key={skill.manifest.id} className={`skill-item ${isEnabled ? "enabled" : ""}`}>
+                  <span className="skill-glyph" aria-hidden="true">
+                    {skill.manifest.name.slice(0, 1).toUpperCase()}
                   </span>
-                </div>
-                <p className="m-0 mb-2 text-sm text-muted">{skill.manifest.description}</p>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-muted">
-                    {skill.builtIn ? t("skill.builtin") : skill.manifest.source}
-                  </span>
-                  <div className="flex items-center gap-2">
+                  <div className="skill-item-copy">
+                    <div className="skill-item-title">
+                      <strong>{skill.manifest.name}</strong>
+                      <span className={`skill-risk ${riskLevel}`}>{t(`skill.${riskLevel}`)}</span>
+                      <span className="skill-source">
+                        {skill.builtIn ? t("skill.builtin") : t("skill.custom")}
+                      </span>
+                    </div>
+                    <p>{skill.manifest.description}</p>
+                    <span className="skill-version">
+                      v{skill.manifest.version} ·{" "}
+                      {t("skill.capabilityCount", { count: skill.manifest.capabilities.length })}
+                    </span>
+                  </div>
+                  <div className="skill-item-actions">
                     {isCustom && (
                       <button
                         type="button"
-                        className="px-2 py-0.5 border border-border rounded-lg bg-transparent hover:border-danger hover:text-danger cursor-pointer text-xs transition"
+                        className="skill-delete-button"
+                        aria-label={t("skill.uninstall")}
                         onClick={() => void uninstallSkill(skill.manifest.id)}
                       >
-                        {t("skill.uninstall")}
+                        <Trash2 size={14} />
                       </button>
                     )}
-                    <label className="flex items-center gap-1 text-sm cursor-pointer">
+                    <label className="skill-toggle">
                       <input
                         type="checkbox"
                         checked={isEnabled}
+                        aria-label={`${skill.manifest.name}: ${isEnabled ? t("skill.enabled") : t("skill.disabled")}`}
                         onChange={() => void toggleSkill(skill.manifest.id)}
                       />
-                      <span>{isEnabled ? t("skill.enabled") : t("skill.disabled")}</span>
+                      <span aria-hidden="true" />
                     </label>
                   </div>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                </li>
+              );
+            })}
+          </ul>
+        </>
       )}
     </section>
   );

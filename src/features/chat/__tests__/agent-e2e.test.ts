@@ -118,13 +118,11 @@ describe("agent-loop end-to-end workflows", () => {
   });
 
   it("User rejects approval", async () => {
-    const execute = vi
-      .fn()
-      .mockResolvedValueOnce({
-        success: false,
-        output: "Permission required",
-        error: "permission_required",
-      });
+    const execute = vi.fn().mockResolvedValueOnce({
+      success: false,
+      output: "Permission required",
+      error: "permission_required",
+    });
 
     vi.mocked(streamAssistant).mockResolvedValueOnce({
       content: "I will delete the file.",

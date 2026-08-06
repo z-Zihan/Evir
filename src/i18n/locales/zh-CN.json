@@ -217,7 +217,27 @@
     "cancel": "取消",
     "noProviders": "尚未配置供应商",
     "addDescription": "连接你使用的模型服务。Evir 不要求账号，也不会通过自有服务器转发请求。",
-    "addFirst": "添加供应商后开始聊天"
+    "addFirst": "添加供应商后开始聊天",
+    "configured": "已连接的供应商",
+    "configuredDescription": "默认连接会用于新建会话",
+    "presets": "供应商预设",
+    "presetsDescription": "选择预设以自动填写协议和 API 地址",
+    "searchPresets": "搜索供应商",
+    "region": "供应商区域",
+    "regions": {
+      "all": "全部",
+      "international": "国际",
+      "china": "中国大陆",
+      "local": "本地",
+      "custom": "自定义"
+    },
+    "custom": "自定义配置",
+    "customDescription": "手动填写协议和地址",
+    "formDescription": "完成必填项后测试连接并保存",
+    "validation": {
+      "required": "此项为必填项",
+      "url": "请输入完整有效的 URL"
+    }
   },
   "settingsDescriptions": {
     "appearance": "外观",
@@ -269,19 +289,73 @@
     "casual": "轻松",
     "academic": "学术",
     "loadError": "加载个性化设置失败",
-    "saveError": "保存个性化设置失败"
+    "saveError": "保存个性化设置失败",
+    "on": "已开启",
+    "off": "已关闭",
+    "saving": "保存中…",
+    "identity": "称呼",
+    "identityDescription": "让回复使用你熟悉的称呼",
+    "displayNamePlaceholder": "例如：子涵",
+    "displayNameHint": "仅作为回复上下文，不会创建账号或上传身份信息。",
+    "languageDescription": "选择模型默认使用的回复语言",
+    "languageOptions": {
+      "follow-app": { "label": "跟随应用", "description": "与 Evir 当前界面语言保持一致" },
+      "zh-CN": { "label": "简体中文", "description": "默认使用简体中文回复" },
+      "en": { "label": "English", "description": "Respond in English by default" }
+    },
+    "detailDescription": "控制回复展开到什么程度",
+    "detailOptions": {
+      "concise": "只保留结论和必要步骤",
+      "balanced": "结论、理由和步骤保持平衡",
+      "detailed": "补充背景、推导和更多细节"
+    },
+    "styleDescription": "选择默认的表达方式",
+    "styleOptions": {
+      "professional": "准确、直接、结构清楚",
+      "casual": "自然、轻松、少一些书面感",
+      "academic": "严谨、定义清楚、重视依据"
+    },
+    "instructionsDescription": "补充长期偏好；它不能覆盖安全、权限或工具规则",
+    "instructionsPlaceholder": "例如：先给结论，再解释关键原因；代码示例使用 TypeScript。",
+    "localNote": "这些偏好保存在本地，可随时关闭或恢复默认。"
   },
   "shortcuts": {
+    "title": "快捷操作地图",
+    "availableCount": "{{count}} 个可用快捷键",
+    "platform": {
+      "macos": "macOS 键位",
+      "windows": "Windows 键位",
+      "web": "浏览器键位"
+    },
+    "groups": {
+      "navigation": "导航",
+      "conversation": "对话",
+      "workspace": "工作区"
+    },
+    "groupDescriptions": {
+      "navigation": "在界面与会话之间快速移动",
+      "conversation": "控制新建、发送与停止",
+      "workspace": "进入本地项目上下文"
+    },
     "commandPalette": "打开命令面板",
+    "commandPaletteDescription": "搜索并执行 Evir 中的可用操作",
     "newConversation": "新建会话",
+    "newConversationDescription": "立即开始一段空白对话",
     "openSettings": "打开设置",
+    "openSettingsDescription": "从任意页面进入设置中心",
     "toggleSidebar": "显示或隐藏侧边栏",
+    "toggleSidebarDescription": "为当前内容腾出更多空间",
     "openWorkspace": "打开工作区",
+    "openWorkspaceDescription": "选择 Agent 可以访问的本地目录",
     "searchConversations": "搜索会话",
+    "searchConversationsDescription": "定位标题或内容相关的历史会话",
     "sendMessage": "发送消息",
+    "sendMessageDescription": "提交当前输入内容",
     "stopCurrentRun": "停止当前生成",
+    "stopCurrentRunDescription": "中止正在进行的回复或任务",
     "shortcutHelp": "查看快捷键",
-    "comingSoon": "自定义快捷键即将推出"
+    "shortcutHelpDescription": "随时打开这份快捷键参考",
+    "comingSoon": "当前键位由 Evir 管理；自定义绑定将在冲突检测完成后开放。"
   },
   "help": {
     "quickStart": "快速开始",
@@ -318,7 +392,21 @@
     "uninstall": "卸载",
     "missingFrontmatter": "文件缺少 YAML 前置元数据（--- ... ---）",
     "missingFrontmatterFields": "前置元数据必须包含 name、version、description 和 riskLevel",
-    "invalidRiskLevel": "无效的 riskLevel “{{riskLevel}}” — 必须为 low、medium 或 high"
+    "invalidRiskLevel": "无效的 riskLevel “{{riskLevel}}” — 必须为 low、medium 或 high",
+    "library": "Skill 资料库",
+    "summary": "Skill 概览",
+    "installed": "已安装",
+    "active": "已启用",
+    "custom": "自定义",
+    "createTitle": "创建指令型 Skill",
+    "createDescription": "定义一套可复用的方法和执行说明",
+    "name": "名称",
+    "description": "描述",
+    "instructions": "Skill 指令",
+    "localOnly": "Skill 内容仅保存在本地。",
+    "installedSkills": "已安装的 Skill",
+    "installedDescription": "只在相关任务中按需加载，不会随应用启动全部读取",
+    "capabilityCount": "{{count}} 项能力"
   },
   "mcp": {
     "title": "MCP 服务器",

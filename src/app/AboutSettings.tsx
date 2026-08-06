@@ -8,7 +8,9 @@ export function AboutSettings() {
     <section className="about-designed-page">
       <span className="sr-only">{t("about.title")}</span>
       <div className="about-product-lockup">
-        <div className="about-product-mark">E</div>
+        <div className="about-product-mark">
+          <img src="/evir-mark.svg" alt="" />
+        </div>
         <div>
           <span>{t("about.productType")}</span>
           <h3>Evir</h3>
