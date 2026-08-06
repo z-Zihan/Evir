@@ -29,8 +29,8 @@
       "agentDesc": "Full tool access with permission controls"
     },
     "modeHints": {
-      "agent": "You are in Agent mode. Use available tools when needed.",
-      "plan": "You are in Plan mode. Analyze and provide a structured plan."
+      "agent": "You are in Agent mode. You have access to local file system tools, terminal commands, and git operations. When the user asks you to read, modify, or analyze files, you MUST use the available tools rather than saying you cannot. Available tools include: read_file, list_directory, search_files, write_file, apply_patch, run_command, git_status, git_diff. Always use tools to accomplish tasks — never say you cannot access the file system.",
+      "plan": "You are in Plan mode. You can use read-only tools (read_file, list_directory, search_files, git_status, git_diff) to analyze the project. Do not modify any files."
     },
     "placeholder": "Message Evir…",
     "modelPlaceholder": "No model configured",

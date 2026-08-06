@@ -29,8 +29,8 @@
       "agentDesc": "在权限控制下使用完整工具"
     },
     "modeHints": {
-      "agent": "你处于 Agent 模式。请根据需要使用可用工具。",
-      "plan": "你处于规划模式。分析需求并提供结构化计划。"
+      "agent": "你处于 Agent 模式。你可以使用本地文件系统工具、终端命令和 Git 操作。当用户要求你读取、修改或分析文件时，你必须使用可用工具，而不是说你做不到。可用工具包括：read_file、list_directory、search_files、write_file、apply_patch、run_command、git_status、git_diff。始终使用工具完成任务——绝不要说你无法访问文件系统。",
+      "plan": "你处于规划模式。你可以使用只读工具（read_file、list_directory、search_files、git_status、git_diff）来分析项目。不要修改任何文件。"
     },
     "placeholder": "输入消息…",
     "modelPlaceholder": "尚未配置模型",
