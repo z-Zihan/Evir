@@ -1,6 +1,7 @@
 {
   "sidebar": {
     "newChat": "New chat",
+    "localAi": "Local AI",
     "recent": "Recent",
     "noConversations": "No conversations yet",
     "searchPlaceholder": "Search conversations…",
@@ -137,7 +138,7 @@
     "name": "Name",
     "protocol": "Protocol",
     "baseUrl": "Base URL",
-    "apiKey": "***",
+    "apiKey": "API Key",
     "modelId": "Model",
     "fetchModels": "Fetch models",
     "fetchingModels": "Fetching…",

@@ -114,7 +114,7 @@ export function ProviderSettings() {
         </div>
       )}
       {showForm ? (
-        <div className="flex flex-col gap-2 p-3 border border-border rounded-lg bg-surface">
+        <div className="provider-form">
           <label>
             {t("provider.name")}
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -154,13 +154,14 @@ export function ProviderSettings() {
           </label>
           <label>
             {t("provider.modelId")}
-            <div className="flex gap-2">
+            <div className="model-input-row">
               <input
                 list="model-options"
                 value={form.modelId}
                 onChange={(e) => setForm({ ...form, modelId: e.target.value })}
               />
               <button
+                className="secondary-button"
                 type="button"
                 disabled={fetchingModels}
                 onClick={() => void handleFetchModels()}
@@ -174,16 +175,22 @@ export function ProviderSettings() {
               ))}
             </datalist>
           </label>
-          {modelFetchError && <div className="text-sm p-2 rounded-lg mt-2">{modelFetchError}</div>}
-          {testResult && <div className="text-sm p-2 rounded-lg mt-2">{testResult}</div>}
-          <div className="flex gap-2 mt-3">
-            <button type="button" disabled={testing} onClick={() => void handleTest()}>
+          {modelFetchError && <div className="form-message">{modelFetchError}</div>}
+          {testResult && <div className="form-message">{testResult}</div>}
+          <div className="form-actions">
+            <button
+              className="secondary-button"
+              type="button"
+              disabled={testing}
+              onClick={() => void handleTest()}
+            >
               {testing ? "…" : t("provider.testConnection")}
             </button>
-            <button type="button" onClick={() => void handleSave()}>
+            <button className="primary-button" type="button" onClick={() => void handleSave()}>
               {t("provider.save")}
             </button>
             <button
+              className="text-button"
               type="button"
               onClick={() => {
                 setShowForm(false);

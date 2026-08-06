@@ -723,6 +723,7 @@
 .settings-dialog {
   display: grid;
   width: min(920px, calc(100vw - 64px));
+  min-width: 0;
   height: min(690px, calc(100vh - 64px));
   overflow: hidden;
   grid-template-rows: 68px minmax(0, 1fr);
@@ -866,8 +867,7 @@
 }
 
 .provider-settings > button,
-.provider-settings .form-actions button,
-.provider-settings label button {
+.provider-settings label button:not(.secondary-button) {
   min-height: 36px;
   padding: 0 13px;
   border: 1px solid var(--border);
@@ -880,10 +880,91 @@
 }
 
 .provider-settings > button:hover,
-.provider-settings .form-actions button:hover,
-.provider-settings label button:hover {
+.provider-settings label button:not(.secondary-button):hover {
   border-color: var(--border-strong);
   background: var(--surface-hover);
+}
+
+.provider-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--background) 30%, var(--surface));
+}
+
+.provider-form label {
+  gap: 7px;
+  color: var(--foreground);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.provider-form input,
+.provider-form select {
+  min-height: 38px;
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.provider-form .model-input-row {
+  align-items: stretch;
+}
+
+.provider-form .model-input-row .secondary-button {
+  flex: 0 0 auto;
+}
+
+.provider-form .form-actions {
+  align-items: center;
+  margin-top: 4px;
+}
+
+.provider-form .form-actions .primary-button,
+.provider-form .form-actions .secondary-button {
+  min-height: 36px;
+  padding: 0 13px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.provider-form .form-actions .primary-button {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.provider-form .form-actions .secondary-button,
+.provider-form .model-input-row .secondary-button {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--foreground);
+}
+
+.text-button {
+  min-height: 34px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.text-button:hover {
+  background: var(--surface-hover);
+  color: var(--foreground);
+}
+
+.form-message {
+  padding: 9px 11px;
+  border-radius: 8px;
+  background: var(--surface-hover);
+  color: var(--muted-foreground);
+  font-size: 11.5px;
 }
 
 .provider-empty-panel {
@@ -1019,6 +1100,7 @@
 
   .settings-dialog {
     width: 100vw;
+    max-width: 100vw;
     height: 100dvh;
     border: 0;
     border-radius: 0;
@@ -1026,12 +1108,16 @@
 
   .settings-layout {
     display: flex;
+    width: 100%;
+    min-width: 0;
     min-height: 0;
     flex-direction: column;
   }
 
   .settings-nav {
     display: flex;
+    width: 100%;
+    max-width: 100%;
     min-height: 52px;
     flex: 0 0 auto;
     gap: 3px;

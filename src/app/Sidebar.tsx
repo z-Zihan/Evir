@@ -166,7 +166,7 @@ export function Sidebar({ onOpenSettings, focusSearchRef }: SidebarProps) {
         </div>
         <div className="brand-lockup">
           <strong className="brand-name">Evir</strong>
-          <span className="brand-caption">Local AI</span>
+          <span className="brand-caption">{t("sidebar.localAi")}</span>
         </div>
       </div>
       <button className="new-chat-button" type="button" onClick={handleNewChat}>
