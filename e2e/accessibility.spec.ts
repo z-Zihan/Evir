@@ -103,6 +103,29 @@ test("nested settings dialogs trap focus and Escape closes only the top layer", 
   await expect(addProvider).toBeFocused();
 });
 
+test("provider Tool Calling capability uses a compact accessible switch", async ({ page }) => {
+  await configurePage(page);
+  await seedFixture(page);
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "Settings", exact: true })
+    .getByRole("button", { name: "Edit", exact: true })
+    .click();
+
+  const formDialog = page.getByRole("dialog", { name: "Edit model provider" });
+  const capability = formDialog.getByRole("checkbox", { name: /Supports Tool Calling/ });
+  const switchTrack = formDialog.locator(".provider-capability-switch");
+  await expect(capability).toBeChecked();
+  await expect(switchTrack).toBeVisible();
+  const trackBox = await switchTrack.boundingBox();
+  expect(trackBox?.width).toBe(36);
+  expect(trackBox?.height).toBe(20);
+  await capability.focus();
+  await page.keyboard.press("Space");
+  await expect(capability).not.toBeChecked();
+  await expectNoBlockingViolations(page);
+});
+
 test("avatar crop dialog contains focus and does not close its parent settings dialog", async ({
   page,
 }) => {

@@ -451,6 +451,7 @@ export function ProviderSettings() {
                   <strong>{t("provider.toolCalling")}</strong>
                   <small>{t("provider.toolCallingDescription")}</small>
                 </span>
+                <i className="provider-capability-switch" aria-hidden="true" />
               </label>
               <label className="provider-field-wide">
                 <span>{t("provider.maxContextTokens")}</span>

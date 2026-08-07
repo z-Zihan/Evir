@@ -118,4 +118,24 @@ test("captures the required responsive, theme, and language matrix", async ({ pa
       await page.getByRole("button", { name: /Close|关闭/i, exact: true }).click();
     }
   }
+
+  await page.setViewportSize({ width: 800, height: 600 });
+  await page.getByRole("button", { name: /Show sidebar|显示侧边栏/i }).click();
+  await page
+    .locator(".sidebar")
+    .getByRole("button", { name: /Settings|设置/i, exact: true })
+    .click();
+  await page
+    .getByRole("dialog", { name: /Settings|设置/i, exact: true })
+    .getByRole("button", { name: /Edit|编辑/i, exact: true })
+    .click();
+  await page.screenshot({
+    path: join(output, "provider-tool-calling-800x600.png"),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({
+    path: join(output, "provider-tool-calling-390x844.png"),
+    fullPage: true,
+  });
 });
