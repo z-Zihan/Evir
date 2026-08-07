@@ -90,11 +90,16 @@ test("captures the required responsive, theme, and language matrix", async ({ pa
       for (const viewport of [
         { width: 1280, height: 800 },
         { width: 800, height: 600 },
+        { width: 390, height: 844 },
       ]) {
         await page.setViewportSize(viewport);
         for (let index = 0; index < settingsTabs.length; index += 1) {
           const tab = settingsTabs[index];
-          await navItems.nth(index).click();
+          if (viewport.width <= 900) {
+            await page.locator(".settings-mobile-select").selectOption({ index });
+          } else {
+            await navItems.nth(index).click();
+          }
           await expect(page.getByText(/^(Loading|加载中)$/)).toHaveCount(0);
           await page.screenshot({
             path: join(

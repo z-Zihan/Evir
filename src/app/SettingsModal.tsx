@@ -139,7 +139,12 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
         dialogRef.current.querySelectorAll<HTMLElement>(
           'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
         ),
-      ).filter((element) => !element.hidden && element.getAttribute("aria-hidden") !== "true");
+      ).filter(
+        (element) =>
+          !element.hidden &&
+          element.getAttribute("aria-hidden") !== "true" &&
+          element.getClientRects().length > 0,
+      );
       const first = focusable[0];
       const last = focusable.at(-1);
       if (!first || !last) return;
@@ -234,6 +239,24 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
               </div>
             ))}
           </nav>
+          <label className="settings-mobile-nav">
+            <span>{t("settings.navigation")}</span>
+            <select
+              className="settings-mobile-select"
+              value={activeTab}
+              onChange={(event) => handleTabChange(event.target.value as SettingsTab)}
+            >
+              {visibleGroups.map((group) => (
+                <optgroup key={group.labelKey} label={t(group.labelKey)}>
+                  {group.items.map(({ tab, labelKey }) => (
+                    <option key={tab} value={tab}>
+                      {t(labelKey)}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </label>
           <main className="settings-main">
             <div className="settings-section-heading">
               <h3 id="settings-section-title">

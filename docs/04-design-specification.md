@@ -142,7 +142,7 @@ sidebar-background
 - Web 不渲染 Desktop 模式、工作区或 MCP；Desktop 才显示 Ask/Agent 与工作区上下文。
 - Workspace 使用输入区附近的中性紧凑控件，不作为页面主 CTA。
 - 设置对话框使用分组导航，并满足首焦点、焦点循环、Escape 与关闭后焦点恢复。
-- 自动截图矩阵覆盖 Web/Desktop、zh-CN/en、Light/Dark、1440×900 至 720×800；核心视觉基准位于 `e2e/snapshots/`。
+- 自动截图矩阵覆盖 Web/Desktop、zh-CN/en、Light/Dark、1600×1000 至 390×844；核心视觉基准位于 `e2e/snapshots/`。
 - Agent Activity 的总体状态和当前步骤优先于历史工具详情；完成项弱化，原始参数按需展开。
 - 嵌套浮层优先处理 Escape，父对话框不得同时关闭；可滚动内容区必须可聚焦并有名称。
 - 选中状态必须通过 `aria-pressed`、`aria-selected` 等语义表达，不能只依赖颜色。

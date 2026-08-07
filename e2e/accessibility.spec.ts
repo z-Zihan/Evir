@@ -32,6 +32,43 @@ test("settings dialog supports keyboard entry and escape", async ({ page }) => {
   await expect(settings).toBeFocused();
 });
 
+test("compact sidebar and settings use the whole viewport without overflow", async ({ page }) => {
+  await configurePage(page);
+  await seedFixture(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  await page.getByRole("button", { name: "Show sidebar" }).click();
+  const sidebar = page.locator(".sidebar");
+  await expect(sidebar).toBeVisible();
+  const sidebarBox = await sidebar.boundingBox();
+  expect(sidebarBox?.x).toBe(0);
+  expect(sidebarBox?.width).toBe(390);
+
+  await sidebar.getByRole("button", { name: "Settings", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Settings" });
+  const compactNavigation = dialog.locator(".settings-mobile-select");
+  await expect(dialog).toBeVisible();
+  await expect(compactNavigation).toBeVisible();
+  await expect(dialog.locator(".settings-nav")).toBeHidden();
+  await expect(dialog.getByRole("button", { name: "Close" })).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(dialog.locator(":focus")).toBeVisible();
+  await expect(dialog.locator(".settings-nav :focus")).toHaveCount(0);
+  await compactNavigation.selectOption("identity");
+  await expect(compactNavigation).toHaveValue("identity");
+
+  const dialogBox = await dialog.boundingBox();
+  expect(dialogBox).toEqual({ x: 0, y: 0, width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+  await expectNoBlockingViolations(page);
+
+  await page.setViewportSize({ width: 900, height: 500 });
+  await expect(dialog).toBeVisible();
+  await expect(compactNavigation).toBeVisible();
+  const shortDialogBox = await dialog.boundingBox();
+  expect(shortDialogBox).toEqual({ x: 0, y: 0, width: 900, height: 500 });
+});
+
 test("nested settings dialogs trap focus and Escape closes only the top layer", async ({
   page,
 }) => {

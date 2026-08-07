@@ -30,9 +30,9 @@
 
 ## D. Visual and responsive evidence
 
-- 258 generated screenshots: Web 125, Desktop 133.
+- 358 generated screenshots: Web 173, Desktop 185.
 - Conversation viewports: 1600×1000, 1440×900, 1280×800, 1024×768, 900×700, 800×600 and 720×800.
-- Settings: Light/Dark × zh-CN/en × 1280×800/800×600.
+- Settings: Light/Dark × zh-CN/en × 1280×800/800×600/390×844.
 - Representative settings and conversation screenshots were manually inspected. At 800×600, long settings pages scroll within the labelled settings region; no horizontal layout break was observed.
 - Six checked-in visual baselines pass.
 
@@ -41,15 +41,15 @@
 - All reachable settings pages were traversed in Web and Desktop projects.
 - Dialog initial focus, Tab containment, Escape precedence and focus return are browser-tested.
 - Model listbox keyboard navigation and scroll-region accessibility are covered.
-- axe: 14/14 passed with no serious violations in the tested states.
+- axe: 16/16 passed with no serious violations in the tested states, including compact sidebar/settings layout and focus order.
 
 ## F. Automated quality gates
 
 - `pnpm check`: 54 files / 338 tests passed; formatting, lint and strict typecheck passed.
 - `pnpm test:e2e`: 24 passed; 6 expected Web capability skips.
-- `pnpm test:ui`: 2 passed and generated 258 screenshots.
+- `pnpm test:ui`: 2 passed and generated 358 screenshots.
 - `pnpm test:visual`: 6 passed.
-- `pnpm test:a11y`: 14 passed.
+- `pnpm test:a11y`: 16 passed.
 - Rust: fmt, Clippy with warnings denied, 7 tests and debug build passed.
 - Web/Desktop frontend builds passed; Web JS gzip 280.06 KB and CSS gzip 21.56 KB, within the 350 KB JS budget. The main minified chunk still exceeds the 500 KB warning threshold and remains code-splitting debt.
 

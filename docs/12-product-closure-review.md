@@ -226,6 +226,6 @@ V4 决策：浏览器自动化、文档解析、大型语法高亮和本地模�
 
 ## 10. 阶段 S 实施核验
 
-2026-08-07 已完成 Web/Desktop Capability 的确定性 E2E、258 张截图矩阵和全设置页无障碍回归，并实际启动 macOS debug 原生应用。Web/Desktop 能力分离、Desktop 默认 Agent、工作区入口、Agent Activity、取消态和持久化证据已与本审查一致。
+2026-08-07 已完成 Web/Desktop Capability 的确定性 E2E、358 张截图矩阵和全设置页无障碍回归，覆盖 390×844 与 900×500 紧凑布局，并实际启动 macOS debug 原生应用。Web/Desktop 能力分离、Desktop 默认 Agent、工作区入口、Agent Activity、取消态和持久化证据已与本审查一致。
 
 真实 Provider、原生完整 Agent 工具任务、系统权限、MCP Runtime、签名安装与 Windows 仍是发布前门槛；浏览器 Desktop Runtime 结果不能替代原生验收。本轮 Mac 锁屏，因此只声明原生启动，不声明窗口交互通过。

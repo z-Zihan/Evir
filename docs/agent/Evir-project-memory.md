@@ -219,7 +219,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 用户当前可以：添加 Provider（5 种协议）→ 测试连接 → 获取模型列表 → 新建会话 → 发送消息/附件 → 看到流式回复 → 停止生成 → 刷新恢复 → 快捷键操作 → 会话搜索 → 查看 Usage 统计 → 分类错误展示 → 拖拽上传图片/文本附件 → 历史附件参与多轮对话 → 会话导出/导入 → Web Ask / Desktop Ask 与 Agent → 个性化设置 → 切换中英文/主题 → 重新生成/编辑消息 → 会话分支 → 模型切换 → Agent 模式工具审批 → Skill 启用/禁用。Plan 是 Agent 内部阶段，不是常驻一级入口。
 
-2026-08-07 自动化证据：338 TypeScript tests、7 Rust tests、24 E2E pass + 6 Web capability skips、258 UI screenshots、6 visual baselines、14 accessibility tests。macOS debug 原生应用已启动；本轮 Mac 锁屏，未声明原生窗口交互通过。
+2026-08-07 自动化证据：338 TypeScript tests、7 Rust tests、24 E2E pass + 6 Web capability skips、358 UI screenshots、6 visual baselines、16 accessibility tests。macOS debug 原生应用已启动；本轮 Mac 锁屏，未声明原生窗口交互通过。
 
 ## 20. Known Gaps and Risks
 
@@ -264,7 +264,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 ## 24. Update Log
 
-- 2026-08-07 | working tree | 全量 UI/UX/产品逻辑整改：P0/P1 开放项 0；338 TS + 7 Rust tests；24 E2E + 258 screenshots + 6 visual + 14 a11y；Desktop SQLite structured storage、Agent 证据持久化、工作区 Runtime 边界、对话框/键盘/取消态和文档真实性收口
+- 2026-08-07 | working tree | 全量 UI/UX/产品逻辑整改：P0/P1 开放项 0；338 TS + 7 Rust tests；24 E2E + 358 screenshots + 6 visual + 16 a11y；补充 390×844 与 900×500 紧凑布局，Desktop SQLite structured storage、Agent 证据持久化、工作区 Runtime 边界、对话框/键盘/取消态和文档真实性收口
 
 - 2026-08-06 | working tree | 阶段 S 自动化与体验整改：298 TS + 5 Rust tests；9 E2E + 48 UI screenshots + 6 visual + 4 a11y；工作区 P0 边界、Web/Desktop 能力、确认对话框、对比度、设置键盘与 Desktop 文案修复；Web gzip 271.08 KB
 
