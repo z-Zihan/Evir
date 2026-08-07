@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronRight, MessageSquarePlus, Pencil, Pin, Settings2, Trash2 } from "lucide-react";
+import { ChevronRight, MessageSquarePlus, Pencil, Pin, Settings2, Trash2, X } from "lucide-react";
 import type { PersonalizationPreferences } from "../core/personalization/types";
 import { isMac } from "../core/shortcuts/platform";
 import { useChatStore } from "../features/chat/chat-store";
@@ -11,9 +11,10 @@ import { useConfirmationDialog } from "./useConfirmationDialog";
 interface SidebarProps {
   onOpenSettings: (tab?: SettingsTab) => void;
   onNewConversation: () => void;
+  onClose: () => void;
 }
 
-export function Sidebar({ onOpenSettings, onNewConversation }: SidebarProps) {
+export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarProps) {
   const { t } = useTranslation();
   const {
     conversations,
@@ -164,6 +165,15 @@ export function Sidebar({ onOpenSettings, onNewConversation }: SidebarProps) {
             <strong className="brand-name">Evir</strong>
             <span className="brand-caption">{t("sidebar.localAi")}</span>
           </div>
+          <button
+            className="sidebar-close"
+            type="button"
+            onClick={onClose}
+            aria-label={t("sidebar.hide")}
+            title={t("sidebar.hide")}
+          >
+            <X size={17} />
+          </button>
         </div>
         <button className="new-chat-button" type="button" onClick={onNewConversation}>
           <MessageSquarePlus size={16} /> {t("sidebar.newChat")}

@@ -58,6 +58,11 @@ test("captures the required responsive, theme, and language matrix", async ({ pa
   await collapseSidebar(page);
   await page.screenshot({ path: join(output, "sidebar-collapsed.png"), fullPage: true });
 
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: /Show sidebar|显示侧边栏/i }).click();
+  await page.screenshot({ path: join(output, "sidebar-compact-open.png"), fullPage: true });
+  await page.locator(".sidebar-close").click();
+
   const settingsTabs = [
     "model-providers",
     "local-identity",

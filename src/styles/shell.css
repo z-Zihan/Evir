@@ -118,6 +118,24 @@
   line-height: 1.1;
 }
 
+.sidebar-close {
+  display: none;
+  width: 32px;
+  height: 32px;
+  margin-left: auto;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.sidebar-close:hover {
+  background: var(--surface-hover);
+  color: var(--foreground);
+}
+
 .brand-name {
   font-size: 14px;
   font-weight: 680;
@@ -274,6 +292,7 @@
 }
 
 .sidebar-footer {
+  margin-top: auto;
   padding-top: 10px;
 }
 
@@ -1387,6 +1406,10 @@
     width: 100vw;
     border-right: 0;
     box-shadow: none;
+  }
+
+  .sidebar-close {
+    display: grid;
   }
 }
 

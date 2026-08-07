@@ -109,7 +109,11 @@ export function App() {
   return (
     <div className={`app-shell${sidebarVisible ? " sidebar-visible" : ""}`}>
       {sidebarVisible && (
-        <Sidebar onOpenSettings={openSettings} onNewConversation={handleNewConversation} />
+        <Sidebar
+          onOpenSettings={openSettings}
+          onNewConversation={handleNewConversation}
+          onClose={() => setSidebarVisible(false)}
+        />
       )}
       {sidebarVisible && (
         <button

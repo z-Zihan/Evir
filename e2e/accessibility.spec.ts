@@ -43,6 +43,12 @@ test("compact sidebar and settings use the whole viewport without overflow", asy
   const sidebarBox = await sidebar.boundingBox();
   expect(sidebarBox?.x).toBe(0);
   expect(sidebarBox?.width).toBe(390);
+  const settingsButtonBox = await sidebar
+    .getByRole("button", { name: "Settings", exact: true })
+    .boundingBox();
+  expect(settingsButtonBox).not.toBeNull();
+  expect((settingsButtonBox?.y ?? 0) + (settingsButtonBox?.height ?? 0)).toBeGreaterThan(820);
+  await expect(sidebar.getByRole("button", { name: "Hide sidebar" })).toBeVisible();
 
   await sidebar.getByRole("button", { name: "Settings", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Settings" });

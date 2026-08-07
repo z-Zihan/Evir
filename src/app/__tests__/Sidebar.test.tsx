@@ -44,7 +44,7 @@ afterEach(() => {
 describe("Sidebar", () => {
   it("requires confirmation before deleting a conversation", async () => {
     const { Sidebar } = await import("../Sidebar");
-    render(<Sidebar onOpenSettings={vi.fn()} onNewConversation={vi.fn()} />);
+    render(<Sidebar onOpenSettings={vi.fn()} onNewConversation={vi.fn()} onClose={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "provider.delete" }));
     expect(deleteConversation).not.toHaveBeenCalled();
