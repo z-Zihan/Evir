@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { db } from "../../core/storage/db";
+import type { StorageMutation } from "../../core/storage/storage-port";
+import { getStructuredStorage } from "../../runtime/structured-storage";
 
 const attachmentSchema = z.object({
   id: z.string(),
@@ -71,63 +72,70 @@ export async function importConversations(
   const parsed = exportDataSchema.parse(JSON.parse(text));
   let imported = 0;
   let skipped = 0;
-  await db.transaction("rw", db.conversations, db.messages, db.attachments, async () => {
-    for (const conv of parsed.conversations) {
-      const existing = await db.conversations.get(conv.id);
-      if (existing) {
-        skipped++;
-        continue;
-      }
-      const { messages, parentConversationId, branchedFromMessageId, ...convRest } = conv;
-      await db.conversations.put({
-        ...convRest,
-        ...(parentConversationId !== undefined ? { parentConversationId } : {}),
-        ...(branchedFromMessageId !== undefined ? { branchedFromMessageId } : {}),
-      });
-      for (const msg of messages) {
-        const { attachments, ...msgData } = msg;
-        const msgRecord = {
-          id: msgData.id,
-          conversationId: msgData.conversationId,
-          role: msgData.role,
-          content: msgData.content,
-          status: msgData.status,
-          createdAt: msgData.createdAt,
-          ...(msgData.errorMessage !== undefined ? { errorMessage: msgData.errorMessage } : {}),
-          ...(msgData.usage !== undefined
-            ? {
-                usage: {
-                  ...(msgData.usage.inputTokens !== undefined
-                    ? { inputTokens: msgData.usage.inputTokens }
-                    : {}),
-                  ...(msgData.usage.outputTokens !== undefined
-                    ? { outputTokens: msgData.usage.outputTokens }
-                    : {}),
-                  ...(msgData.usage.totalTokens !== undefined
-                    ? { totalTokens: msgData.usage.totalTokens }
-                    : {}),
-                },
-              }
-            : {}),
-          ...(msgData.toolCalls !== undefined ? { toolCalls: msgData.toolCalls } : {}),
-          ...(msgData.toolResults !== undefined
-            ? {
-                toolResults: msgData.toolResults.map(({ error, ...result }) => ({
-                  ...result,
-                  ...(error !== undefined ? { error } : {}),
-                })),
-              }
-            : {}),
-        };
-        await db.messages.put(msgRecord);
-        if (attachments) {
-          for (const att of attachments) {
-            await db.attachments.put(att);
-          }
+  const storage = getStructuredStorage();
+  const mutations: StorageMutation[] = [];
+  for (const conv of parsed.conversations) {
+    const existing = await storage.read("conversations", conv.id);
+    if (existing) {
+      skipped++;
+      continue;
+    }
+    const { messages, parentConversationId, branchedFromMessageId, ...convRest } = conv;
+    const conversationRecord = {
+      ...convRest,
+      ...(parentConversationId !== undefined ? { parentConversationId } : {}),
+      ...(branchedFromMessageId !== undefined ? { branchedFromMessageId } : {}),
+    };
+    mutations.push({
+      type: "write",
+      entity: "conversations",
+      id: conversationRecord.id,
+      data: conversationRecord,
+    });
+    for (const msg of messages) {
+      const { attachments, ...msgData } = msg;
+      const msgRecord = {
+        id: msgData.id,
+        conversationId: msgData.conversationId,
+        role: msgData.role,
+        content: msgData.content,
+        status: msgData.status,
+        createdAt: msgData.createdAt,
+        ...(msgData.errorMessage !== undefined ? { errorMessage: msgData.errorMessage } : {}),
+        ...(msgData.usage !== undefined
+          ? {
+              usage: {
+                ...(msgData.usage.inputTokens !== undefined
+                  ? { inputTokens: msgData.usage.inputTokens }
+                  : {}),
+                ...(msgData.usage.outputTokens !== undefined
+                  ? { outputTokens: msgData.usage.outputTokens }
+                  : {}),
+                ...(msgData.usage.totalTokens !== undefined
+                  ? { totalTokens: msgData.usage.totalTokens }
+                  : {}),
+              },
+            }
+          : {}),
+        ...(msgData.toolCalls !== undefined ? { toolCalls: msgData.toolCalls } : {}),
+        ...(msgData.toolResults !== undefined
+          ? {
+              toolResults: msgData.toolResults.map(({ error, ...result }) => ({
+                ...result,
+                ...(error !== undefined ? { error } : {}),
+              })),
+            }
+          : {}),
+      };
+      mutations.push({ type: "write", entity: "messages", id: msgRecord.id, data: msgRecord });
+      if (attachments) {
+        for (const att of attachments) {
+          mutations.push({ type: "write", entity: "attachments", id: att.id, data: att });
         }
       }
-      imported++;
     }
-  });
+    imported++;
+  }
+  await storage.apply(mutations);
   return { imported, skipped };
 }

@@ -1,4 +1,7 @@
 {
+  "common": {
+    "loading": "加载中"
+  },
   "sidebar": {
     "newChat": "新建对话",
     "localAi": "本地 AI",
@@ -87,6 +90,10 @@
     "pinFailed": "置顶失败",
     "modelSwitchBlocked": "模型切换已阻止：{{reason}}",
     "modelSwitchFailed": "模型切换失败",
+    "modelSwitchConfirmTitle": "安全切换模型？",
+    "modelSwitchConfirm": "切换模型",
+    "modelSwitchDataDestination": "后续会话数据将发送给 {{provider}}。",
+    "modelSwitchDowngrade": "目标模型不支持工具调用，本会话将以提问模式继续。",
     "copyMessage": "复制",
     "you": "你",
     "localUser": "我",
@@ -94,7 +101,8 @@
     "preparingResponse": "正在准备回复",
     "tokenCount": "{{count}} tokens",
     "retry": "重试",
-    "privateSession": "隐私会话"
+    "privateSession": "隐私会话",
+    "agentRequiresToolCalling": "当前模型未标记为支持 Tool Calling。请切换到提问模式，或在供应商设置中更新模型能力。"
   },
   "runtime": {
     "agentReady": "本地 Agent Runtime",
@@ -226,6 +234,10 @@
     "baseUrl": "Base URL",
     "apiKey": "API Key",
     "modelId": "模型",
+    "toolCalling": "支持 Tool Calling",
+    "toolCallingDescription": "仅在这个具体模型原生支持函数或工具调用时开启。Agent 模式依赖此能力。",
+    "maxContextTokens": "上下文窗口",
+    "maxContextTokensDescription": "可选的模型级 Token 上限，用于安全计算上下文预算。",
     "fetchModels": "获取模型",
     "fetchingModels": "正在获取…",
     "fetchModelsFailed": "无法获取模型，请手动输入模型 ID。",
@@ -239,8 +251,8 @@
     "noProviders": "尚未配置供应商",
     "addDescription": "连接你使用的模型服务。Evir 不要求账号，也不会通过自有服务器转发请求。",
     "addFirst": "添加供应商后开始聊天",
-    "configured": "已连接的供应商",
-    "configuredDescription": "默认连接会用于新建会话",
+    "configured": "已配置的供应商",
+    "configuredDescription": "默认配置会用于新建会话",
     "presets": "供应商预设",
     "presetsDescription": "选择预设以自动填写协议和 API 地址",
     "searchPresets": "搜索供应商",
@@ -284,14 +296,15 @@
     "skills": "Skill 为模型提供任务方法，不是首次使用的必需配置。",
     "skillsEmpty": "可从本地文件导入，或创建一份只包含明确指令的 Skill。",
     "toolConnections": "工具连接",
-    "mcp": "连接本地或远程 MCP 服务。新增服务器默认禁用，工具仍需逐项授权。",
-    "mcpEmpty": "添加服务器后先检查传输方式和能力，再决定是否启用。",
+    "mcp": "保存本地或远程 MCP 服务器配置。当前构建尚未验证连接和工具发现。",
+    "mcpEmpty": "添加服务器配置。保存或启用配置不代表 Evir 已经建立连接。",
     "responsePreferences": "回复偏好",
     "personalization": "设置显示名称、回复语言和表达风格。安全与权限规则不会被覆盖。",
     "localDiagnostics": "本地诊断",
     "diagnostics": "查看经过脱敏的本地运行事件，并在需要时主动导出。",
     "modelConnections": "模型连接",
-    "providerCount": "{{count}} 个连接",
+    "providerCount_one": "{{count}} 个配置",
+    "providerCount_other": "{{count}} 个配置",
     "localData": "本地数据",
     "privacy": "控制隐私会话与本地数据清理。Evir 不会静默上传这些内容。"
   },
@@ -429,6 +442,7 @@
   "skill": {
     "title": "Skill",
     "enabled": "已启用",
+    "configurationEnabled": "配置已启用",
     "disabled": "已禁用",
     "enable": "启用",
     "disable": "禁用",
@@ -484,6 +498,8 @@
     "noServers": "暂无 MCP 服务器",
     "desktopOnly": "stdio 传输需要桌面端模式",
     "securityNotice": "新服务器默认禁用。工具需要逐项授权。",
+    "configurationOnlyNotice": "当前仅管理配置：连接测试成功前，本构建不宣称已连接或工具可调用。",
+    "connectionNotVerified": "连接未验证",
     "save": "保存",
     "cancel": "取消",
     "edit": "编辑服务器",
@@ -534,6 +550,16 @@
     "clear": "清除工作区",
     "recent": "最近"
   },
+  "startup": {
+    "failed": "本地数据初始化失败",
+    "retry": "重试"
+  },
+  "recovery": {
+    "title": "发现一个意外中断的任务",
+    "description": "从已保存的会话状态继续；Evir 不会自动重放任何工具操作。",
+    "dismiss": "忽略",
+    "resume": "安全继续"
+  },
   "agent": {
     "runSummary": "Agent 运行总结",
     "evidence": "执行证据",
@@ -548,7 +574,10 @@
     "none": "无",
     "processing": "正在处理",
     "completed": "已完成",
-    "completedWithErrors": "完成但有错误"
+    "completedWithErrors": "完成但有错误",
+    "rollback": "回滚本次修改",
+    "rollbackTitle": "回滚这次 Agent 运行？",
+    "rollbackDescription": "将 {{count}} 个已修改文件恢复到运行前状态；运行后发生的新修改会受到保护。"
   },
   "memory": {
     "title": "记忆",

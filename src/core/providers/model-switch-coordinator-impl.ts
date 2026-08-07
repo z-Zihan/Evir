@@ -1,4 +1,4 @@
-import { db, type MessageRecord } from "../storage/db";
+import type { MessageRecord, ProviderRecord } from "../storage/db";
 import { TOOL_PERMISSION_REQUIRED } from "../tools/tool-executor";
 import { createCheckpoint, buildHandoffMessage } from "../context/checkpoint";
 import type { ModelSwitchCoordinator } from "./model-switch-coordinator";
@@ -7,6 +7,9 @@ import type {
   ModelSwitchRequest,
   ModelSwitchResult,
 } from "./model-switching";
+import { getStructuredStorage } from "../../runtime/structured-storage";
+import { getRuntime, isNativeDesktopRuntime } from "../../runtime/use-runtime";
+import { estimateMessagesTokens } from "../context/token-estimate";
 
 function hasActiveToolExecutionOrPendingApproval(message: MessageRecord | undefined): boolean {
   if (!message) return false;
@@ -29,8 +32,27 @@ export class ModelSwitchCoordinatorImpl implements ModelSwitchCoordinator {
   private readonly inFlightSwitches = new Map<string, symbol>();
 
   async assess(request: ModelSwitchRequest): Promise<ModelSwitchAssessment> {
-    const targetProvider = await db.providers.get(request.toProviderId);
-    if (!targetProvider?.apiKey) {
+    const storage = getStructuredStorage();
+    const targetProvider = await storage.read<ProviderRecord>("providers", request.toProviderId);
+    const desktopSecret =
+      targetProvider && isNativeDesktopRuntime()
+        ? await getRuntime().storage?.keychainGet(`provider:${targetProvider.id}:api-key`)
+        : null;
+    if (
+      !targetProvider ||
+      !targetProvider.enabled ||
+      targetProvider.modelId !== request.toModelId
+    ) {
+      return {
+        status: "blocked",
+        requiresDataDestinationConfirmation: false,
+        requiresModeDowngrade: false,
+        requiresContextCompaction: false,
+        blockReason: "target-model-unavailable",
+        warnings: [],
+      };
+    }
+    if (!targetProvider.apiKey && !desktopSecret) {
       return {
         status: "blocked",
         requiresDataDestinationConfirmation: false,
@@ -41,13 +63,13 @@ export class ModelSwitchCoordinatorImpl implements ModelSwitchCoordinator {
       };
     }
 
-    const messages = await db.messages
-      .where("conversationId")
-      .equals(request.conversationId)
-      .sortBy("createdAt");
+    const messages = await storage.query<MessageRecord>("messages", {
+      conversationId: request.conversationId,
+    });
+    messages.sort((a, b) => a.createdAt - b.createdAt);
 
     const lastMessage = messages.at(-1);
-    if (hasActiveToolExecutionOrPendingApproval(lastMessage)) {
+    if (request.hasActiveExecution || hasActiveToolExecutionOrPendingApproval(lastMessage)) {
       return {
         status: "blocked",
         requiresDataDestinationConfirmation: false,
@@ -58,12 +80,37 @@ export class ModelSwitchCoordinatorImpl implements ModelSwitchCoordinator {
       };
     }
 
+    const requiresModeDowngrade =
+      request.mode !== "ask" && targetProvider.modelCapabilities?.toolCalling !== true;
+    const maxContextTokens = targetProvider.modelCapabilities?.maxContextTokens ?? 128_000;
+    const estimatedTokens = estimateMessagesTokens(messages);
+    if (estimatedTokens >= maxContextTokens) {
+      return {
+        status: "blocked",
+        requiresDataDestinationConfirmation: request.fromProviderId !== request.toProviderId,
+        requiresModeDowngrade,
+        requiresContextCompaction: true,
+        blockReason: "context-overflow",
+        warnings: ["target-context-overflow"],
+      };
+    }
+    const requiresContextCompaction = estimatedTokens >= maxContextTokens * 0.75;
+    const requiresDataDestinationConfirmation = request.fromProviderId !== request.toProviderId;
+    const warnings = [
+      ...(requiresDataDestinationConfirmation ? ["cross-provider-data-destination"] : []),
+      ...(requiresModeDowngrade ? ["target-tool-calling-unsupported"] : []),
+      ...(requiresContextCompaction ? ["target-context-compaction-required"] : []),
+    ];
+
     return {
-      status: "switched",
-      requiresDataDestinationConfirmation: false,
-      requiresModeDowngrade: false,
-      requiresContextCompaction: false,
-      warnings: [],
+      status:
+        requiresDataDestinationConfirmation || requiresModeDowngrade
+          ? "requires-confirmation"
+          : "switched",
+      requiresDataDestinationConfirmation,
+      requiresModeDowngrade,
+      requiresContextCompaction,
+      warnings,
     };
   }
 
@@ -75,10 +122,10 @@ export class ModelSwitchCoordinatorImpl implements ModelSwitchCoordinator {
       return { status: "blocked" };
     }
 
-    const messages = await db.messages
-      .where("conversationId")
-      .equals(request.conversationId)
-      .sortBy("createdAt");
+    const messages = await getStructuredStorage().query<MessageRecord>("messages", {
+      conversationId: request.conversationId,
+    });
+    messages.sort((a, b) => a.createdAt - b.createdAt);
     const lastMessage = messages.at(-1);
     if (hasActiveToolExecutionOrPendingApproval(lastMessage)) {
       return { status: "blocked" };
@@ -101,7 +148,7 @@ export class ModelSwitchCoordinatorImpl implements ModelSwitchCoordinator {
       status: "complete",
       createdAt: Date.now(),
     };
-    await db.messages.add(handoffMessage);
+    await getStructuredStorage().write("messages", handoffMessage.id, handoffMessage);
     if (isCancelled()) return { status: "rolled-back" };
 
     this.inFlightSwitches.delete(request.conversationId);

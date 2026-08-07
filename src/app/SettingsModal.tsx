@@ -123,6 +123,12 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
     closeButtonRef.current?.focus();
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        document.querySelector(
+          ".settings-form-backdrop, .confirmation-backdrop, .avatar-crop-backdrop",
+        )
+      )
+        return;
       if (event.key === "Escape") {
         event.preventDefault();
         onCloseRef.current();
@@ -203,6 +209,7 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
             type="button"
             onClick={onClose}
             aria-label={t("settings.close")}
+            title={t("settings.close")}
           >
             <X size={17} />
           </button>
@@ -229,9 +236,16 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
           </nav>
           <main className="settings-main">
             <div className="settings-section-heading">
-              <h3>{activeItem ? t(activeItem.labelKey) : t("settings.title")}</h3>
+              <h3 id="settings-section-title">
+                {activeItem ? t(activeItem.labelKey) : t("settings.title")}
+              </h3>
             </div>
-            <div className="settings-content" ref={contentRef}>
+            <div
+              className="settings-content"
+              ref={contentRef}
+              tabIndex={0}
+              aria-labelledby="settings-section-title"
+            >
               {activeTab === "providers" && <ProviderSettings />}
               {activeTab === "identity" && <LocalIdentityPanel />}
               {activeTab === "personalization" && <PersonalizationPanel />}

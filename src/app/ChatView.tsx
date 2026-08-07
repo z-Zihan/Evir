@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { memo, useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ArrowUp,
@@ -27,6 +27,9 @@ import { useConversationTokenCount } from "./use-token-count";
 import { ModelSwitchCoordinatorImpl } from "../core/providers/model-switch-coordinator-impl";
 import type { ModelSwitchRequest } from "../core/providers/model-switching";
 import { loadPersonalizationPreferences } from "../features/settings/personalization-settings";
+import { AgentRunSummary } from "./AgentRunSummary";
+import { useConfirmationDialog } from "./useConfirmationDialog";
+import type { ModelSwitchAssessment } from "../core/providers/model-switching";
 
 const modelSwitchCoordinator = new ModelSwitchCoordinatorImpl();
 
@@ -99,10 +102,16 @@ export function ChatView({
     updateConversationProvider,
     currentConversationId,
     conversations,
+    latestAgentRun,
+    pendingToolApproval,
   } = useChatStore();
   const { getDefaultProvider, switchProvider } = useProviderStore();
   const [localDisplayName, setLocalDisplayName] = useState("");
   const [localUserAvatar, setLocalUserAvatar] = useState("");
+  const {
+    requestConfirmation: requestModelSwitchConfirmation,
+    confirmationDialog: modelSwitchConfirmation,
+  } = useConfirmationDialog();
 
   const provider = getDefaultProvider();
   const runtime = getRuntime();
@@ -118,9 +127,15 @@ export function ChatView({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const scrollToBottom = useCallback(() => {
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "auto" });
+    });
+  }, []);
+
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, streamingContent]);
+    scrollToBottom();
+  }, [messages, streamingContent, latestAgentRun?.updatedAt, scrollToBottom]);
 
   const displayError = (value: string) => (i18n.exists(value) ? t(value) : value);
 
@@ -170,6 +185,74 @@ export function ChatView({
 
   const { dragOver, handleDrop, handleDragOver, handleDragLeave } = useDragDrop(handleFileSelect);
 
+  const finishModelSwitch = async (
+    request: ModelSwitchRequest,
+    assessment: ModelSwitchAssessment,
+    nextProvider: ProviderRecord,
+  ) => {
+    const result = await modelSwitchCoordinator.execute(request, assessment);
+    if (result.status !== "switched") {
+      useChatStore.setState({
+        error: t("chat.modelSwitchBlocked", { reason: result.status }),
+      });
+      return;
+    }
+    await switchProvider(nextProvider.id);
+    await updateConversationProvider(nextProvider.id, nextProvider.modelId);
+    if (assessment.requiresModeDowngrade) setMode("ask");
+  };
+
+  const handleModelSwitch = (nextProvider: ProviderRecord) => {
+    void (async () => {
+      try {
+        if (!currentConversationId) {
+          await switchProvider(nextProvider.id);
+          return;
+        }
+        const request: ModelSwitchRequest = {
+          conversationId: currentConversationId,
+          fromProviderId: provider?.id ?? "",
+          fromModelId: provider?.modelId ?? "",
+          toProviderId: nextProvider.id,
+          toModelId: nextProvider.modelId,
+          requestedAt: Date.now(),
+          mode,
+          hasActiveExecution: isStreaming || pendingToolApproval !== null,
+        };
+        const assessment = await modelSwitchCoordinator.assess(request);
+        if (assessment.status === "blocked") {
+          useChatStore.setState({
+            error: t("chat.modelSwitchBlocked", {
+              reason: assessment.blockReason ?? "unknown",
+            }),
+          });
+          return;
+        }
+        if (assessment.status === "requires-confirmation") {
+          const reasons = [
+            ...(assessment.requiresDataDestinationConfirmation
+              ? [t("chat.modelSwitchDataDestination", { provider: nextProvider.name })]
+              : []),
+            ...(assessment.requiresModeDowngrade ? [t("chat.modelSwitchDowngrade")] : []),
+          ];
+          requestModelSwitchConfirmation(
+            {
+              title: t("chat.modelSwitchConfirmTitle"),
+              description: reasons.join(" "),
+              confirmLabel: t("chat.modelSwitchConfirm"),
+              tone: "warning",
+            },
+            () => finishModelSwitch(request, assessment, nextProvider),
+          );
+          return;
+        }
+        await finishModelSwitch(request, assessment, nextProvider);
+      } catch {
+        useChatStore.setState({ error: t("chat.modelSwitchFailed") });
+      }
+    })();
+  };
+
   useEffect(() => {
     const ta = textareaRef.current;
     if (!ta) return;
@@ -200,47 +283,7 @@ export function ChatView({
       </div>
       <div className="workspace-controls">
         <ModeSwitcher mode={mode} onModeChange={setMode} />
-        <ModelSwitcher
-          onSwitch={(nextProvider: ProviderRecord) => {
-            void (async () => {
-              try {
-                if (!currentConversationId) {
-                  await switchProvider(nextProvider.id);
-                  await updateConversationProvider(nextProvider.id, nextProvider.modelId);
-                  return;
-                }
-                const request: ModelSwitchRequest = {
-                  conversationId: currentConversationId,
-                  fromProviderId: provider?.id ?? "",
-                  fromModelId: provider?.modelId ?? "",
-                  toProviderId: nextProvider.id,
-                  toModelId: nextProvider.modelId,
-                  requestedAt: Date.now(),
-                };
-                const assessment = await modelSwitchCoordinator.assess(request);
-                if (assessment.status === "blocked") {
-                  useChatStore.setState({
-                    error: t("chat.modelSwitchBlocked", {
-                      reason: assessment.blockReason ?? "unknown",
-                    }),
-                  });
-                  return;
-                }
-                const result = await modelSwitchCoordinator.execute(request, assessment);
-                if (result.status !== "switched") {
-                  useChatStore.setState({
-                    error: t("chat.modelSwitchBlocked", { reason: result.status }),
-                  });
-                  return;
-                }
-                await switchProvider(nextProvider.id);
-                await updateConversationProvider(nextProvider.id, nextProvider.modelId);
-              } catch {
-                useChatStore.setState({ error: t("chat.modelSwitchFailed") });
-              }
-            })();
-          }}
-        />
+        <ModelSwitcher onSwitch={handleModelSwitch} />
       </div>
     </header>
   );
@@ -283,6 +326,9 @@ export function ChatView({
               onEdit={editMessage}
               onRegenerate={regenerate}
             />
+            {latestAgentRun?.conversationId === currentConversationId && (
+              <AgentRunSummary record={latestAgentRun} onLayoutChange={scrollToBottom} />
+            )}
             {isStreaming && (
               <article
                 className="message-row message-assistant message-streaming"
@@ -336,6 +382,7 @@ export function ChatView({
                       type="button"
                       onClick={() => removeAttachment(att.id)}
                       aria-label={t("chat.removeAttachment")}
+                      title={t("chat.removeAttachment")}
                     >
                       <X size={12} />
                     </button>
@@ -347,6 +394,7 @@ export function ChatView({
                       type="button"
                       onClick={() => removeAttachment(att.id)}
                       aria-label={t("chat.removeAttachment")}
+                      title={t("chat.removeAttachment")}
                     >
                       <X size={12} />
                     </button>
@@ -372,6 +420,7 @@ export function ChatView({
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isStreaming}
                 aria-label={t("chat.attachFile")}
+                title={t("chat.attachFile")}
               >
                 <Paperclip size={16} />
               </button>
@@ -422,6 +471,7 @@ export function ChatView({
         </div>
         <p className="disclaimer">{t("chat.disclaimer")}</p>
       </footer>
+      {modelSwitchConfirmation}
     </main>
   );
 }

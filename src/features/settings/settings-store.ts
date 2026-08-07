@@ -1,6 +1,7 @@
 import { create } from "zustand";
 // NOTE: Uses Dexie directly for indexed queries; StoragePort covers basic CRUD
-import { db } from "../../core/storage/db";
+import type { SettingRecord } from "../../core/storage/db";
+import { getStructuredStorage } from "../../runtime/structured-storage";
 
 const PERSIST_API_KEYS = "persistApiKeys";
 
@@ -13,11 +14,14 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>((set) => ({
   persistApiKeys: false,
   loadSettings: async () => {
-    const setting = await db.settings.get(PERSIST_API_KEYS);
+    const setting = await getStructuredStorage().read<SettingRecord>("settings", PERSIST_API_KEYS);
     set({ persistApiKeys: setting?.value === true });
   },
   setPersistApiKeys: async (value) => {
-    await db.settings.put({ name: PERSIST_API_KEYS, value });
+    await getStructuredStorage().write("settings", PERSIST_API_KEYS, {
+      name: PERSIST_API_KEYS,
+      value,
+    });
     set({ persistApiKeys: value });
   },
 }));

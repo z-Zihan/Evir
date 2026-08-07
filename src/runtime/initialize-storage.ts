@@ -1,0 +1,49 @@
+import { db, type ProviderRecord, type SettingRecord } from "../core/storage/db";
+import type { EntityName, StoragePort } from "../core/storage/storage-port";
+import { getRuntime, isNativeDesktopRuntime } from "./use-runtime";
+
+const MIGRATION_MARKER = "desktopStructuredStorageMigrationV1";
+
+async function migrateEntity<T>(
+  storage: StoragePort,
+  entity: EntityName,
+  records: T[],
+): Promise<void> {
+  if (records.length === 0 || (await storage.readAll<T>(entity)).length > 0) return;
+  await storage.writeMany(entity, records);
+}
+
+async function migrateProviders(storage: StoragePort): Promise<void> {
+  const providers = await db.providers.toArray();
+  const sanitized: ProviderRecord[] = [];
+  for (const provider of providers) {
+    if (provider.apiKey) {
+      await getRuntime().storage?.keychainSet(`provider:${provider.id}:api-key`, provider.apiKey);
+    }
+    sanitized.push({ ...provider, apiKey: "" });
+  }
+  await migrateEntity(storage, "providers", sanitized);
+  if (providers.some(({ apiKey }) => apiKey.length > 0)) {
+    await db.providers.bulkPut(sanitized);
+  }
+}
+
+export async function initializeRuntimeStorage(): Promise<void> {
+  if (!isNativeDesktopRuntime()) return;
+  const storage = getRuntime().structuredStorage;
+  if (!storage) throw new Error("Desktop structured storage is unavailable");
+  const marker = await storage.read<SettingRecord>("settings", MIGRATION_MARKER);
+  if (marker?.value === true) return;
+
+  await migrateProviders(storage);
+  await migrateEntity(storage, "conversations", await db.conversations.toArray());
+  await migrateEntity(storage, "messages", await db.messages.toArray());
+  await migrateEntity(storage, "attachments", await db.attachments.toArray());
+  await migrateEntity(storage, "usage_records", await db.usage_records.toArray());
+  await migrateEntity(storage, "mcp_servers", await db.mcpServers.toArray());
+  await migrateEntity(storage, "settings", await db.settings.toArray());
+  await storage.write<SettingRecord>("settings", MIGRATION_MARKER, {
+    name: MIGRATION_MARKER,
+    value: true,
+  });
+}

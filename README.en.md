@@ -36,7 +36,7 @@ A multi-model chat client that can be deployed as static files.
 - Bring your own API key, base URL, and model.
 - Real streaming, Markdown, attachments, conversations, and local search.
 - Internationalization and light, dark, or system themes.
-- Ask and Plan experiences without system-level computer control.
+- Ask chat and attachment analysis without Plan, Agent, or system-level computer control.
 - Direct browser-to-provider requests with no required Evir backend.
 
 > Some providers do not allow browser CORS requests. Evir Web must detect this and direct the user to Evir Desktop or a browser-compatible endpoint.
@@ -51,7 +51,7 @@ It adds:
 - Agent loop, plans, context compaction, and memory.
 - Approvals, audit logs, diffs, snapshots, and rollback.
 - Built-in and user-created Skills.
-- Local stdio and remote Streamable HTTP MCP servers.
+- MCP server configuration management; live stdio and Streamable HTTP closure is still in development.
 - Browser automation and Computer Use in later phases.
 
 ## Model and protocol architecture
@@ -86,21 +86,23 @@ See the [Provider and Protocol Matrix](docs/13-provider-and-protocol-matrix.md).
 ## Ask / Plan / Agent
 
 - **Ask**: chat and analysis without autonomous local access.
-- **Plan**: may use user-authorized read-only tools, but cannot mutate files or run change-producing commands.
+- **Plan**: an internal read-only Desktop Agent phase, not a current top-level mode.
 - **Agent**: executes tools under the selected permission policy, with pause, cancel, approval, and rollback.
+
+The current Web UI exposes Ask only; Desktop exposes Ask and Agent.
 
 ## Skills and MCP
 
 - Skills describe **how to perform a class of tasks**.
 - MCP provides **external tools, resources, and prompts**.
 - Web supports instruction-only Skills that do not depend on local capabilities.
-- Desktop supports full Skills and MCP.
+- Desktop currently supports Skills and MCP configuration; MCP connection, discovery, and runtime calls are still in development.
 - Third-party Skill and MCP content is untrusted by default.
 
 ### Personalization without weakening safety
 
 - Configure naming, language, response style, and durable work preferences through a simple form.
-- Advanced users can edit `USER.md`, `PERSONA.md`, `INSTRUCTIONS.md`, and optional `SOUL.md`.
+- Advanced `USER.md`, `PERSONA.md`, `INSTRUCTIONS.md`, and `SOUL.md` editors are not exposed yet.
 - Evir core security, permission, tool, and network policies remain protected and cannot be overridden by Skills or custom instructions.
 - Personalization supports global, workspace, and conversation scopes and can be disabled instantly.
 
@@ -108,8 +110,8 @@ See the [Provider and Protocol Matrix](docs/13-provider-and-protocol-matrix.md).
 
 - Optional system notifications for long-run completion, approvals, and failures.
 - Local token and usage records that distinguish provider-reported values from estimates.
-- Customizable keyboard shortcuts and command palette; desktop global shortcuts are off by default.
-- Built-in bilingual help and a GitHub Issue feedback entry in Settings.
+- Settings list the current application shortcuts; customization, the command palette, and desktop global shortcuts are not exposed yet.
+- Bilingual offline help files are included in the repository; the in-app help center and feedback form are not exposed yet.
 - Provider setup includes official website, console, documentation, and status links.
 
 ## One-model start and safe switching

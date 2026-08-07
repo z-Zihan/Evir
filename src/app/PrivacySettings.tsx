@@ -1,9 +1,14 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LockKeyhole, UnlockKeyhole } from "lucide-react";
-import { db } from "../core/storage/db";
+import type { ProviderRecord } from "../core/storage/db";
 import { useChatStore } from "../features/chat/chat-store";
 import { useConfirmationDialog } from "./useConfirmationDialog";
+import { getStructuredStorage } from "../runtime/structured-storage";
+import { getRuntime, isNativeDesktopRuntime } from "../runtime/use-runtime";
+import { useProviderStore } from "../features/provider/provider-store";
+import { useUsageStore } from "../features/usage/usage-store";
+import { useMcpStore } from "../features/mcp/mcp-store";
 
 type ActionState = "idle" | "clearing" | "success" | "error";
 
@@ -30,51 +35,65 @@ export function PrivacySettings() {
 
   const clearConversations = () =>
     clearData(async () => {
-      await db.transaction("rw", db.conversations, db.messages, db.attachments, async () => {
-        await db.conversations.clear();
-        await db.messages.clear();
-        await db.attachments.clear();
-      });
+      await getStructuredStorage().apply([
+        { type: "clear", entity: "conversations" },
+        { type: "clear", entity: "messages" },
+        { type: "clear", entity: "attachments" },
+      ]);
+      useChatStore.setState({ conversations: [], currentConversationId: null, messages: [] });
     });
 
   const clearProviders = () =>
     clearData(async () => {
-      await db.providers.clear();
+      const providers = await getStructuredStorage().readAll<ProviderRecord>("providers");
+      if (isNativeDesktopRuntime()) {
+        const nativeStorage = getRuntime().storage;
+        if (nativeStorage) {
+          await Promise.all(
+            providers.map(({ id }) => nativeStorage.keychainDelete(`provider:${id}:api-key`)),
+          );
+        }
+      }
+      await getStructuredStorage().clear("providers");
+      useProviderStore.setState({ providers: [] });
     });
 
   const clearUsage = () =>
     clearData(async () => {
-      await db.usage_records.clear();
+      await getStructuredStorage().clear("usage_records");
+      useUsageStore.setState({ records: [] });
     });
 
   const clearMcp = () =>
     clearData(async () => {
-      await db.mcpServers.clear();
+      await getStructuredStorage().clear("mcp_servers");
+      useMcpStore.setState({ servers: [] });
     });
 
   const clearAll = () =>
     clearData(async () => {
-      await db.transaction(
-        "rw",
-        [
-          db.providers,
-          db.conversations,
-          db.messages,
-          db.attachments,
-          db.usage_records,
-          db.mcpServers,
-          db.settings,
-        ],
-        async () => {
-          await db.providers.clear();
-          await db.conversations.clear();
-          await db.messages.clear();
-          await db.attachments.clear();
-          await db.usage_records.clear();
-          await db.mcpServers.clear();
-          await db.settings.clear();
-        },
-      );
+      const providers = await getStructuredStorage().readAll<ProviderRecord>("providers");
+      if (isNativeDesktopRuntime()) {
+        const nativeStorage = getRuntime().storage;
+        if (nativeStorage) {
+          await Promise.all(
+            providers.map(({ id }) => nativeStorage.keychainDelete(`provider:${id}:api-key`)),
+          );
+        }
+      }
+      await getStructuredStorage().apply([
+        { type: "clear", entity: "providers" },
+        { type: "clear", entity: "conversations" },
+        { type: "clear", entity: "messages" },
+        { type: "clear", entity: "attachments" },
+        { type: "clear", entity: "usage_records" },
+        { type: "clear", entity: "mcp_servers" },
+        { type: "clear", entity: "settings" },
+      ]);
+      useProviderStore.setState({ providers: [] });
+      useChatStore.setState({ conversations: [], currentConversationId: null, messages: [] });
+      useUsageStore.setState({ records: [] });
+      useMcpStore.setState({ servers: [] });
     });
 
   return (
@@ -92,6 +111,7 @@ export function PrivacySettings() {
           className={`grid place-items-center w-8 h-8 rounded-lg text-muted hover:bg-surface-hover hover:text-foreground transition${privateSession ? " active" : ""}`}
           onClick={togglePrivateSession}
           aria-label={t("chat.privateSession")}
+          title={t("chat.privateSession")}
           aria-pressed={privateSession}
         >
           {privateSession ? <LockKeyhole size={15} /> : <UnlockKeyhole size={15} />}

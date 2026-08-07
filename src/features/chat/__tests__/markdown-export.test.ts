@@ -20,6 +20,26 @@ vi.mock("../../../core/storage/db", () => ({
       update: mockConvUpdate,
     },
     messages: {
+      toArray: vi.fn(() =>
+        Promise.resolve([
+          {
+            id: "m1",
+            conversationId: "c1",
+            role: "user",
+            content: "Hello",
+            createdAt: 1100,
+            status: "complete",
+          },
+          {
+            id: "m2",
+            conversationId: "c1",
+            role: "assistant",
+            content: "Hi there!",
+            createdAt: 1200,
+            status: "complete",
+          },
+        ]),
+      ),
       where: vi.fn(() => ({
         equals: () => ({
           sortBy: () =>
@@ -45,6 +65,7 @@ vi.mock("../../../core/storage/db", () => ({
       })),
     },
     attachments: {
+      toArray: vi.fn(() => Promise.resolve([])),
       where: vi.fn(() => ({
         equals: () => ({ toArray: () => Promise.resolve([]) }),
       })),

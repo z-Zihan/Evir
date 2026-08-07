@@ -2,8 +2,8 @@
 
 > Scope: This memory applies only to the Evir repository.
 > Repository: git@github.com:z-Zihan/Evir.git
-> Last reviewed commit: 604f026
-> Last updated: 2026-08-06
+> Last reviewed baseline: 9bcbb80 + 2026-08-07 remediation working tree
+> Last updated: 2026-08-07
 
 ## 1. Product Identity
 
@@ -20,14 +20,14 @@ Evir 是本地优先、BYOM 的多模型 AI 客户端与通用桌面 Agent。同
 
 ## 3. Primary User Flow
 
-添加 Provider → 输入 API Key → 选择模型 → 测试连接 → Ask/Plan/Agent → 输入任务 → 必要时授权 → 执行
+添加 Provider → 输入 API Key → 选择模型 → 测试连接 → Web Ask 或 Desktop Ask/Agent → 输入任务 → 必要时授权 → 执行
 
-主页面只保留：当前模型、Ask/Plan/Agent、会话、输入框、发送/停止、任务状态和审批。
+主页面只保留：当前模型、Web Ask 或 Desktop Ask/Agent、会话、输入框、发送/停止、任务状态和审批。Plan 是 Agent 内部只读阶段。
 
 ## 4. Web and Desktop Boundaries
 
 - Web：浏览器直连 API，受 CORS 限制；无本地工具/Shell/MCP
-- Desktop：Tauri 2 + Rust；完整 Agent、文件系统、终端、Git、MCP、Skill
+- Desktop：Tauri 2 + Rust；Agent、文件系统、终端、Git、Skill，以及 MCP 配置页；MCP Runtime 尚未实现
 - Web API Key 默认仅内存；Desktop 存系统安全凭据库
 
 ## 5. Architecture and Dependency Direction
@@ -36,7 +36,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 - UI 不直接访问数据库、Provider SDK、Tauri Command、Shell
 - Port 必须有真实 Adapter 和用户入口才算功能完成
-- 当前架构债务：feature stores 直接操作 Dexie（已标注注释），StoragePort/IndexedDBAdapter 需扩展以支持索引查询
+- Feature stores 统一经 `StoragePort`；Web 使用 IndexedDB Adapter，真实 Tauri Desktop 使用 SQLite-backed structured storage，浏览器 Desktop Runtime 回退 IndexedDB
 
 ## 6. Runtime and Capability Rules
 
@@ -71,12 +71,12 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 - Skill 定义方法，MCP 提供工具
 - Web 第一版仅支持指令型 Skill，不支持 MCP
-- Desktop 支持 stdio + Streamable HTTP MCP
+- Desktop 的 stdio + Streamable HTTP MCP 是目标能力；当前只有配置管理，没有连接/发现/调用 Runtime
 - 新增 MCP 默认禁用，工具逐项授权
 
 ## 11. Personalization Boundaries
 
-- 用户可编辑 USER.md / PERSONA.md / INSTRUCTIONS.md / SOUL.md
+- 当前用户可设置简单详情和回复风格；USER.md / PERSONA.md / INSTRUCTIONS.md / SOUL.md 编辑器尚未实现
 - 不可编辑 Evir Core / Security / Permission / Tool Policy
 - 用户内容始终是低优先级上下文，不能提权
 - 个性化可一键关闭
@@ -93,7 +93,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - 统一 LoggerPort + correlation ID（session/run/step/tool/request）
 - 默认脱敏、本地、异步有界队列
 - 禁止记录 API Key/Authorization/Cookie/完整会话/文件正文
-- 无远程日志后门；诊断 ZIP 用户主动导出
+- 无远程日志后门；当前只查看脱敏会话内存事件并导出 JSON，文件日志和诊断 ZIP 尚未实现
 
 ## 14. Design and Interaction Rules
 
@@ -102,18 +102,21 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - CSS Variables 语义 Token；Light/Dark/System 主题无闪白
 - 设置采用左侧分类 + 右侧内容，分类 ≤12 个
 - 所有界面中英文；所有文案走 i18n
+- 图标按钮有可访问名称和 tooltip；对话框具备首焦点、焦点循环、Escape 和焦点恢复
+- 嵌套浮层优先处理 Escape；滚动区域可聚焦并有名称；选中控件暴露语义状态
+- 取消的 Agent Run 不得显示完成；未经实时验证不得使用“已连接”文案
 
 ## 15. Performance Budgets
 
-| 指标               | 预算         |
-| ------------------ | ------------ |
-| Web JS gzip        | ≤ 350 KB     |
-| 流式首 Token 显示  | ≤ 100ms      |
-| Desktop 冷启动 P50 | < 2s         |
-| 空闲内存           | ≤ 150 MB     |
-| 空闲 CPU           | < 1%         |
-| 安装产物           | ≤ 35 MB      |
-| 当前实际 Web gzip  | 208.11 KB ✅ |
+| 指标               | 预算                      |
+| ------------------ | ------------------------- |
+| Web JS gzip        | ≤ 350 KB                  |
+| 流式首 Token 显示  | ≤ 100ms                   |
+| Desktop 冷启动 P50 | < 2s                      |
+| 空闲内存           | ≤ 150 MB                  |
+| 空闲 CPU           | < 1%                      |
+| 安装产物           | ≤ 35 MB                   |
+| 当前实际 Web gzip  | 280.06 KB（2026-08-07）✅ |
 
 ## 16. Engineering Standards
 
@@ -122,13 +125,13 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - 外部输入用 Zod 验证
 - 所有长任务支持 AbortSignal
 - PR 门禁：format + ESLint + strict TS + tests + build
-- 当前 202 TS tests + 4 Rust tests pass
+- 当前 338 TS tests + 7 Rust tests pass
 
 ## 17. Current Implementation Status
 
 **已真实实现：**
 
-- Dexie 存储层（providers/conversations/messages/usage_records/settings）
+- StoragePort 分层存储：Web IndexedDB；真实 Tauri Desktop SQLite structured entities
 - OpenAI Chat Completions Adapter（真实 fetch + SSE 流式）
 - OpenAI Compatible Chat Adapter
 - Provider Store（Zod 验证 + IndexedDB + 测试连接）
@@ -148,7 +151,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - 模型切换 UI（inline dropdown）
 - Skill 系统（Registry + Store + Settings UI + Prompt 注入）
 - 共享 helpers（chat-helpers.ts）
-- MCP Server 配置（Store + Settings UI + DB schema v3）
+- MCP Server 配置（Store + Settings UI）；页面明确不代表已连接
 - Context Budget Manager + Tool Output 压缩
 - Sidebar 搜索 + Cmd+Shift+F 快捷键
 - Shortcuts 设置面板（平台感知格式化）
@@ -157,7 +160,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 **阶段 2 新增：**
 
-- 工作区系统（WorkspaceSelector + workspace-store + Tauri dialog）
+- 工作区系统（WorkspaceSelector + Runtime 封装的 Tauri directory picker）
 - 13 个本地工具（read/write/list/search/patch/stat/mkdir/snapshot/restore + run_command + git_status/diff）
 - 符号链接逃逸检测 + workspace 边界验证
 - 文件快照与回滚（FNV-1a Hash + 冲突检测）
@@ -191,14 +194,16 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - 消息复制按钮（clipboard + 1.5s 反馈）
 - 会话列表按 updatedAt 降序排序
 
-**只有骨架：**
+**部分实现：**
 
-- ModelSwitchCoordinator / ContextBuilderPort / PersonalizationPort / ShortcutRegistry / NotificationPort / LoggerPort / Harness Middleware / StoragePort（接口定义，stores 绕过直接用 Dexie）
+- ModelSwitchCoordinator、ContextBuilder、Logger、StoragePort 和 Harness 各层已有实现/测试，但真实跨 Provider、完整中间件编排和文件日志仍需继续验证或实现
+- Personalization 目前是简单偏好；Notification 和命令面板未实现
 
 **未实现：**
 
-- Desktop stores 切换到 Tauri invoke（当前 Desktop 用 Dexie，Web 也用 Dexie）
 - MCP Server 实际连接（当前仅配置管理，无 stdio/HTTP 通信）
+- 文件级 Diagnostic/Audit/Crash 日志、日志目录、详细模式与诊断 ZIP
+- 通知、命令面板、应用内帮助/反馈和高级 Markdown 个性化编辑器
 - 更多 Provider 协议（Azure, Bedrock）
 
 ## 18. Current Development Stage
@@ -208,29 +213,28 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 阶段 2（Desktop Agent 与本地工具）🔧 78% — 12 工具+快照+循环检测+验证+UI，原生真实任务未验收
 阶段 3（上下文压缩与记忆）✅ 完成 — LLM 摘要+记忆系统+Checkpoint+Handoff+隐私会话+崩溃恢复
 阶段 4（Skill 系统）🔧 核心完成 — 路由+创建/删除/导入+5 内置 Skill
-阶段 S（稳定性与体验整改）🔧 90% — 当前阶段；自动化/视觉/无障碍完成，真实端到端门槛未全部通过
+阶段 S（稳定性与体验整改）✅ 仓库内确定性范围完成；真实原生/外部发布门槛未全部通过
 
 ## 19. Verified User Capabilities
 
 用户当前可以：添加 Provider（5 种协议）→ 测试连接 → 获取模型列表 → 新建会话 → 发送消息/附件 → 看到流式回复 → 停止生成 → 刷新恢复 → 快捷键操作 → 会话搜索 → 查看 Usage 统计 → 分类错误展示 → 拖拽上传图片/文本附件 → 历史附件参与多轮对话 → 会话导出/导入 → Web Ask / Desktop Ask 与 Agent → 个性化设置 → 切换中英文/主题 → 重新生成/编辑消息 → 会话分支 → 模型切换 → Agent 模式工具审批 → Skill 启用/禁用。Plan 是 Agent 内部阶段，不是常驻一级入口。
 
-2026-08-06 自动化证据：298 TypeScript tests、5 Rust tests、9 E2E pass + 1 Web capability skip、48 UI screenshots、6 visual baselines、4 accessibility tests。macOS 预签名原生窗口已启动并检查基础交互。
+2026-08-07 自动化证据：338 TypeScript tests、7 Rust tests、24 E2E pass + 6 Web capability skips、258 UI screenshots、6 visual baselines、14 accessibility tests。macOS debug 原生应用已启动；本轮 Mac 锁屏，未声明原生窗口交互通过。
 
 ## 20. Known Gaps and Risks
 
-1. Stores 绕过 StoragePort 直接用 Dexie（架构债务）
-2. Desktop stores 未切换到 Tauri invoke（Desktop 模式仍用 Dexie）
-3. MCP Server 仅配置管理，无实际连接
-4. Desktop Agent 真实端到端验收待完成（真实工作区修改、验证、Diff、回滚和系统权限）
-5. macOS 签名身份缺失，`.app` 只能完成预签名烟测；Windows 未验证
-6. Web 主 JavaScript chunk 约 897 KB minified，gzip 总量 271.08 KB 在预算内但仍需拆分
-7. 真实付费 Provider、跨 Provider 网络和超时条件未在本轮自动化执行
-8. Desktop 冷启动分位、空闲 CPU/内存和大输出性能未正式测量
+1. MCP Server 仅配置管理，无实际连接
+2. Desktop Agent 原生真实端到端验收待完成（工作区修改、验证、Diff、回滚和系统权限）
+3. macOS 签名身份缺失，`.app` 在 codesign 阶段失败；Windows 未验证
+4. Web 主 chunk 仍较大，虽在 gzip 总预算内但需后续拆分
+5. 真实付费 Provider、跨 Provider 网络和超时条件未在本轮自动化执行
+6. Desktop 冷启动分位、空闲 CPU/内存和大输出性能未正式测量
+7. 手工 VoiceOver/屏幕阅读器验收未完成
 
 ## 21. Active Decisions
 
 - 当前优先级是完成阶段 S 真实验收，不新增 Provider、Skill、MCP 或 Computer Use 产品能力
-- Stores 暂时直接用 Dexie，后续扩展 StoragePort
+- Web 使用 IndexedDB；真实 Tauri Desktop 的结构化实体走 SQLite Adapter
 - Web 只提供聊天/附件；Desktop 默认 Agent、可切换 Ask，Plan 不作为一级入口
 - Tool Registry 与 Tauri 命令双层强制工作区边界；清除工作区立即撤销本地工具范围
 - 流式 UI 使用 animation frame 批量刷新
@@ -241,7 +245,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 2. 使用真实 Provider 验证聊天、错误、超时与跨 Provider 数据去向
 3. 补测 Desktop 冷启动、空闲 CPU/内存、长会话和大输出
 4. 在具备签名身份与 Windows Runner 的环境完成安装包验收
-5. 阶段 S 硬门槛通过后再恢复后续功能开发
+5. 实现并验证 MCP Runtime 后再把配置状态升级为连接状态
 
 ## 23. Relevant Source Documents
 
@@ -259,6 +263,8 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - [docs/18-final-product-review-v6.md](../18-final-product-review-v6.md)
 
 ## 24. Update Log
+
+- 2026-08-07 | working tree | 全量 UI/UX/产品逻辑整改：P0/P1 开放项 0；338 TS + 7 Rust tests；24 E2E + 258 screenshots + 6 visual + 14 a11y；Desktop SQLite structured storage、Agent 证据持久化、工作区 Runtime 边界、对话框/键盘/取消态和文档真实性收口
 
 - 2026-08-06 | working tree | 阶段 S 自动化与体验整改：298 TS + 5 Rust tests；9 E2E + 48 UI screenshots + 6 visual + 4 a11y；工作区 P0 边界、Web/Desktop 能力、确认对话框、对比度、设置键盘与 Desktop 文案修复；Web gzip 271.08 KB
 

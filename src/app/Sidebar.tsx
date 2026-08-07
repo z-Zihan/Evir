@@ -110,6 +110,7 @@ export function Sidebar({ onOpenSettings, onNewConversation }: SidebarProps) {
               className="conversation-action-btn"
               type="button"
               aria-label={conversation.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
+              title={conversation.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
               onClick={() => void togglePin(conversation.id)}
             >
               <Pin size={13} />
@@ -118,6 +119,7 @@ export function Sidebar({ onOpenSettings, onNewConversation }: SidebarProps) {
               className="conversation-action-btn"
               type="button"
               aria-label={t("sidebar.rename")}
+              title={t("sidebar.rename")}
               onClick={() => {
                 setRenamingId(conversation.id);
                 setRenameValue(conversation.title);
@@ -129,6 +131,7 @@ export function Sidebar({ onOpenSettings, onNewConversation }: SidebarProps) {
               className="conversation-action-btn conversation-delete"
               type="button"
               aria-label={t("provider.delete")}
+              title={t("provider.delete")}
               onClick={() => {
                 requestConfirmation(
                   {

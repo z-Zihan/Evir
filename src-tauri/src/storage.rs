@@ -56,6 +56,13 @@ pub fn init_db(app_data_dir: &Path) -> Result<Connection> {
         CREATE TABLE IF NOT EXISTS settings (
           name TEXT PRIMARY KEY, value TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS app_entities (
+          entity TEXT NOT NULL,
+          id TEXT NOT NULL,
+          data TEXT NOT NULL,
+          updated_at INTEGER NOT NULL,
+          PRIMARY KEY(entity, id)
+        );
         CREATE INDEX IF NOT EXISTS idx_messages_conversation
           ON messages(conversation_id, created_at);
         CREATE INDEX IF NOT EXISTS idx_attachments_message ON attachments(message_id);
@@ -63,6 +70,8 @@ pub fn init_db(app_data_dir: &Path) -> Result<Connection> {
           ON conversations(updated_at DESC);
         INSERT OR IGNORE INTO schema_migrations(version, applied_at)
           VALUES (1, unixepoch() * 1000);
+        INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+          VALUES (2, unixepoch() * 1000);
         "#,
     )?;
     Ok(conn)

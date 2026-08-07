@@ -76,6 +76,23 @@ describe("buildCompressedHistory", () => {
     expect(result[1]!.id).toBe("r1");
     expect(result[2]!.id).toBe("r2");
   });
+
+  it("versions the summary and links the preserved source range", () => {
+    const source = [makeMsg({ id: "s1", createdAt: 10 }), makeMsg({ id: "s2", createdAt: 20 })];
+    const result = buildCompressedHistory(
+      "Summary text",
+      [makeMsg({ id: "recent" })],
+      "c1",
+      source,
+    );
+    expect(result[0]?.summaryMetadata).toMatchObject({
+      version: 1,
+      sourceMessageIds: ["s1", "s2"],
+      sourceStartedAt: 10,
+      sourceEndedAt: 20,
+    });
+    expect(result[0]?.summaryMetadata?.archiveId).toContain(result[0]?.id ?? "missing");
+  });
 });
 
 describe("estimateSavings", () => {

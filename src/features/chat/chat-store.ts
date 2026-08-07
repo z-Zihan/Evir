@@ -1,6 +1,6 @@
 import { create } from "zustand";
 // NOTE: Uses Dexie directly for indexed queries; StoragePort covers basic CRUD
-import { db, type ConversationRecord, type MessageRecord } from "../../core/storage/db";
+import type { AttachmentRecord, ConversationRecord, MessageRecord } from "../../core/storage/db";
 import { stopActiveStream } from "./chat-stream";
 import type { InteractionMode } from "../../core/providers/tool-registry";
 import {
@@ -24,6 +24,8 @@ import {
   togglePin as doTogglePin,
   updateConversationProvider as doUpdateConversationProvider,
 } from "./conversation-ops";
+import { getStructuredStorage } from "../../runtime/structured-storage";
+import type { AgentRunRecord } from "./agent-run-record";
 export interface ChatState {
   conversations: ConversationRecord[];
   currentConversationId: string | null;
@@ -35,6 +37,8 @@ export interface ChatState {
   pendingAttachments: ProcessedAttachment[];
   pendingToolApproval: PendingToolApproval | null;
   privateSession: boolean;
+  privateConversationId: string | null;
+  latestAgentRun: AgentRunRecord | null;
   loadConversations: () => Promise<void>;
   createConversation: (providerId: string, modelId: string) => Promise<string>;
   createOrReuseConversation: (providerId: string, modelId: string) => Promise<string>;
@@ -67,8 +71,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
   pendingAttachments: [],
   pendingToolApproval: null,
   privateSession: false,
+  privateConversationId: null,
+  latestAgentRun: null,
   loadConversations: async () => doLoadConversations(set),
-  createConversation: async (providerId, modelId) => doCreateConversation(set, providerId, modelId),
+  createConversation: async (providerId, modelId) =>
+    doCreateConversation(set, providerId, modelId, get().privateSession),
   createOrReuseConversation: async (providerId, modelId) =>
     doCreateOrReuseConversation(set, get, providerId, modelId),
   selectConversation: async (id) => doSelectConversation(set, id),
@@ -98,7 +105,37 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   clearAttachments: () => set({ pendingAttachments: [] }),
   setMode: (mode) => set({ mode }),
-  togglePrivateSession: () => set((s) => ({ privateSession: !s.privateSession })),
+  togglePrivateSession: () =>
+    set((state) => {
+      if (state.isStreaming) return {};
+      if (!state.privateSession) {
+        return {
+          privateSession: true,
+          privateConversationId: null,
+          currentConversationId: null,
+          messages: [],
+          streamingContent: "",
+          pendingAttachments: [],
+          pendingToolApproval: null,
+          error: null,
+          latestAgentRun: null,
+        };
+      }
+      return {
+        privateSession: false,
+        conversations: state.privateConversationId
+          ? state.conversations.filter(({ id }) => id !== state.privateConversationId)
+          : state.conversations,
+        privateConversationId: null,
+        currentConversationId: null,
+        messages: [],
+        streamingContent: "",
+        pendingAttachments: [],
+        pendingToolApproval: null,
+        error: null,
+        latestAgentRun: null,
+      };
+    }),
   approveTool: async () => {
     const pending = get().pendingToolApproval;
     if (!pending) return;
@@ -115,7 +152,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
     if (!currentConversationId || isStreaming) return;
     const lastAssistant = [...messages].reverse().find(({ role }) => role === "assistant");
     if (!lastAssistant) return;
-    await db.messages.delete(lastAssistant.id);
+    if (!get().privateSession) {
+      await getStructuredStorage().delete("messages", lastAssistant.id);
+    }
     const history = messages.filter(({ id }) => id !== lastAssistant.id);
     set({ messages: history, pendingToolApproval: null });
     await streamResponse(set, get, history, currentConversationId, getRuntime());
@@ -128,21 +167,35 @@ export const useChatStore = create<ChatState>((set, get) => ({
     if (!message || message.role !== "user") return;
     const toDelete = messages.slice(index + 1);
     const deleteIds = toDelete.map(({ id }) => id);
-    await db.transaction("rw", db.messages, db.attachments, async () => {
-      await db.messages.update(messageId, { content: newContent });
-      if (deleteIds.length > 0) {
-        await db.attachments.where("messageId").anyOf(deleteIds).delete();
-        await db.messages.bulkDelete(deleteIds);
-      }
-    });
+    if (!get().privateSession) {
+      const storage = getStructuredStorage();
+      const attachments = await storage.readAll<AttachmentRecord>("attachments");
+      const deleteIdSet = new Set(deleteIds);
+      await storage.apply([
+        {
+          type: "write",
+          entity: "messages",
+          id: messageId,
+          data: { ...message, content: newContent },
+        },
+        ...attachments
+          .filter(({ messageId: attachmentMessageId }) => deleteIdSet.has(attachmentMessageId))
+          .map(({ id }) => ({ type: "delete" as const, entity: "attachments" as const, id })),
+        ...deleteIds.map((id) => ({ type: "delete" as const, entity: "messages" as const, id })),
+      ]);
+    }
     const updated = messages.slice(0, index + 1);
     updated[index] = { ...message, content: newContent };
     set({ messages: updated, pendingToolApproval: null });
     await streamResponse(set, get, updated, currentConversationId, getRuntime());
   },
-  stopGeneration: stopActiveStream,
+  stopGeneration: () => {
+    stopActiveStream();
+    void getRuntime().storage?.cancelActiveCommands();
+  },
   branchConversation: async (messageId) => {
-    const { currentConversationId, messages, conversations, isStreaming } = get();
+    const { currentConversationId, messages, conversations, isStreaming, privateSession } = get();
+    if (privateSession) throw new Error("Cannot branch a private session");
     if (!currentConversationId || isStreaming) throw new Error("Cannot branch now");
     const conversation = conversations.find((c) => c.id === currentConversationId);
     if (!conversation) throw new Error("Conversation not found");

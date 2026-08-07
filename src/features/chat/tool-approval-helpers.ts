@@ -1,10 +1,10 @@
 import i18n from "../../i18n/config";
 import type { StoreApi } from "zustand";
-import {
-  db,
-  type MessageRecord,
-  type ProviderRecord,
-  type ToolResultRecord,
+import type {
+  ConversationRecord,
+  MessageRecord,
+  ProviderRecord,
+  ToolResultRecord,
 } from "../../core/storage/db";
 import type { EvirRuntime } from "../../runtime/types";
 import { getRuntime } from "../../runtime/use-runtime";
@@ -15,6 +15,8 @@ import type { StreamResult } from "./chat-stream";
 import type { ChatState } from "./chat-store";
 import { toMessage, sorted } from "./chat-helpers";
 import type { PendingToolApproval } from "./tool-approval";
+import { getStructuredStorage } from "../../runtime/structured-storage";
+import { buildAgentRunRecord, persistAgentRun } from "./agent-run-record";
 
 export type ChatStoreSet = StoreApi<ChatState>["setState"];
 export type ChatStoreGet = StoreApi<ChatState>["getState"];
@@ -38,15 +40,24 @@ export async function persistTurn(
   turn: AgentLoopTurn,
   conversationId: string,
   streamContent?: string,
+  persist = true,
 ): Promise<MessageRecord> {
   const msg = toMessage(turn, conversationId, streamContent);
-  await db.messages.add(msg);
+  if (persist) await getStructuredStorage().write("messages", msg.id, msg);
   return msg;
 }
 
-export async function updateConversationTimestamp(conversationId: string): Promise<number> {
+export async function updateConversationTimestamp(
+  conversationId: string,
+  persist = true,
+): Promise<number> {
   const updatedAt = Date.now();
-  await db.conversations.update(conversationId, { updatedAt });
+  if (!persist) return updatedAt;
+  const storage = getStructuredStorage();
+  const conversation = await storage.read<ConversationRecord>("conversations", conversationId);
+  if (conversation) {
+    await storage.write("conversations", conversationId, { ...conversation, updatedAt });
+  }
   return updatedAt;
 }
 
@@ -88,7 +99,8 @@ export function appendResolvedMessages(
 export async function executeApproved(
   pending: PendingToolApproval,
   runtime: EvirRuntime,
-): Promise<{ messages: AgentMessage[]; msg: MessageRecord }> {
+  persist = true,
+): Promise<{ messages: AgentMessage[]; msg: MessageRecord; resolvedTurn: AgentLoopTurn }> {
   const approvedResult = await runtime.toolExecutor?.execute(
     pending.toolName,
     pending.args,
@@ -107,16 +119,18 @@ export async function executeApproved(
   const results = resolveResults(pending.turn, pending.toolCallId, replacement);
   const messages = [...pending.messages];
   appendResolvedMessages(messages, pending.turn, results);
+  const resolvedTurn: AgentLoopTurn = {
+    stream: pending.turn.stream,
+    ...(pending.turn.toolCalls ? { toolCalls: pending.turn.toolCalls } : {}),
+    toolResults: results,
+  };
   const msg = await persistTurn(
-    {
-      stream: pending.turn.stream,
-      ...(pending.turn.toolCalls ? { toolCalls: pending.turn.toolCalls } : {}),
-      toolResults: results,
-    },
+    resolvedTurn,
     pending.conversationId,
     pending.turn.stream.content,
+    persist,
   );
-  return { messages, msg };
+  return { messages, msg, resolvedTurn };
 }
 
 export function buildDenial(pending: PendingToolApproval): {
@@ -150,15 +164,23 @@ export async function finalizeApprovalFlow(
   resolvedMsg: MessageRecord,
   conversationId: string,
   pendingToolCallId: string,
+  priorTurn: AgentLoopTurn,
 ): Promise<void> {
+  const persist = !get().privateSession;
   const newTurns = loopResult.turns;
   const newMessages: MessageRecord[] = [];
   for (const turn of newTurns) {
-    newMessages.push(await persistTurn(turn, conversationId));
+    newMessages.push(await persistTurn(turn, conversationId, undefined, persist));
   }
-  const updatedAt = await updateConversationTimestamp(conversationId);
+  const updatedAt = await updateConversationTimestamp(conversationId, persist);
   const lastStream: StreamResult | undefined = loopResult.turns.at(-1)?.stream;
   const error = loopResult.maxIterationsReached ? "tools.maxIterations" : lastStream?.errorMessage;
+  const fullResult: AgentLoopResult = {
+    ...loopResult,
+    turns: [priorTurn, ...loopResult.turns],
+  };
+  const agentRunRecord = buildAgentRunRecord(fullResult, conversationId);
+  if (persist) await persistAgentRun(agentRunRecord);
   const isNotBlockedMessage = (m: MessageRecord) =>
     !(m.toolCalls?.some((tc) => tc.id === pendingToolCallId) && !m.toolResults?.length);
 
@@ -172,5 +194,6 @@ export async function finalizeApprovalFlow(
     isStreaming: false,
     streamingContent: "",
     error: error ?? null,
+    latestAgentRun: agentRunRecord,
   }));
 }

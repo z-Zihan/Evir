@@ -17,7 +17,7 @@ Web does not show Agent, Plan, local workspaces, or MCP. On Desktop, workspace c
 
 ## Personalization
 
-Use the simple form for naming, language, response style, and durable preferences. Advanced mode supports `USER.md`, `PERSONA.md`, `INSTRUCTIONS.md`, and `SOUL.md`. These documents cannot override Evir security or permission rules.
+The current form supports naming, response language, detail, style, and custom instructions. Advanced `USER.md`, `PERSONA.md`, `INSTRUCTIONS.md`, and `SOUL.md` editing is not exposed yet. Personalization cannot override Evir security or permission rules.
 
 ## Skills
 
@@ -25,7 +25,7 @@ A Skill describes how to perform a class of tasks. Enable built-in Skills, impor
 
 ## MCP (Desktop)
 
-MCP provides external tools and resources. Desktop supports local stdio and remote Streamable HTTP servers. Test the connection and inspect exposed tools before enabling a server.
+MCP is intended to provide external tools and resources. The current Desktop UI only stores local stdio and remote Streamable HTTP configuration. Saving or enabling a configuration does not mean that Evir has connected or can call tools; connection, discovery, and test-call closure are still in development.
 
 ## Permissions and network
 
@@ -33,11 +33,11 @@ File writes, commands, deletion, publishing, and external data transfer have sep
 
 ## Notifications
 
-System notifications are off by default. When enabled, Evir can notify you when long tasks finish, require approval, or fail. Sensitive previews are disabled by default.
+System notifications are not exposed in the current Settings UI and Evir does not request notification permission on first launch.
 
 ## Keyboard shortcuts
 
-Use `Cmd/Ctrl+K` for the command palette, `Cmd/Ctrl+N` for a new conversation, `Cmd/Ctrl+,` for Settings, and `Esc` to stop generation or close the top dialog. Customize shortcuts in Settings.
+Use `Cmd/Ctrl+N` for a new conversation, `Cmd/Ctrl+,` for Settings, `Cmd/Ctrl+/` for shortcut help, and `Esc` to stop generation or close the top dialog. The current list is in Settings; command palette and shortcut customization are not exposed yet.
 
 ## Tokens and usage
 
@@ -51,12 +51,12 @@ Evir stores data locally by default and keeps API keys in the OS credential stor
 
 - Correct key but Web cannot connect: check CORS or use Desktop.
 - Agent mode unavailable: verify model tool-calling support.
-- MCP connection failure: inspect command, working directory, authentication, logs, and ports.
+- MCP: this build stores configuration only; “configuration enabled” is not evidence of a live connection.
 - Interrupted response: keep the partial output, retry, and check the provider status page.
 
 ## Send feedback
 
-Use Settings → Send feedback, preview the content, and open a GitHub Issue. Never include API keys, private conversations, or sensitive file content.
+There is no in-app feedback form yet. Open the project GitHub Issues page manually and never include API keys, private conversations, or sensitive file content.
 
 ## Switching models
 
@@ -68,4 +68,4 @@ When a long conversation approaches the target model's context limit, Evir compa
 
 ## Logs and diagnostics
 
-Use Settings → Data & Privacy / About Evir to open the log folder, enable temporary verbose logging, or export a diagnostic bundle. Logs are redacted and local by default. Preview the bundle before attaching it to a GitHub Issue.
+Settings → Diagnostics shows redacted in-memory events for the current session and can export JSON. File-backed logs, a log-folder action, temporary verbose mode, and an offline diagnostic ZIP are not implemented yet.

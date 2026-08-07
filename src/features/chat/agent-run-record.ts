@@ -1,0 +1,124 @@
+import type { ToolCallRecord, ToolResultRecord } from "../../core/storage/db";
+import { taskResolver, type VerificationEvidence } from "../../core/tools/verification-evidence";
+import type { SnapshotResult } from "../../runtime/desktop-storage-adapter";
+import type { EvirRuntime } from "../../runtime/types";
+import type { VerificationResult } from "../../core/tools/verification";
+import type { FileContextReference } from "../../core/context/types";
+import { getStructuredStorage } from "../../runtime/structured-storage";
+import type { AgentLoopResult } from "./agent-loop";
+
+export type AgentRunStatus =
+  "awaiting_approval" | "completed" | "needs_verification" | "failed" | "cancelled" | "rolled_back";
+
+export interface AgentRunRecord {
+  id: string;
+  conversationId: string;
+  status: AgentRunStatus;
+  toolCalls: ToolCallRecord[];
+  toolResults: ToolResultRecord[];
+  snapshots: SnapshotResult[];
+  fileReferences: FileContextReference[];
+  verificationEvidence: VerificationEvidence[];
+  resolution: { complete: boolean; reason: string };
+  maxIterationsReached: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export function buildAgentRunRecord(
+  result: AgentLoopResult,
+  conversationId: string,
+): AgentRunRecord {
+  const toolCalls = result.turns.flatMap((turn) => turn.toolCalls ?? []);
+  const toolResults = result.turns.flatMap((turn) => turn.toolResults ?? []);
+  const verificationEvidence = taskResolver.collectEvidence(toolResults);
+  const lastTurn = result.turns.at(-1);
+  const awaitingApproval = result.turns.some((turn) => turn.pendingApproval);
+  const modelClaimsComplete =
+    !awaitingApproval &&
+    !result.maxIterationsReached &&
+    lastTurn?.stream.status === "complete" &&
+    !lastTurn.stream.toolCalls?.length;
+  const resolution = taskResolver.resolveTask(verificationEvidence, modelClaimsComplete);
+  const hasFailure = toolResults.some(({ success }) => !success);
+  const status: AgentRunStatus = awaitingApproval
+    ? "awaiting_approval"
+    : lastTurn?.stream.status === "stopped"
+      ? "cancelled"
+      : hasFailure || lastTurn?.stream.status === "error" || result.maxIterationsReached
+        ? "failed"
+        : resolution.complete
+          ? "completed"
+          : "needs_verification";
+  const now = Date.now();
+  return {
+    id: result.agentRun.id,
+    conversationId,
+    status,
+    toolCalls,
+    toolResults,
+    snapshots: [...result.agentRun.snapshots],
+    fileReferences: [...result.agentRun.fileReferences],
+    verificationEvidence,
+    resolution,
+    maxIterationsReached: result.maxIterationsReached,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+export async function persistAgentRun(record: AgentRunRecord): Promise<void> {
+  await getStructuredStorage().apply([
+    { type: "write", entity: "agent_runs", id: record.id, data: record },
+    ...record.toolCalls.map((call, index) => ({
+      type: "write" as const,
+      entity: "tool_executions" as const,
+      id: `${record.id}:${call.id}`,
+      data: {
+        id: `${record.id}:${call.id}`,
+        runId: record.id,
+        conversationId: record.conversationId,
+        toolCall: call,
+        result: record.toolResults[index] ?? null,
+        createdAt: record.updatedAt,
+      },
+    })),
+  ]);
+}
+
+export async function rollbackAgentRun(
+  record: AgentRunRecord,
+  runtime: EvirRuntime,
+  persist = true,
+): Promise<AgentRunRecord> {
+  if (!runtime.storage) throw new Error("Desktop storage is unavailable");
+  for (const snapshot of [...record.snapshots].reverse()) {
+    await runtime.storage.restoreSnapshot(snapshot.snapshot_id, record.id, snapshot.file_path);
+  }
+  const rolledBack = { ...record, status: "rolled_back" as const, updatedAt: Date.now() };
+  if (persist) await getStructuredStorage().write("agent_runs", rolledBack.id, rolledBack);
+  return rolledBack;
+}
+
+export function applyAutomaticVerification(
+  record: AgentRunRecord,
+  verification: VerificationResult,
+): AgentRunRecord {
+  if (verification.status === "skipped" || verification.status === "cancelled") return record;
+  const evidence: VerificationEvidence = {
+    type: "command_result",
+    toolName: "run_command",
+    success: verification.status === "passed",
+    summary: `automatic: ${verification.command}: ${verification.status}${verification.exitCode === null ? "" : ` (exit ${verification.exitCode})`}`,
+    timestamp: Date.now(),
+  };
+  const verificationEvidence = [...record.verificationEvidence, evidence];
+  const resolution = taskResolver.resolveTask(verificationEvidence, true);
+  return {
+    ...record,
+    verificationEvidence,
+    resolution,
+    status: resolution.complete ? "completed" : "failed",
+    updatedAt: Date.now(),
+  };
+}

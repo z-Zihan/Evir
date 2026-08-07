@@ -65,14 +65,28 @@ export function buildCompressedHistory(
   summary: string,
   recentMessages: MessageRecord[],
   conversationId: string,
+  sourceMessages: MessageRecord[] = [],
 ): MessageRecord[] {
+  const id = `summary-${crypto.randomUUID()}`;
+  const archiveId = `summary-source:${id}`;
   const summaryMessage: MessageRecord = {
-    id: `summary-${crypto.randomUUID()}`,
+    id,
     conversationId,
     role: "system",
     content: `[Previous conversation summary]\n${summary}`,
     status: "complete",
     createdAt: recentMessages[0]?.createdAt ?? Date.now(),
+    ...(sourceMessages.length > 0
+      ? {
+          summaryMetadata: {
+            version: 1 as const,
+            sourceMessageIds: sourceMessages.map(({ id: sourceId }) => sourceId),
+            sourceStartedAt: sourceMessages[0]?.createdAt ?? Date.now(),
+            sourceEndedAt: sourceMessages.at(-1)?.createdAt ?? Date.now(),
+            archiveId,
+          },
+        }
+      : {}),
   };
 
   return [summaryMessage, ...recentMessages];

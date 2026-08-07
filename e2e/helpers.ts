@@ -28,6 +28,11 @@ export const fixtureProvider = {
   baseUrl: "http://127.0.0.1:1430/v1",
   apiKey: "fixture-key-not-secret",
   modelId: "evir-fixture-model",
+  modelCapabilities: {
+    toolCalling: true,
+    source: "probe",
+    verifiedAt: FIXED_NOW,
+  },
   enabled: true,
   isDefault: true,
   createdAt: FIXED_NOW,
@@ -148,33 +153,46 @@ const calls = [
   ["apply_patch", { path: "/workspace/src/app.tsx", patch: "fixture patch" }],
   ["run_command", { program: "pnpm", args: ["test"] }],
   ["git_diff", { path: "/workspace" }],
+  ["read_file", { path: "/workspace/src/chat.tsx" }],
+  ["read_file", { path: "/workspace/src/agent.ts" }],
+  ["search_files", { path: "/workspace", query: "permission" }],
+  ["apply_patch", { path: "/workspace/src/chat.tsx", patch: "second fixture patch" }],
+  ["run_command", { program: "pnpm", args: ["typecheck"] }],
+  ["git_status", { path: "/workspace" }],
 ] as const;
 
-export function agentMessages(state: "complete" | "approval" | "failed" = "complete") {
+export function agentMessages(
+  state: "complete" | "approval" | "failed" | "cancelled" = "complete",
+) {
   const toolCalls = calls.map(([toolName, argumentsValue], index) => ({
     id: `tool-${index + 1}`,
     toolName,
     arguments: argumentsValue,
   }));
-  const toolResults = toolCalls.map((call, index) => {
+  const toolResults = toolCalls.flatMap((call, index) => {
+    if (state === "cancelled" && index >= 4) return [];
     const base = { toolCallId: call.id, toolName: call.toolName };
     if (state === "approval" && index === 3) {
-      return {
-        ...base,
-        success: false,
-        error: "permission_required",
-        output: "Approval required",
-      };
+      return [
+        {
+          ...base,
+          success: false,
+          error: "permission_required",
+          output: "Approval required",
+        },
+      ];
     }
     if (state === "failed" && index === 4) {
-      return {
-        ...base,
-        success: false,
-        error: "command_failed",
-        output: "Tests failed with exit code 1",
-      };
+      return [
+        {
+          ...base,
+          success: false,
+          error: "command_failed",
+          output: "Tests failed with exit code 1",
+        },
+      ];
     }
-    return { ...base, success: true, output: "Fixture step passed" };
+    return [{ ...base, success: true, output: "Fixture step passed" }];
   });
   return [
     conversationMessages()[0],
@@ -185,8 +203,15 @@ export function agentMessages(state: "complete" | "approval" | "failed" = "compl
       content:
         state === "failed"
           ? "The verification command failed. The completed steps are preserved below."
-          : "I inspected the workspace and grouped the execution evidence below.",
-      status: state === "failed" ? ("error" as const) : ("complete" as const),
+          : state === "cancelled"
+            ? "The run was stopped. Completed steps are preserved and remaining steps were not executed."
+            : "I inspected the workspace and grouped the execution evidence below.",
+      status:
+        state === "failed"
+          ? ("error" as const)
+          : state === "cancelled"
+            ? ("stopped" as const)
+            : ("complete" as const),
       ...(state === "failed" ? { errorMessage: "Fixture verification failed" } : {}),
       createdAt: FIXED_NOW + 60_000,
       toolCalls,

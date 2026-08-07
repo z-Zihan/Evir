@@ -1,4 +1,7 @@
 {
+  "common": {
+    "loading": "Loading"
+  },
   "sidebar": {
     "newChat": "New chat",
     "localAi": "Local AI",
@@ -87,6 +90,10 @@
     "pinFailed": "Failed to pin conversation",
     "modelSwitchBlocked": "Model switch blocked: {{reason}}",
     "modelSwitchFailed": "Model switch failed",
+    "modelSwitchConfirmTitle": "Switch models safely?",
+    "modelSwitchConfirm": "Switch model",
+    "modelSwitchDataDestination": "Future conversation data will be sent to {{provider}}.",
+    "modelSwitchDowngrade": "The target model does not support tool calling, so this conversation will continue in Ask mode.",
     "copyMessage": "Copy",
     "you": "You",
     "localUser": "Me",
@@ -94,7 +101,8 @@
     "preparingResponse": "Preparing response",
     "tokenCount": "{{count}} tokens",
     "retry": "Retry",
-    "privateSession": "Private Session"
+    "privateSession": "Private Session",
+    "agentRequiresToolCalling": "This model is not marked as supporting Tool Calling. Switch to Ask or update the model capability in Provider settings."
   },
   "runtime": {
     "agentReady": "Local agent runtime",
@@ -226,6 +234,10 @@
     "baseUrl": "Base URL",
     "apiKey": "API Key",
     "modelId": "Model",
+    "toolCalling": "Supports Tool Calling",
+    "toolCallingDescription": "Enable only when this exact model supports native function or tool calls. Agent mode depends on this capability.",
+    "maxContextTokens": "Context window",
+    "maxContextTokensDescription": "Optional model-specific token limit used for safe context budgeting.",
     "fetchModels": "Fetch models",
     "fetchingModels": "Fetching…",
     "fetchModelsFailed": "Unable to fetch models. Enter a model ID manually.",
@@ -239,8 +251,8 @@
     "noProviders": "No providers configured",
     "addDescription": "Connect the model service you use. Evir requires no account and does not proxy requests through its own servers.",
     "addFirst": "Add a provider to start chatting",
-    "configured": "Connected providers",
-    "configuredDescription": "The default connection is used for new conversations",
+    "configured": "Configured providers",
+    "configuredDescription": "The default configuration is used for new conversations",
     "presets": "Provider presets",
     "presetsDescription": "Choose a preset to fill the protocol and API endpoint",
     "searchPresets": "Search providers",
@@ -284,14 +296,15 @@
     "skills": "Skills give the model task methods and are never required for first use.",
     "skillsEmpty": "Import a local file or create a Skill containing explicit instructions.",
     "toolConnections": "Tool connections",
-    "mcp": "Connect local or remote MCP servers. New servers remain disabled and tools require authorization.",
-    "mcpEmpty": "Add a server, inspect its transport and capabilities, then choose whether to enable it.",
+    "mcp": "Store local or remote MCP server configuration. Connection and tool discovery are not yet verified in this build.",
+    "mcpEmpty": "Add a server configuration. Saving or enabling it does not mean that Evir has connected.",
     "responsePreferences": "Response preferences",
     "personalization": "Set your display name, response language, and writing style. Safety rules cannot be overridden.",
     "localDiagnostics": "Local diagnostics",
     "diagnostics": "Inspect redacted local runtime events and export them only when you choose.",
     "modelConnections": "Model connections",
-    "providerCount": "{{count}} connections",
+    "providerCount_one": "{{count}} configuration",
+    "providerCount_other": "{{count}} configurations",
     "localData": "Local data",
     "privacy": "Control private sessions and local data deletion. Evir never uploads this content silently."
   },
@@ -432,6 +445,7 @@
   "skill": {
     "title": "Skills",
     "enabled": "Enabled",
+    "configurationEnabled": "Configuration enabled",
     "disabled": "Disabled",
     "enable": "Enable",
     "disable": "Disable",
@@ -487,6 +501,8 @@
     "noServers": "No MCP servers configured",
     "desktopOnly": "stdio transport requires Desktop mode",
     "securityNotice": "New servers are disabled by default. Tools require per-item authorization.",
+    "configurationOnlyNotice": "Configuration only: this build does not claim a live connection or callable tools until a connection test succeeds.",
+    "connectionNotVerified": "Connection not verified",
     "save": "Save",
     "cancel": "Cancel",
     "edit": "Edit server",
@@ -537,6 +553,16 @@
     "clear": "Clear workspace",
     "recent": "Recent"
   },
+  "startup": {
+    "failed": "Local data could not be initialized",
+    "retry": "Retry"
+  },
+  "recovery": {
+    "title": "An interrupted task was found",
+    "description": "Resume from its saved conversation state. Evir will not replay tools automatically.",
+    "dismiss": "Dismiss",
+    "resume": "Resume safely"
+  },
   "agent": {
     "runSummary": "Agent Run Summary",
     "evidence": "Execution evidence",
@@ -551,7 +577,10 @@
     "none": "None",
     "processing": "Processing",
     "completed": "Completed",
-    "completedWithErrors": "Completed with errors"
+    "completedWithErrors": "Completed with errors",
+    "rollback": "Roll back changes",
+    "rollbackTitle": "Roll back this Agent run?",
+    "rollbackDescription": "Restore {{count}} changed file(s) to their pre-run state. Changes made after the run will be protected."
   },
   "memory": {
     "title": "Memory",

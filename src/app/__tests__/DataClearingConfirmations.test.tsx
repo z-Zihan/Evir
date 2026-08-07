@@ -34,6 +34,7 @@ vi.mock("../../core/logging/logger", () => ({
     getEntries: vi.fn(() => []),
     exportLogs: vi.fn(() => "[]"),
     clear: clearLogs,
+    subscribe: vi.fn(() => () => undefined),
   },
 }));
 

@@ -11,8 +11,8 @@ import {
   MessageSquareText,
   Trash2,
 } from "lucide-react";
-import { db } from "../core/storage/db";
 import { useUsageStore } from "../features/usage/usage-store";
+import { getStructuredStorage } from "../runtime/structured-storage";
 import {
   buildUsageAnalytics,
   buildUsageSeries,
@@ -135,7 +135,7 @@ export function UsagePanel() {
   const clearRecords = async () => {
     setIsClearing(true);
     try {
-      await db.usage_records.clear();
+      await getStructuredStorage().clear("usage_records");
       await loadRecords();
     } finally {
       setIsClearing(false);

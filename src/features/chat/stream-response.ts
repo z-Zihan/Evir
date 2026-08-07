@@ -1,10 +1,11 @@
 import i18n from "../../i18n/config";
 import type { StoreApi } from "zustand";
-import {
-  db,
-  type MessageRecord,
-  type ProviderRecord,
-  type ToolResultRecord,
+import type {
+  AttachmentRecord,
+  ConversationRecord,
+  MessageRecord,
+  ProviderRecord,
+  ToolResultRecord,
 } from "../../core/storage/db";
 import { useProviderStore } from "../provider/provider-store";
 import { formatAttachmentForProvider } from "./attachment-utils";
@@ -26,6 +27,15 @@ import {
 import { useMemoryStore } from "../memory/memory-store";
 import { createCheckpoint } from "../../core/context/checkpoint";
 import { estimateMessagesTokens } from "../../core/context/token-estimate";
+import { getStructuredStorage } from "../../runtime/structured-storage";
+import { buildAgentRunRecord, persistAgentRun, type AgentRunRecord } from "./agent-run-record";
+import { buildRunCapsule, serializeCapsule } from "../../core/context/run-capsule";
+import { contextBuilder } from "../../core/context/context-builder";
+import type { FileContextReference } from "../../core/context/types";
+import {
+  buildPersonalizationPrompt,
+  loadPersonalizationPreferences,
+} from "../settings/personalization-settings";
 
 const budgetManagerInstance = createContextBudgetManager();
 const MAX_SUMMARIZATION_ROUNDS = 2;
@@ -100,7 +110,12 @@ async function getLoopResult(
     });
   }
   const stream = await streamAssistant(provider, conversationId, messages, onDelta);
-  return { turns: [{ stream }], maxIterationsReached: false, messages: [] };
+  return {
+    turns: [{ stream }],
+    maxIterationsReached: false,
+    messages: [],
+    agentRun: { id: crypto.randomUUID(), snapshots: [], fileReferences: [] },
+  };
 }
 
 function titleFor(history: MessageRecord[], hasTitle: boolean): string | undefined {
@@ -114,28 +129,96 @@ async function persistResponse(
   title?: string,
 ): Promise<number> {
   const updatedAt = Date.now();
-  await db.transaction("rw", db.messages, db.conversations, async () => {
-    await db.messages.bulkAdd(messages);
-    await db.conversations.update(conversationId, {
-      updatedAt,
-      ...(title ? { title } : {}),
-    });
-  });
+  const storage = getStructuredStorage();
+  const conversation = await storage.read<ConversationRecord>("conversations", conversationId);
+  await storage.apply([
+    ...messages.map((message) => ({
+      type: "write" as const,
+      entity: "messages" as const,
+      id: message.id,
+      data: message,
+    })),
+    ...(conversation
+      ? [
+          {
+            type: "write" as const,
+            entity: "conversations" as const,
+            id: conversationId,
+            data: { ...conversation, updatedAt, ...(title ? { title } : {}) },
+          },
+        ]
+      : []),
+  ]);
   return updatedAt;
 }
 
 async function persistSummarization(
   toSummarize: MessageRecord[],
+  sourceMessages: MessageRecord[],
   summaryMessage: MessageRecord,
 ): Promise<void> {
   const idsToDelete = toSummarize.map((message) => message.id);
-  await db.transaction("rw", db.messages, db.attachments, async () => {
-    if (idsToDelete.length > 0) {
-      await db.attachments.where("messageId").anyOf(idsToDelete).delete();
-      await db.messages.bulkDelete(idsToDelete);
+  const storage = getStructuredStorage();
+  const attachments = await storage.readAll<AttachmentRecord>("attachments");
+  const messageIds = new Set(idsToDelete);
+  const archivedAttachments = attachments.filter(({ messageId }) => messageIds.has(messageId));
+  const archiveId = summaryMessage.summaryMetadata?.archiveId;
+  await storage.apply([
+    ...(archiveId
+      ? [
+          {
+            type: "write" as const,
+            entity: "artifacts" as const,
+            id: archiveId,
+            data: {
+              id: archiveId,
+              type: "conversation-summary-source",
+              relatedEntityId: summaryMessage.conversationId,
+              messages: sourceMessages,
+              attachments: archivedAttachments,
+              createdAt: Date.now(),
+            },
+          },
+        ]
+      : []),
+    ...archivedAttachments.map(({ id }) => ({
+      type: "delete" as const,
+      entity: "attachments" as const,
+      id,
+    })),
+    ...idsToDelete.map((id) => ({ type: "delete" as const, entity: "messages" as const, id })),
+    { type: "write", entity: "messages", id: summaryMessage.id, data: summaryMessage },
+  ]);
+}
+
+async function expandSummarySources(messages: MessageRecord[]): Promise<MessageRecord[]> {
+  const expanded: MessageRecord[] = [];
+  for (const message of messages) {
+    const archiveId = message.summaryMetadata?.archiveId;
+    if (!archiveId) {
+      expanded.push(message);
+      continue;
     }
-    await db.messages.add(summaryMessage);
-  });
+    const archive = await getStructuredStorage().read<{ messages?: MessageRecord[] }>(
+      "artifacts",
+      archiveId,
+    );
+    expanded.push(...(archive?.messages?.length ? archive.messages : [message]));
+  }
+  return expanded;
+}
+
+async function latestFileReferences(
+  conversationId: string,
+  privateRun: AgentRunRecord | null,
+): Promise<FileContextReference[]> {
+  if (privateRun?.conversationId === conversationId) return privateRun.fileReferences;
+  const runs = await getStructuredStorage().readAll<AgentRunRecord>("agent_runs");
+  return (
+    runs
+      .filter((run) => run.conversationId === conversationId)
+      .sort((a, b) => b.updatedAt - a.updatedAt)[0]?.fileReferences ?? []
+  );
 }
 
 async function summarizeAndPersist(
@@ -158,9 +241,10 @@ async function summarizeAndPersist(
         "[evir] context-summary",
         `round ${round + 1}: summarizing ${toSummarize.length} messages`,
       );
-      const summary = await summarizeConversation(provider, toSummarize);
-      const compressed = buildCompressedHistory(summary, toKeep, conversationId);
-      await persistSummarization(toSummarize, compressed[0]!);
+      const sourceMessages = await expandSummarySources(toSummarize);
+      const summary = await summarizeConversation(provider, sourceMessages);
+      const compressed = buildCompressedHistory(summary, toKeep, conversationId, sourceMessages);
+      await persistSummarization(toSummarize, sourceMessages, compressed[0]!);
       current = compressed;
       console.debug(
         "[evir] context-summary",
@@ -193,18 +277,22 @@ export async function streamResponse(
   if (readinessError) return set({ error: readinessError });
 
   set({ isStreaming: true, streamingContent: "", error: null });
-  const mode = get().mode;
+  // Web never exposes local execution modes. Enforce that boundary in the
+  // application layer as well as the UI so a stale/default Agent state cannot
+  // leave browser users in an unavailable mode with no way to switch back.
+  const mode = runtime.target === "web" ? "ask" : get().mode;
+  if (mode === "agent" && provider.modelCapabilities?.toolCalling !== true) {
+    set({ isStreaming: false, streamingContent: "", error: "chat.agentRequiresToolCalling" });
+    return;
+  }
 
   // Context budget: estimate tokens and compact tool outputs if needed
-  // TODO: lookup maxContextTokens from ModelProfile.capabilities when available
   const DEFAULT_MAX_CONTEXT_TOKENS = 128_000;
+  const maxContextTokens =
+    provider.modelCapabilities?.maxContextTokens ?? DEFAULT_MAX_CONTEXT_TOKENS;
   const budgetManager = budgetManagerInstance;
   const inputTokens = estimateMessagesTokens(history);
-  const snapshot = budgetManager.snapshot(
-    provider.modelId,
-    DEFAULT_MAX_CONTEXT_TOKENS,
-    inputTokens,
-  );
+  const snapshot = budgetManager.snapshot(provider.modelId, maxContextTokens, inputTokens);
 
   let effectiveHistory = history;
   if (budgetManager.shouldCompact(snapshot)) {
@@ -218,19 +306,16 @@ export async function streamResponse(
         snapshot.compressionStage === "checkpoint-compaction") &&
       effectiveHistory.length > 6
     ) {
-      effectiveHistory = await summarizeAndPersist(
-        provider,
-        conversationId,
-        effectiveHistory,
-        DEFAULT_MAX_CONTEXT_TOKENS,
-      );
+      effectiveHistory = get().privateSession
+        ? effectiveHistory
+        : await summarizeAndPersist(provider, conversationId, effectiveHistory, maxContextTokens);
       if (get().currentConversationId === conversationId) {
         set({ messages: effectiveHistory });
       }
     }
 
     // Create checkpoint when utilization > 90%
-    if (snapshot.compressionStage === "checkpoint-compaction") {
+    if (snapshot.compressionStage === "checkpoint-compaction" && !get().privateSession) {
       try {
         const objective =
           history.find((m) => m.role === "user")?.content.slice(0, 200) ?? "Unknown objective";
@@ -251,15 +336,12 @@ export async function streamResponse(
 
   const messages = providerMessages(effectiveHistory, provider.protocolId);
 
-  const systemParts: string[] = [];
   const hint = modeHint(mode);
-  if (hint) systemParts.push(hint);
+  let activeSkills = "";
+  let skillRouting = "";
   if (mode === "agent" || mode === "plan") {
     const skillStore = useSkillStore.getState();
-    const skillContent = await skillStore.getEnabledContent();
-    if (skillContent) {
-      systemParts.push(`<active_skills>\n${skillContent}\n</active_skills>`);
-    }
+    activeSkills = await skillStore.getEnabledContent();
     // Auto-route skills based on user input
     const lastUserMessage = [...history].reverse().find((m) => m.role === "user");
     if (lastUserMessage) {
@@ -275,7 +357,7 @@ export async function streamResponse(
             return `- ${s.manifest.name}: ${reasons.join(", ")}`;
           })
           .join("\n");
-        systemParts.push(`<skill_routing>\nMatched skills:\n${routeInfo}\n</skill_routing>`);
+        skillRouting = `Matched skills:\n${routeInfo}`;
       }
     }
   }
@@ -283,13 +365,22 @@ export async function streamResponse(
   const memoryContext = get().privateSession
     ? ""
     : useMemoryStore.getState().buildMemoryContext(conversationId);
-  if (memoryContext) {
-    systemParts.push(`<memory>\n${memoryContext}\n</memory>`);
-  }
-
-  if (systemParts.length > 0) {
-    messages.unshift({ role: "system", content: systemParts.join("\n\n") });
-  }
+  const fileReferences = await latestFileReferences(conversationId, get().latestAgentRun);
+  const personalization = get().privateSession
+    ? ""
+    : buildPersonalizationPrompt(await loadPersonalizationPreferences());
+  const { systemPrompt } = contextBuilder.buildSystemPrompt({
+    modeRules: hint,
+    ...(mode === "agent" || mode === "plan"
+      ? { runCapsule: serializeCapsule(buildRunCapsule(effectiveHistory)) }
+      : {}),
+    activeSkills,
+    skillRouting,
+    memory: memoryContext,
+    fileReferences,
+    personalization,
+  });
+  if (systemPrompt) messages.unshift({ role: "system", content: systemPrompt });
 
   const result = await getLoopResult(provider, conversationId, messages, set, mode, runtime);
   if (result.turns.length === 0) {
@@ -306,7 +397,7 @@ export async function streamResponse(
     if (earlierMessages.length > 0) {
       const conversation = get().conversations.find(({ id }) => id === conversationId);
       const title = titleFor(history, Boolean(conversation?.title));
-      await persistResponse(earlierMessages, conversationId, title);
+      if (!get().privateSession) await persistResponse(earlierMessages, conversationId, title);
     }
 
     const blockedMessage = toMessage(lastTurn, conversationId);
@@ -318,7 +409,10 @@ export async function streamResponse(
       messages: result.messages,
       providerId: provider.id,
       turn: lastTurn,
+      agentRun: result.agentRun,
     };
+    const agentRunRecord = buildAgentRunRecord(result, conversationId);
+    if (!get().privateSession) await persistAgentRun(agentRunRecord);
 
     set(({ conversations, currentConversationId, messages: currentMessages }) => ({
       conversations: sorted(
@@ -332,6 +426,7 @@ export async function streamResponse(
       isStreaming: false,
       streamingContent: "",
       pendingToolApproval: pendingApproval,
+      latestAgentRun: agentRunRecord,
     }));
     return;
   }
@@ -339,9 +434,13 @@ export async function streamResponse(
   const assistants = result.turns.map((turn) => toMessage(turn, conversationId));
   const conversation = get().conversations.find(({ id }) => id === conversationId);
   const title = titleFor(history, Boolean(conversation?.title));
-  const updatedAt = await persistResponse(assistants, conversationId, title);
+  const updatedAt = get().privateSession
+    ? Date.now()
+    : await persistResponse(assistants, conversationId, title);
   const lastStream: StreamResult | undefined = result.turns.at(-1)?.stream;
   const error = result.maxIterationsReached ? "tools.maxIterations" : lastStream?.errorMessage;
+  const agentRunRecord = mode === "agent" ? buildAgentRunRecord(result, conversationId) : null;
+  if (agentRunRecord && !get().privateSession) await persistAgentRun(agentRunRecord);
 
   set(({ conversations, currentConversationId, messages: currentMessages }) => ({
     conversations: sorted(
@@ -355,5 +454,6 @@ export async function streamResponse(
     isStreaming: false,
     streamingContent: "",
     error: error ?? null,
+    latestAgentRun: agentRunRecord,
   }));
 }

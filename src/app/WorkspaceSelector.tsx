@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { FolderOpen, X } from "lucide-react";
 import { useWorkspaceStore } from "../features/workspace/workspace-store";
+import { getRuntime } from "../runtime/use-runtime";
 import { useConfirmationDialog } from "./useConfirmationDialog";
 
 export function WorkspaceSelector() {
@@ -16,9 +17,8 @@ export function WorkspaceSelector() {
 
   async function handleSelect() {
     try {
-      const { open } = await import("@tauri-apps/plugin-dialog");
-      const selected = await open({ directory: true, multiple: false });
-      if (typeof selected === "string") setWorkspace(selected);
+      const selected = await getRuntime().selectWorkspaceDirectory?.();
+      if (selected) setWorkspace(selected);
     } catch {
       // Not in desktop mode or dialog cancelled
     }
@@ -60,6 +60,7 @@ export function WorkspaceSelector() {
             )
           }
           aria-label={t("workspace.clear")}
+          title={t("workspace.clear")}
         >
           <X size={14} />
         </button>

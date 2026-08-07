@@ -1,5 +1,6 @@
-import { db } from "../storage/db";
+import type { ConversationRecord, MessageRecord, SettingRecord } from "../storage/db";
 import type { Checkpoint } from "./checkpoint";
+import { getStructuredStorage } from "../../runtime/structured-storage";
 
 export interface UnfinishedRun {
   conversationId: string;
@@ -12,7 +13,8 @@ export interface UnfinishedRun {
  * Returns runs that were interrupted and may need recovery.
  */
 export async function findUnfinishedRuns(): Promise<UnfinishedRun[]> {
-  const settings = await db.settings.toArray();
+  const storage = getStructuredStorage();
+  const settings = await storage.readAll<SettingRecord>("settings");
   const now = Date.now();
   const runs: UnfinishedRun[] = [];
 
@@ -22,20 +24,21 @@ export async function findUnfinishedRuns(): Promise<UnfinishedRun[]> {
     if (!cp?.id || !cp?.conversationId) continue;
 
     // Check if the conversation still exists
-    const conv = await db.conversations.get(cp.conversationId);
+    const conv = await storage.read<ConversationRecord>("conversations", cp.conversationId);
     if (!conv) continue;
 
     // Check if there are messages after the checkpoint
-    const messages = await db.messages
-      .where("conversationId")
-      .equals(cp.conversationId)
-      .sortBy("createdAt");
+    const messages = await storage.query<MessageRecord>("messages", {
+      conversationId: cp.conversationId,
+    });
+    messages.sort((a, b) => a.createdAt - b.createdAt);
 
     const lastMessage = messages[messages.length - 1];
     const hasNewMessages = lastMessage && lastMessage.createdAt > cp.createdAt;
 
-    // If no new messages after checkpoint, it was likely interrupted
-    if (!hasNewMessages && cp.unresolvedErrors.length > 0) {
+    // No message after the checkpoint means the run stopped before reaching a safe completion
+    // boundary. Recovery only restores the conversation state; it never replays tools.
+    if (!hasNewMessages) {
       runs.push({
         conversationId: cp.conversationId,
         checkpoint: cp,
@@ -53,5 +56,5 @@ export async function findUnfinishedRuns(): Promise<UnfinishedRun[]> {
  * Clear a checkpoint after successful recovery or user dismissal.
  */
 export async function clearCheckpoint(conversationId: string): Promise<void> {
-  await db.settings.delete(`checkpoint:${conversationId}`);
+  await getStructuredStorage().delete("settings", `checkpoint:${conversationId}`);
 }

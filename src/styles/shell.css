@@ -13,6 +13,65 @@
   grid-template-columns: 252px minmax(0, 1fr);
 }
 
+.startup-notice {
+  position: fixed;
+  z-index: 80;
+  top: 14px;
+  left: 50%;
+  display: flex;
+  width: min(620px, calc(100vw - 28px));
+  min-height: 58px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 12px 10px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 12px 36px color-mix(in srgb, black 14%, transparent);
+  transform: translateX(-50%);
+}
+
+.startup-notice > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.startup-notice strong {
+  font-size: 12px;
+}
+
+.startup-notice span {
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+}
+
+.startup-notice.error {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+}
+
+.startup-notice-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 7px;
+}
+
+@media (max-width: 640px) {
+  .startup-notice {
+    top: auto;
+    bottom: 12px;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .startup-notice-actions {
+    justify-content: flex-end;
+  }
+}
+
 .main-area {
   min-height: 0;
   height: 100dvh;
@@ -2841,6 +2900,9 @@
 .agent-activity-failed .activity-state-icon {
   color: var(--danger);
 }
+.agent-activity-cancelled .activity-state-icon {
+  color: var(--muted-foreground);
+}
 .agent-activity-complete .activity-state-icon {
   color: var(--success);
 }
@@ -3035,6 +3097,10 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface);
+}
+
+.message-list > .agent-run-summary:last-child {
+  margin-bottom: 18px;
 }
 
 .summary-header {

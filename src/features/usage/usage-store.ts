@@ -1,6 +1,7 @@
 import { create } from "zustand";
 // NOTE: Uses Dexie directly for indexed queries; StoragePort covers basic CRUD
-import { db, type UsageRecord } from "../../core/storage/db";
+import type { UsageRecord } from "../../core/storage/db";
+import { getStructuredStorage } from "../../runtime/structured-storage";
 
 interface UsageState {
   records: UsageRecord[];
@@ -12,11 +13,12 @@ interface UsageState {
 export const useUsageStore = create<UsageState>((set, get) => ({
   records: [],
   loadRecords: async () => {
-    const records = await db.usage_records.orderBy("createdAt").reverse().toArray();
+    const records = await getStructuredStorage().readAll<UsageRecord>("usage_records");
+    records.sort((a, b) => b.createdAt - a.createdAt);
     set({ records });
   },
   addRecord: async (record) => {
-    await db.usage_records.put(record);
+    await getStructuredStorage().write("usage_records", record.id, record);
     set(({ records }) => ({ records: [record, ...records.filter(({ id }) => id !== record.id)] }));
   },
   getTotalTokens: () =>

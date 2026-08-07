@@ -2,7 +2,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { desktopStorage } from "../desktop-storage-adapter";
+import { DesktopStructuredStorageAdapter, desktopStorage } from "../desktop-storage-adapter";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
@@ -95,5 +95,120 @@ describe("DesktopStorageAdapter", () => {
       path: "/tmp/test.txt",
       workspaceRoot: "/tmp",
     });
+  });
+
+  it("seals a snapshot after a file mutation", async () => {
+    vi.mocked(invoke).mockResolvedValue(undefined);
+
+    await desktopStorage.sealSnapshot("snapshot-1", "run-1", "/tmp/test.txt");
+
+    expect(invoke).toHaveBeenCalledWith("fs_seal_snapshot", {
+      snapshotId: "snapshot-1",
+      runId: "run-1",
+      filePath: "/tmp/test.txt",
+      workspaceRoot: "/tmp",
+    });
+  });
+
+  it("cancels an active native command by its generated command id", async () => {
+    let finishCommand: ((value: unknown) => void) | undefined;
+    vi.mocked(invoke)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishCommand = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(true);
+
+    const command = desktopStorage.runCommand("/tmp", "sleep", ["10"]);
+    await desktopStorage.cancelActiveCommands();
+
+    const commandArgs = vi.mocked(invoke).mock.calls[0]?.[1] as Record<string, unknown> | undefined;
+    expect(commandArgs?.commandId).toEqual(expect.any(String));
+    expect(invoke).toHaveBeenNthCalledWith(2, "cancel_command", {
+      commandId: commandArgs?.commandId,
+    });
+
+    finishCommand?.({ stdout: "", stderr: "cancelled", exit_code: null, success: false });
+    await command;
+  });
+});
+
+describe("DesktopStructuredStorageAdapter", () => {
+  const storage = new DesktopStructuredStorageAdapter();
+
+  beforeEach(() => vi.clearAllMocks());
+
+  it("maps entity reads and normalizes missing records", async () => {
+    vi.mocked(invoke).mockResolvedValueOnce({ id: "p1" }).mockResolvedValueOnce(null);
+
+    await expect(storage.read("providers", "p1")).resolves.toEqual({ id: "p1" });
+    await expect(storage.read("providers", "missing")).resolves.toBeUndefined();
+    expect(invoke).toHaveBeenNthCalledWith(1, "entity_get", {
+      entity: "providers",
+      id: "p1",
+    });
+  });
+
+  it("maps entity writes, bulk operations, deletes, and clears", async () => {
+    vi.mocked(invoke).mockResolvedValue(undefined);
+    const record = { id: "p1", name: "Provider" };
+
+    await storage.write("providers", "p1", record);
+    await storage.writeMany("providers", [record]);
+    await storage.delete("providers", "p1");
+    await storage.deleteMany("providers", ["p1", "p2"]);
+    await storage.clear("providers");
+
+    expect(invoke).toHaveBeenNthCalledWith(1, "entity_put", {
+      entity: "providers",
+      id: "p1",
+      data: record,
+    });
+    expect(invoke).toHaveBeenNthCalledWith(2, "entity_put_many", {
+      entity: "providers",
+      records: [record],
+    });
+    expect(invoke).toHaveBeenNthCalledWith(3, "entity_delete", {
+      entity: "providers",
+      id: "p1",
+    });
+    expect(invoke).toHaveBeenNthCalledWith(4, "entity_delete_many", {
+      entity: "providers",
+      ids: ["p1", "p2"],
+    });
+    expect(invoke).toHaveBeenNthCalledWith(5, "entity_clear", { entity: "providers" });
+  });
+
+  it("rejects non-object records before invoking native storage", async () => {
+    await expect(storage.write("settings", "bad", "value")).rejects.toThrow(TypeError);
+    await expect(storage.writeMany("settings", [{ name: "ok" }, null])).rejects.toThrow(TypeError);
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("filters structured records locally", async () => {
+    vi.mocked(invoke).mockResolvedValue([
+      { id: "one", enabled: true },
+      { id: "two", enabled: false },
+      { id: "three", enabled: true },
+    ]);
+
+    await expect(storage.query("providers", { enabled: true })).resolves.toEqual([
+      { id: "one", enabled: true },
+      { id: "three", enabled: true },
+    ]);
+  });
+
+  it("sends a transaction as one native apply command", async () => {
+    vi.mocked(invoke).mockResolvedValue(undefined);
+    const mutations = [
+      { type: "write" as const, entity: "settings" as const, id: "theme", data: { value: "dark" } },
+      { type: "delete" as const, entity: "providers" as const, id: "p1" },
+      { type: "clear" as const, entity: "messages" as const },
+    ];
+
+    await storage.apply(mutations);
+    expect(invoke).toHaveBeenCalledWith("entity_apply", { mutations });
   });
 });

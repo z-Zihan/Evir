@@ -172,6 +172,7 @@ export function PersonalizationPanel() {
                     type="button"
                     key={value}
                     className={form.detailLevel === value ? "active" : ""}
+                    aria-pressed={form.detailLevel === value}
                     onClick={() => update("detailLevel", value)}
                   >
                     <span aria-hidden="true" className={`detail-lines ${value}`}>
@@ -202,6 +203,7 @@ export function PersonalizationPanel() {
                     type="button"
                     key={value}
                     className={form.style === value ? "active" : ""}
+                    aria-pressed={form.style === value}
                     onClick={() => update("style", value)}
                   >
                     <span className="preference-radio" aria-hidden="true" />

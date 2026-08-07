@@ -40,6 +40,7 @@ const EMPTY_FORM: ProviderConfigInput = {
   baseUrl: "",
   apiKey: "",
   modelId: "",
+  toolCalling: false,
 };
 
 function supportedProtocol(preset: ProviderPreset): ProviderConfigInput["protocolId"] | null {
@@ -130,6 +131,8 @@ export function ProviderSettings() {
       baseUrl: provider.baseUrl,
       apiKey: provider.apiKey,
       modelId: provider.modelId,
+      toolCalling: provider.modelCapabilities?.toolCalling ?? false,
+      maxContextTokens: provider.modelCapabilities?.maxContextTokens,
     });
     setErrors({});
     setTestResult(null);
@@ -273,6 +276,7 @@ export function ProviderSettings() {
                   <button
                     type="button"
                     aria-label={t("provider.delete")}
+                    title={t("provider.delete")}
                     onClick={() =>
                       requestConfirmation(
                         {
@@ -436,6 +440,33 @@ export function ProviderSettings() {
                 {fieldError("baseUrl") && (
                   <small className="field-error">{fieldError("baseUrl")}</small>
                 )}
+              </label>
+              <label className="provider-field-wide provider-capability-toggle">
+                <input
+                  type="checkbox"
+                  checked={form.toolCalling}
+                  onChange={(event) => updateField("toolCalling", event.target.checked)}
+                />
+                <span>
+                  <strong>{t("provider.toolCalling")}</strong>
+                  <small>{t("provider.toolCallingDescription")}</small>
+                </span>
+              </label>
+              <label className="provider-field-wide">
+                <span>{t("provider.maxContextTokens")}</span>
+                <input
+                  type="number"
+                  min={1024}
+                  step={1024}
+                  value={form.maxContextTokens ?? ""}
+                  onChange={(event) =>
+                    updateField(
+                      "maxContextTokens",
+                      event.target.value ? Number(event.target.value) : undefined,
+                    )
+                  }
+                />
+                <small>{t("provider.maxContextTokensDescription")}</small>
               </label>
               <label className="provider-field-wide">
                 <span>

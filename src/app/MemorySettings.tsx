@@ -104,12 +104,14 @@ export function MemorySettings({ conversationId }: { conversationId: string | nu
                       type="button"
                       onClick={() => void togglePin(m.id)}
                       aria-label={m.pinned ? t("memory.unpin") : t("memory.pin")}
+                      title={m.pinned ? t("memory.unpin") : t("memory.pin")}
                     >
                       {m.pinned ? <PinOff size={14} /> : <Pin size={14} />}
                     </button>
                     <button
                       type="button"
                       aria-label={t("memory.edit")}
+                      title={t("memory.edit")}
                       onClick={() => {
                         setEditingId(m.id);
                         setEditContent(m.content);
@@ -130,6 +132,7 @@ export function MemorySettings({ conversationId }: { conversationId: string | nu
                         )
                       }
                       aria-label={t("memory.delete")}
+                      title={t("memory.delete")}
                     >
                       <Trash2 size={14} />
                     </button>

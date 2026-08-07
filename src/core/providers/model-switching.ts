@@ -1,5 +1,6 @@
 import type { ModelHandoffCheckpoint } from "../context/types";
 import type { MessageRecord } from "../storage/db";
+import type { InteractionMode } from "./tool-registry";
 
 export type ModelSwitchStatus =
   | "idle"
@@ -29,6 +30,8 @@ export interface ModelSwitchRequest {
   toProviderId: string;
   toModelId: string;
   requestedAt: number;
+  mode: InteractionMode;
+  hasActiveExecution?: boolean;
 }
 
 export interface ModelSwitchAssessment {

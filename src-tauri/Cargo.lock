@@ -754,6 +754,7 @@ name = "evir"
 version = "0.1.0"
 dependencies = [
  "keyring",
+ "libc",
  "rusqlite",
  "serde",
  "serde_json",

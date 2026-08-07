@@ -1,9 +1,5 @@
-import {
-  db,
-  type ConversationRecord,
-  type MessageRecord,
-  type AttachmentRecord,
-} from "../../core/storage/db";
+import type { ConversationRecord, MessageRecord, AttachmentRecord } from "../../core/storage/db";
+import { getStructuredStorage } from "../../runtime/structured-storage";
 
 interface ExportData {
   // API Key is never included in exports — only conversations, messages, and attachments are exported
@@ -15,13 +11,17 @@ interface ExportData {
 }
 
 export async function exportConversations(): Promise<Blob> {
-  const conversations = await db.conversations.toArray();
+  const storage = getStructuredStorage();
+  const conversations = await storage.readAll<ConversationRecord>("conversations");
   const result: ExportData = { version: 1, exportedAt: Date.now(), conversations: [] };
   for (const conv of conversations) {
-    const messages = await db.messages.where("conversationId").equals(conv.id).sortBy("createdAt");
+    const messages = await storage.query<MessageRecord>("messages", { conversationId: conv.id });
+    messages.sort((a, b) => a.createdAt - b.createdAt);
     const messagesWithAttachments = await Promise.all(
       messages.map(async (msg) => {
-        const attachments = await db.attachments.where("messageId").equals(msg.id).toArray();
+        const attachments = await storage.query<AttachmentRecord>("attachments", {
+          messageId: msg.id,
+        });
         return { ...msg, attachments };
       }),
     );
@@ -31,12 +31,16 @@ export async function exportConversations(): Promise<Blob> {
 }
 
 async function getConversationWithMessages(id: string) {
-  const conv = await db.conversations.get(id);
+  const storage = getStructuredStorage();
+  const conv = await storage.read<ConversationRecord>("conversations", id);
   if (!conv) throw new Error("Conversation not found");
-  const messages = await db.messages.where("conversationId").equals(id).sortBy("createdAt");
+  const messages = await storage.query<MessageRecord>("messages", { conversationId: id });
+  messages.sort((a, b) => a.createdAt - b.createdAt);
   const messagesWithAttachments = await Promise.all(
     messages.map(async (msg) => {
-      const attachments = await db.attachments.where("messageId").equals(msg.id).toArray();
+      const attachments = await storage.query<AttachmentRecord>("attachments", {
+        messageId: msg.id,
+      });
       return { ...msg, attachments };
     }),
   );

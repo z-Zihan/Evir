@@ -79,18 +79,20 @@
 
 ### S9：性能与稳定性回归 ✅
 
-- ✅ Web JavaScript gzip 271.08 KB（预算 350 KB）
+- ✅ Web JavaScript gzip 280.06 KB（预算 350 KB，2026-08-07 最终独立构建）
 - ✅ 长会话渲染优化：MessageList 组件 memo 化，流式更新不再重渲染历史消息
 - ✅ 工具流式事件批量更新：rAF 节流，每次 animation frame 只触发一次 set()
-- ✅ 298 个 TypeScript 测试、5 个 Rust 测试、E2E/UI/视觉/无障碍回归通过
+- ✅ 338 个 TypeScript 测试、7 个 Rust 测试、E2E/UI/视觉/无障碍回归通过
 
-### S10：Web/Desktop 真实验收（进行中）
+### S10：Web/Desktop 真实验收（确定性范围完成，外部验收待办）
 
 - ✅ Web/Desktop Capability：聊天、流式、停止、错误、设置、主题、语言、窄窗口
-- ✅ macOS 原生：预签名窗口启动、默认 Agent、Ask 切换、设置与 Escape
+- ✅ macOS 原生：debug/release 二进制可构建，debug 应用可启动
+- ✅ 浏览器 Desktop Runtime：默认 Agent、Ask 切换、设置、键盘、持久化与恢复闭环
 - ⬜ 真实 Provider：付费凭据和真实网络条件
 - ⬜ Desktop 原生：真实工作区多工具任务、系统权限、签名安装包
 - ⬜ Windows：构建、安装和原生 UI
+- ⬜ macOS 原生窗口交互：本轮机器锁屏，未把浏览器 Desktop Runtime 结果冒充原生验收
 
 ### 阶段 S 完成标准
 
@@ -99,17 +101,16 @@
 - Agent UI 重构完成
 - 视觉系统统一
 - 文档与代码一致
-- Web + Desktop 真实端到端验收通过
+- 仓库内确定性 Web + Desktop Runtime 端到端验收通过；真实 Provider、原生任务和跨平台安装作为发布外部门槛单独记录
 
 ## 阶段 2：Desktop Agent 与内置工具
 
 交付：Ask/Agent 完整边界、Agent 内部只读规划阶段、Agent Loop、工作区授权、文件/搜索/Patch、受控终端、Git 只读工具、权限分级、审计、取消、Diff 与回滚；接入任务完成、审批和失败系统通知；支持可选 Desktop 全局快捷键。
 
-### 2026-08-06 进度重审
+### 2026-08-07 进度重审
 
-- 阶段 0：100%；阶段 1：92%；阶段 2：78%；阶段 S：90%；产品体验：88%。
-- 按 20%/30%/25%/25% 权重计算，阶段 0/1/2/S 整体约 90%。
-- 数字只表示当前已有范围的工程进度；真实 Provider、原生 Agent 完整任务、签名安装包和 Windows 是未通过硬门槛。
+- 阶段 S 仓库内确定性整改已完成，P0/P1 UI 缺陷为 0；不再用单一百分比掩盖外部门槛。
+- 真实 Provider、原生 Agent 完整任务、MCP Runtime、签名安装包、Windows 与正式性能测量仍未通过，产品尚未发布就绪。
 
 验收：完成“只读检查并制定计划”和“读取项目 -> 修改 -> 执行验证 -> 汇报”的两个闭环。
 

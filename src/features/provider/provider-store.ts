@@ -3,7 +3,17 @@ import { z } from "zod";
 import { getAdapter, listModelsForProtocol } from "../../core/providers/adapter-registry";
 import type { ProviderError } from "../../core/providers/stream-events";
 // NOTE: Uses Dexie directly for indexed queries; StoragePort covers basic CRUD
-import { db, type ProviderRecord } from "../../core/storage/db";
+import type { ProviderRecord, SettingRecord } from "../../core/storage/db";
+import type { StoragePort } from "../../core/storage/storage-port";
+import { getRuntime, isNativeDesktopRuntime } from "../../runtime/use-runtime";
+
+const providerSecretKey = (providerId: string) => `provider:${providerId}:api-key`;
+
+function repository(): StoragePort {
+  const storage = getRuntime().structuredStorage;
+  if (!storage) throw new Error("Structured storage is unavailable");
+  return storage;
+}
 
 export const providerSchema = z.object({
   name: z.string().trim().min(1).max(100),
@@ -17,6 +27,8 @@ export const providerSchema = z.object({
   baseUrl: z.string().url(),
   apiKey: z.string().min(1),
   modelId: z.string().trim().min(1),
+  toolCalling: z.boolean().default(false),
+  maxContextTokens: z.number().int().positive().optional(),
 });
 const updateSchema = providerSchema.extend({ apiKey: z.string().optional() });
 export type ProviderConfigInput = z.infer<typeof providerSchema>;
@@ -39,12 +51,28 @@ interface ProviderState {
 }
 
 async function shouldPersistApiKeys(): Promise<boolean> {
-  return (await db.settings.get("persistApiKeys"))?.value !== false;
+  return (await repository().read<SettingRecord>("settings", "persistApiKeys"))?.value !== false;
 }
 
 async function persistProvider(provider: ProviderRecord): Promise<void> {
+  if (isNativeDesktopRuntime()) {
+    const storage = getRuntime().storage;
+    if (!storage) throw new Error("Desktop secure storage is unavailable");
+    await storage.keychainSet(providerSecretKey(provider.id), provider.apiKey);
+    await repository().write("providers", provider.id, { ...provider, apiKey: "" });
+    return;
+  }
   const persistApiKey = await shouldPersistApiKeys();
-  await db.providers.put({ ...provider, apiKey: persistApiKey ? provider.apiKey : "" });
+  await repository().write("providers", provider.id, {
+    ...provider,
+    apiKey: persistApiKey ? provider.apiKey : "",
+  });
+}
+
+async function hydrateProviderSecret(provider: ProviderRecord): Promise<ProviderRecord> {
+  if (!isNativeDesktopRuntime()) return provider;
+  const apiKey = await getRuntime().storage?.keychainGet(providerSecretKey(provider.id));
+  return { ...provider, apiKey: apiKey ?? "" };
 }
 
 function replaceProvider(
@@ -58,16 +86,29 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
   providers: [],
 
   loadProviders: async () => {
-    const providers = await db.providers.toArray();
+    const providers = await Promise.all(
+      (await repository().readAll<ProviderRecord>("providers")).map(hydrateProviderSecret),
+    );
     set({ providers: providers.sort((a, b) => b.updatedAt - a.updatedAt) });
   },
 
   addProvider: async (input) => {
     const config = providerSchema.parse(input);
     const now = Date.now();
+    const { toolCalling, maxContextTokens, ...storedConfig } = config;
     const provider: ProviderRecord = {
       id: crypto.randomUUID(),
-      ...config,
+      ...storedConfig,
+      modelCapabilities: {
+        streaming: true,
+        toolCalling,
+        ...(maxContextTokens ? { maxContextTokens } : {}),
+      },
+      capabilityEvidence: {
+        streaming: "preset",
+        toolCalling: "user-override",
+        ...(maxContextTokens ? { maxContextTokens: "user-override" as const } : {}),
+      },
       enabled: true,
       isDefault: get().providers.length === 0,
       createdAt: now,
@@ -81,11 +122,27 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
   updateProvider: async (id, patch) => {
     const current = get().providers.find((provider) => provider.id === id);
     if (!current) throw new Error("Provider not found");
-    const { apiKey = current.apiKey, ...config } = updateSchema.parse({ ...current, ...patch });
+    const parsed = updateSchema.parse({
+      ...current,
+      toolCalling: current.modelCapabilities?.toolCalling ?? false,
+      maxContextTokens: current.modelCapabilities?.maxContextTokens,
+      ...patch,
+    });
+    const { apiKey = current.apiKey, toolCalling, maxContextTokens, ...config } = parsed;
     const updated: ProviderRecord = {
       ...current,
       ...config,
       apiKey,
+      modelCapabilities: {
+        streaming: current.modelCapabilities?.streaming ?? true,
+        toolCalling,
+        ...(maxContextTokens ? { maxContextTokens } : {}),
+      },
+      capabilityEvidence: {
+        streaming: current.capabilityEvidence?.streaming ?? "preset",
+        toolCalling: "user-override",
+        ...(maxContextTokens ? { maxContextTokens: "user-override" as const } : {}),
+      },
       ...(patch.enabled === undefined ? {} : { enabled: patch.enabled }),
       updatedAt: Date.now(),
     };
@@ -94,7 +151,10 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
   },
 
   deleteProvider: async (id) => {
-    await db.providers.delete(id);
+    await repository().delete("providers", id);
+    if (isNativeDesktopRuntime()) {
+      await getRuntime().storage?.keychainDelete(providerSecretKey(id));
+    }
     let providers = get().providers.filter((provider) => provider.id !== id);
     if (providers.length > 0 && !providers.some((provider) => provider.isDefault)) {
       const [first] = providers;
@@ -117,13 +177,7 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
       isDefault: provider.id === id,
       updatedAt: provider.id === id ? now : provider.updatedAt,
     }));
-    const persistApiKey = await shouldPersistApiKeys();
-    await db.providers.bulkPut(
-      providers.map((provider) => ({
-        ...provider,
-        apiKey: persistApiKey ? provider.apiKey : "",
-      })),
-    );
+    await Promise.all(providers.map(persistProvider));
     set({ providers });
   },
 

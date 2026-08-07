@@ -1,10 +1,11 @@
 import { create } from "zustand";
 // NOTE: Uses Dexie directly for settings; StoragePort covers basic CRUD
-import { db } from "../../core/storage/db";
+import type { SettingRecord } from "../../core/storage/db";
 import type { SkillManifest } from "../../core/skills/types";
 import { validateManifest } from "../../core/skills/types";
 import { createSkillRegistry, type SkillRegistry } from "../../core/skills/skill-registry";
 import type { InstalledSkill } from "../../core/skills/types";
+import { getStructuredStorage } from "../../runtime/structured-storage";
 
 const SKILL_ENABLED_SETTING = "skillEnabledIds";
 
@@ -34,7 +35,7 @@ function getRegistry(): SkillRegistry {
 }
 
 async function persistEnabledIds(enabledSkillIds: Set<string>): Promise<void> {
-  await db.settings.put({
+  await getStructuredStorage().write("settings", SKILL_ENABLED_SETTING, {
     name: SKILL_ENABLED_SETTING,
     value: [...enabledSkillIds],
   });
@@ -49,9 +50,30 @@ export const useSkillStore = create<SkillState>((set, get) => ({
     loadPromise = (async () => {
       try {
         const reg = getRegistry();
-        const skills = await reg.loadBuiltin();
+        const builtins = await reg.loadBuiltin();
+        const settings = await getStructuredStorage().readAll<SettingRecord>("settings");
+        const customSkills = settings
+          .filter(({ name }) => name.startsWith("skill:"))
+          .flatMap(({ value }) => {
+            const stored = value as { manifest?: SkillManifest; content?: string } | undefined;
+            if (!stored?.manifest || typeof stored.content !== "string") return [];
+            if (validateManifest(stored.manifest).length > 0) return [];
+            return [
+              {
+                manifest: stored.manifest,
+                rootPath: "",
+                builtIn: false,
+              } satisfies InstalledSkill,
+            ];
+          });
+        const skills = [
+          ...builtins,
+          ...customSkills.filter(
+            (custom) => !builtins.some((item) => item.manifest.id === custom.manifest.id),
+          ),
+        ];
 
-        const record = await db.settings.get(SKILL_ENABLED_SETTING);
+        const record = settings.find(({ name }) => name === SKILL_ENABLED_SETTING);
         const raw = record?.value;
         const enabledIds =
           Array.isArray(raw) && raw.every((v): v is string => typeof v === "string") ? raw : [];
@@ -89,16 +111,7 @@ export const useSkillStore = create<SkillState>((set, get) => ({
   isEnabled: (id: string) => get().enabledSkillIds.has(id),
 
   importSkill: async (manifest, content) => {
-    const id = `imported-${manifest.id}-${Date.now()}`;
-    const setting = { name: `skill:${id}`, value: { manifest, content, imported: true } };
-    await db.settings.put(setting);
-    const skill: InstalledSkill = {
-      manifest: { ...manifest, source: "imported" },
-      rootPath: "",
-      builtIn: false,
-    };
-    set((state) => ({ skills: [...state.skills, skill] }));
-    return id;
+    return get().installSkill({ ...manifest, source: "imported" }, content);
   },
 
   createSkill: async (name, description, content) => {
@@ -119,7 +132,10 @@ export const useSkillStore = create<SkillState>((set, get) => ({
       optionalMcpServers: [],
       riskLevel: "low",
     };
-    await db.settings.put({ name: `skill:${id}`, value: { manifest, content } });
+    await getStructuredStorage().write("settings", `skill:${id}`, {
+      name: `skill:${id}`,
+      value: { manifest, content },
+    });
     const skill: InstalledSkill = { manifest, rootPath: "", builtIn: false };
     set((state) => ({ skills: [...state.skills, skill] }));
     return id;
@@ -133,18 +149,21 @@ export const useSkillStore = create<SkillState>((set, get) => ({
     const id = manifest.id;
     const alreadyInstalled =
       get().skills.some((s) => s.manifest.id === id) ||
-      (await db.settings.get(`skill:${id}`)) !== undefined;
+      (await getStructuredStorage().read("settings", `skill:${id}`)) !== undefined;
     if (alreadyInstalled) {
       throw new Error(`Skill "${id}" is already installed`);
     }
-    await db.settings.put({ name: `skill:${id}`, value: { manifest, content } });
+    await getStructuredStorage().write("settings", `skill:${id}`, {
+      name: `skill:${id}`,
+      value: { manifest, content },
+    });
     const skill: InstalledSkill = { manifest, rootPath: "", builtIn: false };
     set((state) => ({ skills: [...state.skills, skill] }));
     return id;
   },
 
   uninstallSkill: async (id) => {
-    await db.settings.delete(`skill:${id}`);
+    await getStructuredStorage().delete("settings", `skill:${id}`);
     set((state) => ({
       skills: state.skills.filter((s) => s.manifest.id !== id),
       enabledSkillIds: (() => {
@@ -155,14 +174,14 @@ export const useSkillStore = create<SkillState>((set, get) => ({
     }));
     const remaining = get().enabledSkillIds;
     if (remaining.size === 0) {
-      await db.settings.delete(SKILL_ENABLED_SETTING);
+      await getStructuredStorage().delete("settings", SKILL_ENABLED_SETTING);
     } else {
       await persistEnabledIds(remaining);
     }
   },
 
   updateSkill: async (id, content, description) => {
-    const record = await db.settings.get(`skill:${id}`);
+    const record = await getStructuredStorage().read<SettingRecord>("settings", `skill:${id}`);
     const existingValue = record?.value as
       { manifest: SkillManifest; content: string; [key: string]: unknown } | undefined;
     const current = get().skills.find((s) => s.manifest.id === id);
@@ -172,7 +191,7 @@ export const useSkillStore = create<SkillState>((set, get) => ({
     }
     const manifest = description !== undefined ? { ...baseManifest, description } : baseManifest;
 
-    await db.settings.put({
+    await getStructuredStorage().write("settings", `skill:${id}`, {
       name: `skill:${id}`,
       value: { ...existingValue, manifest, content },
     });
@@ -193,7 +212,10 @@ export const useSkillStore = create<SkillState>((set, get) => ({
     const customSkills = skills.filter((s) => !s.builtIn && enabledSkillIds.has(s.manifest.id));
     const customContents = await Promise.all(
       customSkills.map(async (s) => {
-        const record = await db.settings.get(`skill:${s.manifest.id}`);
+        const record = await getStructuredStorage().read<SettingRecord>(
+          "settings",
+          `skill:${s.manifest.id}`,
+        );
         const value = record?.value as { content?: string } | undefined;
         return `## ${s.manifest.name}\n\n${value?.content ?? ""}`;
       }),

@@ -102,4 +102,23 @@ describe("ModelSwitcher", () => {
     fireEvent.mouseDown(document.body);
     expect(screen.queryByRole("listbox")).toBeNull();
   });
+
+  it("supports listbox keyboard navigation and returns focus on Escape", async () => {
+    mockProviders = [
+      makeProvider({ id: "p-1", name: "OpenAI", isDefault: true }),
+      makeProvider({ id: "p-2", name: "Anthropic", isDefault: false }),
+    ];
+    await renderSwitcher();
+    const trigger = screen.getByRole("button", { expanded: false });
+    trigger.focus();
+
+    fireEvent.keyDown(trigger, { key: "ArrowDown" });
+    const options = screen.getAllByRole("option");
+    expect(document.activeElement).toBe(options[0]);
+    fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowDown" });
+    expect(document.activeElement).toBe(options[1]);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("listbox")).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
 });

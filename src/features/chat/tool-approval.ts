@@ -1,4 +1,5 @@
 import { continueAgentLoop, type AgentLoopTurn, type AgentMessage } from "./agent-loop";
+import type { AgentRunContext } from "../../runtime/types";
 import {
   getApprovalContext,
   persistTurn,
@@ -17,6 +18,7 @@ export interface PendingToolApproval {
   messages: AgentMessage[];
   providerId: string;
   turn: AgentLoopTurn;
+  agentRun: AgentRunContext;
 }
 
 export async function approveTool(
@@ -26,12 +28,17 @@ export async function approveTool(
 ): Promise<void> {
   const ctx = getApprovalContext(pending, set);
   if (!ctx) return;
-  const { provider, runtime } = ctx;
+  const { provider, runtime: baseRuntime } = ctx;
+  const runtime = { ...baseRuntime, agentRun: pending.agentRun };
   if (!runtime.toolExecutor) {
     set({ isStreaming: false, error: "tools.notAvailable" });
     return;
   }
-  const { messages, msg: resolvedMsg } = await executeApproved(pending, runtime);
+  const {
+    messages,
+    msg: resolvedMsg,
+    resolvedTurn,
+  } = await executeApproved(pending, runtime, !get().privateSession);
   const onDelta = (streamingContent: string) => set({ streamingContent });
   const loopResult = await continueAgentLoop({
     provider,
@@ -47,6 +54,7 @@ export async function approveTool(
     resolvedMsg,
     pending.conversationId,
     pending.toolCallId,
+    resolvedTurn,
   );
 }
 
@@ -57,13 +65,15 @@ export async function denyTool(
 ): Promise<void> {
   const ctx = getApprovalContext(pending, set);
   if (!ctx) return;
-  const { provider, runtime } = ctx;
+  const { provider, runtime: baseRuntime } = ctx;
+  const runtime = { ...baseRuntime, agentRun: pending.agentRun };
 
   const { resolvedTurn, messages } = buildDenial(pending);
   const resolvedMsg = await persistTurn(
     resolvedTurn,
     pending.conversationId,
     pending.turn.stream.content,
+    !get().privateSession,
   );
   const onDelta = (streamingContent: string) => set({ streamingContent });
   const loopResult = await continueAgentLoop({
@@ -80,5 +90,6 @@ export async function denyTool(
     resolvedMsg,
     pending.conversationId,
     pending.toolCallId,
+    resolvedTurn,
   );
 }

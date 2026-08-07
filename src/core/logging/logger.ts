@@ -12,6 +12,7 @@ const MAX_ENTRIES = 1000;
 
 export class Logger {
   private readonly buffer: LogEvent[] = [];
+  private readonly listeners = new Set<() => void>();
   private readonly sessionId = crypto.randomUUID();
 
   log(level: LogLevel, channel: LogChannel, message: string, data?: Record<string, unknown>): void {
@@ -32,6 +33,7 @@ export class Logger {
     if (this.buffer.length > MAX_ENTRIES) {
       this.buffer.shift();
     }
+    this.emitChange();
   }
 
   debug(channel: LogChannel, message: string, data?: Record<string, unknown>): void {
@@ -63,6 +65,16 @@ export class Logger {
 
   clear(): void {
     this.buffer.length = 0;
+    this.emitChange();
+  }
+
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private emitChange(): void {
+    for (const listener of this.listeners) listener();
   }
 
   exportLogs(): string {

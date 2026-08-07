@@ -1,5 +1,6 @@
-import { db, type MessageRecord } from "../storage/db";
+import type { MessageRecord, SettingRecord } from "../storage/db";
 import { estimateMessagesTokens } from "./token-estimate";
+import { getStructuredStorage } from "../../runtime/structured-storage";
 
 export interface Checkpoint {
   id: string;
@@ -68,7 +69,7 @@ export async function createCheckpoint(
   };
 
   // Persist checkpoint to settings table
-  await db.settings.put({
+  await getStructuredStorage().write("settings", `checkpoint:${conversationId}`, {
     name: `checkpoint:${conversationId}`,
     value: checkpoint,
   });
@@ -80,7 +81,10 @@ export async function createCheckpoint(
  * Load the latest checkpoint for a conversation.
  */
 export async function loadCheckpoint(conversationId: string): Promise<Checkpoint | null> {
-  const record = await db.settings.get(`checkpoint:${conversationId}`);
+  const record = await getStructuredStorage().read<SettingRecord>(
+    "settings",
+    `checkpoint:${conversationId}`,
+  );
   return (record?.value as Checkpoint | undefined) ?? null;
 }
 

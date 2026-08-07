@@ -24,10 +24,7 @@ export function DiagnosticsSettings() {
   const [entries, setEntries] = useState(() => logger.getEntries());
 
   useEffect(() => {
-    const intervalId = setInterval(() => {
-      setEntries(logger.getEntries());
-    }, 2000);
-    return () => clearInterval(intervalId);
+    return logger.subscribe(() => setEntries(logger.getEntries()));
   }, []);
 
   const visibleEntries = useMemo(() => {

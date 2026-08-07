@@ -9,6 +9,7 @@ import {
   FileCode2,
   GitCompareArrows,
   LoaderCircle,
+  RotateCcw,
   TerminalSquare,
   XCircle,
 } from "lucide-react";
@@ -20,12 +21,18 @@ import {
   getGitStatus,
   type VerificationResult,
 } from "../core/tools/verification";
+import {
+  applyAutomaticVerification,
+  persistAgentRun,
+  rollbackAgentRun,
+  type AgentRunRecord,
+} from "../features/chat/agent-run-record";
+import { useChatStore } from "../features/chat/chat-store";
+import { useConfirmationDialog } from "./useConfirmationDialog";
 
 interface AgentRunSummaryProps {
-  runId: string;
-  toolCalls: Array<{ toolName: string; args: Record<string, unknown> }>;
-  toolResults: Array<{ success: boolean; output: string; error?: string }>;
-  maxIterationsReached: boolean;
+  record: AgentRunRecord;
+  onLayoutChange?: () => void;
 }
 
 interface GitInfo {
@@ -34,34 +41,62 @@ interface GitInfo {
   branch: string | null;
 }
 
-export function AgentRunSummary({
-  runId,
-  toolCalls,
-  toolResults,
-  maxIterationsReached,
-}: AgentRunSummaryProps) {
+export function AgentRunSummary({ record, onLayoutChange }: AgentRunSummaryProps) {
   const { t } = useTranslation();
+  const { id: runId, toolCalls, toolResults, maxIterationsReached, snapshots } = record;
   const workspace = useWorkspaceStore((s) => s.currentWorkspace);
+  const privateSession = useChatStore((state) => state.privateSession);
+  const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
   const [verification, setVerification] = useState<VerificationResult | null>(null);
   const [diff, setDiff] = useState<string>("");
   const [gitInfo, setGitInfo] = useState<GitInfo | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!workspace) return;
+    onLayoutChange?.();
+  }, [verification, diff, gitInfo, loading, onLayoutChange]);
+
+  useEffect(() => {
+    if (
+      !workspace ||
+      record.verificationEvidence.some(({ summary }) => summary.startsWith("automatic:"))
+    )
+      return;
     const runtime = getRuntime();
     setLoading(true);
     void Promise.all([
       runVerification(workspace, runtime),
       getGitDiff(workspace, runtime),
       getGitStatus(workspace, runtime),
-    ]).then(([v, d, g]) => {
+    ]).then(async ([v, d, g]) => {
       setVerification(v);
       setDiff(d);
       setGitInfo(g);
       setLoading(false);
+      const updated = applyAutomaticVerification(record, v);
+      if (updated !== record) {
+        useChatStore.setState((state) =>
+          state.latestAgentRun?.id === updated.id ? { latestAgentRun: updated } : {},
+        );
+        if (!privateSession) await persistAgentRun(updated);
+      }
     });
-  }, [workspace, runId]);
+  }, [workspace, runId, record, privateSession, onLayoutChange]);
+
+  const requestRollback = () => {
+    requestConfirmation(
+      {
+        title: t("agent.rollbackTitle"),
+        description: t("agent.rollbackDescription", { count: snapshots.length }),
+        confirmLabel: t("agent.rollback"),
+        tone: "warning",
+      },
+      async () => {
+        const updated = await rollbackAgentRun(record, getRuntime(), !privateSession);
+        useChatStore.setState({ latestAgentRun: updated });
+      },
+    );
+  };
 
   if (!workspace) return null;
 
@@ -84,6 +119,12 @@ export function AgentRunSummary({
             {t("agent.maxIterations")}
           </span>
         )}
+        {snapshots.length > 0 && record.status !== "rolled_back" && (
+          <button type="button" className="quiet-danger-button" onClick={requestRollback}>
+            <RotateCcw size={14} />
+            {t("agent.rollback")}
+          </button>
+        )}
       </div>
 
       <div className="summary-section">
@@ -99,8 +140,8 @@ export function AgentRunSummary({
             {fileModifications.map((c, i) => (
               <li key={i}>
                 <code>{c.toolName}</code>:{" "}
-                {typeof (c.args.path ?? c.args.file_path) === "string"
-                  ? ((c.args.path ?? c.args.file_path) as string)
+                {typeof (c.arguments.path ?? c.arguments.file_path) === "string"
+                  ? ((c.arguments.path ?? c.arguments.file_path) as string)
                   : "?"}
               </li>
             ))}
@@ -122,8 +163,10 @@ export function AgentRunSummary({
               return (
                 <li key={i}>
                   <code>
-                    {String(c.args.program)}{" "}
-                    {Array.isArray(c.args.args) ? (c.args.args as string[]).join(" ") : ""}
+                    {String(c.arguments.program)}{" "}
+                    {Array.isArray(c.arguments.args)
+                      ? (c.arguments.args as string[]).join(" ")
+                      : ""}
                   </code>
                   {r && (
                     <span
@@ -211,6 +254,7 @@ export function AgentRunSummary({
           {t("agent.loading")}
         </p>
       )}
+      {confirmationDialog}
     </section>
   );
 }

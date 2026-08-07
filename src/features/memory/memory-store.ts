@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { db } from "../../core/storage/db";
+import type { SettingRecord } from "../../core/storage/db";
+import { getStructuredStorage } from "../../runtime/structured-storage";
 
 export interface MemoryRecord {
   id: string;
@@ -30,7 +31,10 @@ export const useMemoryStore = create<MemoryState>((set, get) => ({
 
   loadMemories: async (scope) => {
     // Memory is stored in settings table as JSON
-    const record = await db.settings.get(`memories:${scope}`);
+    const record = await getStructuredStorage().read<SettingRecord>(
+      "settings",
+      `memories:${scope}`,
+    );
     const memories: MemoryRecord[] = Array.isArray(record?.value)
       ? (record.value as MemoryRecord[])
       : [];
@@ -49,7 +53,10 @@ export const useMemoryStore = create<MemoryState>((set, get) => ({
     };
     const current = get().memories;
     const updated = [...current, record];
-    await db.settings.put({ name: `memories:${record.scope}`, value: updated });
+    await getStructuredStorage().write("settings", `memories:${record.scope}`, {
+      name: `memories:${record.scope}`,
+      value: updated,
+    });
     set({ memories: updated });
     return id;
   },
@@ -60,7 +67,10 @@ export const useMemoryStore = create<MemoryState>((set, get) => ({
     );
     const memory = updated.find((m) => m.id === id);
     if (memory) {
-      await db.settings.put({ name: `memories:${memory.scope}`, value: updated });
+      await getStructuredStorage().write("settings", `memories:${memory.scope}`, {
+        name: `memories:${memory.scope}`,
+        value: updated,
+      });
     }
     set({ memories: updated });
   },
@@ -69,7 +79,10 @@ export const useMemoryStore = create<MemoryState>((set, get) => ({
     const memory = get().memories.find((m) => m.id === id);
     const updated = get().memories.filter((m) => m.id !== id);
     if (memory) {
-      await db.settings.put({ name: `memories:${memory.scope}`, value: updated });
+      await getStructuredStorage().write("settings", `memories:${memory.scope}`, {
+        name: `memories:${memory.scope}`,
+        value: updated,
+      });
     }
     set({ memories: updated });
   },
@@ -80,7 +93,10 @@ export const useMemoryStore = create<MemoryState>((set, get) => ({
     );
     const memory = updated.find((m) => m.id === id);
     if (memory) {
-      await db.settings.put({ name: `memories:${memory.scope}`, value: updated });
+      await getStructuredStorage().write("settings", `memories:${memory.scope}`, {
+        name: `memories:${memory.scope}`,
+        value: updated,
+      });
     }
     set({ memories: updated });
   },

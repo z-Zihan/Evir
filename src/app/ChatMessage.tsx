@@ -161,7 +161,11 @@ export function ChatMessage({
             <p>{message.content}</p>
           )}
           {message.toolCalls && message.toolCalls.length > 0 && (
-            <AgentActivity toolCalls={message.toolCalls} toolResults={message.toolResults ?? []} />
+            <AgentActivity
+              toolCalls={message.toolCalls}
+              toolResults={message.toolResults ?? []}
+              messageStatus={message.status}
+            />
           )}
           {message.status === "stopped" && (
             <span className="message-state message-state-stopped">{t("chat.stopped")}</span>

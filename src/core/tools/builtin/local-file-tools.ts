@@ -93,6 +93,75 @@ function toolError(error: unknown): ToolResult {
   };
 }
 
+async function contentHash(content: string): Promise<string> {
+  const bytes = new TextEncoder().encode(content);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function rememberFileRead(path: string, content: string, hash: string, runtime: EvirRuntime): void {
+  if (!runtime.agentRun) return;
+  const reference = {
+    path,
+    contentHash: hash,
+    lastReadAt: Date.now(),
+    summary: `Read ${new TextEncoder().encode(content).byteLength} bytes`,
+    stale: false,
+  };
+  runtime.agentRun.fileReferences = [
+    ...runtime.agentRun.fileReferences.filter(({ path: existingPath }) => existingPath !== path),
+    reference,
+  ];
+}
+
+function markFileReferenceStale(path: string, runtime: EvirRuntime): void {
+  if (!runtime.agentRun) return;
+  const existing = runtime.agentRun.fileReferences.find(
+    ({ path: existingPath }) => existingPath === path,
+  );
+  if (existing) existing.stale = true;
+}
+
+async function snapshotBeforeMutation(
+  path: string,
+  runtime: EvirRuntime,
+): Promise<ToolResult | undefined> {
+  if (runtime.mode !== "agent" || !runtime.storage || !runtime.agentRun) return undefined;
+  if (runtime.agentRun.snapshots.some(({ file_path: filePath }) => filePath === path)) {
+    return undefined;
+  }
+  try {
+    const snapshot = await runtime.storage.createSnapshot(path, runtime.agentRun.id);
+    runtime.agentRun.snapshots.push(snapshot);
+    return undefined;
+  } catch (error) {
+    return {
+      success: false,
+      output: error instanceof Error ? error.message : "Failed to create safety snapshot",
+      error: "snapshot_failed",
+    };
+  }
+}
+
+async function sealMutationSnapshot(
+  path: string,
+  runtime: EvirRuntime,
+): Promise<ToolResult | undefined> {
+  if (runtime.mode !== "agent" || !runtime.storage || !runtime.agentRun) return undefined;
+  const snapshot = runtime.agentRun.snapshots.find(({ file_path: filePath }) => filePath === path);
+  if (!snapshot) return undefined;
+  try {
+    await runtime.storage.sealSnapshot(snapshot.snapshot_id, runtime.agentRun.id, path);
+    return undefined;
+  } catch (error) {
+    return {
+      success: false,
+      output: error instanceof Error ? error.message : "Failed to seal safety snapshot",
+      error: "snapshot_seal_failed",
+    };
+  }
+}
+
 async function readFile(args: Record<string, unknown>, runtime: EvirRuntime): Promise<ToolResult> {
   if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
   const parsed = pathArgsSchema.safeParse(args);
@@ -101,8 +170,10 @@ async function readFile(args: Record<string, unknown>, runtime: EvirRuntime): Pr
   if (!safePath) return pathBlocked();
   try {
     const content = await runtime.storage.readFile(safePath);
+    const hash = await contentHash(content);
+    rememberFileRead(safePath, content, hash, runtime);
     const output = content.length > 10_000 ? `${content.slice(0, 10_000)}\n... truncated` : content;
-    return { success: true, output };
+    return { success: true, output: `${output}\n\n[evir:file sha256=${hash}]` };
   } catch (error) {
     return toolError(error);
   }
@@ -134,7 +205,12 @@ async function writeFile(args: Record<string, unknown>, runtime: EvirRuntime): P
   const safePath = validateWorkspacePath(parsed.data.path, runtime);
   if (!safePath) return pathBlocked();
   try {
+    const snapshotError = await snapshotBeforeMutation(safePath, runtime);
+    if (snapshotError) return snapshotError;
     await runtime.storage.writeFile(safePath, parsed.data.content);
+    const sealError = await sealMutationSnapshot(safePath, runtime);
+    if (sealError) return sealError;
+    markFileReferenceStale(safePath, runtime);
     const bytes = new TextEncoder().encode(parsed.data.content).byteLength;
     return { success: true, output: `wrote ${bytes} bytes to ${safePath}` };
   } catch (error) {
@@ -152,7 +228,12 @@ async function applyPatch(
   const safePath = validateWorkspacePath(parsed.data.path, runtime);
   if (!safePath) return pathBlocked();
   try {
+    const snapshotError = await snapshotBeforeMutation(safePath, runtime);
+    if (snapshotError) return snapshotError;
     await runtime.storage.applyPatch(safePath, parsed.data.old_content, parsed.data.new_content);
+    const sealError = await sealMutationSnapshot(safePath, runtime);
+    if (sealError) return sealError;
+    markFileReferenceStale(safePath, runtime);
     return { success: true, output: `patched ${safePath}` };
   } catch (error) {
     return toolError(error);

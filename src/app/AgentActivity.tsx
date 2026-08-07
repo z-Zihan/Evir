@@ -5,12 +5,13 @@ import {
   ChevronRight,
   Circle,
   CircleDashed,
+  CircleSlash2,
   LoaderCircle,
   ShieldAlert,
   XCircle,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { ToolCallRecord, ToolResultRecord } from "../core/storage/db";
+import type { MessageRecord, ToolCallRecord, ToolResultRecord } from "../core/storage/db";
 import {
   TOOL_DENIED,
   TOOL_NOT_AVAILABLE,
@@ -21,6 +22,7 @@ import { useChatStore } from "../features/chat/chat-store";
 interface AgentActivityProps {
   toolCalls: ToolCallRecord[];
   toolResults: ToolResultRecord[];
+  messageStatus: MessageRecord["status"];
 }
 
 function getArgumentSummary(call: ToolCallRecord): string {
@@ -38,7 +40,7 @@ function getArgumentSummary(call: ToolCallRecord): string {
   return "";
 }
 
-export function AgentActivity({ toolCalls, toolResults }: AgentActivityProps) {
+export function AgentActivity({ toolCalls, toolResults, messageStatus }: AgentActivityProps) {
   const { t, i18n } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const isStreaming = useChatStore((state) => state.isStreaming);
@@ -57,21 +59,28 @@ export function AgentActivity({ toolCalls, toolResults }: AgentActivityProps) {
     (result) =>
       !result.success && result.error !== TOOL_PERMISSION_REQUIRED && result.error !== TOOL_DENIED,
   );
-  const status = hasPending
-    ? "approval"
-    : isStreaming && completed < toolCalls.length
-      ? "running"
-      : hasFailed
-        ? "failed"
-        : "complete";
+  const status =
+    messageStatus === "stopped"
+      ? "cancelled"
+      : hasPending
+        ? "approval"
+        : isStreaming && completed < toolCalls.length
+          ? "running"
+          : hasFailed || messageStatus === "error"
+            ? "failed"
+            : completed < toolCalls.length
+              ? "cancelled"
+              : "complete";
   const statusLabel =
     status === "approval"
       ? t("tools.waitingApproval")
       : status === "running"
         ? t("agent.processing")
-        : status === "failed"
-          ? t("agent.completedWithErrors")
-          : t("agent.completed");
+        : status === "cancelled"
+          ? t("chat.stopped")
+          : status === "failed"
+            ? t("agent.completedWithErrors")
+            : t("agent.completed");
 
   return (
     <section className={`agent-activity agent-activity-${status}`} aria-label={t("tools.title")}>
@@ -86,6 +95,8 @@ export function AgentActivity({ toolCalls, toolResults }: AgentActivityProps) {
             <LoaderCircle size={15} />
           ) : status === "approval" ? (
             <ShieldAlert size={15} />
+          ) : status === "cancelled" ? (
+            <CircleSlash2 size={15} />
           ) : status === "failed" ? (
             <XCircle size={15} />
           ) : (

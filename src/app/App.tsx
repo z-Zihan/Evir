@@ -8,6 +8,12 @@ import { SettingsModal, type SettingsTab } from "./SettingsModal";
 import { useShortcuts } from "./useShortcuts";
 import { ShortcutHelpOverlay } from "./ShortcutHelpOverlay";
 import { useTranslation } from "react-i18next";
+import { initializeRuntimeStorage } from "../runtime/initialize-storage";
+import {
+  clearCheckpoint,
+  findUnfinishedRuns,
+  type UnfinishedRun,
+} from "../core/context/crash-recovery";
 
 export function App() {
   const { t } = useTranslation();
@@ -18,9 +24,17 @@ export function App() {
     () => typeof window === "undefined" || window.innerWidth > 820,
   );
   const [messageInput, setMessageInput] = useState("");
+  const [initializationError, setInitializationError] = useState<string | null>(null);
+  const [unfinishedRuns, setUnfinishedRuns] = useState<UnfinishedRun[]>([]);
   const { loadProviders, getDefaultProvider } = useProviderStore();
-  const { loadConversations, createOrReuseConversation, sendMessage, stopGeneration, isStreaming } =
-    useChatStore();
+  const {
+    loadConversations,
+    createOrReuseConversation,
+    selectConversation,
+    sendMessage,
+    stopGeneration,
+    isStreaming,
+  } = useChatStore();
   const loadUsageRecords = useUsageStore((state) => state.loadRecords);
 
   const handleNewConversation = useCallback(() => {
@@ -56,11 +70,31 @@ export function App() {
     },
   });
 
-  useEffect(() => {
-    void loadProviders();
-    void loadConversations();
-    void loadUsageRecords();
+  const initializeApplication = useCallback(async () => {
+    setInitializationError(null);
+    try {
+      await initializeRuntimeStorage();
+      await Promise.all([loadProviders(), loadConversations(), loadUsageRecords()]);
+      setUnfinishedRuns(await findUnfinishedRuns());
+    } catch (error) {
+      setInitializationError(error instanceof Error ? error.message : String(error));
+    }
   }, [loadProviders, loadConversations, loadUsageRecords]);
+
+  useEffect(() => {
+    void initializeApplication();
+  }, [initializeApplication]);
+
+  const dismissRecovery = async (run: UnfinishedRun) => {
+    await clearCheckpoint(run.conversationId);
+    setUnfinishedRuns((runs) => runs.filter((item) => item.conversationId !== run.conversationId));
+  };
+
+  const resumeRecovery = async (run: UnfinishedRun) => {
+    await selectConversation(run.conversationId);
+    await dismissRecovery(run);
+    window.dispatchEvent(new Event("evir:focus-composer"));
+  };
 
   useEffect(() => {
     if (typeof window.matchMedia !== "function") return;
@@ -101,6 +135,37 @@ export function App() {
         onClose={() => setSettingsOpen(false)}
       />
       <ShortcutHelpOverlay open={shortcutHelpOpen} onClose={() => setShortcutHelpOpen(false)} />
+      {initializationError && (
+        <aside className="startup-notice error" role="alert">
+          <div>
+            <strong>{t("startup.failed")}</strong>
+            <span>{initializationError}</span>
+          </div>
+          <button type="button" onClick={() => void initializeApplication()}>
+            {t("startup.retry")}
+          </button>
+        </aside>
+      )}
+      {unfinishedRuns[0] && !initializationError && (
+        <aside className="startup-notice recovery" role="status">
+          <div>
+            <strong>{t("recovery.title")}</strong>
+            <span>{t("recovery.description")}</span>
+          </div>
+          <div className="startup-notice-actions">
+            <button type="button" onClick={() => void dismissRecovery(unfinishedRuns[0]!)}>
+              {t("recovery.dismiss")}
+            </button>
+            <button
+              className="primary-button"
+              type="button"
+              onClick={() => void resumeRecovery(unfinishedRuns[0]!)}
+            >
+              {t("recovery.resume")}
+            </button>
+          </div>
+        </aside>
+      )}
     </div>
   );
 }

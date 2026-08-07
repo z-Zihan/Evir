@@ -1,7 +1,7 @@
 import type { ToolDefinition } from "../../core/providers/tool-registry";
 import type { ProviderRecord, ToolCallRecord, ToolResultRecord } from "../../core/storage/db";
 import { TOOL_PERMISSION_REQUIRED } from "../../core/tools/tool-executor";
-import type { EvirRuntime } from "../../runtime/types";
+import type { AgentRunContext, EvirRuntime } from "../../runtime/types";
 import { streamAssistant, type StreamResult } from "./chat-stream";
 
 export const MAX_AGENT_ITERATIONS = 10;
@@ -40,6 +40,7 @@ export interface AgentLoopResult {
   turns: AgentLoopTurn[];
   maxIterationsReached: boolean;
   messages: AgentMessage[];
+  agentRun: AgentRunContext;
 }
 
 interface CallWithRaw {
@@ -185,7 +186,12 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
   const definitions = options.runtime.toolRegistry?.listForMode("agent") ?? [];
   const tools = providerTools(definitions);
   const maximum = options.maxIterations ?? MAX_AGENT_ITERATIONS;
-  const runtime = { ...options.runtime, mode: "agent" as const };
+  const agentRun = options.runtime.agentRun ?? {
+    id: crypto.randomUUID(),
+    snapshots: [],
+    fileReferences: [],
+  };
+  const runtime = { ...options.runtime, mode: "agent" as const, agentRun };
   const loopDetector = makeLoopDetector();
 
   for (let iteration = 0; iteration < maximum; iteration += 1) {
@@ -198,7 +204,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
     );
     if (stream.status !== "complete" || !stream.toolCalls?.length) {
       turns.push({ stream });
-      return { turns, maxIterationsReached: false, messages };
+      return { turns, maxIterationsReached: false, messages, agentRun };
     }
     // Loop detection: check each tool call
     for (const rawCall of stream.toolCalls) {
@@ -209,7 +215,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
           turns.push({
             stream: { ...stream, content: `${stream.content}\n\n⚠️ ${warning}` },
           });
-          return { turns, maxIterationsReached: true, messages };
+          return { turns, maxIterationsReached: true, messages, agentRun };
         }
       }
     }
@@ -222,7 +228,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
           turns.push({
             stream: { ...stream, content: `${stream.content}\n\n⚠️ ${errWarning}` },
           });
-          return { turns, maxIterationsReached: true, messages };
+          return { turns, maxIterationsReached: true, messages, agentRun };
         }
       }
     }
@@ -232,12 +238,12 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
       const blocked = findBlockedCall(calls, results);
       if (blocked) turn.pendingApproval = blocked;
       turns.push(turn);
-      return { turns, maxIterationsReached: false, messages };
+      return { turns, maxIterationsReached: false, messages, agentRun };
     }
     appendToolMessages(messages, stream, calls, results);
     turns.push(turn);
   }
-  return { turns, maxIterationsReached: true, messages };
+  return { turns, maxIterationsReached: true, messages, agentRun };
 }
 
 export async function continueAgentLoop(options: AgentLoopOptions): Promise<AgentLoopResult> {

@@ -1,4 +1,5 @@
-import { desktopStorage } from "./desktop-storage-adapter";
+import { desktopStorage, desktopStructuredStorage } from "./desktop-storage-adapter";
+import { IndexedDBAdapter } from "../core/storage/indexed-db-adapter";
 import { LOCAL_FILE_TOOLS } from "../core/tools/builtin/local-file-tools";
 import { ToolExecutor } from "../core/tools/tool-executor";
 import { createToolRegistry } from "../core/tools/tool-registry-impl";
@@ -10,12 +11,19 @@ function buildRuntime(target: RuntimeTarget, capabilities: Capability[]): EvirRu
     target,
     capabilities: capabilitySet,
     has: (capability) => capabilitySet.has(capability),
+    structuredStorage: new IndexedDBAdapter(),
   };
 }
 
 function getWorkspaceRoot(): string | null {
   const stored = localStorage.getItem("evir-workspace-current");
   return stored && stored.trim() ? stored : null;
+}
+
+async function selectWorkspaceDirectory(): Promise<string | null> {
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const selected = await open({ directory: true, multiple: false });
+  return typeof selected === "string" ? selected : null;
 }
 
 export function createRuntime(): EvirRuntime {
@@ -37,10 +45,13 @@ export function createRuntime(): EvirRuntime {
     return {
       ...runtime,
       storage: desktopStorage,
+      structuredStorage:
+        "__TAURI_INTERNALS__" in globalThis ? desktopStructuredStorage : new IndexedDBAdapter(),
       toolRegistry,
       toolExecutor,
       mode: "agent" as const,
       getWorkspaceRoot,
+      selectWorkspaceDirectory,
     };
   }
 

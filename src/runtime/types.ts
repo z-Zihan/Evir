@@ -1,6 +1,8 @@
-import type { DesktopStorageAdapter } from "./desktop-storage-adapter";
+import type { DesktopStorageAdapter, SnapshotResult } from "./desktop-storage-adapter";
 import type { InteractionMode, ToolRegistry } from "../core/providers/tool-registry";
 import type { ToolExecutor } from "../core/tools/tool-executor";
+import type { StoragePort } from "../core/storage/storage-port";
+import type { FileContextReference } from "../core/context/types";
 
 export type RuntimeTarget = "web" | "desktop";
 
@@ -15,13 +17,22 @@ export type Capability =
   | "computerUse"
   | "backgroundTasks";
 
+export interface AgentRunContext {
+  id: string;
+  snapshots: SnapshotResult[];
+  fileReferences: FileContextReference[];
+}
+
 export interface EvirRuntime {
   target: RuntimeTarget;
   capabilities: ReadonlySet<Capability>;
   has(capability: Capability): boolean;
   getWorkspaceRoot?: () => string | null;
+  selectWorkspaceDirectory?: () => Promise<string | null>;
   mode?: InteractionMode;
   storage?: DesktopStorageAdapter;
+  structuredStorage?: StoragePort;
   toolRegistry?: ToolRegistry;
   toolExecutor?: ToolExecutor;
+  agentRun?: AgentRunContext;
 }

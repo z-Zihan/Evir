@@ -79,6 +79,9 @@ beforeEach(async () => {
     streamingContent: "",
     error: null,
     pendingAttachments: [],
+    pendingToolApproval: null,
+    privateSession: false,
+    privateConversationId: null,
   });
   vi.mocked(streamAssistant).mockResolvedValue({
     content: "Assistant response",
@@ -91,6 +94,16 @@ afterEach(() => {
 });
 
 describe("chat retries", () => {
+  it("enforces Ask mode in Web even when stale store state says Agent", async () => {
+    useChatStore.setState({ mode: "agent" });
+
+    await useChatStore.getState().sendMessage("Browser prompt");
+
+    expect(streamAssistant).toHaveBeenCalledOnce();
+    expect(useChatStore.getState().error).toBeNull();
+    expect(useChatStore.getState().messages.at(-1)?.content).toBe("Assistant response");
+  });
+
   it("sends a new user message through the shared response stream", async () => {
     await useChatStore.getState().sendMessage("  First prompt  ");
 
@@ -155,5 +168,46 @@ describe("chat retries", () => {
     expect(vi.mocked(streamAssistant).mock.calls[0]?.[2]).toEqual([
       { role: "user", content: "Fixed prompt" },
     ]);
+  });
+});
+
+describe("private sessions", () => {
+  it("keeps the conversation and messages in memory only", async () => {
+    useChatStore.getState().togglePrivateSession();
+    expect(useChatStore.getState()).toMatchObject({
+      privateSession: true,
+      currentConversationId: null,
+      messages: [],
+    });
+
+    await useChatStore.getState().sendMessage("Private prompt");
+
+    const state = useChatStore.getState();
+    expect(state.privateConversationId).toBe(state.currentConversationId);
+    expect(state.messages.map(({ content }) => content)).toEqual([
+      "Private prompt",
+      "Assistant response",
+    ]);
+    expect(await db.conversations.count()).toBe(1);
+    expect(await db.messages.count()).toBe(0);
+  });
+
+  it("discards private session state when the session closes", async () => {
+    useChatStore.getState().togglePrivateSession();
+    await useChatStore.getState().sendMessage("Temporary prompt");
+    const privateConversationId = useChatStore.getState().privateConversationId;
+
+    useChatStore.getState().togglePrivateSession();
+
+    expect(useChatStore.getState()).toMatchObject({
+      privateSession: false,
+      privateConversationId: null,
+      currentConversationId: null,
+      messages: [],
+    });
+    expect(
+      useChatStore.getState().conversations.some(({ id }) => id === privateConversationId),
+    ).toBe(false);
+    expect(await db.messages.count()).toBe(0);
   });
 });

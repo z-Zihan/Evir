@@ -17,8 +17,8 @@ Evir 当前产品定义已经形成完整闭环，可以进入分阶段开发。
 - 首次路径只配置 Provider、凭据和模型。
 - 主界面只保留模型、模式、输入、发送/停止和必要任务状态。
 - 系统权限渐进申请。
-- 高级能力进入设置或命令面板。
-- Ask / Plan / Agent 有清晰边界。
+- 已实现的高级能力进入设置；命令面板尚未实现。
+- Web 只呈现 Ask；Desktop 呈现 Ask/Agent，Plan 是 Agent 内部只读阶段。
 - 常用操作提供快捷键，但不要求用户学习快捷键才能使用。
 
 需要开发阶段持续验证：首次成功聊天步骤、首次 Agent 任务步骤和关键操作点击数。
@@ -64,7 +64,7 @@ Evir 当前产品定义已经形成完整闭环，可以进入分阶段开发。
 
 ### 3.1 模型切换
 
-已闭环：
+当前实现的核心协调路径已有独立测试；真实跨 Provider、附件和运行中切换仍需外部验证：
 
 - 空闲、流式、Tool Pending、Tool Running 和 Agent Step 分别处理。
 - 目标模型能力、上下文、附件和协议先检查。
@@ -75,7 +75,7 @@ Evir 当前产品定义已经形成完整闭环，可以进入分阶段开发。
 
 ### 3.2 上下文压缩
 
-已闭环：
+当前实现已有预算、摘要、检查点和约束保留测试；真实超长任务仍需验证：
 
 - 动态 Token Budget。
 - 工具输出先归档。
@@ -86,7 +86,7 @@ Evir 当前产品定义已经形成完整闭环，可以进入分阶段开发。
 
 ### 3.3 Harness
 
-已闭环：
+设计规则已闭环；当前实现有独立的 Context、Tool Policy、Loop Detection、Checkpoint 和 Verification 模块，但不是所有计划中间件都已完整接线：
 
 - Context、Mode、Capability、Skill、Tool Policy、Loop Detection、Checkpoint、Verification 和 Observability 分层。
 - 约束通过代码、Lint、测试和 CI 强制执行。
@@ -95,13 +95,12 @@ Evir 当前产品定义已经形成完整闭环，可以进入分阶段开发。
 
 ### 3.4 本地日志
 
-已闭环：
+当前仅部分实现：
 
-- Diagnostic、Audit、Crash 分离。
-- 全系统统一 LoggerPort 和 Correlation ID。
-- 默认脱敏、滚动、空间上限、异步写入。
-- 用户主动生成诊断 ZIP。
-- GitHub Issue 由用户预览和手动附加。
+- 当前设置页可查看脱敏的会话内存事件并导出 JSON。
+- Logger 支持订阅，UI 不使用空闲轮询。
+- 文件级 Diagnostic/Audit/Crash 分离、滚动、空间上限、日志目录和诊断 ZIP 尚未实现。
+- GitHub Issue 预览/附加流程尚未实现。
 - 不提供任何远程日志后门。
 
 ## 4. 最终首发边界
@@ -109,7 +108,7 @@ Evir 当前产品定义已经形成完整闭环，可以进入分阶段开发。
 ### 首发必须有
 
 - Provider 接入和真实流式聊天。
-- Ask / Plan / Agent。
+- Web Ask；Desktop Ask/Agent，Agent 内部只读规划阶段。
 - 工作区、文件、终端基础工具。
 - 权限、审计、停止、验证、Diff 与回滚。
 - 基础上下文压缩和任务状态。
@@ -161,6 +160,6 @@ Evir 的产品需求已经足够完整。接下来最重要的不是继续写规
 
 ## 8. 阶段 S 证据更新
 
-2026-08-06 的整改建立了 Playwright E2E、UI 矩阵、视觉基准与 axe 门禁。当前 Web JavaScript gzip 271.08 KB；298 个 TypeScript 测试、5 个 Rust 测试及浏览器质量套件通过；macOS 预签名原生窗口可启动。详细证据见 `docs/reviews/automated-quality-report.md`。
+2026-08-07 的整改建立了 Playwright E2E、258 张 UI 截图矩阵、视觉基准与全设置页 axe 门禁。338 个 TypeScript 测试、7 个 Rust 测试及浏览器质量套件通过；macOS debug 原生应用可启动。详细证据见 `docs/reviews/ui-full-qa-report.md`。
 
-产品仍未发布就绪：真实 Provider、原生多工具 Agent 任务、签名安装包和 Windows 尚未验收，大 chunk 告警仍需后续拆分。
+产品仍未发布就绪：真实 Provider、原生多工具 Agent 任务、MCP Runtime、正式性能测量、签名安装包和 Windows 尚未验收；本轮 Mac 锁屏，不能把浏览器 Desktop Runtime 验收替代为原生窗口交互验收。

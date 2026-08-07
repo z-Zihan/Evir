@@ -141,7 +141,7 @@ export function McpSettings() {
 
       <div className="mcp-security-notice">
         <AlertTriangle size={14} />
-        <span>{t("mcp.securityNotice")}</span>
+        <span>{t("mcp.configurationOnlyNotice")}</span>
       </div>
 
       {loading ? (
@@ -174,6 +174,7 @@ export function McpSettings() {
                   <span>
                     {server.transport === "stdio" ? t("mcp.localProcess") : t("mcp.remoteServer")}
                   </span>
+                  <span>{t("mcp.connectionNotVerified")}</span>
                 </div>
                 <p>
                   {server.transport === "stdio"
@@ -182,7 +183,7 @@ export function McpSettings() {
                 </p>
               </div>
               <label className="mcp-toggle">
-                <span>{server.enabled ? t("mcp.enabled") : t("mcp.disabled")}</span>
+                <span>{server.enabled ? t("mcp.configurationEnabled") : t("mcp.disabled")}</span>
                 <input
                   type="checkbox"
                   checked={server.enabled}
@@ -191,7 +192,12 @@ export function McpSettings() {
                 <i aria-hidden="true" />
               </label>
               <div className="mcp-item-actions">
-                <button type="button" onClick={() => openEdit(server)} aria-label={t("mcp.edit")}>
+                <button
+                  type="button"
+                  onClick={() => openEdit(server)}
+                  aria-label={t("mcp.edit")}
+                  title={t("mcp.edit")}
+                >
                   <Pencil size={14} />
                 </button>
                 <button
@@ -207,6 +213,7 @@ export function McpSettings() {
                     )
                   }
                   aria-label={t("mcp.delete")}
+                  title={t("mcp.delete")}
                 >
                   <Trash2 size={14} />
                 </button>

@@ -36,7 +36,7 @@
 - 用户自带 API Key、Base URL 和模型。
 - 真实流式输出、Markdown、附件、多会话、本地搜索。
 - 多语言、亮色、暗色与跟随系统主题。
-- Ask / Plan 体验；不提供系统级电脑操作。
+- Ask 聊天与附件分析；不提供 Plan、Agent 或系统级电脑操作。
 - 浏览器直连模型 API，不依赖 Evir 云端后端。
 
 > 某些模型服务不允许浏览器跨域直连。Evir Web 会检测并明确提示，用户可改用 Evir Desktop 或配置允许浏览器访问的端点。
@@ -51,7 +51,7 @@
 - Agent Loop、任务计划、上下文压缩与记忆。
 - 权限审批、执行审计、文件 Diff、快照与回滚。
 - 内置 Skill、用户导入与创建 Skill。
-- 本地 stdio MCP 与远程 Streamable HTTP MCP。
+- MCP 服务器配置管理；真实 stdio / Streamable HTTP 连接闭环仍在开发中。
 - 后续支持浏览器自动化和 Computer Use。
 
 ## 核心体验
@@ -87,29 +87,31 @@ Model Capability
 ### Ask / Plan / Agent
 
 - **Ask**：对话和分析，不自主读取或操作本地资源。
-- **Plan**：可在用户授权范围内使用只读工具检查项目，但不会写文件或执行变更命令。
+- **Plan**：Desktop Agent 的内部只读规划阶段，不是当前一级模式入口。
 - **Agent**：按权限策略执行工具，可暂停、取消、审批和回滚。
+
+当前 Web 只呈现 Ask；Desktop 呈现 Ask/Agent。
 
 ### Skill 与 MCP
 
 - Skill 负责告诉 Agent **如何完成一类任务**。
 - MCP 负责向 Agent 提供 **外部工具、资源和提示词**。
-- Web 支持不依赖本地工具的指令型 Skill；Desktop 支持完整 Skill 与 MCP。
+- Web 支持不依赖本地工具的指令型 Skill；Desktop 当前支持 Skill 和 MCP 配置管理，MCP 连接、发现与运行时调用仍在开发中。
 - 第三方 Skill 和 MCP 默认不可信，必须经过能力检查和权限系统。
 
 ### 个性化，但不牺牲安全
 
 - 通过简单表单设置称呼、语言、表达方式和长期工作偏好。
-- 高级用户可编辑 `USER.md`、`PERSONA.md`、`INSTRUCTIONS.md` 和可选 `SOUL.md`。
+- `USER.md`、`PERSONA.md`、`INSTRUCTIONS.md` 和 `SOUL.md` 高级编辑器尚未开放。
 - Evir 核心安全、权限、工具和网络规则不可编辑，也不能被 Skill 或自定义指令覆盖。
 - 个性化支持全局、工作区和当前会话作用域，并可一键关闭。
 
 ### 基础体验完整
 
-- 可关闭的系统通知，仅在长任务完成、等待审批或失败时提醒。
+- 通知基础接口已预留；当前设置界面尚未提供系统通知开关。
 - 本地 Token 与用量统计，明确区分厂商准确值与估算值。
-- 可自定义键盘快捷键和命令面板；Desktop 全局快捷键默认关闭。
-- 设置页内置中英文帮助中心和 GitHub Issue 反馈入口。
+- 设置页可查看当前应用内快捷键；自定义、命令面板和 Desktop 全局快捷键尚未开放。
+- 仓库提供中英文离线帮助文件；应用内帮助中心和反馈表单尚未开放。
 - Provider 配置页提供对应官网、控制台、官方文档和状态页。
 
 ### 单模型开始，安全切换

@@ -7,6 +7,16 @@ export interface ProviderRecord {
   baseUrl: string;
   apiKey: string;
   modelId: string;
+  modelCapabilities?: {
+    streaming: boolean;
+    toolCalling: boolean;
+    maxContextTokens?: number;
+  };
+  capabilityEvidence?: {
+    streaming: "preset" | "metadata" | "probe" | "user-override";
+    toolCalling: "preset" | "metadata" | "probe" | "user-override";
+    maxContextTokens?: "preset" | "metadata" | "probe" | "user-override";
+  };
   enabled: boolean;
   isDefault: boolean;
   createdAt: number;
@@ -68,6 +78,13 @@ export interface MessageRecord {
   attachments?: AttachmentRecord[];
   toolCalls?: ToolCallRecord[];
   toolResults?: ToolResultRecord[];
+  summaryMetadata?: {
+    version: 1;
+    sourceMessageIds: string[];
+    sourceStartedAt: number;
+    sourceEndedAt: number;
+    archiveId: string;
+  };
 }
 
 export interface UsageRecord {
@@ -100,6 +117,11 @@ export interface McpServerRecord {
   updatedAt: number;
 }
 
+export interface GenericEntityRecord {
+  id: string;
+  [key: string]: unknown;
+}
+
 export class EvirDB extends Dexie {
   providers!: Table<ProviderRecord, string>;
   conversations!: Table<ConversationRecord, string>;
@@ -108,6 +130,9 @@ export class EvirDB extends Dexie {
   usage_records!: Table<UsageRecord, string>;
   mcpServers!: Table<McpServerRecord, string>;
   settings!: Table<SettingRecord, string>;
+  agentRuns!: Table<GenericEntityRecord, string>;
+  toolExecutions!: Table<GenericEntityRecord, string>;
+  artifacts!: Table<GenericEntityRecord, string>;
 
   constructor(name = "evir") {
     super(name);
@@ -134,6 +159,29 @@ export class EvirDB extends Dexie {
       usage_records: "id, conversationId, createdAt",
       mcpServers: "id",
       settings: "name",
+    });
+    this.version(4).stores({
+      providers: "id",
+      conversations: "id, updatedAt",
+      messages: "id, conversationId, createdAt",
+      attachments: "id, messageId",
+      usage_records: "id, conversationId, createdAt",
+      mcpServers: "id",
+      settings: "name",
+      agentRuns: "id, conversationId, updatedAt",
+      toolExecutions: "id, runId, createdAt",
+    });
+    this.version(5).stores({
+      providers: "id",
+      conversations: "id, updatedAt",
+      messages: "id, conversationId, createdAt",
+      attachments: "id, messageId",
+      usage_records: "id, conversationId, createdAt",
+      mcpServers: "id",
+      settings: "name",
+      agentRuns: "id, conversationId, updatedAt",
+      toolExecutions: "id, runId, createdAt",
+      artifacts: "id, relatedEntityId, createdAt",
     });
   }
 }

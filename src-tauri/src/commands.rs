@@ -1,15 +1,81 @@
 use std::{
+    collections::HashMap,
     path::{Component, Path, PathBuf},
-    process::Command as StdCommand,
+    process::{Child, Command as StdCommand},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex, OnceLock,
+    },
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use keyring::Entry;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{AppHandle, Manager};
 
 use crate::storage::{self, DatabaseState};
+
+const STRUCTURED_ENTITIES: &[&str] = &[
+    "providers",
+    "conversations",
+    "messages",
+    "attachments",
+    "agent_runs",
+    "tool_executions",
+    "memories",
+    "skills",
+    "mcp_servers",
+    "artifacts",
+    "backups",
+    "notifications",
+    "shortcuts",
+    "personalization",
+    "usage_records",
+    "settings",
+];
+
+type CommandCancellationMap = HashMap<String, Arc<AtomicBool>>;
+
+fn command_cancellations() -> &'static Mutex<CommandCancellationMap> {
+    static CANCELLATIONS: OnceLock<Mutex<CommandCancellationMap>> = OnceLock::new();
+    CANCELLATIONS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+struct CommandRegistration(String);
+
+impl Drop for CommandRegistration {
+    fn drop(&mut self) {
+        if let Ok(mut cancellations) = command_cancellations().lock() {
+            cancellations.remove(&self.0);
+        }
+    }
+}
+
+fn validate_entity(entity: &str) -> Result<(), String> {
+    if STRUCTURED_ENTITIES.contains(&entity) {
+        Ok(())
+    } else {
+        Err("unsupported structured storage entity".to_owned())
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub(crate) enum EntityMutation {
+    Write {
+        entity: String,
+        id: String,
+        data: Value,
+    },
+    Delete {
+        entity: String,
+        id: String,
+    },
+    Clear {
+        entity: String,
+    },
+}
 
 #[derive(Serialize)]
 pub struct FileInfo {
@@ -89,6 +155,182 @@ pub(crate) fn db_query(
 pub(crate) fn db_update(app: AppHandle, sql: String, params: Vec<Value>) -> Result<usize, String> {
     validate_update_sql(&sql)?;
     with_connection(&app, |conn| storage::execute_update(conn, &sql, &params))
+}
+
+#[tauri::command]
+pub(crate) fn entity_get(
+    app: AppHandle,
+    entity: String,
+    id: String,
+) -> Result<Option<Value>, String> {
+    validate_entity(&entity)?;
+    with_connection(&app, |conn| {
+        let mut statement =
+            conn.prepare("SELECT data FROM app_entities WHERE entity = ?1 AND id = ?2")?;
+        let mut rows = statement.query(rusqlite::params![entity, id])?;
+        let Some(row) = rows.next()? else {
+            return Ok(None);
+        };
+        let data: String = row.get(0)?;
+        serde_json::from_str(&data).map(Some).map_err(|error| {
+            rusqlite::Error::FromSqlConversionFailure(
+                0,
+                rusqlite::types::Type::Text,
+                Box::new(error),
+            )
+        })
+    })
+}
+
+#[tauri::command]
+pub(crate) fn entity_list(app: AppHandle, entity: String) -> Result<Vec<Value>, String> {
+    validate_entity(&entity)?;
+    with_connection(&app, |conn| {
+        let mut statement = conn.prepare(
+            "SELECT data FROM app_entities WHERE entity = ?1 ORDER BY updated_at DESC, id ASC",
+        )?;
+        let rows = statement.query_map(rusqlite::params![entity], |row| {
+            let data: String = row.get(0)?;
+            serde_json::from_str(&data).map_err(|error| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    0,
+                    rusqlite::types::Type::Text,
+                    Box::new(error),
+                )
+            })
+        })?;
+        rows.collect()
+    })
+}
+
+#[tauri::command]
+pub(crate) fn entity_put(
+    app: AppHandle,
+    entity: String,
+    id: String,
+    data: Value,
+) -> Result<(), String> {
+    validate_entity(&entity)?;
+    let encoded = serde_json::to_string(&data).map_err(|error| error.to_string())?;
+    with_connection(&app, |conn| {
+        conn.execute(
+            "INSERT INTO app_entities(entity, id, data, updated_at) VALUES (?1, ?2, ?3, ?4) \
+             ON CONFLICT(entity, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at",
+            rusqlite::params![entity, id, encoded, system_time_now_ms()],
+        )?;
+        Ok(())
+    })
+}
+
+#[tauri::command]
+pub(crate) fn entity_put_many(
+    app: AppHandle,
+    entity: String,
+    records: Vec<Value>,
+) -> Result<(), String> {
+    validate_entity(&entity)?;
+    with_connection(&app, |conn| {
+        let transaction = conn.unchecked_transaction()?;
+        for record in records {
+            let id = record
+                .get(if entity == "settings" { "name" } else { "id" })
+                .and_then(Value::as_str)
+                .ok_or_else(|| rusqlite::Error::InvalidParameterName("record id".to_owned()))?;
+            let encoded = serde_json::to_string(&record)
+                .map_err(|error| rusqlite::Error::ToSqlConversionFailure(Box::new(error)))?;
+            transaction.execute(
+                "INSERT INTO app_entities(entity, id, data, updated_at) VALUES (?1, ?2, ?3, ?4) \
+                 ON CONFLICT(entity, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at",
+                rusqlite::params![entity, id, encoded, system_time_now_ms()],
+            )?;
+        }
+        transaction.commit()
+    })
+}
+
+#[tauri::command]
+pub(crate) fn entity_delete(app: AppHandle, entity: String, id: String) -> Result<(), String> {
+    validate_entity(&entity)?;
+    with_connection(&app, |conn| {
+        conn.execute(
+            "DELETE FROM app_entities WHERE entity = ?1 AND id = ?2",
+            rusqlite::params![entity, id],
+        )?;
+        Ok(())
+    })
+}
+
+#[tauri::command]
+pub(crate) fn entity_delete_many(
+    app: AppHandle,
+    entity: String,
+    ids: Vec<String>,
+) -> Result<(), String> {
+    validate_entity(&entity)?;
+    with_connection(&app, |conn| {
+        let transaction = conn.unchecked_transaction()?;
+        for id in ids {
+            transaction.execute(
+                "DELETE FROM app_entities WHERE entity = ?1 AND id = ?2",
+                rusqlite::params![entity, id],
+            )?;
+        }
+        transaction.commit()
+    })
+}
+
+#[tauri::command]
+pub(crate) fn entity_clear(app: AppHandle, entity: String) -> Result<(), String> {
+    validate_entity(&entity)?;
+    with_connection(&app, |conn| {
+        conn.execute(
+            "DELETE FROM app_entities WHERE entity = ?1",
+            rusqlite::params![entity],
+        )?;
+        Ok(())
+    })
+}
+
+#[tauri::command]
+pub(crate) fn entity_apply(app: AppHandle, mutations: Vec<EntityMutation>) -> Result<(), String> {
+    for mutation in &mutations {
+        let entity = match mutation {
+            EntityMutation::Write { entity, .. }
+            | EntityMutation::Delete { entity, .. }
+            | EntityMutation::Clear { entity } => entity,
+        };
+        validate_entity(entity)?;
+    }
+    with_connection(&app, |conn| {
+        let transaction = conn.unchecked_transaction()?;
+        for mutation in mutations {
+            match mutation {
+                EntityMutation::Write { entity, id, data } => {
+                    let encoded = serde_json::to_string(&data).map_err(|error| {
+                        rusqlite::Error::ToSqlConversionFailure(Box::new(error))
+                    })?;
+                    transaction.execute(
+                        "INSERT INTO app_entities(entity, id, data, updated_at) VALUES (?1, ?2, ?3, ?4) \
+                         ON CONFLICT(entity, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at",
+                        rusqlite::params![entity, id, encoded, system_time_now_ms()],
+                    )?;
+                }
+                EntityMutation::Delete { entity, id } => {
+                    transaction.execute(
+                        "DELETE FROM app_entities WHERE entity = ?1 AND id = ?2",
+                        rusqlite::params![entity, id],
+                    )?;
+                }
+                EntityMutation::Clear { entity } => {
+                    transaction.execute(
+                        "DELETE FROM app_entities WHERE entity = ?1",
+                        rusqlite::params![entity],
+                    )?;
+                }
+            }
+        }
+        transaction.commit()
+    })
 }
 
 fn validate_key(key: &str) -> Result<(), String> {
@@ -317,6 +559,7 @@ fn search_recursive(
 /// Uses argument array (no shell interpolation) for safety.
 #[tauri::command]
 pub(crate) fn run_command(
+    command_id: String,
     cwd: String,
     program: String,
     args: Vec<String>,
@@ -325,6 +568,13 @@ pub(crate) fn run_command(
     workspace_root: String,
 ) -> Result<CommandResult, String> {
     let cwd = validate_path_in_workspace(&cwd, &workspace_root)?;
+    let cancellation = Arc::new(AtomicBool::new(false));
+    command_cancellations()
+        .lock()
+        .map_err(|_| "command cancellation registry is poisoned".to_owned())?
+        .insert(command_id.clone(), Arc::clone(&cancellation));
+    let _registration = CommandRegistration(command_id);
+
     let mut cmd = StdCommand::new(&program);
     cmd.args(&args);
     cmd.current_dir(&cwd);
@@ -333,36 +583,24 @@ pub(crate) fn run_command(
     }
     cmd.stdout(std::process::Stdio::piped());
     cmd.stderr(std::process::Stdio::piped());
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        cmd.process_group(0);
+    }
 
     let timeout = std::time::Duration::from_millis(timeout_ms.unwrap_or(30_000));
     let start = std::time::Instant::now();
 
     let mut child = cmd.spawn().map_err(|error| error.to_string())?;
+    let stdout_reader = child.stdout.take().map(read_pipe);
+    let stderr_reader = child.stderr.take().map(read_pipe);
 
-    // Wait with timeout
     loop {
         match child.try_wait() {
             Ok(Some(status)) => {
-                let stdout = child.stdout.take();
-                let stderr = child.stderr.take();
-                let stdout_str = match stdout {
-                    Some(mut s) => {
-                        use std::io::Read;
-                        let mut buf = String::new();
-                        s.read_to_string(&mut buf).ok();
-                        truncate_string(&buf, 50_000)
-                    }
-                    None => String::new(),
-                };
-                let stderr_str = match stderr {
-                    Some(mut s) => {
-                        use std::io::Read;
-                        let mut buf = String::new();
-                        s.read_to_string(&mut buf).ok();
-                        truncate_string(&buf, 50_000)
-                    }
-                    None => String::new(),
-                };
+                let stdout_str = join_pipe(stdout_reader);
+                let stderr_str = join_pipe(stderr_reader);
                 return Ok(CommandResult {
                     stdout: stdout_str,
                     stderr: stderr_str,
@@ -371,10 +609,21 @@ pub(crate) fn run_command(
                 });
             }
             Ok(None) => {
-                if start.elapsed() > timeout {
-                    let _ = child.kill();
+                if cancellation.load(Ordering::SeqCst) {
+                    kill_process_tree(&mut child);
+                    let _ = child.wait();
                     return Ok(CommandResult {
-                        stdout: String::new(),
+                        stdout: join_pipe(stdout_reader),
+                        stderr: "Command cancelled by user".to_owned(),
+                        exit_code: None,
+                        success: false,
+                    });
+                }
+                if start.elapsed() > timeout {
+                    kill_process_tree(&mut child);
+                    let _ = child.wait();
+                    return Ok(CommandResult {
+                        stdout: join_pipe(stdout_reader),
                         stderr: format!("Command timed out after {}ms", timeout.as_millis()),
                         exit_code: None,
                         success: false,
@@ -385,6 +634,53 @@ pub(crate) fn run_command(
             Err(error) => return Err(error.to_string()),
         }
     }
+}
+
+#[tauri::command]
+pub(crate) fn cancel_command(command_id: String) -> Result<bool, String> {
+    let cancellations = command_cancellations()
+        .lock()
+        .map_err(|_| "command cancellation registry is poisoned".to_owned())?;
+    let Some(cancellation) = cancellations.get(&command_id) else {
+        return Ok(false);
+    };
+    cancellation.store(true, Ordering::SeqCst);
+    Ok(true)
+}
+
+fn read_pipe<R>(mut pipe: R) -> std::thread::JoinHandle<String>
+where
+    R: std::io::Read + Send + 'static,
+{
+    std::thread::spawn(move || {
+        let mut buffer = String::new();
+        let _ = pipe.read_to_string(&mut buffer);
+        truncate_string(&buffer, 50_000)
+    })
+}
+
+fn join_pipe(reader: Option<std::thread::JoinHandle<String>>) -> String {
+    reader
+        .and_then(|handle| handle.join().ok())
+        .unwrap_or_default()
+}
+
+#[cfg(unix)]
+fn kill_process_tree(child: &mut Child) {
+    let process_group = i32::try_from(child.id()).unwrap_or(i32::MAX);
+    // The child is spawned into its own process group above, so this terminates descendants too.
+    unsafe {
+        libc::killpg(process_group, libc::SIGKILL);
+    }
+    let _ = child.kill();
+}
+
+#[cfg(windows)]
+fn kill_process_tree(child: &mut Child) {
+    let _ = StdCommand::new("taskkill")
+        .args(["/PID", &child.id().to_string(), "/T", "/F"])
+        .status();
+    let _ = child.kill();
 }
 
 fn truncate_string(s: &str, max_len: usize) -> String {
@@ -569,6 +865,7 @@ pub(crate) fn fs_create_snapshot(
         "snapshot_path": snapshot_path.to_string_lossy(),
         "existed": exists,
         "original_hash": &original_hash,
+        "post_hash": Value::Null,
         "run_id": &run_id,
         "created_at": system_time_now_ms(),
     });
@@ -581,6 +878,42 @@ pub(crate) fn fs_create_snapshot(
         existed: exists,
         original_hash,
     })
+}
+
+/// Seal a snapshot after a successful mutation with the resulting file hash.
+/// Restore uses this hash to avoid overwriting edits made after the Agent run.
+#[tauri::command]
+pub(crate) fn fs_seal_snapshot(
+    app: AppHandle,
+    snapshot_id: String,
+    run_id: String,
+    file_path: String,
+    workspace_root: String,
+) -> Result<(), String> {
+    let target = validate_path_in_workspace(&file_path, &workspace_root)?;
+    let data_dir = app_data_dir(&app)?;
+    let meta_path = data_dir
+        .join("snapshots")
+        .join(&run_id)
+        .join(format!("{snapshot_id}.json"));
+    let meta_str =
+        std::fs::read_to_string(&meta_path).map_err(|e| format!("snapshot not found: {e}"))?;
+    let mut meta: serde_json::Value = serde_json::from_str(&meta_str).map_err(|e| e.to_string())?;
+    let recorded_path = meta["file_path"]
+        .as_str()
+        .ok_or("invalid snapshot metadata")?;
+    if Path::new(recorded_path) != target {
+        return Err("snapshot target does not match requested file".to_owned());
+    }
+    let post_hash = if target.exists() {
+        Value::String(simple_hash(
+            &std::fs::read(&target).map_err(|e| e.to_string())?,
+        ))
+    } else {
+        Value::Null
+    };
+    meta["post_hash"] = post_hash;
+    std::fs::write(&meta_path, meta.to_string()).map_err(|e| e.to_string())
 }
 
 /// Restore a file from a snapshot.
@@ -602,24 +935,34 @@ pub(crate) fn fs_restore_snapshot(
         .as_str()
         .ok_or("invalid snapshot metadata")?;
     let existed = meta["existed"].as_bool().unwrap_or(false);
-    let original_hash = meta["original_hash"].as_str();
-
     let target = validate_path_in_workspace(&file_path, &workspace_root)?;
+    let recorded_path = meta["file_path"]
+        .as_str()
+        .ok_or("invalid snapshot metadata")?;
+    if Path::new(recorded_path) != target {
+        return Err("snapshot target does not match requested file".to_owned());
+    }
 
-    // Check if the file has been modified since snapshot
-    if let (true, Some(original_hash)) = (target.exists(), original_hash) {
-        let current = std::fs::read(&target).map_err(|e| e.to_string())?;
-        let current_hash = simple_hash(&current);
-        if current_hash != original_hash {
-            // Check if current content matches what we'd restore (already restored)
-            let snapshot_content = std::fs::read(snapshot_path).map_err(|e| e.to_string())?;
-            if current == snapshot_content {
-                return Ok(true); // Already restored
-            }
-            return Err(
-                "file has been modified since snapshot — cannot safely auto-restore".to_owned(),
-            );
-        }
+    let current_hash = if target.exists() {
+        Some(simple_hash(
+            &std::fs::read(&target).map_err(|e| e.to_string())?,
+        ))
+    } else {
+        None
+    };
+    let expected_hash = meta
+        .get("post_hash")
+        .ok_or("snapshot has not been sealed after mutation")?;
+    let expected_hash = if expected_hash.is_null() {
+        None
+    } else {
+        expected_hash.as_str().map(str::to_owned)
+    };
+    if current_hash != expected_hash {
+        return Err(
+            "file was modified after the Agent run — refusing to overwrite newer changes"
+                .to_owned(),
+        );
     }
 
     if existed {
@@ -689,7 +1032,66 @@ fn validate_update_sql(sql: &str) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{validate_path_in_workspace, validate_query_sql, validate_update_sql};
+    use super::{
+        cancel_command, run_command, validate_entity, validate_path_in_workspace,
+        validate_query_sql, validate_update_sql, STRUCTURED_ENTITIES,
+    };
+
+    #[test]
+    fn structured_entity_validation_is_allowlist_only() {
+        for entity in STRUCTURED_ENTITIES {
+            assert!(validate_entity(entity).is_ok(), "expected {entity} to pass");
+        }
+        assert_eq!(
+            validate_entity("app_entities; DROP TABLE app_entities"),
+            Err("unsupported structured storage entity".to_owned())
+        );
+        assert!(validate_entity("unknown").is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn running_command_can_be_cancelled() {
+        let workspace =
+            std::env::temp_dir().join(format!("evir-command-cancel-{}", std::process::id()));
+        std::fs::create_dir_all(&workspace).expect("workspace should be created");
+        let cwd = workspace.to_string_lossy().into_owned();
+        let workspace_root = cwd.clone();
+        let command_id = "cancel-test-command".to_owned();
+        let worker_id = command_id.clone();
+        let worker = std::thread::spawn(move || {
+            run_command(
+                worker_id,
+                cwd,
+                "sh".to_owned(),
+                vec!["-c".to_owned(), "sleep 10 & wait".to_owned()],
+                Some(15_000),
+                None,
+                workspace_root,
+            )
+        });
+
+        let started = std::time::Instant::now();
+        loop {
+            if cancel_command(command_id.clone()).expect("cancel command should succeed") {
+                break;
+            }
+            assert!(
+                started.elapsed() < std::time::Duration::from_secs(2),
+                "command did not register for cancellation"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+
+        let result = worker
+            .join()
+            .expect("command thread should join")
+            .expect("command should return a result");
+        assert!(!result.success);
+        assert_eq!(result.stderr, "Command cancelled by user");
+        assert!(started.elapsed() < std::time::Duration::from_secs(3));
+        let _ = std::fs::remove_dir_all(workspace);
+    }
 
     #[test]
     fn query_validation_allows_read_statements_only() {

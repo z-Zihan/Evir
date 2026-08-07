@@ -1,3 +1,4 @@
+import { useEffect, useId, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { DEFAULT_SHORTCUTS } from "../core/shortcuts/default-shortcuts";
 import { isMac, currentPlatform } from "../core/shortcuts/platform";
@@ -9,6 +10,48 @@ interface ShortcutHelpOverlayProps {
 
 export function ShortcutHelpOverlay({ open, onClose }: ShortcutHelpOverlayProps) {
   const { t } = useTranslation();
+  const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!open) return;
+    previousFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeRef.current?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab" || !dialogRef.current) return;
+      const focusable = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (!first || !last) return;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      previousFocusRef.current?.focus();
+    };
+  }, [open]);
+
   if (!open) return null;
 
   const mac = isMac();
@@ -37,16 +80,22 @@ export function ShortcutHelpOverlay({ open, onClose }: ShortcutHelpOverlayProps)
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
         className="bg-surface border border-border rounded-2xl p-6 min-w-[360px] max-w-[480px] shadow-xl shortcut-help"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-4">
-          <h2>{t("shortcuts.title")}</h2>
+          <h2 id={titleId}>{t("shortcuts.title")}</h2>
           <button
+            ref={closeRef}
             type="button"
             className="bg-transparent border-0 text-xl cursor-pointer text-muted hover:text-foreground px-1 leading-none"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t("settings.close")}
+            title={t("settings.close")}
           >
             ×
           </button>

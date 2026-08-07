@@ -1,7 +1,8 @@
 import { create } from "zustand";
 // NOTE: Uses Dexie directly for mcp_servers; StoragePort covers basic CRUD
-import { db, type McpServerRecord } from "../../core/storage/db";
+import type { McpServerRecord } from "../../core/storage/db";
 import type { McpServerConfig, StdioMcpServer, HttpMcpServer } from "../../core/mcp/types";
+import { getStructuredStorage } from "../../runtime/structured-storage";
 
 export type McpServerEntry = (StdioMcpServer | HttpMcpServer) & {
   createdAt: number;
@@ -54,7 +55,7 @@ export const useMcpStore = create<McpState>((set) => ({
   servers: [],
 
   loadServers: async () => {
-    const records = await db.mcpServers.toArray();
+    const records = await getStructuredStorage().readAll<McpServerRecord>("mcp_servers");
     records.sort((a, b) => b.createdAt - a.createdAt);
     set({ servers: records.map(toEntry) });
   },
@@ -69,13 +70,13 @@ export const useMcpStore = create<McpState>((set) => ({
       updatedAt: now,
     };
 
-    await db.mcpServers.add(toRecord(entry));
+    await getStructuredStorage().write("mcp_servers", entry.id, toRecord(entry));
     set(({ servers }) => ({ servers: [entry, ...servers] }));
     return entry.id;
   },
 
   removeServer: async (id) => {
-    await db.mcpServers.delete(id);
+    await getStructuredStorage().delete("mcp_servers", id);
     set(({ servers }) => ({ servers: servers.filter((s) => s.id !== id) }));
   },
 
@@ -84,7 +85,7 @@ export const useMcpStore = create<McpState>((set) => ({
     const server = servers.find((s) => s.id === id);
     if (!server) return;
     const updated = { ...server, enabled: !server.enabled };
-    await db.mcpServers.put(toRecord(updated));
+    await getStructuredStorage().write("mcp_servers", id, toRecord(updated));
     set({ servers: servers.map((s) => (s.id === id ? updated : s)) });
   },
 
@@ -94,7 +95,10 @@ export const useMcpStore = create<McpState>((set) => ({
     if (!server) return;
     const now = Date.now();
     const updated = { ...server, ...config, updatedAt: now } as McpServerEntry;
-    await db.mcpServers.put({ ...toRecord(updated), updatedAt: now });
+    await getStructuredStorage().write("mcp_servers", id, {
+      ...toRecord(updated),
+      updatedAt: now,
+    });
     set({ servers: servers.map((s) => (s.id === id ? updated : s)) });
   },
 }));

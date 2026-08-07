@@ -69,6 +69,112 @@ describe("file tools — web mode returns unavailable", () => {
   });
 });
 
+describe("agent mutation snapshots", () => {
+  it("tracks a content hash and marks the reference stale after mutation", async () => {
+    const runtime = {
+      target: "desktop" as const,
+      capabilities: new Set(["filesystem"]),
+      has: () => true,
+      mode: "agent" as const,
+      getWorkspaceRoot: () => "/tmp/project",
+      agentRun: { id: "run-1", snapshots: [], fileReferences: [] },
+      storage: {
+        readFile: vi.fn(() => Promise.resolve("original content")),
+        createSnapshot: vi.fn(() =>
+          Promise.resolve({
+            snapshot_id: "snapshot-1",
+            file_path: "/tmp/project/file.txt",
+            existed: true,
+            original_hash: "native-hash",
+          }),
+        ),
+        sealSnapshot: vi.fn(() => Promise.resolve()),
+        writeFile: vi.fn(() => Promise.resolve()),
+      },
+    } as unknown as EvirRuntime;
+    const read = LOCAL_FILE_TOOLS.find((tool) => tool.id === "read_file")!;
+    const write = LOCAL_FILE_TOOLS.find((tool) => tool.id === "write_file")!;
+
+    const readResult = await read.execute({ path: "/tmp/project/file.txt" }, runtime);
+    expect(readResult.output).toMatch(/sha256=[a-f0-9]{64}/);
+    expect(runtime.agentRun?.fileReferences[0]).toMatchObject({
+      path: "/tmp/project/file.txt",
+      stale: false,
+    });
+
+    await write.execute({ path: "/tmp/project/file.txt", content: "changed" }, runtime);
+    expect(runtime.agentRun?.fileReferences[0]?.stale).toBe(true);
+  });
+
+  it("creates one baseline snapshot before repeated writes to a file", async () => {
+    const createSnapshot = vi.fn(() =>
+      Promise.resolve({
+        snapshot_id: "snapshot-1",
+        file_path: "/tmp/project/file.txt",
+        existed: true,
+        original_hash: "hash",
+      }),
+    );
+    const writeFile = vi.fn(() => Promise.resolve());
+    const applyPatch = vi.fn(() => Promise.resolve());
+    const sealSnapshot = vi.fn(() => Promise.resolve());
+    const runtime = {
+      target: "desktop" as const,
+      capabilities: new Set(["filesystem"]),
+      has: (capability: string) => capability === "filesystem",
+      mode: "agent" as const,
+      getWorkspaceRoot: () => "/tmp/project",
+      agentRun: { id: "run-1", snapshots: [], fileReferences: [] },
+      storage: { createSnapshot, sealSnapshot, writeFile, applyPatch },
+    } as unknown as EvirRuntime;
+
+    const write = LOCAL_FILE_TOOLS.find((tool) => tool.id === "write_file")!;
+    const patch = LOCAL_FILE_TOOLS.find((tool) => tool.id === "apply_patch")!;
+    await expect(
+      write.execute({ path: "/tmp/project/file.txt", content: "first" }, runtime),
+    ).resolves.toMatchObject({ success: true });
+    await expect(
+      patch.execute(
+        { path: "/tmp/project/file.txt", old_content: "first", new_content: "second" },
+        runtime,
+      ),
+    ).resolves.toMatchObject({ success: true });
+
+    expect(createSnapshot).toHaveBeenCalledOnce();
+    expect(createSnapshot).toHaveBeenCalledWith("/tmp/project/file.txt", "run-1");
+    expect(runtime.agentRun?.snapshots).toHaveLength(1);
+    expect(sealSnapshot).toHaveBeenCalledTimes(2);
+    expect(writeFile).toHaveBeenCalledOnce();
+    expect(applyPatch).toHaveBeenCalledOnce();
+  });
+
+  it("does not mutate a file when its safety snapshot fails", async () => {
+    const writeFile = vi.fn(() => Promise.resolve());
+    const runtime = {
+      target: "desktop" as const,
+      capabilities: new Set(["filesystem"]),
+      has: () => true,
+      mode: "agent" as const,
+      getWorkspaceRoot: () => "/tmp/project",
+      agentRun: { id: "run-1", snapshots: [], fileReferences: [] },
+      storage: {
+        createSnapshot: vi.fn(() => Promise.reject(new Error("snapshot unavailable"))),
+        writeFile,
+      },
+    } as unknown as EvirRuntime;
+
+    const write = LOCAL_FILE_TOOLS.find((tool) => tool.id === "write_file")!;
+    await expect(
+      write.execute({ path: "/tmp/project/file.txt", content: "unsafe" }, runtime),
+    ).resolves.toEqual({
+      success: false,
+      output: "snapshot unavailable",
+      error: "snapshot_failed",
+    });
+    expect(writeFile).not.toHaveBeenCalled();
+  });
+});
+
 describe("tool definitions", () => {
   it("all tools have required fields", () => {
     for (const tool of LOCAL_FILE_TOOLS) {
