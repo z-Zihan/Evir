@@ -49,6 +49,32 @@ describe("DesktopStorageAdapter", () => {
     expect(invoke).toHaveBeenCalledWith("keychain_delete", { key: "api-key" });
   });
 
+  it("reads and writes the shared non-secret Provider profiles", async () => {
+    const profiles = [
+      {
+        id: "provider-1",
+        name: "Provider",
+        protocolId: "openai-compatible-chat",
+        baseUrl: "https://example.com/v1",
+        modelId: "model",
+        toolCalling: true,
+        enabled: true,
+        isDefault: true,
+        createdAt: 1,
+        updatedAt: 2,
+      },
+    ];
+    vi.mocked(invoke).mockResolvedValueOnce(profiles).mockResolvedValueOnce(undefined);
+
+    await expect(desktopStorage.sharedProviderProfilesRead()).resolves.toEqual(profiles);
+    await desktopStorage.sharedProviderProfilesWrite(profiles, ["removed"]);
+    expect(invoke).toHaveBeenNthCalledWith(1, "shared_provider_profiles_read");
+    expect(invoke).toHaveBeenNthCalledWith(2, "shared_provider_profiles_write", {
+      profiles,
+      deletedIds: ["removed"],
+    });
+  });
+
   it("reads a file", async () => {
     vi.mocked(invoke).mockResolvedValue("file content");
 

@@ -239,6 +239,9 @@ Evir Desktop 支持本地 stdio 与远程 Streamable HTTP MCP；新增 Server �
 - 能力探测可能产生费用时必须提前确认；不得为了探测启用服务端搜索、代码执行或远程 MCP。
 - 默认不自动跨 Provider 回退，避免成本和数据去向失控。
 - Provider 服务端工具与 Evir Local Tool、MCP Tool 分开展示和审计。
+- Desktop 与 CLI 在同一设备共享版本化的非敏感 Provider Profile 和系统安全凭据；API Key 不得进入 JSON、命令输出或日志。
+- CLI 不依赖 Desktop 安装或常驻进程。`evir configure` 必须能独立创建 Provider 与安全凭据；Desktop 在下次加载 Provider 时识别该配置。
+- `EVIR_API_KEY` 仅作为当前 CLI 进程的最高优先级覆盖。共享配置损坏或版本不支持时必须明确报错，不得静默覆盖。
 
 ## 13. 完成、退出与系统权限闭环
 

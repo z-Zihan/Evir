@@ -44,6 +44,8 @@ pub fn run() {
             commands::keychain_set,
             commands::keychain_get,
             commands::keychain_delete,
+            commands::shared_provider_profiles_read,
+            commands::shared_provider_profiles_write,
             commands::fs_read_file,
             commands::fs_write_file,
             commands::fs_list_dir,

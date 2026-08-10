@@ -18,7 +18,7 @@
 - Markdown：react-markdown + remark-gfm；Shiki 按需加载
 - Test：Vitest + Testing Library + Playwright；Desktop 补充 Rust tests 和 Tauri E2E
 
-## 2. 单仓库双产物
+## 2. 单仓库多产物
 
 ```text
 pnpm build:web
@@ -26,6 +26,12 @@ pnpm build:web
 
 pnpm build:desktop
   -> Tauri bundles      当前操作系统安装包
+
+pnpm package:vscode
+  -> extensions/vscode/artifacts/evir.vsix
+
+pnpm build:cli
+  -> packages/cli/dist/cli.js
 ```
 
 同一台本地机器上的普通构建命令只构建当前平台。正式发布由 GitHub Actions 矩阵完成：
@@ -201,6 +207,23 @@ SQLite 是嵌入式库，不是后端服务。Desktop 进程直接读写应用�
 - SQLite：会话、消息、任务、工具记录、记忆、Skill/MCP 元数据、全文搜索索引。
 - Artifact 文件目录：附件、超长日志、Diff、快照、生成文件和备份。
 - 临时目录/内存：隐私会话和可丢弃中间结果。
+
+### Desktop / CLI Provider 共享
+
+Desktop 与 CLI 通过 Storage Adapter 共享一份 `version: 1` 的 `providers.json`。文件只保存 Provider ID、名称、协议、Base URL、模型、能力、默认项和时间戳；Schema 严格校验，最多 100 项，使用临时文件加原子替换写入，绝不包含 API Key。Desktop 写入时按 Provider ID 和 `updatedAt` 合并磁盘新值，显式删除使用独立 ID 列表，避免运行中的旧内存列表覆盖 CLI 刚写入的 Profile。
+
+```text
+Desktop Provider Store ─┐
+                        ├─ providers.json（非敏感、版本化）
+CLI Config Store ───────┘
+
+Desktop Keychain Adapter ─┐
+                          ├─ OS Credential Store
+CLI Credential Adapter ───┘   service=evir
+                              account=provider:<id>:api-key
+```
+
+CLI 的凭据优先级为 `EVIR_API_KEY` → 系统安全凭据。Desktop 继续以 SQLite 保存完整结构化 Provider 记录，并在加载时按 `updatedAt` 合并共享 Profile；旧 CLI `config.json` 只读兼容，在下次 `configure` 时迁移。VS Code 扩展仍使用隔离的 SecretStorage，不读取这一桌面级共享文件。
 
 所有实现位于 Storage/Artifact Adapter 后，Domain 和 UI 不直接依赖 SQLite。
 

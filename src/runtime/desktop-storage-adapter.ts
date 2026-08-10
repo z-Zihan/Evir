@@ -7,6 +7,11 @@ export interface DesktopStorageAdapter {
   keychainSet(key: string, value: string): Promise<void>;
   keychainGet(key: string): Promise<string | null>;
   keychainDelete(key: string): Promise<void>;
+  sharedProviderProfilesRead(): Promise<SharedProviderProfile[]>;
+  sharedProviderProfilesWrite(
+    profiles: SharedProviderProfile[],
+    deletedIds?: string[],
+  ): Promise<void>;
   readFile(path: string): Promise<string>;
   writeFile(path: string, content: string): Promise<void>;
   listDir(path: string): Promise<FileInfo[]>;
@@ -28,6 +33,20 @@ export interface DesktopStorageAdapter {
   createSnapshot(filePath: string, runId: string): Promise<SnapshotResult>;
   sealSnapshot(snapshotId: string, runId: string, filePath: string): Promise<void>;
   restoreSnapshot(snapshotId: string, runId: string, filePath: string): Promise<boolean>;
+}
+
+export interface SharedProviderProfile {
+  id: string;
+  name: string;
+  protocolId: string;
+  baseUrl: string;
+  modelId: string;
+  toolCalling: boolean;
+  maxContextTokens?: number;
+  enabled: boolean;
+  isDefault: boolean;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface FileInfo {
@@ -86,6 +105,9 @@ export const desktopStorage: DesktopStorageAdapter = {
   keychainSet: (key, value) => invoke("keychain_set", { key, value }),
   keychainGet: (key) => invoke("keychain_get", { key }),
   keychainDelete: (key) => invoke("keychain_delete", { key }),
+  sharedProviderProfilesRead: () => invoke("shared_provider_profiles_read"),
+  sharedProviderProfilesWrite: (profiles, deletedIds = []) =>
+    invoke("shared_provider_profiles_write", { profiles, deletedIds }),
   readFile: (path) => invoke("fs_read_file", { path, workspaceRoot: selectedWorkspace() }),
   writeFile: (path, content) =>
     invoke("fs_write_file", { path, content, workspaceRoot: selectedWorkspace() }),

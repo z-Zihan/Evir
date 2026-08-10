@@ -13,6 +13,7 @@ Evir 不建设云端业务后端，但仍需要在用户电脑保存会话、消
 - SQLite Adapter：结构化记录和索引。
 - Artifact Store：附件、完整日志、Diff、快照、生成文件、备份。
 - Memory/Temporary Adapter：隐私会话与可丢弃数据。
+- Shared Provider Profile：Desktop/CLI 共用的版本化非敏感 `providers.json`；API Key 仍只在 Keychain/Credential Manager。
 
 UI、Agent Core、Skill 和 MCP 只能依赖 Storage Port，不得直接写 SQL。
 
@@ -45,6 +46,9 @@ Artifact 是任务产生或使用的较大内容，不应全部放进消息正�
 - 任务状态使用事务或可恢复事件记录。
 - 异常退出后显示未完成任务，只恢复状态，不自动重放工具。
 - 用户可选择继续、查看或放弃。
+- `providers.json` 当前 Schema 为 `version: 1`。Desktop 按 `updatedAt` 合并 CLI 写入项，并把旧 Desktop Provider 导出到共享 Profile；旧 CLI `config.json` 保持只读兼容并在下次配置时迁移。
+- 共享 Profile 采用同目录临时文件和原子重命名，权限在 Unix 上收紧为 `0600`。Desktop 写入会按 ID 和 `updatedAt` 合并磁盘新值，删除项显式传递，避免旧内存快照覆盖 CLI 更新。损坏、未知版本、未知字段或超过 100 个 Provider 时拒绝加载，不把错误文件静默替换。
+- 删除 Desktop Provider 时同步删除共享 Profile 项和对应系统凭据；默认 Provider 变更在整个 Profile 列表中保持唯一。
 
 ## 7. 导入导出
 

@@ -8,9 +8,14 @@ export default tseslint.config(
   {
     ignores: [
       "dist",
+      "**/dist",
       "artifacts",
+      "**/artifacts",
+      "**/.vscode-test",
       "src-tauri/target",
       "scripts",
+      "extensions/vscode/scripts",
+      "packages/cli/scripts",
       "e2e/fixtures",
       "vite.config.d.ts",
       "vite.config.js",

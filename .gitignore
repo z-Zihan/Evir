@@ -8,6 +8,7 @@ src-tauri/target
 .DS_Store
 *.log
 *.tsbuildinfo
+.vscode-test/
 src-tauri/gen/
 src-tauri/target/
 src-tauri/icons/icon.png

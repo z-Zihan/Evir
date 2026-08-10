@@ -1,5 +1,7 @@
 use std::{
     collections::HashMap,
+    fs::OpenOptions,
+    io::Write,
     path::{Component, Path, PathBuf},
     process::{Child, Command as StdCommand},
     sync::{
@@ -105,6 +107,30 @@ pub struct GitStatusResult {
     is_repo: bool,
     entries: Vec<GitStatusEntry>,
     branch: Option<String>,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SharedProviderProfile {
+    id: String,
+    name: String,
+    protocol_id: String,
+    base_url: String,
+    model_id: String,
+    tool_calling: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    max_context_tokens: Option<u64>,
+    enabled: bool,
+    is_default: bool,
+    created_at: u64,
+    updated_at: u64,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct SharedProviderDocument {
+    version: u8,
+    providers: Vec<SharedProviderProfile>,
 }
 
 fn app_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
@@ -369,6 +395,205 @@ pub(crate) fn keychain_delete(key: String) -> Result<(), String> {
         Err(keyring::Error::NoEntry) => Ok(()),
         Err(error) => Err(error.to_string()),
     }
+}
+
+fn shared_provider_path(app: &AppHandle) -> Result<PathBuf, String> {
+    Ok(app
+        .path()
+        .config_dir()
+        .map_err(|error| error.to_string())?
+        .join("evir")
+        .join("providers.json"))
+}
+
+#[cfg(not(windows))]
+fn replace_file_atomically(source: &Path, destination: &Path) -> Result<(), String> {
+    std::fs::rename(source, destination).map_err(|error| error.to_string())
+}
+
+#[cfg(windows)]
+fn replace_file_atomically(source: &Path, destination: &Path) -> Result<(), String> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Storage::FileSystem::{
+        MoveFileExW, MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH,
+    };
+
+    let source: Vec<u16> = source.as_os_str().encode_wide().chain(Some(0)).collect();
+    let destination: Vec<u16> = destination
+        .as_os_str()
+        .encode_wide()
+        .chain(Some(0))
+        .collect();
+    // SAFETY: Both paths are valid, null-terminated UTF-16 buffers for the duration of the call.
+    let result = unsafe {
+        MoveFileExW(
+            source.as_ptr(),
+            destination.as_ptr(),
+            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+        )
+    };
+    if result == 0 {
+        Err(std::io::Error::last_os_error().to_string())
+    } else {
+        Ok(())
+    }
+}
+
+fn validate_shared_provider(profile: &SharedProviderProfile) -> Result<(), String> {
+    const PROTOCOLS: &[&str] = &[
+        "openai-chat-completions",
+        "openai-compatible-chat",
+        "openai-responses",
+        "anthropic-messages",
+        "gemini-generate-content",
+        "ollama-native",
+    ];
+    if profile.id.trim().is_empty() || profile.id.len() > 200 {
+        return Err("provider id must contain 1 to 200 characters".to_owned());
+    }
+    if profile.name.trim().is_empty() || profile.name.len() > 100 {
+        return Err("provider name must contain 1 to 100 characters".to_owned());
+    }
+    if !PROTOCOLS.contains(&profile.protocol_id.as_str()) {
+        return Err("unsupported provider protocol".to_owned());
+    }
+    if !(profile.base_url.starts_with("http://") || profile.base_url.starts_with("https://")) {
+        return Err("provider base URL must use http or https".to_owned());
+    }
+    if profile.model_id.trim().is_empty() || profile.model_id.len() > 200 {
+        return Err("model id must contain 1 to 200 characters".to_owned());
+    }
+    Ok(())
+}
+
+fn merge_shared_provider_profiles(
+    current: Vec<SharedProviderProfile>,
+    incoming: Vec<SharedProviderProfile>,
+    deleted_ids: Vec<String>,
+) -> Result<Vec<SharedProviderProfile>, String> {
+    let deleted: std::collections::HashSet<_> = deleted_ids.into_iter().collect();
+    let mut merged: HashMap<String, SharedProviderProfile> = current
+        .into_iter()
+        .filter(|profile| !deleted.contains(&profile.id))
+        .map(|profile| (profile.id.clone(), profile))
+        .collect();
+    for profile in incoming {
+        if deleted.contains(&profile.id) {
+            continue;
+        }
+        let replace = merged
+            .get(&profile.id)
+            .is_none_or(|current| profile.updated_at >= current.updated_at);
+        if replace {
+            merged.insert(profile.id.clone(), profile);
+        }
+    }
+    if merged.len() > 100 {
+        return Err("at most 100 shared Providers are allowed".to_owned());
+    }
+    let selected_default = merged
+        .values()
+        .filter(|profile| profile.enabled && profile.is_default)
+        .max_by_key(|profile| profile.updated_at)
+        .map(|profile| profile.id.clone());
+    let mut merged: Vec<_> = merged
+        .into_values()
+        .map(|mut profile| {
+            profile.is_default = selected_default.as_deref() == Some(profile.id.as_str());
+            profile
+        })
+        .collect();
+    merged.sort_by(|left, right| {
+        right
+            .updated_at
+            .cmp(&left.updated_at)
+            .then_with(|| left.id.cmp(&right.id))
+    });
+    Ok(merged)
+}
+
+#[tauri::command]
+pub(crate) fn shared_provider_profiles_read(
+    app: AppHandle,
+) -> Result<Vec<SharedProviderProfile>, String> {
+    let path = shared_provider_path(&app)?;
+    let raw = match std::fs::read_to_string(path) {
+        Ok(raw) => raw,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => return Err(error.to_string()),
+    };
+    let document: SharedProviderDocument = serde_json::from_str(&raw)
+        .map_err(|error| format!("invalid shared Provider file: {error}"))?;
+    if document.version != 1 || document.providers.len() > 100 {
+        return Err("unsupported shared Provider document".to_owned());
+    }
+    for profile in &document.providers {
+        validate_shared_provider(profile)?;
+    }
+    Ok(document.providers)
+}
+
+#[tauri::command]
+pub(crate) fn shared_provider_profiles_write(
+    app: AppHandle,
+    profiles: Vec<SharedProviderProfile>,
+    deleted_ids: Vec<String>,
+) -> Result<(), String> {
+    if profiles.len() > 100 {
+        return Err("at most 100 shared Providers are allowed".to_owned());
+    }
+    if deleted_ids.len() > 100 {
+        return Err("at most 100 shared Provider deletions are allowed".to_owned());
+    }
+    for profile in &profiles {
+        validate_shared_provider(profile)?;
+    }
+    let path = shared_provider_path(&app)?;
+    let parent = path
+        .parent()
+        .ok_or_else(|| "shared Provider path has no parent".to_owned())?;
+    std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    let temporary = parent.join(format!("providers.json.{}.tmp", std::process::id()));
+    let current = match std::fs::read_to_string(&path) {
+        Ok(raw) => {
+            let document: SharedProviderDocument = serde_json::from_str(&raw)
+                .map_err(|error| format!("invalid shared Provider file: {error}"))?;
+            if document.version != 1 {
+                return Err("unsupported shared Provider document".to_owned());
+            }
+            if document.providers.len() > 100 {
+                return Err("unsupported shared Provider document".to_owned());
+            }
+            for profile in &document.providers {
+                validate_shared_provider(profile)?;
+            }
+            document.providers
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Vec::new(),
+        Err(error) => return Err(error.to_string()),
+    };
+    let merged = merge_shared_provider_profiles(current, profiles, deleted_ids)?;
+    let encoded = serde_json::to_vec_pretty(&SharedProviderDocument {
+        version: 1,
+        providers: merged,
+    })
+    .map_err(|error| error.to_string())?;
+    let mut options = OpenOptions::new();
+    options.create(true).truncate(true).write(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut file = options
+        .open(&temporary)
+        .map_err(|error| error.to_string())?;
+    file.write_all(&encoded)
+        .map_err(|error| error.to_string())?;
+    file.write_all(b"\n").map_err(|error| error.to_string())?;
+    file.sync_all().map_err(|error| error.to_string())?;
+    replace_file_atomically(&temporary, &path)?;
+    Ok(())
 }
 
 fn validate_path(path: &str) -> Result<PathBuf, String> {
@@ -1033,8 +1258,9 @@ fn validate_update_sql(sql: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        cancel_command, run_command, validate_entity, validate_path_in_workspace,
-        validate_query_sql, validate_update_sql, STRUCTURED_ENTITIES,
+        cancel_command, merge_shared_provider_profiles, run_command, validate_entity,
+        validate_path_in_workspace, validate_query_sql, validate_shared_provider,
+        validate_update_sql, SharedProviderProfile, STRUCTURED_ENTITIES,
     };
 
     #[test]
@@ -1047,6 +1273,78 @@ mod tests {
             Err("unsupported structured storage entity".to_owned())
         );
         assert!(validate_entity("unknown").is_err());
+    }
+
+    #[test]
+    fn shared_provider_validation_rejects_secrets_and_unsupported_protocols() {
+        let profile = SharedProviderProfile {
+            id: "provider-1".to_owned(),
+            name: "Provider".to_owned(),
+            protocol_id: "openai-compatible-chat".to_owned(),
+            base_url: "https://example.com/v1".to_owned(),
+            model_id: "model".to_owned(),
+            tool_calling: true,
+            max_context_tokens: Some(32_768),
+            enabled: true,
+            is_default: true,
+            created_at: 1,
+            updated_at: 2,
+        };
+        assert!(validate_shared_provider(&profile).is_ok());
+        let encoded = serde_json::to_string(&profile).expect("profile should serialize");
+        assert!(!encoded.contains("apiKey"));
+        assert!(encoded.contains("maxContextTokens"));
+        let with_secret = encoded.trim_end_matches('}').to_owned() + ",\"apiKey\":\"secret\"}";
+        assert!(serde_json::from_str::<SharedProviderProfile>(&with_secret).is_err());
+
+        let mut unsupported = profile;
+        unsupported.protocol_id = "unknown".to_owned();
+        assert_eq!(
+            validate_shared_provider(&unsupported),
+            Err("unsupported provider protocol".to_owned())
+        );
+
+        let without_context = SharedProviderProfile {
+            max_context_tokens: None,
+            ..unsupported
+        };
+        let encoded = serde_json::to_string(&without_context).expect("profile should serialize");
+        assert!(!encoded.contains("maxContextTokens"));
+    }
+
+    #[test]
+    fn shared_provider_merge_preserves_newer_disk_values_and_explicit_deletions() {
+        let profile = |id: &str, updated_at: u64, is_default: bool| SharedProviderProfile {
+            id: id.to_owned(),
+            name: format!("Provider {id}"),
+            protocol_id: "openai-compatible-chat".to_owned(),
+            base_url: "https://example.com/v1".to_owned(),
+            model_id: format!("model-{updated_at}"),
+            tool_calling: true,
+            max_context_tokens: None,
+            enabled: true,
+            is_default,
+            created_at: 1,
+            updated_at,
+        };
+        let merged = merge_shared_provider_profiles(
+            vec![
+                profile("newer-on-disk", 20, true),
+                profile("deleted", 5, false),
+            ],
+            vec![
+                profile("newer-on-disk", 10, false),
+                profile("incoming", 30, true),
+            ],
+            vec!["deleted".to_owned()],
+        )
+        .expect("profiles should merge");
+
+        assert_eq!(merged.len(), 2);
+        assert_eq!(merged[0].id, "incoming");
+        assert!(merged[0].is_default);
+        assert_eq!(merged[1].model_id, "model-20");
+        assert!(!merged[1].is_default);
     }
 
     #[cfg(unix)]

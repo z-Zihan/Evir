@@ -1,0 +1,11 @@
+.gitignore
+node_modules/**
+artifacts/**
+scripts/**
+src/**
+test/**
+tsconfig.json
+vitest.config.ts
+**/*.map
+**/*.test.*
+dist/test/**

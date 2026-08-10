@@ -6,6 +6,33 @@ on:
     tags: ["v*"]
 
 jobs:
+  vscode:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --dir extensions/vscode check
+      - run: pnpm package:vscode
+      - run: pnpm --dir packages/cli check
+      - run: pnpm --dir packages/cli pack:check
+      - uses: actions/upload-artifact@v4
+        with:
+          name: evir-vscode-${{ github.ref_name }}
+          path: extensions/vscode/artifacts/evir.vsix
+      - uses: actions/upload-artifact@v4
+        with:
+          name: evir-cli-${{ github.ref_name }}
+          path: packages/cli/artifacts/evir-cli-*.tgz
+
   build:
     permissions:
       contents: write

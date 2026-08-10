@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProviderRecord } from "../../../core/storage/db";
+import type { SharedProviderProfile } from "../../../runtime/desktop-storage-adapter";
 
 const mocks = vi.hoisted(() => ({
   rows: [] as ProviderRecord[],
@@ -10,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   keychainSet: vi.fn(() => Promise.resolve()),
   keychainGet: vi.fn((): Promise<string | null> => Promise.resolve(null)),
   keychainDelete: vi.fn(() => Promise.resolve()),
+  sharedProviderProfilesRead: vi.fn((): Promise<SharedProviderProfile[]> => Promise.resolve([])),
+  sharedProviderProfilesWrite: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock("../../../runtime/use-runtime", () => ({
@@ -25,6 +28,8 @@ vi.mock("../../../runtime/use-runtime", () => ({
       keychainSet: mocks.keychainSet,
       keychainGet: mocks.keychainGet,
       keychainDelete: mocks.keychainDelete,
+      sharedProviderProfilesRead: mocks.sharedProviderProfilesRead,
+      sharedProviderProfilesWrite: mocks.sharedProviderProfilesWrite,
     },
   }),
 }));
@@ -64,6 +69,8 @@ describe("desktop provider persistence", () => {
     vi.clearAllMocks();
     mocks.rows = [];
     mocks.keychainGet.mockResolvedValue(null);
+    mocks.sharedProviderProfilesRead.mockResolvedValue([]);
+    mocks.sharedProviderProfilesWrite.mockResolvedValue(undefined);
     useProviderStore.setState({ providers: [] });
   });
 
@@ -85,6 +92,10 @@ describe("desktop provider persistence", () => {
       maxContextTokens: 32_768,
     });
     expect(useProviderStore.getState().providers[0]?.apiKey).toBe("desktop-secret");
+    expect(mocks.sharedProviderProfilesWrite).toHaveBeenCalledWith(
+      [expect.objectContaining({ id: provider.id, name: "Local model" })],
+      [],
+    );
   });
 
   it("hydrates the API key from Keychain when loading", async () => {
@@ -97,6 +108,36 @@ describe("desktop provider persistence", () => {
     expect(useProviderStore.getState().providers[0]?.apiKey).toBe("restored-secret");
   });
 
+  it("imports a newer CLI profile and hydrates its shared credential", async () => {
+    mocks.rows = [storedProvider];
+    mocks.sharedProviderProfilesRead.mockResolvedValue([
+      {
+        id: "provider-1",
+        name: "Updated from CLI",
+        protocolId: "openai-compatible-chat",
+        baseUrl: "https://example.com/v1",
+        modelId: "new-model",
+        toolCalling: false,
+        enabled: true,
+        isDefault: true,
+        createdAt: 1,
+        updatedAt: 20,
+      },
+    ]);
+    mocks.keychainGet.mockResolvedValue("shared-secret");
+
+    await useProviderStore.getState().loadProviders();
+
+    expect(mocks.write).toHaveBeenCalledWith(
+      "providers",
+      "provider-1",
+      expect.objectContaining({ name: "Updated from CLI", apiKey: "" }),
+    );
+    expect(useProviderStore.getState().providers[0]).toEqual(
+      expect.objectContaining({ name: "Updated from CLI", apiKey: "shared-secret" }),
+    );
+  });
+
   it("deletes both the structured record and its Keychain secret", async () => {
     useProviderStore.setState({ providers: [{ ...storedProvider, apiKey: "restored-secret" }] });
 
@@ -104,6 +145,7 @@ describe("desktop provider persistence", () => {
 
     expect(mocks.delete).toHaveBeenCalledWith("providers", "provider-1");
     expect(mocks.keychainDelete).toHaveBeenCalledWith("provider:provider-1:api-key");
+    expect(mocks.sharedProviderProfilesWrite).toHaveBeenCalledWith([], ["provider-1"]);
     expect(useProviderStore.getState().providers).toEqual([]);
   });
 });

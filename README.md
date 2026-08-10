@@ -27,7 +27,7 @@
 - **单模型即可启动**：不强制配置第二个压缩模型、Embedding 服务、Skill、MCP 或 Evir 后端。
 - **本地可诊断**：覆盖全系统的脱敏日志、审计与诊断包，由用户主动导出，不存在远程日志后门。
 
-## 两种产品形态，一套代码
+## 多种产品形态，一套核心能力
 
 ### Evir Web
 
@@ -53,6 +53,27 @@
 - 内置 Skill、用户导入与创建 Skill。
 - MCP 服务器配置管理；真实 stdio / Streamable HTTP 连接闭环仍在开发中。
 - 后续支持浏览器自动化和 Computer Use。
+
+### Evir for VS Code
+
+可独立打包为 `.vsix` 的编辑器扩展，不要求 Evir Desktop 常驻运行。
+
+- BYOM Provider、Base URL、模型和 API Key 配置；密钥存入 VS Code SecretStorage。
+- Ask 流式问答、停止和本地会话保存。
+- 受信任本地工作区中的 Agent 文件、搜索、Git 和命令工具。
+- 写文件和执行命令逐次审批；最后一次文件写入支持 Diff 和回滚。
+- 当前不支持 VS Code Web、Remote SSH/WSL、MCP、Skill 和 Desktop 会话同步。
+
+VSCodium、Cursor 和 Windsurf 等 VS Code 兼容编辑器可能直接安装同一 VSIX，但尚未逐项验收。JetBrains、Zed 和 Neovim 需要独立 Runtime Adapter，详见 [VS Code 扩展与编辑器路线](docs/19-vscode-extension-and-editor-roadmap.md)。
+
+### Evir CLI
+
+可独立安装的 `evir` 命令行工具，不要求先安装或启动 Desktop。
+
+- `evir configure` 配置 Provider，并把 API Key 写入系统安全凭据库。
+- `evir ask` 提供流式问答；`evir agent --workspace <path>` 在工作区边界内运行 Agent。
+- Desktop 与 CLI 共享默认 Provider 的非敏感配置和系统凭据；任一端更新后，另一端下次读取即可使用。
+- `EVIR_API_KEY` 可作为当前进程的临时最高优先级覆盖，不会写入配置或日志。
 
 ## 核心体验
 
@@ -134,6 +155,7 @@ Evir 不需要云端数据库。
 
 ```text
 API Key                 → 系统安全凭据库
+Desktop / CLI Provider  → 版本化非敏感本地配置
 主题、语言等简单设置     → 本地配置
 会话、任务、记忆等结构数据 → 嵌入式本地存储
 日志、Diff、快照、生成文件 → Artifact 文件目录
@@ -182,6 +204,9 @@ pnpm dev:web
 pnpm dev:desktop
 pnpm build:web
 pnpm build:desktop
+pnpm build:vscode
+pnpm package:vscode
+pnpm build:cli
 pnpm check
 pnpm test:e2e
 pnpm test:ui
@@ -212,6 +237,7 @@ macOS 与 Windows 正式安装包需要在对应系统构建。推荐通过一�
 - [Evir Harness Engineering](docs/16-harness-engineering-for-evir.md)
 - [本地日志与诊断系统](docs/17-local-logging-and-diagnostics.md)
 - [最终产品审查 V6](docs/18-final-product-review-v6.md)
+- [VS Code 扩展与编辑器路线](docs/19-vscode-extension-and-editor-roadmap.md)
 - [Coding Agent Prompt](prompts/coding-agent-master-prompt.md)
 
 ## Repository

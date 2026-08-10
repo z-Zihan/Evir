@@ -30,6 +30,9 @@ dev:web             Web 开发服务器
 dev:desktop         Tauri 开发模式
 build:web           Web 静态产物
 build:desktop       当前平台 Desktop 产物
+build:vscode        VS Code 扩展生产 Bundle
+package:vscode      生成 VSIX
+build:cli           CLI 生产 Bundle
 check               format + lint + typecheck + test
 format              格式化
 lint                 ESLint
@@ -46,6 +49,8 @@ tauri                Tauri CLI
 ```text
 VITE_EVIR_TARGET=web|desktop
 VITE_APP_VERSION=
+EVIR_API_KEY=        CLI 当前进程覆盖；configure 时可导入系统凭据库
+EVIR_CONFIG_DIR=     CLI 测试/便携配置根目录
 ```
 
 ## 5. 新增功能流程
@@ -93,6 +98,8 @@ Desktop 的 SQLite 是嵌入式本地文件，不是远程数据库服务。
 - 不修改已发布 migration。
 - 为破坏性变更提供备份或迁移说明。
 - Repository 层负责 SQL，UI 不得直接访问数据库。
+- Desktop/CLI 共享 Provider Profile 只能包含非敏感字段，使用版本化 Schema 和原子替换；系统凭据账户固定为 `provider:<provider-id>:api-key`。
+- 修改共享 Schema 时必须同时更新 Rust Desktop Adapter、CLI Config Store、迁移兼容测试和 `docs/09-storage-artifacts-and-recovery.md`。
 
 ## 10. 发布
 

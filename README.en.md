@@ -27,7 +27,7 @@ Many AI clients wrap the core experience in accounts, credits, subscriptions, ad
 - **One model is enough**: no required secondary summarizer, embedding service, Skill, MCP server, or Evir backend.
 - **Locally diagnosable**: system-wide redacted logs, audit trails, and user-exported diagnostic bundles without a remote logging backdoor.
 
-## Two products, one codebase
+## Multiple products, one shared capability core
 
 ### Evir Web
 
@@ -53,6 +53,27 @@ It adds:
 - Built-in and user-created Skills.
 - MCP server configuration management; live stdio and Streamable HTTP closure is still in development.
 - Browser automation and Computer Use in later phases.
+
+### Evir for VS Code
+
+A standalone `.vsix` extension that does not require the Evir Desktop app to stay running.
+
+- BYOM Provider, Base URL, model, and API-key configuration using VS Code SecretStorage.
+- Streaming Ask, cancellation, and local conversation persistence.
+- Agent file, search, Git, and command tools in trusted local workspaces.
+- Per-call approval for writes and execution, plus Diff and rollback for the last file write.
+- VS Code Web, Remote SSH/WSL, MCP, Skills, and Desktop conversation sync are not currently supported.
+
+VS Code-compatible editors such as VSCodium, Cursor, and Windsurf may install the same VSIX, but have not yet been validated individually. JetBrains, Zed, and Neovim require separate runtime adapters; see the [VS Code extension and editor roadmap](docs/19-vscode-extension-and-editor-roadmap.md).
+
+### Evir CLI
+
+The standalone `evir` command does not require Evir Desktop to be installed or running.
+
+- `evir configure` saves Provider metadata and places the API key in the OS credential store.
+- `evir ask` streams answers; `evir agent --workspace <path>` runs the Agent inside an explicit workspace boundary.
+- Desktop and CLI share the default Provider's non-secret profile and OS credential; a change made by either surface is available on the other's next read.
+- `EVIR_API_KEY` is a temporary, highest-priority process override and is never written to configuration or logs.
 
 ## Model and protocol architecture
 
@@ -134,6 +155,7 @@ Evir does not require a cloud database.
 
 ```text
 API keys                   → OS secure credential store
+Desktop / CLI Providers    → versioned non-secret local config
 Simple settings            → local config
 Conversations/runs/memory  → embedded local storage
 Logs/diffs/snapshots/files → local Artifact store
@@ -181,6 +203,9 @@ pnpm dev:web
 pnpm dev:desktop
 pnpm build:web
 pnpm build:desktop
+pnpm build:vscode
+pnpm package:vscode
+pnpm build:cli
 pnpm check
 pnpm test:e2e
 pnpm test:ui
@@ -211,6 +236,7 @@ Production macOS and Windows bundles should be built on their respective operati
 - [Evir Harness Engineering](docs/16-harness-engineering-for-evir.md)
 - [Local Logging and Diagnostics](docs/17-local-logging-and-diagnostics.md)
 - [Final Product Review V6](docs/18-final-product-review-v6.md)
+- [VS Code Extension and Editor Roadmap](docs/19-vscode-extension-and-editor-roadmap.md)
 - [Coding Agent Prompt](prompts/coding-agent-master-prompt.md)
 
 ## Repository

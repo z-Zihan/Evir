@@ -5,6 +5,7 @@ import type { ProviderError } from "../../core/providers/stream-events";
 // NOTE: Uses Dexie directly for indexed queries; StoragePort covers basic CRUD
 import type { ProviderRecord, SettingRecord } from "../../core/storage/db";
 import type { StoragePort } from "../../core/storage/storage-port";
+import type { SharedProviderProfile } from "../../runtime/desktop-storage-adapter";
 import { getRuntime, isNativeDesktopRuntime } from "../../runtime/use-runtime";
 
 const providerSecretKey = (providerId: string) => `provider:${providerId}:api-key`;
@@ -69,6 +70,62 @@ async function persistProvider(provider: ProviderRecord): Promise<void> {
   });
 }
 
+function toSharedProfile(provider: ProviderRecord): SharedProviderProfile {
+  return {
+    id: provider.id,
+    name: provider.name,
+    protocolId: provider.protocolId,
+    baseUrl: provider.baseUrl,
+    modelId: provider.modelId,
+    toolCalling: provider.modelCapabilities?.toolCalling ?? false,
+    ...(provider.modelCapabilities?.maxContextTokens
+      ? { maxContextTokens: provider.modelCapabilities.maxContextTokens }
+      : {}),
+    enabled: provider.enabled,
+    isDefault: provider.isDefault,
+    createdAt: provider.createdAt,
+    updatedAt: provider.updatedAt,
+  };
+}
+
+function fromSharedProfile(
+  profile: SharedProviderProfile,
+  current?: ProviderRecord,
+): ProviderRecord {
+  return {
+    id: profile.id,
+    name: profile.name,
+    protocolId: profile.protocolId,
+    baseUrl: profile.baseUrl,
+    apiKey: current?.apiKey ?? "",
+    modelId: profile.modelId,
+    modelCapabilities: {
+      streaming: current?.modelCapabilities?.streaming ?? true,
+      toolCalling: profile.toolCalling,
+      ...(profile.maxContextTokens ? { maxContextTokens: profile.maxContextTokens } : {}),
+    },
+    capabilityEvidence: {
+      streaming: current?.capabilityEvidence?.streaming ?? "preset",
+      toolCalling: "user-override",
+      ...(profile.maxContextTokens ? { maxContextTokens: "user-override" as const } : {}),
+    },
+    enabled: profile.enabled,
+    isDefault: profile.isDefault,
+    createdAt: profile.createdAt,
+    updatedAt: profile.updatedAt,
+  };
+}
+
+async function syncSharedProfiles(
+  providers: ProviderRecord[],
+  deletedIds: string[] = [],
+): Promise<void> {
+  if (!isNativeDesktopRuntime()) return;
+  const storage = getRuntime().storage;
+  if (!storage) throw new Error("Desktop secure storage is unavailable");
+  await storage.sharedProviderProfilesWrite(providers.map(toSharedProfile), deletedIds);
+}
+
 async function hydrateProviderSecret(provider: ProviderRecord): Promise<ProviderRecord> {
   if (!isNativeDesktopRuntime()) return provider;
   const apiKey = await getRuntime().storage?.keychainGet(providerSecretKey(provider.id));
@@ -86,9 +143,38 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
   providers: [],
 
   loadProviders: async () => {
-    const providers = await Promise.all(
-      (await repository().readAll<ProviderRecord>("providers")).map(hydrateProviderSecret),
-    );
+    let storedProviders = await repository().readAll<ProviderRecord>("providers");
+    if (isNativeDesktopRuntime()) {
+      const sharedProfiles = (await getRuntime().storage?.sharedProviderProfilesRead()) ?? [];
+      const providersById = new Map(storedProviders.map((provider) => [provider.id, provider]));
+      for (const profile of sharedProfiles) {
+        const current = providersById.get(profile.id);
+        if (!current || profile.updatedAt > current.updatedAt) {
+          const imported = fromSharedProfile(profile, current);
+          providersById.set(profile.id, imported);
+          await repository().write("providers", profile.id, { ...imported, apiKey: "" });
+        }
+      }
+      storedProviders = [...providersById.values()];
+      const defaultProvider = storedProviders
+        .filter((provider) => provider.enabled && provider.isDefault)
+        .sort((left, right) => right.updatedAt - left.updatedAt)[0];
+      const fallbackProvider = storedProviders
+        .filter((provider) => provider.enabled)
+        .sort((left, right) => right.updatedAt - left.updatedAt)[0];
+      const selectedDefaultId = defaultProvider?.id ?? fallbackProvider?.id;
+      storedProviders = await Promise.all(
+        storedProviders.map(async (provider) => {
+          const normalized = { ...provider, isDefault: provider.id === selectedDefaultId };
+          if (normalized.isDefault !== provider.isDefault) {
+            await repository().write("providers", normalized.id, { ...normalized, apiKey: "" });
+          }
+          return normalized;
+        }),
+      );
+    }
+    const providers = await Promise.all(storedProviders.map(hydrateProviderSecret));
+    await syncSharedProfiles(providers);
     set({ providers: providers.sort((a, b) => b.updatedAt - a.updatedAt) });
   },
 
@@ -115,6 +201,7 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
       updatedAt: now,
     };
     await persistProvider(provider);
+    await syncSharedProfiles([provider, ...get().providers]);
     set(({ providers }) => ({ providers: [provider, ...providers] }));
     return provider;
   },
@@ -147,6 +234,7 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
       updatedAt: Date.now(),
     };
     await persistProvider(updated);
+    await syncSharedProfiles(replaceProvider(get().providers, updated));
     set(({ providers }) => ({ providers: replaceProvider(providers, updated) }));
   },
 
@@ -164,6 +252,7 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
         await persistProvider(nextDefault);
       }
     }
+    await syncSharedProfiles(providers, [id]);
     set({ providers });
   },
 
@@ -178,6 +267,7 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
       updatedAt: provider.id === id ? now : provider.updatedAt,
     }));
     await Promise.all(providers.map(persistProvider));
+    await syncSharedProfiles(providers);
     set({ providers });
   },
 

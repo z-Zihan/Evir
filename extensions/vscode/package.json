@@ -1,0 +1,140 @@
+{
+  "name": "evir",
+  "displayName": "Evir",
+  "description": "Local-first BYOM assistant and workspace agent for Visual Studio Code.",
+  "version": "0.1.0",
+  "private": true,
+  "publisher": "evir",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/z-Zihan/Evir.git",
+    "directory": "extensions/vscode"
+  },
+  "homepage": "https://github.com/z-Zihan/Evir#readme",
+  "bugs": "https://github.com/z-Zihan/Evir/issues",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "AI",
+    "Programming Languages",
+    "Other"
+  ],
+  "keywords": [
+    "ai",
+    "agent",
+    "byom",
+    "local-first",
+    "assistant"
+  ],
+  "extensionKind": [
+    "workspace"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onView:evir.chatView",
+    "onCommand:evir.open",
+    "onCommand:evir.configureProvider",
+    "onCommand:evir.newConversation",
+    "onCommand:evir.stop",
+    "onCommand:evir.showLastDiff",
+    "onCommand:evir.revertLastChange"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "evir",
+          "title": "Evir",
+          "icon": "media/evir.svg"
+        }
+      ]
+    },
+    "views": {
+      "evir": [
+        {
+          "type": "webview",
+          "id": "evir.chatView",
+          "name": "Evir"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "evir.open",
+        "title": "Evir: Open Assistant"
+      },
+      {
+        "command": "evir.configureProvider",
+        "title": "Evir: Configure Provider"
+      },
+      {
+        "command": "evir.newConversation",
+        "title": "Evir: New Conversation",
+        "icon": "$(add)"
+      },
+      {
+        "command": "evir.stop",
+        "title": "Evir: Stop",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "evir.showLastDiff",
+        "title": "Evir: Show Last Change"
+      },
+      {
+        "command": "evir.revertLastChange",
+        "title": "Evir: Revert Last Change"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "evir.newConversation",
+          "when": "view == evir.chatView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "evir.stop",
+          "when": "view == evir.chatView && evir.isRunning",
+          "group": "navigation@2"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Evir",
+      "properties": {
+        "evir.defaultMode": {
+          "type": "string",
+          "enum": [
+            "ask",
+            "agent"
+          ],
+          "default": "ask",
+          "description": "Default mode for new conversations. Agent requires a trusted local workspace and a tool-capable model."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node ./scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:host": "pnpm build && node ./scripts/test-host.mjs",
+    "check": "pnpm typecheck && pnpm test",
+    "package": "pnpm build && vsce package --no-dependencies --out ./artifacts/evir.vsix"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/vscode": "^1.96.0",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.6.2",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.0.0"
+  }
+}
