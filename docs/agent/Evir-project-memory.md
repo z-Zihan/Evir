@@ -7,7 +7,7 @@
 
 ## 1. Product Identity
 
-Evir 是本地优先、BYOM 的多模型 AI 客户端与通用桌面 Agent。同一代码库产出 Web（静态部署的聊天客户端）和 Desktop（Tauri 2 Agent）。无账号、无积分、无广告、无强制业务后端。接入一个支持 Tool Calling 的模型即可开始 Desktop Agent。
+Evir 是本地优先、BYOM 的多模型 AI 客户端与通用 Agent。同一代码库产出 Web（静态聊天客户端）、Desktop（Tauri 2 Agent）、Evir for VS Code（独立 VSIX）和 Evir CLI（独立 `evir` 命令）。无账号、无积分、无广告、无强制业务后端。接入一个支持 Tool Calling 的模型即可开始 Desktop/VS Code/CLI Agent；后三者有各自宿主权限与存储边界。
 
 ## 2. Non-Negotiable Product Principles
 
@@ -24,11 +24,13 @@ Evir 是本地优先、BYOM 的多模型 AI 客户端与通用桌面 Agent。同
 
 主页面只保留：当前模型、Web Ask 或 Desktop Ask/Agent、会话、输入框、发送/停止、任务状态和审批。Plan 是 Agent 内部只读阶段。
 
-## 4. Web and Desktop Boundaries
+## 4. Product Surface Boundaries
 
 - Web：浏览器直连 API，受 CORS 限制；无本地工具/Shell/MCP
 - Desktop：Tauri 2 + Rust；Agent、文件系统、终端、Git、Skill，以及 MCP 配置页；MCP Runtime 尚未实现
 - Web API Key 默认仅内存；Desktop 存系统安全凭据库
+- VS Code：独立 Extension Host/Webview；密钥仅存 VS Code SecretStorage，不读取 Desktop/CLI 共享配置；首版只支持本地受信任 Workspace
+- CLI：独立 Node 进程；与 Desktop 共享版本化非敏感 Provider Profile 和 OS Credential account，不要求 Desktop 安装或运行
 
 ## 5. Architecture and Dependency Direction
 
@@ -198,6 +200,8 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 - ModelSwitchCoordinator、ContextBuilder、Logger、StoragePort 和 Harness 各层已有实现/测试，但真实跨 Provider、完整中间件编排和文件日志仍需继续验证或实现
 - Personalization 目前是简单偏好；Notification 和命令面板未实现
+- VS Code 已有配置、Ask、停止、Workspace Agent、审批、Diff/最后写入回滚与真实 Host/Light/Dark 证据；Agent step/tool/verification/completion Activity、High Contrast 和完整本地化未完成
+- CLI 已有 configure/doctor/ask/agent、stdin、SIGINT、工作区边界、逐次审批、共享 Profile/Keyring、smoke/tarball；友好配置错误、中英文、JSON/JSONL、稳定退出码和 Agent 运行证据未完成
 
 **未实现：**
 
@@ -230,6 +234,9 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 5. 真实付费 Provider、跨 Provider 网络和超时条件未在本轮自动化执行
 6. Desktop 冷启动分位、空闲 CPU/内存和大输出性能未正式测量
 7. 手工 VoiceOver/屏幕阅读器验收未完成
+8. VS Code Marketplace/Open VSX 的 Publisher、许可证、隐私、安装升级与 High Contrast 尚未验收
+9. CLI macOS/Windows/Linux Keyring 与安装升级未验收；当前缺参数 configure 会输出原始 Zod JSON
+10. Release workflow 已显式拆分 macOS Apple Silicon `aarch64-apple-darwin` 与 Intel `x86_64-apple-darwin`；真实 Tag 构建、签名、公证和两类实体机安装仍需验收
 
 ## 21. Active Decisions
 
@@ -261,8 +268,14 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - [docs/16-harness-engineering-for-evir.md](../16-harness-engineering-for-evir.md)
 - [docs/17-local-logging-and-diagnostics.md](../17-local-logging-and-diagnostics.md)
 - [docs/18-final-product-review-v6.md](../18-final-product-review-v6.md)
+- [docs/19-vscode-extension-and-editor-roadmap.md](../19-vscode-extension-and-editor-roadmap.md)
+- [docs/20-cli-product-and-technical-specification.md](../20-cli-product-and-technical-specification.md)
+- [docs/reviews/vscode-cli-product-ui-review.md](../reviews/vscode-cli-product-ui-review.md)
 
 ## 24. Update Log
+
+- 2026-08-11 | working tree | Release workflow 增加 macOS arm64/x64 双 target 与架构化 Artifact，文档补充 M 芯片/Intel 下载选择和双架构发布门禁；真实 Tag、签名、公证和实体机安装仍待外部验收
+- 2026-08-11 | working tree | 补齐 VS Code/CLI 的核心 PRD、技术架构、设计、工程、开发、发布和专项规格；基于真实 VS Code Light/Dark 截图及 CLI 输出完成产品/UI 评审，明确运行证据、能力验证、CLI 错误/语言/机器输出等发布前缺口
 
 - 2026-08-07 | working tree | 全量 UI/UX/产品逻辑整改：P0/P1 开放项 0；338 TS + 7 Rust tests；24 E2E + 358 screenshots + 6 visual + 16 a11y；补充 390×844 与 900×500 紧凑布局，Desktop SQLite structured storage、Agent 证据持久化、工作区 Runtime 边界、对话框/键盘/取消态和文档真实性收口
 

@@ -144,9 +144,34 @@
 > **状态：DELAY — 未开始，后续按需开发。**
 > 需要 macOS Accessibility API + Windows UI Automation，工作量大，当前优先级低。
 
+## 并行产品轨：VS Code 扩展与 CLI
+
+这两个产品面复用 Provider Core，但不阻塞 Desktop 主线，也不得通过依赖 Desktop 常驻进程换取实现便利。
+
+### 当前已实现
+
+- VS Code：独立 Evir Activity Bar/Webview、Provider 配置与 SecretStorage、流式 Ask、停止、本地会话、受信任本地工作区 Agent、文件/搜索/Git/命令工具、逐次审批、最后一次写入 Diff/回滚、Extension Host 与 Light/Dark 截图验证。
+- CLI：`configure`、`doctor`、`ask`、`agent`、stdin、SIGINT、工作区边界、逐次审批、Desktop 共享非敏感 Provider Profile 与系统凭据、smoke 与 tarball 检查。
+
+### 发布前 P1
+
+- VS Code 在 Webview 中补齐 Agent step/tool/verification/failed/stopped/completed 运行事件，不只在审批时展示工具事实。
+- VS Code 把 Tool Calling 标记区分为“用户声明”和“已测试”，补齐角色/ARIA 文案本地化及 High Contrast 验收。
+- CLI 将缺少配置参数、Zod 错误和 Provider 错误转换为稳定错误码与可执行下一步。
+- CLI 增加中英文人类输出、版本化 JSON/JSONL、稳定 stdout/stderr 与退出码契约。
+- 两个产品面补齐真实 Provider、停止、失败恢复、长输出和安装/升级/卸载验收。
+
+### 公开发布门槛
+
+- VS Code：确定 Publisher、许可证、隐私说明、Marketplace 素材；在 VS Code Marketplace/Open VSX 与至少一个兼容编辑器完成真实安装升级。
+- CLI：确定 npm 包名/许可证，完成 macOS、Windows、Linux 的 Keyring 与全局/一次性执行验证，审计 tarball 生产依赖和 Secret 泄露。
+- Tag 版本与根应用、扩展、CLI 三处 Manifest 一致；发布失败不得复用已推送 Tag。
+
+产品、技术与评审证据见 `docs/19-vscode-extension-and-editor-roadmap.md`、`docs/20-cli-product-and-technical-specification.md` 和 `docs/reviews/vscode-cli-product-ui-review.md`。
+
 ## 阶段 8：发布质量
 
-交付：macOS/Windows 构建矩阵、签名、公证、自动更新、数据迁移、隐私与许可证；完整本地 Diagnostic/Audit/Crash 日志、日志目录管理、脱敏、滚动与诊断 ZIP 导出；性能基线、包体积检查、内存/CPU/日志开销回归和启动性能门禁。
+交付：macOS Apple Silicon（`aarch64-apple-darwin`）、macOS Intel（`x86_64-apple-darwin`）和 Windows x64 显式构建矩阵、架构化产物名、签名、公证、自动更新、数据迁移、隐私与许可证；完整本地 Diagnostic/Audit/Crash 日志、日志目录管理、脱敏、滚动与诊断 ZIP 导出；性能基线、包体积检查、内存/CPU/日志开销回归和启动性能门禁。
 
 ## 阶段工作规则
 

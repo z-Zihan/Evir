@@ -56,6 +56,44 @@ Evir 是一个纯净、本地优先、用户自带模型（BYOK）的 AI 客户�
 - 会话记忆、工作记忆、长期记忆。
 - 权限审批、操作审计、快照与回滚。
 
+### 2.3 Evir for VS Code
+
+定位：在编辑器内完成代码问答与受控工作区任务的独立 BYOM 扩展，产品名固定为 **Evir**。
+
+核心能力：
+
+- 独立配置 Provider、Base URL、模型和 API Key；不要求安装或启动 Evir Desktop。
+- Ask 只处理用户输入与主动提供的编辑器上下文，不自主读取工作区。
+- Agent 仅在模型支持 Tool Calling、Workspace Trust 已授予且工作区为本地 `file` 类型时可用。
+- 文件读取、搜索、写入、Git 状态/Diff 与受控命令；写入和命令逐次审批。
+- 流式输出、停止、会话本地保存、最后一次写入 Diff 与冲突感知回滚。
+- API Key 只进入 VS Code SecretStorage；配置和会话进入 Extension Storage。
+
+首版限制：
+
+- 不支持 VS Code Web、Remote SSH、Dev Container、WSL、Inline Completion、MCP、Skill 或 Desktop 会话同步。
+- 不把“用户勾选支持 Tool Calling”描述为已验证能力；能力来源必须明确为用户声明或实际探测。
+- Agent 运行必须展示步骤、工具、审批、错误、停止与验证证据；当前实现尚未完整呈现这些运行状态，属于发布前产品缺口。
+
+完整规格见 `docs/19-vscode-extension-and-editor-roadmap.md`。
+
+### 2.4 Evir CLI
+
+定位：面向终端用户、脚本和自动化环境的独立 `evir` 命令行入口。
+
+核心能力：
+
+- `evir configure` 配置 Provider；API Key 写入系统安全凭据库。
+- `evir doctor` 检查配置、凭据和 Provider 连接。
+- `evir ask` 从参数或 stdin 接收 Prompt，并把模型文本流写到 stdout。
+- `evir agent --workspace <path>` 在解析后的工作区边界内执行只读、写入和命令工具。
+- 写入与命令默认拒绝，只有交互式终端中的逐次审批可以放行；非交互执行不得绕过审批。
+- 与 Desktop 共享版本化的非敏感 Provider Profile 和系统凭据，但不依赖 Desktop 进程。
+
+CLI 的用户界面契约包括稳定的 stdout/stderr 分工、退出码、Ctrl+C 取消、错误恢复指引、无颜色环境兼容和可选机器可读输出。当前首版已实现基础文本流、取消和安全审批；中英文、友好配置向导、结构化运行事件和 JSON 输出仍是发布前缺口，不得在文档中写成已完成。
+
+完整规格见 `docs/20-cli-product-and-technical-specification.md`。
+
 ## 3. 目标用户
 
 - 希望自带模型、避免平台积分与订阅干扰的用户。
@@ -95,6 +133,28 @@ Evir 是一个纯净、本地优先、用户自带模型（BYOK）的 AI 客户�
 8. 使用构建、测试、文件状态或其他验证器确认结果。
 9. 输出完成摘要、变更清单、验证结果和遗留问题。
 10. 用户可撤销任务产生的文件变更。
+
+### 4.4 VS Code 首次成功任务
+
+1. 安装 VSIX 并从 Activity Bar 打开 Evir。
+2. 配置 Provider、模型和密钥，执行连接测试并保存。
+3. 在 Ask 中完成一次流式问答；停止后保留已生成内容。
+4. 用户主动信任本地工作区后选择 Agent；界面明确工作区内容将发送到当前 Provider。
+5. Agent 展示当前步骤和工具状态；写入或命令出现逐次审批。
+6. 完成后展示变更、验证证据和未完成项；用户可打开 Diff 或回滚最后一次写入。
+
+失败分支必须覆盖：未配置、密钥缺失、连接失败、模型不支持工具、未信任工作区、远程工作区、审批拒绝、命令失败、停止、循环上限和回滚冲突。
+
+### 4.5 CLI 首次成功任务
+
+1. 运行 `evir configure`，完成必填参数与隐藏密钥输入。
+2. 运行 `evir doctor`，获得配置、凭据和连接结果以及可执行的修复指引。
+3. 运行 `evir ask "..."` 或通过 stdin 输入 Prompt，正文只写 stdout。
+4. 运行 `evir agent "..." --workspace <path>`，先看到工作区与 Provider 数据去向。
+5. 只读工具自动执行；每次写入和命令在 stderr 展示预览并默认拒绝。
+6. Ctrl+C 终止当前请求和子进程，返回稳定退出码；任务结束输出摘要、验证和遗留问题。
+
+非交互环境默认只允许 Ask 和只读 Agent；若未来支持自动批准，必须是显式、细粒度且不能覆盖删除、发布、上传、提权或工作区外访问。
 
 ## 5. 功能模块
 
@@ -189,12 +249,30 @@ Evir 是一个纯净、本地优先、用户自带模型（BYOK）的 AI 客户�
 
 ### Desktop MVP
 
-- macOS、Windows 可安装并启动。
+- macOS Apple Silicon（arm64）、macOS Intel（x64）和 Windows x64 均有架构明确的安装包并可安装启动；不得依赖 `macos-latest` 的隐式主机架构。
 - 具备 Web 全部功能。
 - 可授权工作区、读取/写入文件、执行受控命令。
 - 有审批、审计、停止、任务摘要和文件回滚。
 - 有基础上下文压缩和三层记忆模型。
 - 达到流式响应、启动、内存、空闲 CPU、包体积和长列表性能门槛。
+
+### VS Code Extension MVP
+
+- VSIX 可在受支持的 VS Code Desktop 版本安装、激活、卸载和升级。
+- 可独立配置至少一种 OpenAI-compatible Provider，完成流式 Ask 与停止。
+- 在受信任本地工作区完成“读取 → 修改 → 审批 → 验证 → Diff/回滚”闭环。
+- Light/Dark、中文/英文、窄侧栏、键盘焦点和屏幕阅读器名称通过真实 Extension Host 验收。
+- 未信任、远程工作区、无 Tool Calling、无密钥和连接失败均有明确下一步。
+- 发布包不包含测试工作区、临时凭据、开发版 VS Code 或未声明遥测。
+
+### CLI MVP
+
+- macOS、Windows 和 Linux 安装后可运行 `evir --version`、`configure`、`doctor`、`ask` 和 `agent`。
+- stdout 只承载正常结果，诊断/审批写 stderr；退出码和 SIGINT 语义有文档与测试。
+- `ask` 支持参数与 stdin；`agent` 强制真实工作区边界和写入/命令审批。
+- 配置损坏、缺少凭据、协议错误、连接错误、非交互审批和工具失败提供可执行下一步，不泄露密钥。
+- 人类输出支持中英文；自动化可请求稳定版本的 JSON/JSONL 事件且不与流式文本混杂。
+- npm tarball 只包含生产 Bundle、README 和许可证；CLI 不要求 Desktop 常驻进程。
 
 ## 10.1 Skill 与 MCP 产品闭环
 

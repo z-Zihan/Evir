@@ -160,3 +160,25 @@ Coding Agent 必须：
 - 日志写入失败必须降级，不得阻塞主流程或导致应用崩溃。
 - 自动化测试必须扫描 API Key、Authorization、Token、Cookie 和 Secret 泄露。
 - Raw Protocol Capture 默认关闭、限时且用户主动开启。
+
+## 16. VS Code 扩展规范
+
+- Webview 是不可信展示层，`postMessage` 输入必须经过 Zod 判别联合校验；不得向 Webview 注入 API Key、文件正文缓存、SecretStorage 句柄或进程对象。
+- Webview 不直接请求 Provider、不访问 `workspace.fs`、不启动进程；所有能力通过 Extension Host 的 Use Case 和 Adapter。
+- `workspace.isTrusted`、URI scheme、realpath 与符号链接边界必须在每次工具执行前重新校验，不能只在切换 Agent 时检查一次。
+- 命令执行使用程序和参数数组，`shell: false`；工作目录固定在已授权本地 Workspace。
+- Provider 请求、Agent Loop、审批等待和子进程都必须接收同一 AbortSignal；View 销毁或用户停止时清理监听器、审批和进程。
+- Webview CSP 使用 nonce；不允许 `unsafe-inline` 脚本、远程脚本或不受控资源域。
+- 用户文案、角色名、ARIA label 和错误均纳入中英文资源；主题只使用 VS Code 语义变量。
+- `pnpm --dir extensions/vscode check` 之外，发布前必须通过真实 Extension Host 激活、Light/Dark/High Contrast、窄侧栏、键盘、审批、停止、Diff/回滚和 VSIX 内容检查。
+
+## 17. CLI 规范
+
+- 参数解析必须拒绝未知 Flag、重复互斥 Flag 和缺失值；默认错误转换为稳定错误码与友好下一步，不直接输出 Zod JSON 或堆栈。
+- stdout/stderr 严格分离；库模块不得直接写全局流，由 CLI Presenter 统一格式化人类或机器输出。
+- 退出码属于公共 API，变更需版本记录和回归测试；SIGINT 使用 130，配置/认证/网络/审批/工具错误分别使用文档化代码。
+- `--json`/`--jsonl` 输出必须版本化并保持字段稳定；不得把本地化文本当作机器判断字段。
+- 密钥只从当前进程环境、交互隐藏输入或系统凭据读取；不得进入 argv 示例、配置 JSON、错误、日志或子进程环境白名单之外。
+- 工作区先解析为真实绝对路径；所有工具参数再次校验 realpath/symlink 边界。写入和命令在非 TTY 中默认拒绝。
+- 子进程使用参数数组和 `shell: false`，限制输出、超时与并发；取消时终止进程树并保留可诊断摘要。
+- `pnpm --dir packages/cli check` 之外，发布前必须通过 smoke、tarball 内容、macOS/Windows/Linux、TTY/非 TTY、管道、Ctrl+C、无颜色和损坏配置测试。

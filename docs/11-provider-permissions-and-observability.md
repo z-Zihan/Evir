@@ -24,6 +24,8 @@ Provider 接入必须拆成：
 
 Web 遇到 CORS 时必须明确说明无法浏览器直连，不得使用隐藏代理。
 
+产品面差异：Desktop 使用系统凭据并可管理完整 Provider 列表；CLI 读取 Desktop/CLI 共享 Profile 与 OS Credential；VS Code 使用独立 SecretStorage。扩展和 CLI 当前使用简化配置入口，但仍必须保存 `capabilityEvidence`，不能把复选框当成 probe。
+
 ## 3. Provider 能力矩阵
 
 至少记录：streaming、toolCalling、parallelToolCalling、vision、audioInput、structuredOutput、reasoning、systemInstructions、usage、maxContextTokens 和 maxOutputTokens。
@@ -126,3 +128,10 @@ Provider 服务端工具默认关闭，不得通过厂商工具绕过本地权�
 Diagnostic、Audit、Crash 三类数据分离。Provider 日志记录 request ID、状态码、事件类型、首 Token 和总耗时，不记录完整请求正文。Tool Audit 记录安全参数摘要、审批、退出码和 Artifact。日志导出前必须脱敏与预览。
 
 正式版不存在远程日志后门。隐藏开发者入口只能开启本地详细日志和导出功能。完整规范见 `docs/17-local-logging-and-diagnostics.md`。
+
+## 15. VS Code 与 CLI 可观测性
+
+- VS Code Host 记录脱敏的 activation、provider request、run/step/tool/approval/verification、stop 和 rollback 事件；Webview 只接收用户需要的状态，不接收 Secret 或原始日志。
+- CLI 人类状态写 stderr，机器事件写版本化 JSONL 到 stdout；同一 RunEvent Schema 的字段语义与 VS Code 一致。
+- 两者都记录 Provider/Model/Protocol、能力证据、数据目的地、workspace hash/安全路径摘要、耗时、退出码和完成证据；不记录 Prompt/文件正文/密钥。
+- 当前实现尚未提供完整统一 RunEvent；发布前不得用最终模型文本或进程 0 退出码单独表示 Agent 已验证完成。

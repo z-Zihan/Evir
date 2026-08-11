@@ -53,3 +53,17 @@ L3/L4 默认逐次审批；L4 可直接禁用。
 - 密钥、Authorization、Cookie、Token 自动遮盖。
 - 工具完整输出可归档，但进入模型前需最小化。
 - 用户可清除单次任务、会话或全部数据。
+
+## 8. 宿主产品面边界
+
+- VS Code Agent 还必须满足 Workspace Trust、本地 `file` Workspace、Extension Host 路径校验；Webview 不能持有工具执行能力。
+- CLI Agent 还必须满足真实绝对工作区和交互式审批；非 TTY 默认拒绝写入和命令。
+- VS Code/CLI 的用户声明 Tool Calling 只属于 `user-override`，未经探测不得标为“已验证”。
+- 四个产品面的审批都展示同一组事实：工具、风险、作用域、原始参数安全摘要、影响和可撤销性。
+- Agent 完成状态来自工具/验证证据，不来自 Webview、终端 Presenter 或模型结束文本。
+
+## 9. 产品面验证
+
+- VS Code：真实 Extension Host 中验证未信任/Remote Workspace 拒绝、路径逃逸、逐次审批、Stop、Diff 与回滚冲突。
+- CLI：验证 TTY/非 TTY、stdout/stderr、退出码、SIGINT、路径/符号链接、命令参数和输出上限。
+- 构建 `.vsix` 或 npm tarball 只证明可打包，不证明上述安全闭环通过。

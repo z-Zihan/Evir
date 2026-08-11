@@ -226,7 +226,7 @@ type ProviderStreamEvent =
 
 `provider-state` 只供 Adapter 续轮使用，必须脱敏、限制大小，不直接展示。
 
-## 10. Web 与 Desktop 支持边界
+## 10. 产品面支持边界
 
 ### Web
 
@@ -240,6 +240,20 @@ type ProviderStreamEvent =
 - 支持全部协议 Adapter 和安全凭据存储。
 - 可使用企业认证、区域 Endpoint、本地模型服务和代理设置。
 - 网络请求仍受 Network Policy 管理。
+
+### VS Code
+
+- 首版支持 OpenAI Chat Completions/compatible Chat、OpenAI Responses、Anthropic Messages、Gemini GenerateContent 和 Ollama 配置。
+- API Key 存 VS Code SecretStorage；不读取 Desktop/CLI Profile。
+- 首版不支持企业文件凭据、Remote/WSL Secret 共享或 Provider 服务端工具。
+- Tool Calling 复选框属于 `user-override`；未经实际 probe 必须显示“未验证”。
+
+### CLI
+
+- 首版协议集合与 VS Code 相同，并复用纯 TypeScript Adapter Core。
+- 使用 Desktop/CLI 共享非敏感 Profile 和 OS Credential；`EVIR_API_KEY` 只覆盖当前进程。
+- 不支持需要浏览器 OAuth、交互式云登录或长期刷新 Token 的企业认证，除非有独立安全 Adapter 与跨平台验收。
+- `doctor` 的连接成功不代表 Tool Calling 已验证；能力证据必须分开记录。
 
 ## 11. 服务端工具
 

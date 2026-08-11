@@ -114,7 +114,7 @@ Evir 当前产品定义已经形成完整闭环，可以进入分阶段开发。
 - 基础上下文压缩和任务状态。
 - 中英文、三主题、快捷键基础。
 - 本地日志、诊断导出和帮助。
-- macOS / Windows 可安装包。
+- macOS Apple Silicon（arm64）、macOS Intel（x64）与 Windows x64 可安装包；下载项明确标注架构。
 
 ### 可后续交付
 
@@ -127,6 +127,17 @@ Evir 当前产品定义已经形成完整闭环，可以进入分阶段开发。
 - 本地模型管理 UI。
 
 这些能力可以在架构中预留，但未实现时不要在主界面展示占位入口。
+
+### 4.1 独立伴随产品面
+
+Evir VS Code 与 Evir CLI 是同一产品原则下的独立入口，不是 Desktop 的必装组件：
+
+- VS Code 扩展服务编辑器内 Ask 与受控工作区 Agent，密钥保存在 VS Code SecretStorage，不要求 Desktop 常驻。
+- CLI 服务终端与自动化，和 Desktop 共享版本化非敏感 Provider Profile 与系统凭据，但可独立配置和运行。
+- 两者复用纯 Provider Core，不复用 React/Tauri/SQLite 具体 Adapter；宿主平台能力与安全边界分别强制执行。
+- 首发不强制用户安装任一伴随产品，也不在 Desktop 首次路径展示推广或配置步骤。
+
+当前代码已有可运行骨架和确定性测试，但产品闭环仍未完成：VS Code 缺少完整 Agent 运行/验证证据呈现；CLI 缺少友好配置错误、中英文与稳定机器输出契约。公开发布前必须按 `docs/19-vscode-extension-and-editor-roadmap.md`、`docs/20-cli-product-and-technical-specification.md` 和 `docs/reviews/vscode-cli-product-ui-review.md` 收口，不能用 VSIX/tarball 构建成功代替安装与真实使用验收。
 
 ## 5. 不应加入的内容
 

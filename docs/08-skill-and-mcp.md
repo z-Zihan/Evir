@@ -34,6 +34,15 @@ Evir 不需要建设云端业务后端。本地 MCP Server 运行在用户电脑
 
 未来若增加远程 MCP，必须通过 Capability 和实验开关单独启用。
 
+### Evir for VS Code 与 CLI
+
+首版均不支持 Skill 或 MCP，也不展示占位入口：
+
+- VS Code 扩展不读取 Desktop Skill/MCP 配置，不启动 Server，不把 Webview 消息映射为任意 MCP 调用。
+- CLI 不读取或执行 Skill，不接受 MCP 配置，不为了复用 Desktop 能力启动后台进程。
+- 未来接入前必须先有统一 RunEvent、Tool Registry、Capability、审批、审计、取消和长输出 Artifact 契约；不能直接把 Desktop 配置文件暴露给宿主。
+- 添加这些能力不得改变首次路径“配置一个模型 → Ask/Agent”，且必须按需加载。
+
 ## 3. Skill 目录格式
 
 ```text

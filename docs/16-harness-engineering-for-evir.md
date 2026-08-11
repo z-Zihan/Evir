@@ -187,3 +187,17 @@ final status
 - 无进展循环能被识别和终止。
 - 文档、代码和 CI 构成同一事实来源。
 - Harness 增强能力，但不会让产品主流程变复杂。
+
+## 11. 跨宿主运行事件
+
+Desktop、VS Code 和 CLI 可以拥有不同 Runtime Adapter，但 Agent Harness 应输出同一版本化事件语义：
+
+```text
+run-start → step → tool-pending → approval → tool-result
+          → verification → completed | partial | stopped | failed
+```
+
+- 事件只包含安全摘要和 Artifact 引用，不携带宿主对象或无限原始输出。
+- VS Code Host 将事件映射为 Webview Activity；CLI 将事件映射为 stderr 人类文本或 stdout JSONL。
+- Presenter 不得自行把模型文本、流结束或退出码 0 转成 `completed`；CompletionVerifier 是唯一完成判定来源。
+- 宿主可增加 activation、view、terminal 等本地事件，但不能改变 Tool Policy、风险或验证语义。

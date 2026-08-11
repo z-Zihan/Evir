@@ -204,6 +204,9 @@ pnpm dev:web
 pnpm dev:desktop
 pnpm build:web
 pnpm build:desktop
+pnpm build:desktop:macos:arm64
+pnpm build:desktop:macos:x64
+pnpm build:desktop:windows:x64 # 在 Windows 上执行
 pnpm build:vscode
 pnpm package:vscode
 pnpm build:cli
@@ -215,7 +218,9 @@ pnpm test:a11y
 pnpm benchmark
 ```
 
-macOS 与 Windows 正式安装包需要在对应系统构建。推荐通过一次 Git Tag 触发 GitHub Actions，由 macOS Runner 和 Windows Runner 分别构建并汇总到同一个 Release。
+macOS 与 Windows 正式安装包需要在对应系统构建。稳定版 Git Tag 会触发 GitHub Actions，并显式生成 Apple Silicon（`arm64`）、Intel（`x64`）两个 macOS DMG 和 Windows x64 MSI，汇总到同一个 Release。M1/M2/M3/M4 用户选择 `arm64`，Intel Mac 用户选择 `x64`；两个 macOS 包不能互相替代。
+
+可以不打 Tag 直接在本地打包。Apple Silicon Mac 可用上述两个 macOS 命令分别生成 arm64 与 x64 DMG；Windows x64 安装包必须在 Windows 本机或 Windows CI Runner 上生成。本地未配置签名证书时产物仅适合测试。完整的 Rust target 安装命令、产物路径和 Tag 发布步骤见[开发指南](docs/03-development-guide.md#101-本地打包)。
 
 ## 文档
 
@@ -238,6 +243,8 @@ macOS 与 Windows 正式安装包需要在对应系统构建。推荐通过一�
 - [本地日志与诊断系统](docs/17-local-logging-and-diagnostics.md)
 - [最终产品审查 V6](docs/18-final-product-review-v6.md)
 - [VS Code 扩展与编辑器路线](docs/19-vscode-extension-and-editor-roadmap.md)
+- [CLI 产品与技术规格](docs/20-cli-product-and-technical-specification.md)
+- [VS Code 与 CLI 产品/UI 评审](docs/reviews/vscode-cli-product-ui-review.md)
 - [Coding Agent Prompt](prompts/coding-agent-master-prompt.md)
 
 ## Repository

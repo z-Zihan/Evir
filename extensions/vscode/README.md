@@ -29,6 +29,8 @@ The first extension release supports OpenAI Chat Completions, OpenAI-compatible 
 
 VS Code Web, remote workspaces, Desktop conversation synchronization, MCP, Skills, browser automation, and inline completion are not currently supported by the extension.
 
+The Tool Calling checkbox is currently a user declaration, not a capability probe. Agent step/tool/verification activity and complete localization of role/accessibility labels are still release gaps; see the product/UI review below. Building a VSIX does not mean the extension is Marketplace-ready.
+
 ## Build a VSIX
 
 From the Evir repository root:
@@ -39,3 +41,21 @@ pnpm package:vscode
 ```
 
 The package is written to `extensions/vscode/artifacts/evir.vsix`.
+
+## Verify
+
+```bash
+pnpm --dir extensions/vscode check
+pnpm --dir extensions/vscode test:host
+node extensions/vscode/scripts/visual-qa.mjs
+EVIR_QA_THEME=light node extensions/vscode/scripts/visual-qa.mjs
+```
+
+Visual QA runs in an isolated VS Code profile and must use temporary credentials only. Public release additionally requires High Contrast, screen-reader, Marketplace/Open VSX installation, upgrade, uninstall, privacy, publisher, and license review.
+
+## Product and architecture
+
+- [VS Code extension and editor roadmap](../../docs/19-vscode-extension-and-editor-roadmap.md)
+- [Product requirements](../../docs/01-product-requirements.md)
+- [Technical architecture](../../docs/02-technical-architecture.md)
+- [VS Code and CLI product/UI review](../../docs/reviews/vscode-cli-product-ui-review.md)

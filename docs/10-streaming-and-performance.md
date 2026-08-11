@@ -21,6 +21,9 @@ UI 采用局部 Buffer，每 16-50ms 或每帧批量提交，不为每个 Token 
 - 不含可选 Sidecar 的 Desktop 安装产物目标不高于 35MB；超过需提供分析。
 - Web 初始 JavaScript gzip 目标不高于 350KB；重型功能拆分为异步 Chunk。
 - 本地 1 万条消息/记录的常用搜索目标小于 150ms。
+- VS Code 扩展激活不阻塞 Workbench；打开视图到可输入 P95 目标 < 500ms（已缓存 Extension Host），流式事件批量提交且不重绘全部历史消息。
+- CLI `--help` / `--version` 热启动目标 < 200ms、冷启动目标 < 500ms；Ask 首 Token 额外 Presenter 开销 < 20ms。
+- VSIX 与 CLI tarball 记录压缩/解压大小和依赖；增长超过 20% 必须给出原因。
 
 ## 3. 轻量策略
 
@@ -36,6 +39,8 @@ UI 采用局部 Buffer，每 16-50ms 或每帧批量提交，不为每个 Token 
 ## 4. 性能门禁
 
 每个 Release 记录：Web bundle、Desktop 包体积、冷启动、空闲内存/CPU、流式渲染延迟、长列表 FPS、1MB/10MB 工具输出测试。新增依赖导致显著回归时必须说明收益或回退。
+
+同时记录 VS Code 激活/视图打开/侧栏长会话、VSIX 大小，以及 CLI `help/version/ask` 启动、RSS、1MB 输出、tarball 大小。Extension Host 和 CLI 不允许空闲轮询或预加载 MCP/Skill。
 
 ## 5. 模型切换、压缩与日志性能
 

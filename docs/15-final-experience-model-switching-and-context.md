@@ -53,6 +53,14 @@ Evir 的最高优先级不是功能数量，而是以下四项：
 
 而不是无条件承诺“任何聊天模型都能操作电脑”。
 
+### 2.3 VS Code 与 CLI 最短路径
+
+- VS Code：安装 → 打开 Evir → 配置/测试 Provider → Ask；只有用户选择 Agent 时才要求本地 Workspace、Trust 和 Tool Calling。
+- CLI：安装 → `evir configure` → `evir doctor` → `evir ask`；只有 `evir agent` 才解析工作区并请求写入/命令审批。
+- 两者都不要求 Desktop、账号、Skill、MCP、Embedding 或第二模型。
+- VS Code 不共享 Desktop/CLI 密钥；CLI 可共享非敏感 Profile/OS Credential，但 Desktop 不存在时仍能独立配置。
+- 当前扩展/CLI 尚未实现完整模型中途切换 Coordinator；首版切换 Provider/模型不得在活动 Tool 链中静默发生。
+
 ## 3. 主界面复杂度控制
 
 主界面默认只突出：

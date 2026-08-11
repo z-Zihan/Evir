@@ -275,3 +275,11 @@ Evir 不持有 GitHub Token，也不后台上传诊断包。
 - 诊断包可在离线环境生成。
 - 用户能够预览、取消、删除和清空。
 - GitHub Issue 流程不需要 Evir 后端或 GitHub Token。
+
+## 14. VS Code 与 CLI 日志边界
+
+- VS Code 扩展日志使用 Extension Host OutputChannel/本地 Extension Storage Adapter；Webview 不读取日志文件，SecretStorage 值永不进入事件。
+- CLI 默认只向 stderr 输出本次进程的脱敏诊断，不创建常驻日志或后台进程；详细日志必须由用户显式开启并有路径/保留说明。
+- CLI 的 JSONL 运行事件是产品输出，不等于 Diagnostic Log；字段版本化且仍执行脱敏。
+- VS Code/CLI 的诊断导出首版可只提供安全环境摘要和 RunEvent；未实现 ZIP 前不得声称拥有 Desktop 完整诊断包。
+- 两者发生崩溃或 SIGINT 时记录最终状态，但不得自动重放工具或上传日志。

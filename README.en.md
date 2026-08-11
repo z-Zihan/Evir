@@ -203,6 +203,9 @@ pnpm dev:web
 pnpm dev:desktop
 pnpm build:web
 pnpm build:desktop
+pnpm build:desktop:macos:arm64
+pnpm build:desktop:macos:x64
+pnpm build:desktop:windows:x64 # run on Windows
 pnpm build:vscode
 pnpm package:vscode
 pnpm build:cli
@@ -214,7 +217,9 @@ pnpm test:a11y
 pnpm benchmark
 ```
 
-Production macOS and Windows bundles should be built on their respective operating systems. A single Git tag can trigger GitHub Actions runners for both platforms and publish the artifacts into one release.
+Production macOS and Windows bundles should be built on their respective operating systems. A stable release tag triggers explicit Apple Silicon (`arm64`) and Intel (`x64`) macOS DMGs plus a Windows x64 MSI, all collected in one release. M1/M2/M3/M4 users choose `arm64`; Intel Mac users choose `x64`. The two macOS packages are not interchangeable.
+
+You can package locally without creating a tag. An Apple Silicon Mac can produce both arm64 and x64 macOS DMGs with the commands above. Build the Windows x64 installer on a Windows machine or Windows CI runner. Artifacts built without local signing credentials are for testing only. See the [development guide](docs/03-development-guide.md#101-本地打包) for Rust target setup, output paths, and the tag release procedure.
 
 ## Documentation
 
@@ -237,6 +242,8 @@ Production macOS and Windows bundles should be built on their respective operati
 - [Local Logging and Diagnostics](docs/17-local-logging-and-diagnostics.md)
 - [Final Product Review V6](docs/18-final-product-review-v6.md)
 - [VS Code Extension and Editor Roadmap](docs/19-vscode-extension-and-editor-roadmap.md)
+- [CLI Product and Technical Specification](docs/20-cli-product-and-technical-specification.md)
+- [VS Code and CLI Product/UI Review](docs/reviews/vscode-cli-product-ui-review.md)
 - [Coding Agent Prompt](prompts/coding-agent-master-prompt.md)
 
 ## Repository

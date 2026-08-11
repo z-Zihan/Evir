@@ -160,6 +160,8 @@ Evir 不需要 GitHub Token，也不在后台直接创建 Issue。不得自动�
 - 数据、备份和隐私会话。
 - 常见问题与故障排查。
 - 提交反馈与诊断包。
+- VS Code 安装、Workspace Trust、Ask/Agent、数据去向、审批、Diff/回滚和扩展数据清理。
+- CLI configure/doctor/ask/agent、stdin、stdout/stderr、退出码、非交互审批、Ctrl+C 和配置位置。
 
 帮助页不应只是文档列表：错误提示、空状态和设置项可以链接到对应主题。在线文档是可选补充，离线帮助必须覆盖首次使用闭环。
 
@@ -182,3 +184,5 @@ Evir 不需要 GitHub Token，也不在后台直接创建 Issue。不得自动�
 - Provider 页面可打开官网、控制台和官方文档。
 - 反馈流程不要求 Evir 后端或 GitHub Token。
 - 新用户可仅依赖内置帮助完成 Provider 配置和第一次对话。
+- VS Code README/Marketplace 页面与 CLI `--help`/README 覆盖各自首次成功和失败恢复；不得假设用户已读 Desktop 帮助。
+- CLI 人类帮助支持中英文，机器字段保持稳定英文；VS Code 命令、角色、状态与 ARIA 文案完整本地化。

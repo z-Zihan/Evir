@@ -4,6 +4,8 @@
 
 - Desktop：Tauri 2 + Rust
 - Frontend：React + TypeScript + Vite
+- VS Code Extension：Extension Host + Webview + VS Code API + esbuild
+- CLI：Node.js ESM + TypeScript + esbuild；系统凭据使用 `@napi-rs/keyring`
 - Workspace：pnpm workspace
 - UI：shadcn/ui 风格的源码组件 + Radix Primitives
 - Styling：Tailwind CSS + CSS Variables
@@ -36,10 +38,28 @@ pnpm build:cli
 
 同一台本地机器上的普通构建命令只构建当前平台。正式发布由 GitHub Actions 矩阵完成：
 
-- `macos-latest`：构建 `.app` / `.dmg`
+- `macos-latest` + `aarch64-apple-darwin`：构建 Apple Silicon `.app` / `.dmg`
+- `macos-latest` + `x86_64-apple-darwin`：交叉构建 Intel `.app` / `.dmg`
 - `windows-latest`：构建 `.exe` / `.msi`
 
-一个 Git tag 可以触发两个 Runner，产物汇总到同一个 GitHub Release。
+一个 Git Tag 触发三个显式矩阵项，产物汇总到同一个 GitHub Release。macOS 产物和 Actions Artifact 名必须包含 `arm64` 或 `x64`；`bundle.targets = "all"` 只表示包类型，不表示 CPU 架构。当前选择分别发布两个 DMG，不生成体积更大的 Universal Binary。
+
+### 2.1 四个产品面的代码与发布边界
+
+```text
+src/core/providers/*             Provider/Protocol 纯 TypeScript Core
+        ├─ Web React Adapter
+        ├─ Tauri Desktop Adapter
+        ├─ extensions/vscode/*   Extension Host + Webview Adapter
+        └─ packages/cli/*        Terminal + Node Runtime Adapter
+```
+
+- Web/Desktop 共用前端应用与 `EvirRuntime`；VS Code 与 CLI 是独立入口，不伪装成 React/Tauri Runtime。
+- 四个产品面可以复用纯 TypeScript Provider Adapter、流式事件与经过边界审查的 Domain 类型，但不得复用带有 React、Dexie、Tauri 或 VS Code API 的具体 Adapter。
+- VS Code Webview 只发送经过 Zod 校验的意图消息；Provider、SecretStorage、文件和进程操作全部留在 Extension Host。
+- CLI 入口只负责参数、终端 IO 与退出码；Provider、工作区、审批和配置分别位于独立模块。
+- 所有产品面遵守 `Types → Config → Repository → Service → Runtime → UI`，共享 Core 不能反向依赖任一宿主。
+- 版本发布必须同步根应用、VS Code Manifest 与 CLI package 的 SemVer；产物可以独立安装，不能互相要求常驻进程。
 
 ## 3. 分层架构
 
@@ -89,6 +109,55 @@ export interface EvirRuntime {
 ```
 
 工具必须根据 Capability 注册。Web 模型请求中不得出现不可用工具。
+
+### 4.1 VS Code 与 CLI Capability Gate
+
+VS Code 与 CLI 不扩展上述 `EvirRuntime.target` 联合类型，而是在各自宿主实现等价的 Capability Gate：
+
+```text
+VS Code Agent = toolCalling
+              + workspace.isTrusted
+              + local file workspace
+              + workspace boundary validation
+
+CLI Agent     = toolCalling
+              + resolved absolute workspace
+              + interactive approval for write/execute
+```
+
+VS Code Ask 不创建 `WorkspaceTools`；Agent 不满足任一条件时降级到 Ask 并给出具体原因。CLI Ask 不解析或注册工作区工具；Agent 的所有相对路径都必须在 realpath/symlink 检查后仍位于工作区。两者都使用 AbortSignal 取消 Provider 流和可终止子进程。
+
+### 4.2 VS Code Extension 进程模型
+
+```text
+Webview (presentation only)
+  → validated postMessage
+EvirViewProvider / AgentRunner (application)
+  → ProviderClient / ConversationStore / ChangeTracker (service/repository)
+  → SecretStorage / globalState / workspace.fs / child_process (runtime adapters)
+```
+
+- Webview 启用 CSP nonce，不把 API Key、文件系统句柄或命令执行能力暴露给页面脚本。
+- Extension Host 保存单一当前 Provider 配置和本地会话；密钥与非敏感配置分离。
+- Agent Run 应产生统一运行事件：`run-start`、`step`、`tool-pending`、`approval`、`tool-result`、`verification`、`stopped`、`failed`、`completed`。Webview 只消费标准事件，不推断完成状态。
+- 写入前创建快照；Diff 与回滚必须检测目标文件是否已被用户或其他扩展修改。
+- Remote/WSL/Web 环境在首版明确拒绝，不以路径字符串猜测为本地工作区。
+
+### 4.3 CLI 进程与 IO 模型
+
+```text
+argv / stdin
+  → argument parser + command use case
+  → provider/config/credential/agent services
+  → filesystem/process/keyring adapters
+  → stdout(result) + stderr(status/error/approval) + exit code
+```
+
+- 正常响应和机器可读结果写 stdout；提示、状态、审批和错误写 stderr，避免破坏管道。
+- `SIGINT` 中止 Provider 请求和活动子进程并返回 `130`；输入/配置错误、连接错误和工具错误使用稳定、文档化的非零退出码。
+- JSON/JSONL 输出必须有版本字段；流式文本与结构化事件不得混写。
+- 非交互终端不得批准写入或命令。未来若增加自动化授权，必须通过显式策略文件或细粒度参数进入 Tool Policy，不能使用全局 `--yes` 绕过高风险操作。
+- CLI 不在内存中长期保存完整工具输出；超限内容写临时 Artifact 并在 stderr 给出路径和摘要。
 
 ## 5. Agent Core
 
@@ -225,6 +294,8 @@ CLI Credential Adapter ───┘   service=evir
 
 CLI 的凭据优先级为 `EVIR_API_KEY` → 系统安全凭据。Desktop 继续以 SQLite 保存完整结构化 Provider 记录，并在加载时按 `updatedAt` 合并共享 Profile；旧 CLI `config.json` 只读兼容，在下次 `configure` 时迁移。VS Code 扩展仍使用隔离的 SecretStorage，不读取这一桌面级共享文件。
 
+共享 Profile 的技术契约、CLI 命令/退出码和迁移规则见 `docs/20-cli-product-and-technical-specification.md`。VS Code Host/Webview 消息、存储与工作区边界见 `docs/19-vscode-extension-and-editor-roadmap.md`。
+
 所有实现位于 Storage/Artifact Adapter 后，Domain 和 UI 不直接依赖 SQLite。
 
 核心实体：
@@ -249,8 +320,12 @@ CLI 的凭据优先级为 `EVIR_API_KEY` → 系统安全凭据。Desktop 继续
 - Web：静态部署；可选独立、无状态、自托管 Proxy。
 - Desktop：GitHub Actions 矩阵构建。
 - macOS：签名与 notarization。
+- macOS CPU：分别构建 `aarch64-apple-darwin` 和 `x86_64-apple-darwin`；两者使用相同版本、签名与 notarization 门禁。
 - Windows：代码签名。
 - Updater：后续使用 Tauri Updater + 静态更新 JSON/GitHub Releases。
+- VS Code：生成 `evir.vsix`，分别在 VS Code Marketplace 与 Open VSX 做安装/升级/卸载验收；首版不自动发布。
+- CLI：生成 npm tarball，验证 `bin`、生产依赖、macOS/Windows/Linux 凭据适配和全局/一次性执行；首版不自动发布 npm。
+- Release Tag 仅接受 `v<MAJOR>.<MINOR>.<PATCH>`，且根应用、扩展和 CLI 版本必须一致。
 
 ## 11.1 Skill 与 MCP 架构补充
 
