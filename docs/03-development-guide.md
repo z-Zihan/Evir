@@ -33,6 +33,7 @@ build:desktop       当前平台 Desktop 产物
 build:vscode        VS Code 扩展生产 Bundle
 package:vscode      生成 VSIX
 build:cli           CLI 生产 Bundle
+release:validate-tag 校验发布 Tag 与全部包版本
 check               format + lint + typecheck + test
 format              格式化
 lint                 ESLint
@@ -103,12 +104,25 @@ Desktop 的 SQLite 是嵌入式本地文件，不是远程数据库服务。
 
 ## 10. 发布
 
-1. 合并前通过 CI。
-2. 更新版本和 changelog。
-3. 创建 `vX.Y.Z` tag。
-4. GitHub Actions 在 macOS 和 Windows Runner 分别构建。
-5. 检查安装、启动、签名和基础对话。
-6. 发布同一个 GitHub Release。
+发布只由稳定版 SemVer Tag 触发；普通分支 push 和 PR 不运行 GitHub Actions。
+
+Tag 格式固定为 `v<MAJOR>.<MINOR>.<PATCH>`：
+
+- 合法：`v0.1.0`、`v1.0.0`、`v2.3.4`。
+- 非法：`1.0.0`、`v1.0`、`v01.2.3`、`v1.2.3-beta.1`、`latest`。
+- 三段数字不得有前导零；当前流程只接受稳定版，不接受 prerelease 或 build metadata。
+- Tag 版本必须同时等于根 `package.json`、VS Code 扩展和 CLI 的 `version`。
+
+发布流程：
+
+1. 在 `main` 上完成本地质量检查：`pnpm check`。
+2. 同步更新 `package.json`、`extensions/vscode/package.json`、`packages/cli/package.json` 和 changelog。
+3. 本地校验：`pnpm release:validate-tag vX.Y.Z`。
+4. 创建带说明的 Tag：`git tag -a vX.Y.Z -m "Evir vX.Y.Z"`。
+5. 推送 Tag：`git push origin vX.Y.Z`。此时 Quality 与 Desktop Release 两个 workflow 才会启动。
+6. 检查 VSIX、CLI tarball、macOS/Windows 安装包、签名、启动和基础对话，再发布同一个 GitHub Release。
+
+已经推送的发布 Tag 不得覆盖或复用；修复后应递增 PATCH 并创建新 Tag。
 
 ## 11. 性能检查
 

@@ -1,12 +1,21 @@
 name: Quality
 
 on:
-  pull_request:
   push:
-    branches: [main]
+    tags: ["v*.*.*"]
 
 jobs:
+  validate-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/validate-release-tag.mjs "${{ github.ref_name }}"
+
   frontend:
+    needs: validate-tag
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,6 +34,7 @@ jobs:
       - run: pnpm --dir packages/cli test:smoke
 
   vscode-package:
+    needs: validate-tag
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

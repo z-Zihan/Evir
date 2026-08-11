@@ -1,12 +1,21 @@
 name: Desktop Release
 
 on:
-  workflow_dispatch:
   push:
-    tags: ["v*"]
+    tags: ["v*.*.*"]
 
 jobs:
+  validate-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/validate-release-tag.mjs "${{ github.ref_name }}"
+
   vscode:
+    needs: validate-tag
     permissions:
       contents: read
     runs-on: ubuntu-latest
@@ -34,6 +43,7 @@ jobs:
           path: packages/cli/artifacts/evir-cli-*.tgz
 
   build:
+    needs: validate-tag
     permissions:
       contents: write
     strategy:

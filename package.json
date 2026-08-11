@@ -12,6 +12,7 @@
     "build:vscode": "pnpm --dir extensions/vscode build",
     "package:vscode": "pnpm --dir extensions/vscode package",
     "build:cli": "pnpm --dir packages/cli build",
+    "release:validate-tag": "node scripts/validate-release-tag.mjs",
     "build": "tauri build",
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint . --max-warnings 0",
