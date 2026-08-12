@@ -52,6 +52,10 @@ jobs:
           const fs = require('fs');
           const path = require('path');
           const prevDir = 'previous-benchmark';
+          if (!fs.existsSync(prevDir)) {
+            console.log('No previous benchmark artifact found, skipping regression check.');
+            process.exit(0);
+          }
           const prevFile = fs.readdirSync(prevDir).find((f) => f.endsWith('.json'));
           if (!prevFile) {
             console.log('No previous benchmark JSON found, skipping regression check.');
