@@ -1,3 +1,11 @@
+<picture>
+  <source media="(prefers-color-scheme: dark) and (max-width: 600px)" srcset="./assets/readme-hero-mobile-dark.svg">
+  <source media="(max-width: 600px)" srcset="./assets/readme-hero-mobile-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="./assets/readme-hero-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="./assets/readme-hero-light.svg">
+  <img alt="Evir — 你的模型，你的电脑，你的 Agent" src="./assets/readme-hero-light.svg" width="100%">
+</picture>
+
 <div align="center">
 
 # Evir
@@ -13,6 +21,23 @@
 </div>
 
 ---
+
+## 产品速览
+
+| | |
+| :-- | :-- |
+| **它是什么** | 用户自带模型、数据本地优先、跨 Web / Desktop / VS Code / CLI 的多模型 AI 客户端与通用 Agent。 |
+| **核心承诺** | 不绑定模型厂商，不强制账号，不用积分体系；本地能力有权限边界，执行过程可停止、可审计、可回滚。 |
+| **最短路径** | 配置一个模型即可开始；Ask 用于对话分析，Desktop Agent 在明确授权后操作文件、代码、终端与电脑。 |
+| **产品边界** | Web 专注聊天与附件；Desktop 承载通用 Agent；VS Code 与 CLI 是可独立安装、独立运行的工程入口。 |
+| **当前成熟度** | 阶段 S：稳定性与体验整改。自动化覆盖较完整，但真实 Provider、原生多工具任务、签名安装包与 Windows 仍需验收。 |
+
+```text
+你的模型  →  Evir Harness  →  权限与工具  →  可验证的任务结果
+ Provider     Context / Loop     Approve / Audit     Diff / Snapshot / Recovery
+```
+
+**快速导航：** [为什么是 Evir](#为什么是-evir) · [产品形态](#多种产品形态一套核心能力) · [核心体验](#核心体验) · [隐私与本地存储](#隐私与本地存储) · [当前状态](#当前状态) · [本地开发](#本地开发) · [完整文档](#文档)
 
 ## 为什么是 Evir
 
