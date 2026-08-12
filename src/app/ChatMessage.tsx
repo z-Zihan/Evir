@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Copy, Pencil, RotateCcw } from "lucide-react";
+import { Brain, Copy, Pencil, RotateCcw } from "lucide-react";
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -14,6 +14,7 @@ interface ChatMessageProps {
   localUserAvatar: string;
   onEdit: (messageId: string, content: string) => Promise<void>;
   onRegenerate: () => Promise<void>;
+  onRemember?: (message: MessageRecord) => Promise<void>;
 }
 
 function CodeBlock({ className, children }: { className?: string; children: ReactNode }) {
@@ -50,14 +51,17 @@ export function ChatMessage({
   localUserAvatar,
   onEdit,
   onRegenerate,
+  onRemember,
 }: ChatMessageProps) {
   const { t, i18n } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [draft, setDraft] = useState(message.content);
+  const [rememberState, setRememberState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   useEffect(() => {
     if (!isEditing) setDraft(message.content);
   }, [message.content, isEditing]);
+  useEffect(() => setRememberState("idle"), [message.content, message.id]);
   const hasAttachment = Boolean(message.attachments?.length);
   const canSave = draft.trim().length > 0 || hasAttachment;
   const displayError = (value: string) => (i18n.exists(value) ? t(value) : value);
@@ -206,10 +210,35 @@ export function ChatMessage({
                 {t("chat.regenerate")}
               </button>
             ) : (
-              <button type="button" onClick={() => setIsEditing(true)} disabled={disabled}>
-                <Pencil size={14} />
-                {t("chat.edit")}
-              </button>
+              <>
+                {onRemember && (
+                  <button
+                    type="button"
+                    disabled={disabled || rememberState === "saving" || rememberState === "saved"}
+                    onClick={() => {
+                      setRememberState("saving");
+                      void onRemember(message).then(
+                        () => setRememberState("saved"),
+                        () => setRememberState("error"),
+                      );
+                    }}
+                    aria-label={t("chat.remember")}
+                  >
+                    <Brain size={14} />
+                    {rememberState === "saving"
+                      ? t("chat.remembering")
+                      : rememberState === "saved"
+                        ? t("chat.remembered")
+                        : rememberState === "error"
+                          ? t("chat.rememberFailed")
+                          : t("chat.remember")}
+                  </button>
+                )}
+                <button type="button" onClick={() => setIsEditing(true)} disabled={disabled}>
+                  <Pencil size={14} />
+                  {t("chat.edit")}
+                </button>
+              </>
             )}
           </div>
         )}

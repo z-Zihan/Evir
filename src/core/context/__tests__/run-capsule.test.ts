@@ -36,6 +36,13 @@ describe("buildRunCapsule", () => {
       completedSteps: [],
       pendingSteps: [],
       unresolvedErrors: [],
+      userConstraints: [],
+      approvals: [],
+      changedArtifacts: [],
+      verificationEvidence: [],
+      relevantMemoryIds: [],
+      contextSummaryVersion: "1",
+      mode: "agent",
     });
     expect(capsule.objective).toBe("Refactor the API layer");
   });

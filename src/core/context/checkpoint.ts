@@ -1,6 +1,8 @@
 import type { MessageRecord, SettingRecord } from "../storage/db";
+import { z } from "zod";
 import { estimateMessagesTokens } from "./token-estimate";
 import { getStructuredStorage } from "../../runtime/structured-storage";
+import { buildRunCapsule } from "./run-capsule";
 
 export interface Checkpoint {
   id: string;
@@ -13,6 +15,43 @@ export interface Checkpoint {
   completedSteps: string[];
   pendingSteps: string[];
   unresolvedErrors: string[];
+  userConstraints: string[];
+  approvals: string[];
+  changedArtifacts: string[];
+  verificationEvidence: string[];
+  relevantMemoryIds: string[];
+  contextSummaryVersion: string;
+  mode: "ask" | "plan" | "agent";
+}
+
+export interface CheckpointOptions {
+  mode?: Checkpoint["mode"];
+  relevantMemoryIds?: string[];
+}
+
+const checkpointSchema = z.object({
+  id: z.string().min(1),
+  conversationId: z.string().min(1),
+  createdAt: z.number().int().nonnegative(),
+  messageCount: z.number().int().nonnegative(),
+  tokenEstimate: z.number().int().nonnegative(),
+  summary: z.string(),
+  objective: z.string(),
+  completedSteps: z.array(z.string()).default([]),
+  pendingSteps: z.array(z.string()).default([]),
+  unresolvedErrors: z.array(z.string()).default([]),
+  userConstraints: z.array(z.string()).default([]),
+  approvals: z.array(z.string()).default([]),
+  changedArtifacts: z.array(z.string()).default([]),
+  verificationEvidence: z.array(z.string()).default([]),
+  relevantMemoryIds: z.array(z.string()).default([]),
+  contextSummaryVersion: z.string().default("legacy"),
+  mode: z.enum(["ask", "plan", "agent"]).default("agent"),
+});
+
+export function normalizeCheckpoint(value: unknown): Checkpoint | null {
+  const parsed = checkpointSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
 }
 
 /**
@@ -23,35 +62,29 @@ export async function createCheckpoint(
   conversationId: string,
   messages: MessageRecord[],
   objective: string,
+  options: CheckpointOptions = {},
 ): Promise<Checkpoint> {
   const now = Date.now();
   const tokenEstimate = estimateMessagesTokens(messages);
 
-  // Extract key info from messages
-  const completedSteps: string[] = [];
+  const capsule = buildRunCapsule(messages);
+  const completedSteps = new Set<string>();
   const pendingSteps: string[] = [];
-  const unresolvedErrors: string[] = [];
+  const completedToolCallIds = new Set<string>();
 
   for (const msg of messages) {
-    if (msg.role === "assistant" && msg.content) {
-      // Look for task completion indicators
-      if (
-        msg.content.includes("完成") ||
-        msg.content.includes("done") ||
-        msg.content.includes("✅")
-      ) {
-        completedSteps.push(msg.content.slice(0, 100));
-      }
-    }
-    if (msg.status === "error" && msg.errorMessage) {
-      unresolvedErrors.push(msg.errorMessage);
-    }
     if (msg.toolResults) {
       for (const result of msg.toolResults) {
-        if (!result.success) {
-          unresolvedErrors.push(`${result.toolName}: ${result.output.slice(0, 80)}`);
+        completedToolCallIds.add(result.toolCallId);
+        if (result.success) {
+          completedSteps.add(`${result.toolName}: ${result.output.slice(0, 100)}`);
         }
       }
+    }
+  }
+  for (const msg of messages) {
+    for (const call of msg.toolCalls ?? []) {
+      if (!completedToolCallIds.has(call.id)) pendingSteps.push(`Awaiting ${call.toolName}`);
     }
   }
 
@@ -62,10 +95,17 @@ export async function createCheckpoint(
     messageCount: messages.length,
     tokenEstimate,
     summary: `Checkpoint at ${new Date(now).toISOString()}: ${messages.length} messages, ~${tokenEstimate} tokens`,
-    objective,
-    completedSteps,
+    objective: objective || capsule.objective,
+    completedSteps: [...completedSteps],
     pendingSteps,
-    unresolvedErrors,
+    unresolvedErrors: capsule.errors,
+    userConstraints: capsule.userConstraints,
+    approvals: capsule.pendingApprovals,
+    changedArtifacts: capsule.fileChanges,
+    verificationEvidence: capsule.lastVerificationEvidence,
+    relevantMemoryIds: [...new Set(options.relevantMemoryIds ?? [])],
+    contextSummaryVersion: "1",
+    mode: options.mode ?? "agent",
   };
 
   // Persist checkpoint to settings table
@@ -85,7 +125,7 @@ export async function loadCheckpoint(conversationId: string): Promise<Checkpoint
     "settings",
     `checkpoint:${conversationId}`,
   );
-  return (record?.value as Checkpoint | undefined) ?? null;
+  return normalizeCheckpoint(record?.value);
 }
 
 /**
@@ -96,7 +136,11 @@ export function buildHandoffMessage(
   checkpoint: Checkpoint,
   newModelId: string,
 ): { role: "system"; content: string } {
-  const parts: string[] = [`[Model Handoff → ${newModelId}]`, `Objective: ${checkpoint.objective}`];
+  const parts: string[] = [
+    `[Model Handoff → ${newModelId}]`,
+    `Mode: ${checkpoint.mode}`,
+    `Objective: ${checkpoint.objective}`,
+  ];
 
   if (checkpoint.completedSteps.length > 0) {
     parts.push(`Completed steps:`);
@@ -111,6 +155,26 @@ export function buildHandoffMessage(
   if (checkpoint.unresolvedErrors.length > 0) {
     parts.push(`Unresolved errors:`);
     checkpoint.unresolvedErrors.forEach((e) => parts.push(`  ❌ ${e}`));
+  }
+
+  if (checkpoint.userConstraints.length > 0) {
+    parts.push("User constraints:");
+    checkpoint.userConstraints.forEach((constraint) => parts.push(`  - ${constraint}`));
+  }
+  if (checkpoint.approvals.length > 0) {
+    parts.push("Pending approvals:");
+    checkpoint.approvals.forEach((approval) => parts.push(`  - ${approval}`));
+  }
+  if (checkpoint.changedArtifacts.length > 0) {
+    parts.push("Changed artifacts:");
+    checkpoint.changedArtifacts.forEach((artifact) => parts.push(`  - ${artifact}`));
+  }
+  if (checkpoint.verificationEvidence.length > 0) {
+    parts.push("Verification evidence:");
+    checkpoint.verificationEvidence.forEach((evidence) => parts.push(`  - ${evidence}`));
+  }
+  if (checkpoint.relevantMemoryIds.length > 0) {
+    parts.push(`Relevant local memory references: ${checkpoint.relevantMemoryIds.join(", ")}`);
   }
 
   parts.push(

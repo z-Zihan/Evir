@@ -2,7 +2,8 @@ import { db, type ProviderRecord, type SettingRecord } from "../core/storage/db"
 import type { EntityName, StoragePort } from "../core/storage/storage-port";
 import { getRuntime, isNativeDesktopRuntime } from "./use-runtime";
 
-const MIGRATION_MARKER = "desktopStructuredStorageMigrationV1";
+const BASE_MIGRATION_MARKER = "desktopStructuredStorageMigrationV1";
+const MEMORY_MIGRATION_MARKER = "desktopStructuredStorageMigrationV2";
 
 async function migrateEntity<T>(
   storage: StoragePort,
@@ -32,18 +33,26 @@ export async function initializeRuntimeStorage(): Promise<void> {
   if (!isNativeDesktopRuntime()) return;
   const storage = getRuntime().structuredStorage;
   if (!storage) throw new Error("Desktop structured storage is unavailable");
-  const marker = await storage.read<SettingRecord>("settings", MIGRATION_MARKER);
-  if (marker?.value === true) return;
+  const baseMarker = await storage.read<SettingRecord>("settings", BASE_MIGRATION_MARKER);
+  if (baseMarker?.value !== true) {
+    await migrateProviders(storage);
+    await migrateEntity(storage, "conversations", await db.conversations.toArray());
+    await migrateEntity(storage, "messages", await db.messages.toArray());
+    await migrateEntity(storage, "attachments", await db.attachments.toArray());
+    await migrateEntity(storage, "usage_records", await db.usage_records.toArray());
+    await migrateEntity(storage, "mcp_servers", await db.mcpServers.toArray());
+    await migrateEntity(storage, "settings", await db.settings.toArray());
+    await storage.write<SettingRecord>("settings", BASE_MIGRATION_MARKER, {
+      name: BASE_MIGRATION_MARKER,
+      value: true,
+    });
+  }
 
-  await migrateProviders(storage);
-  await migrateEntity(storage, "conversations", await db.conversations.toArray());
-  await migrateEntity(storage, "messages", await db.messages.toArray());
-  await migrateEntity(storage, "attachments", await db.attachments.toArray());
-  await migrateEntity(storage, "usage_records", await db.usage_records.toArray());
-  await migrateEntity(storage, "mcp_servers", await db.mcpServers.toArray());
-  await migrateEntity(storage, "settings", await db.settings.toArray());
-  await storage.write<SettingRecord>("settings", MIGRATION_MARKER, {
-    name: MIGRATION_MARKER,
+  const memoryMarker = await storage.read<SettingRecord>("settings", MEMORY_MIGRATION_MARKER);
+  if (memoryMarker?.value === true) return;
+  await migrateEntity(storage, "memories", await db.memories.toArray());
+  await storage.write<SettingRecord>("settings", MEMORY_MIGRATION_MARKER, {
+    name: MEMORY_MIGRATION_MARKER,
     value: true,
   });
 }

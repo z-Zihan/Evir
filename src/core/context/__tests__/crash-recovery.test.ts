@@ -25,6 +25,13 @@ function checkpoint(createdAt = 100): Checkpoint {
     completedSteps: [],
     pendingSteps: ["verify"],
     unresolvedErrors: [],
+    userConstraints: [],
+    approvals: [],
+    changedArtifacts: [],
+    verificationEvidence: [],
+    relevantMemoryIds: [],
+    contextSummaryVersion: "1",
+    mode: "agent",
   };
 }
 

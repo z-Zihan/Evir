@@ -1,5 +1,5 @@
 import type { ConversationRecord, MessageRecord, SettingRecord } from "../storage/db";
-import type { Checkpoint } from "./checkpoint";
+import { normalizeCheckpoint, type Checkpoint } from "./checkpoint";
 import { getStructuredStorage } from "../../runtime/structured-storage";
 
 export interface UnfinishedRun {
@@ -20,8 +20,8 @@ export async function findUnfinishedRuns(): Promise<UnfinishedRun[]> {
 
   for (const setting of settings) {
     if (!setting.name.startsWith("checkpoint:")) continue;
-    const cp = setting.value as Checkpoint;
-    if (!cp?.id || !cp?.conversationId) continue;
+    const cp = normalizeCheckpoint(setting.value);
+    if (!cp) continue;
 
     // Check if the conversation still exists
     const conv = await storage.read<ConversationRecord>("conversations", cp.conversationId);

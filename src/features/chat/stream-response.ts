@@ -24,7 +24,7 @@ import {
   buildCompressedHistory,
   splitForSummarization,
 } from "../../core/context/conversation-summarizer";
-import { useMemoryStore } from "../memory/memory-store";
+import { retrieveMemoryContext } from "../../core/memory/memory-retrieval";
 import { createCheckpoint } from "../../core/context/checkpoint";
 import { estimateMessagesTokens, estimateTokens } from "../../core/context/token-estimate";
 import { getStructuredStorage } from "../../runtime/structured-storage";
@@ -32,6 +32,7 @@ import { buildAgentRunRecord, persistAgentRun, type AgentRunRecord } from "./age
 import { buildRunCapsule, serializeCapsule } from "../../core/context/run-capsule";
 import { contextBuilder } from "../../core/context/context-builder";
 import type { FileContextReference } from "../../core/context/types";
+import { logger } from "../../core/logging/logger";
 import {
   buildPersonalizationPrompt,
   loadPersonalizationPreferences,
@@ -315,18 +316,6 @@ export async function streamResponse(
       }
     }
 
-    // Create checkpoint when utilization > 90%
-    if (snapshot.compressionStage === "checkpoint-compaction" && !get().privateSession) {
-      try {
-        const objective =
-          history.find((m) => m.role === "user")?.content.slice(0, 200) ?? "Unknown objective";
-        await createCheckpoint(conversationId, effectiveHistory, objective);
-        console.debug("[evir] checkpoint created");
-      } catch (error) {
-        console.error("[evir] checkpoint failed:", error);
-      }
-    }
-
     console.debug(
       "[evir] context-budget",
       `stage=${snapshot.compressionStage}`,
@@ -386,10 +375,56 @@ export async function streamResponse(
       skillRouting = `Active skills:\n${routingLines.join("\n")}`;
     }
   }
-  // Inject memory context if available (skip in private sessions)
-  const memoryContext = get().privateSession
-    ? ""
-    : useMemoryStore.getState().buildMemoryContext(conversationId);
+  // Resolve memory from storage for every request so startup and settings-page state
+  // cannot affect whether global/workspace/conversation memories reach the model.
+  let memoryContext = "";
+  let relevantMemoryIds: string[] = [];
+  if (!get().privateSession) {
+    const availableInputTokens =
+      snapshot.maxContextTokens -
+      snapshot.reservedOutputTokens -
+      snapshot.reservedToolTokens -
+      snapshot.safetyMarginTokens;
+    const remainingAfterHistoryAndSkills = Math.max(
+      0,
+      availableInputTokens -
+        estimateMessagesTokens(effectiveHistory) -
+        estimateTokens(activeSkills) -
+        estimateTokens(skillRouting),
+    );
+    try {
+      const retrieval = await retrieveMemoryContext(getStructuredStorage(), {
+        conversationId,
+        workspacePath: runtime.getWorkspaceRoot?.() ?? null,
+        query: lastUserMessage?.content ?? "",
+        maxCharacters: Math.min(6_000, Math.floor(remainingAfterHistoryAndSkills * 0.15) * 4),
+      });
+      memoryContext = retrieval.context;
+      relevantMemoryIds = retrieval.memoryIds;
+    } catch (error) {
+      logger.warn("memory", "memory.context-load-failed", {
+        conversationId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+  if (snapshot.compressionStage === "checkpoint-compaction" && !get().privateSession) {
+    try {
+      const objective =
+        history.find((message) => message.role === "user")?.content.slice(0, 200) ??
+        "Unknown objective";
+      await createCheckpoint(conversationId, effectiveHistory, objective, {
+        mode,
+        relevantMemoryIds,
+      });
+      logger.debug("context", "checkpoint.created", { conversationId });
+    } catch (error) {
+      logger.error("context", "checkpoint.create-failed", {
+        conversationId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
   const fileReferences = await latestFileReferences(conversationId, get().latestAgentRun);
   const personalization = get().privateSession
     ? ""

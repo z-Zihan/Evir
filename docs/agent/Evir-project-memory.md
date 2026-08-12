@@ -45,6 +45,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - EvirRuntime 区分 Web/Desktop，按 Capability 注册工具
 - Ask 不主动操作本地资源；Plan 只读检查；Agent 权限控制执行
 - Tool Registry 按模式和风险过滤，非仅 Prompt 约束
+- Web/Desktop Runtime 通过可信内置 Component Runtime 组装工具；Manifest 依赖不授予权限，Tool Registry、审批和 Tauri 边界继续强制执行
 
 ## 7. Provider and Protocol Rules
 
@@ -153,6 +154,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - Adapter 测试（10 项）
 - 重新生成 / 编辑重试
 - Agent Loop + Tool Registry（read_file, list_directory, write_file）
+- Component Runtime（Manifest、依赖拓扑、幂等 LIFO EffectScope、定向重载、配置启停与失败回滚）；filesystem/terminal/git 工具已迁移为三个内置组件
 - L3 工具审批流（Approve/Deny 按钮接线）
 - 会话分支（从任意消息 fork）
 - 模型切换 UI（inline dropdown）
@@ -275,10 +277,12 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - [docs/18-final-product-review-v6.md](../18-final-product-review-v6.md)
 - [docs/19-vscode-extension-and-editor-roadmap.md](../19-vscode-extension-and-editor-roadmap.md)
 - [docs/20-cli-product-and-technical-specification.md](../20-cli-product-and-technical-specification.md)
+- [docs/21-composable-component-runtime.md](../21-composable-component-runtime.md)
 - [docs/reviews/vscode-cli-product-ui-review.md](../reviews/vscode-cli-product-ui-review.md)
 
 ## 24. Update Log
 
+- 2026-08-12 | working tree | 新增可信内置 Component Runtime；Desktop filesystem/terminal/git 工具从静态循环迁移为可配置组件，支持依赖拓扑、幂等 LIFO 卸载、定向重载和失败回滚；第三方任意代码加载与组件管理 UI 不在第一阶段范围
 - 2026-08-12 | working tree | Web/Desktop 性能与 Skill 构建边界拆分：Web 保留 10 个共享 Skill 和 350KiB 初始 JS gzip 门禁；Desktop 提供 26 个桌面扩展 Skill、3MiB 前端资源预算和 120/180MiB 安装包目标/警戒；产物分别输出到 `dist/web`、`dist/desktop`
 - 2026-08-12 | working tree | Desktop 精选库扩展为 36 个 Skill；新增分类/搜索、用户自定义分类、输入框按消息显式选择、Ask 能力过滤、上下文预算与 Trigger 冲突测试；全部默认关闭，不设固定自动激活数量上限
 - 2026-08-12 | working tree | 内置 Skill 重构为 10 个社区精选 Evir 适配版；移除 3 个依赖缺失旁文件、外部状态目录或多 Agent 集群的旧项；新增作者/仓库/许可证/上游 Commit 元数据、第三方声明、中英文触发和正文懒加载

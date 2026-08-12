@@ -133,6 +133,7 @@ export class EvirDB extends Dexie {
   agentRuns!: Table<GenericEntityRecord, string>;
   toolExecutions!: Table<GenericEntityRecord, string>;
   artifacts!: Table<GenericEntityRecord, string>;
+  memories!: Table<GenericEntityRecord, string>;
 
   constructor(name = "evir") {
     super(name);
@@ -182,6 +183,19 @@ export class EvirDB extends Dexie {
       agentRuns: "id, conversationId, updatedAt",
       toolExecutions: "id, runId, createdAt",
       artifacts: "id, relatedEntityId, createdAt",
+    });
+    this.version(6).stores({
+      providers: "id",
+      conversations: "id, updatedAt",
+      messages: "id, conversationId, createdAt",
+      attachments: "id, messageId",
+      usage_records: "id, conversationId, createdAt",
+      mcpServers: "id",
+      settings: "name",
+      agentRuns: "id, conversationId, updatedAt",
+      toolExecutions: "id, runId, createdAt",
+      artifacts: "id, relatedEntityId, createdAt",
+      memories: "id, scope, type, updatedAt, enabled, pinned",
     });
   }
 }

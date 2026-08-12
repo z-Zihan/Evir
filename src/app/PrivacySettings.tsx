@@ -9,6 +9,7 @@ import { getRuntime, isNativeDesktopRuntime } from "../runtime/use-runtime";
 import { useProviderStore } from "../features/provider/provider-store";
 import { useUsageStore } from "../features/usage/usage-store";
 import { useMcpStore } from "../features/mcp/mcp-store";
+import { useMemoryStore, type MemoryRecord } from "../features/memory/memory-store";
 
 type ActionState = "idle" | "clearing" | "success" | "error";
 
@@ -35,12 +36,24 @@ export function PrivacySettings() {
 
   const clearConversations = () =>
     clearData(async () => {
-      await getStructuredStorage().apply([
+      const storage = getStructuredStorage();
+      const conversationMemories = (await storage.readAll<MemoryRecord>("memories")).filter(
+        ({ type }) => type === "conversation",
+      );
+      await storage.apply([
         { type: "clear", entity: "conversations" },
         { type: "clear", entity: "messages" },
         { type: "clear", entity: "attachments" },
+        ...conversationMemories.map(({ id }) => ({
+          type: "delete" as const,
+          entity: "memories" as const,
+          id,
+        })),
       ]);
       useChatStore.setState({ conversations: [], currentConversationId: null, messages: [] });
+      useMemoryStore.setState(({ memories }) => ({
+        memories: memories.filter(({ type }) => type !== "conversation"),
+      }));
     });
 
   const clearProviders = () =>
@@ -88,12 +101,14 @@ export function PrivacySettings() {
         { type: "clear", entity: "attachments" },
         { type: "clear", entity: "usage_records" },
         { type: "clear", entity: "mcp_servers" },
+        { type: "clear", entity: "memories" },
         { type: "clear", entity: "settings" },
       ]);
       useProviderStore.setState({ providers: [] });
       useChatStore.setState({ conversations: [], currentConversationId: null, messages: [] });
       useUsageStore.setState({ records: [] });
       useMcpStore.setState({ servers: [] });
+      useMemoryStore.setState({ memories: [], enabled: true, error: null });
     });
 
   return (

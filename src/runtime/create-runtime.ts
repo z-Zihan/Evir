@@ -1,8 +1,13 @@
 import { desktopStorage, desktopStructuredStorage } from "./desktop-storage-adapter";
 import { IndexedDBAdapter } from "../core/storage/indexed-db-adapter";
-import { LOCAL_FILE_TOOLS } from "../core/tools/builtin/local-file-tools";
 import { ToolExecutor } from "../core/tools/tool-executor";
 import { createToolRegistry } from "../core/tools/tool-registry-impl";
+import { ComponentRuntime } from "../core/components/component-runtime";
+import type { ComponentConfigurationMap } from "../core/components/types";
+import {
+  BUILTIN_TOOL_COMPONENTS,
+  capabilityDependencies,
+} from "./components/builtin-tool-components";
 import type { Capability, EvirRuntime, RuntimeTarget } from "./types";
 
 function buildRuntime(target: RuntimeTarget, capabilities: Capability[]): EvirRuntime {
@@ -26,22 +31,28 @@ async function selectWorkspaceDirectory(): Promise<string | null> {
   return typeof selected === "string" ? selected : null;
 }
 
-export function createRuntime(): EvirRuntime {
+export interface CreateRuntimeOptions {
+  componentConfiguration?: ComponentConfigurationMap;
+}
+
+export function createRuntime(options: CreateRuntimeOptions = {}): EvirRuntime {
   const target: RuntimeTarget = import.meta.env.VITE_EVIR_TARGET === "desktop" ? "desktop" : "web";
   const toolRegistry = createToolRegistry();
   const toolExecutor = new ToolExecutor(toolRegistry);
+  const capabilities: Capability[] =
+    target === "desktop"
+      ? ["chat", "attachments", "filesystem", "terminal", "git", "localMcp", "backgroundTasks"]
+      : ["chat", "attachments"];
+  const runtime = buildRuntime(target, capabilities);
+  const componentRuntime = new ComponentRuntime({
+    target,
+    toolRegistry,
+    hostDependencies: capabilityDependencies(runtime.capabilities),
+  });
+  for (const component of BUILTIN_TOOL_COMPONENTS) componentRuntime.register(component);
+  componentRuntime.reconcile(options.componentConfiguration);
 
   if (target === "desktop") {
-    for (const tool of LOCAL_FILE_TOOLS) toolRegistry.register(tool);
-    const runtime = buildRuntime("desktop", [
-      "chat",
-      "attachments",
-      "filesystem",
-      "terminal",
-      "git",
-      "localMcp",
-      "backgroundTasks",
-    ]);
     return {
       ...runtime,
       storage: desktopStorage,
@@ -49,6 +60,7 @@ export function createRuntime(): EvirRuntime {
         "__TAURI_INTERNALS__" in globalThis ? desktopStructuredStorage : new IndexedDBAdapter(),
       toolRegistry,
       toolExecutor,
+      componentRuntime,
       mode: "agent" as const,
       getWorkspaceRoot,
       selectWorkspaceDirectory,
@@ -56,9 +68,10 @@ export function createRuntime(): EvirRuntime {
   }
 
   return {
-    ...buildRuntime("web", ["chat", "attachments"]),
+    ...runtime,
     toolRegistry,
     toolExecutor,
+    componentRuntime,
     mode: "ask" as const,
   };
 }

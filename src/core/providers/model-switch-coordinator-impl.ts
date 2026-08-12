@@ -10,6 +10,7 @@ import type {
 import { getStructuredStorage } from "../../runtime/structured-storage";
 import { getRuntime, isNativeDesktopRuntime } from "../../runtime/use-runtime";
 import { estimateMessagesTokens } from "../context/token-estimate";
+import { retrieveMemoryContext } from "../memory/memory-retrieval";
 
 function hasActiveToolExecutionOrPendingApproval(message: MessageRecord | undefined): boolean {
   if (!message) return false;
@@ -63,9 +64,11 @@ export class ModelSwitchCoordinatorImpl implements ModelSwitchCoordinator {
       };
     }
 
-    const messages = await storage.query<MessageRecord>("messages", {
-      conversationId: request.conversationId,
-    });
+    const messages = request.privateSession
+      ? []
+      : await storage.query<MessageRecord>("messages", {
+          conversationId: request.conversationId,
+        });
     messages.sort((a, b) => a.createdAt - b.createdAt);
 
     const lastMessage = messages.at(-1);
@@ -121,6 +124,11 @@ export class ModelSwitchCoordinatorImpl implements ModelSwitchCoordinator {
     if (assessment.status === "blocked") {
       return { status: "blocked" };
     }
+    // Private sessions intentionally have no durable handoff, checkpoint, or
+    // memory lookup. The live chat history remains in the chat store.
+    if (request.privateSession) {
+      return request.hasActiveExecution ? { status: "blocked" } : { status: "switched" };
+    }
 
     const messages = await getStructuredStorage().query<MessageRecord>("messages", {
       conversationId: request.conversationId,
@@ -136,7 +144,15 @@ export class ModelSwitchCoordinatorImpl implements ModelSwitchCoordinator {
     const isCancelled = () => this.inFlightSwitches.get(request.conversationId) !== token;
 
     const objective = deriveObjective(messages);
-    const checkpoint = await createCheckpoint(request.conversationId, messages, objective);
+    const memoryContext = await retrieveMemoryContext(getStructuredStorage(), {
+      conversationId: request.conversationId,
+      workspacePath: getRuntime().getWorkspaceRoot?.() ?? null,
+      query: [...messages].reverse().find(({ role }) => role === "user")?.content ?? objective,
+    });
+    const checkpoint = await createCheckpoint(request.conversationId, messages, objective, {
+      mode: request.mode,
+      relevantMemoryIds: memoryContext.memoryIds,
+    });
     if (isCancelled()) return { status: "rolled-back" };
 
     const handoff = buildHandoffMessage(checkpoint, request.toModelId);

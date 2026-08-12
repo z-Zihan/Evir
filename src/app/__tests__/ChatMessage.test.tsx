@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MessageRecord } from "../../core/storage/db";
 import { ChatMessage } from "../ChatMessage";
@@ -91,6 +91,28 @@ describe("ChatMessage actions", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "chat.regenerate" }));
     expect(onRegenerate).toHaveBeenCalledOnce();
+  });
+
+  it("lets the user explicitly save their message as memory", async () => {
+    const userMessage = message("user", "Use pnpm for this project");
+    const onRemember = vi.fn(() => Promise.resolve());
+
+    render(
+      <ChatMessage
+        message={userMessage}
+        disabled={false}
+        localUserName="Local user"
+        localUserAvatar=""
+        onEdit={vi.fn()}
+        onRegenerate={vi.fn()}
+        onRemember={onRemember}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "chat.remember" }));
+
+    await waitFor(() => expect(onRemember).toHaveBeenCalledWith(userMessage));
+    expect(screen.getByText("chat.remembered")).toBeDefined();
   });
 
   it("renders a tool call with its arguments and result", () => {

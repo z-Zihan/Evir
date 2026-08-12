@@ -72,4 +72,26 @@ describe("IndexedDBAdapter", () => {
       await storage.query<MessageRecord>("messages", { conversationId: "conversation-1" }),
     ).toEqual([message]);
   });
+
+  it("stores memories as independent structured records", async () => {
+    const memory = {
+      id: "memory-1",
+      type: "long-term",
+      scope: "global",
+      key: "language",
+      content: "Reply in Chinese",
+      source: { kind: "manual", messageIds: [] },
+      confidence: 1,
+      sensitivity: "standard",
+      enabled: true,
+      pinned: false,
+      revision: 1,
+      createdAt: 1,
+      updatedAt: 1,
+    };
+
+    await storage.write("memories", memory.id, memory);
+
+    expect(await storage.query("memories", { scope: "global" })).toEqual([memory]);
+  });
 });

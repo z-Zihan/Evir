@@ -1,124 +1,121 @@
 import { create } from "zustand";
-import type { SettingRecord } from "../../core/storage/db";
+import { MemoryRepository } from "../../core/memory/memory-repository";
+import {
+  isMemoryEnabled,
+  setMemoryEnabled as persistMemoryEnabled,
+} from "../../core/memory/memory-preferences";
+import type { CreateMemoryInput, MemoryRecord, UpdateMemoryInput } from "../../core/memory/types";
 import { getStructuredStorage } from "../../runtime/structured-storage";
 
-export interface MemoryRecord {
-  id: string;
-  type: "conversation" | "workspace" | "long-term";
-  scope: string; // conversationId or workspacePath or "global"
-  key: string;
-  content: string;
-  createdAt: number;
-  updatedAt: number;
-  pinned: boolean;
-}
+export type { MemoryRecord } from "../../core/memory/types";
 
 interface MemoryState {
   memories: MemoryRecord[];
-  loadMemories: (scope: string) => Promise<void>;
-  addMemory: (
-    memory: Omit<MemoryRecord, "id" | "createdAt" | "updatedAt" | "pinned">,
-  ) => Promise<string>;
-  updateMemory: (id: string, content: string) => Promise<void>;
+  enabled: boolean;
+  loading: boolean;
+  error: string | null;
+  loadMemories: () => Promise<void>;
+  addMemory: (memory: CreateMemoryInput) => Promise<string>;
+  updateMemory: (id: string, input: UpdateMemoryInput) => Promise<void>;
   deleteMemory: (id: string) => Promise<void>;
   togglePin: (id: string) => Promise<void>;
-  getScoped: (scope: string) => MemoryRecord[];
-  buildMemoryContext: (scope: string) => string;
+  toggleEnabled: (id: string) => Promise<void>;
+  setMemoryEnabled: (enabled: boolean) => Promise<void>;
+  clearMemories: () => Promise<void>;
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function repository(): MemoryRepository {
+  return new MemoryRepository(getStructuredStorage());
 }
 
 export const useMemoryStore = create<MemoryState>((set, get) => ({
   memories: [],
+  enabled: true,
+  loading: false,
+  error: null,
 
-  loadMemories: async (scope) => {
-    // Memory is stored in settings table as JSON
-    const record = await getStructuredStorage().read<SettingRecord>(
-      "settings",
-      `memories:${scope}`,
-    );
-    const memories: MemoryRecord[] = Array.isArray(record?.value)
-      ? (record.value as MemoryRecord[])
-      : [];
-    set({ memories });
-  },
-
-  addMemory: async (memory) => {
-    const id = `mem-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const now = Date.now();
-    const record: MemoryRecord = {
-      ...memory,
-      id,
-      createdAt: now,
-      updatedAt: now,
-      pinned: false,
-    };
-    const current = get().memories;
-    const updated = [...current, record];
-    await getStructuredStorage().write("settings", `memories:${record.scope}`, {
-      name: `memories:${record.scope}`,
-      value: updated,
-    });
-    set({ memories: updated });
-    return id;
-  },
-
-  updateMemory: async (id, content) => {
-    const updated = get().memories.map((m) =>
-      m.id === id ? { ...m, content, updatedAt: Date.now() } : m,
-    );
-    const memory = updated.find((m) => m.id === id);
-    if (memory) {
-      await getStructuredStorage().write("settings", `memories:${memory.scope}`, {
-        name: `memories:${memory.scope}`,
-        value: updated,
-      });
+  loadMemories: async () => {
+    set({ loading: true, error: null });
+    try {
+      const storage = getStructuredStorage();
+      const [memories, enabled] = await Promise.all([
+        new MemoryRepository(storage).list(),
+        isMemoryEnabled(storage),
+      ]);
+      set({ memories, enabled, loading: false });
+    } catch (error) {
+      set({ loading: false, error: messageOf(error) });
     }
-    set({ memories: updated });
+  },
+
+  addMemory: async (input) => {
+    try {
+      const memory = await repository().create(input);
+      set(({ memories }) => ({ memories: [memory, ...memories], error: null }));
+      return memory.id;
+    } catch (error) {
+      set({ error: messageOf(error) });
+      throw error;
+    }
+  },
+
+  updateMemory: async (id, input) => {
+    try {
+      const memory = await repository().update(id, input);
+      set(({ memories }) => ({
+        memories: memories.map((candidate) => (candidate.id === id ? memory : candidate)),
+        error: null,
+      }));
+    } catch (error) {
+      set({ error: messageOf(error) });
+      throw error;
+    }
   },
 
   deleteMemory: async (id) => {
-    const memory = get().memories.find((m) => m.id === id);
-    const updated = get().memories.filter((m) => m.id !== id);
-    if (memory) {
-      await getStructuredStorage().write("settings", `memories:${memory.scope}`, {
-        name: `memories:${memory.scope}`,
-        value: updated,
-      });
+    try {
+      await repository().delete(id);
+      set(({ memories }) => ({
+        memories: memories.filter((memory) => memory.id !== id),
+        error: null,
+      }));
+    } catch (error) {
+      set({ error: messageOf(error) });
+      throw error;
     }
-    set({ memories: updated });
   },
 
   togglePin: async (id) => {
-    const updated = get().memories.map((m) =>
-      m.id === id ? { ...m, pinned: !m.pinned, updatedAt: Date.now() } : m,
-    );
-    const memory = updated.find((m) => m.id === id);
-    if (memory) {
-      await getStructuredStorage().write("settings", `memories:${memory.scope}`, {
-        name: `memories:${memory.scope}`,
-        value: updated,
-      });
-    }
-    set({ memories: updated });
+    const memory = get().memories.find((candidate) => candidate.id === id);
+    if (memory) await get().updateMemory(id, { pinned: !memory.pinned });
   },
 
-  getScoped: (scope) => {
-    return get().memories.filter((m) => m.scope === scope || m.scope === "global");
+  toggleEnabled: async (id) => {
+    const memory = get().memories.find((candidate) => candidate.id === id);
+    if (memory) await get().updateMemory(id, { enabled: !memory.enabled });
   },
 
-  buildMemoryContext: (scope) => {
-    const scoped = get().getScoped(scope);
-    if (scoped.length === 0) return "";
-    const pinned = scoped.filter((m) => m.pinned);
-    const normal = scoped.filter((m) => !m.pinned);
-    const parts: string[] = [];
-    if (pinned.length > 0) {
-      parts.push("Pinned memories:");
-      pinned.forEach((m) => parts.push(`- [${m.key}] ${m.content}`));
+  setMemoryEnabled: async (enabled) => {
+    try {
+      await persistMemoryEnabled(getStructuredStorage(), enabled);
+      set({ enabled, error: null });
+    } catch (error) {
+      set({ error: messageOf(error) });
+      throw error;
     }
-    if (normal.length > 0) {
-      parts.push("Memories:");
-      normal.forEach((m) => parts.push(`- [${m.key}] ${m.content}`));
+  },
+
+  clearMemories: async () => {
+    try {
+      await repository().clear();
+      set({ memories: [], error: null });
+    } catch (error) {
+      set({ error: messageOf(error) });
+      throw error;
     }
-    return parts.join("\n");
   },
 }));

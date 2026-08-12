@@ -15,6 +15,7 @@ const SUPPORTED_ENTITIES = [
   "agent_runs",
   "tool_executions",
   "artifacts",
+  "memories",
 ] as const satisfies readonly EntityName[];
 
 type SupportedEntity = (typeof SUPPORTED_ENTITIES)[number];
@@ -102,7 +103,9 @@ export class IndexedDBAdapter implements StoragePort {
             ? this.database.toolExecutions
             : entity === "artifacts"
               ? this.database.artifacts
-              : this.database[entity];
+              : entity === "memories"
+                ? this.database.memories
+                : this.database[entity];
     return table as unknown as Table<StoredRecord, string>;
   }
 }

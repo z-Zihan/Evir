@@ -126,4 +126,23 @@ describe("ModelSwitchCoordinatorImpl", () => {
       role: "system",
     });
   });
+
+  it("does not persist a handoff or checkpoint for a private session", async () => {
+    await db.providers.put(
+      target({
+        id: "source",
+        modelId: "target-model",
+        modelCapabilities: { streaming: true, toolCalling: true },
+      }),
+    );
+    const coordinator = new ModelSwitchCoordinatorImpl();
+    const switchRequest = request({ toProviderId: "source", privateSession: true });
+    const assessment = await coordinator.assess(switchRequest);
+    const beforeMessages = await db.messages.count();
+    const result = await coordinator.execute(switchRequest, assessment);
+
+    expect(result).toEqual({ status: "switched" });
+    expect(await db.messages.count()).toBe(beforeMessages);
+    expect(await db.settings.get("checkpoint:conversation-1")).toBeUndefined();
+  });
 });

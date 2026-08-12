@@ -11,6 +11,8 @@ import { useProviderStore } from "../../provider/provider-store";
 import { useChatStore } from "../chat-store";
 import { streamAssistant } from "../chat-stream";
 import { useSkillStore } from "../../skills/skill-store";
+import { MemoryRepository } from "../../../core/memory/memory-repository";
+import { IndexedDBAdapter } from "../../../core/storage/indexed-db-adapter";
 
 vi.mock("../../../i18n/config", () => ({
   default: { t: (key: string) => key },
@@ -241,6 +243,40 @@ describe("chat retries", () => {
     expect(await db.messages.count()).toBe(2);
   });
 
+  it("loads relevant memory from storage without opening settings", async () => {
+    await new MemoryRepository(new IndexedDBAdapter(db)).create({
+      type: "long-term",
+      scope: "global",
+      key: "project language",
+      content: "Always answer this project in Chinese",
+    });
+
+    await useChatStore.getState().sendMessage("Review the project language rules");
+
+    const systemPrompt = vi
+      .mocked(streamAssistant)
+      .mock.calls[0]?.[2].find(({ role }) => role === "system")?.content;
+    expect(systemPrompt).toContain("Always answer this project in Chinese");
+  });
+
+  it("deletes conversation-scoped memories with their conversation", async () => {
+    const memory = await new MemoryRepository(new IndexedDBAdapter(db)).create({
+      type: "conversation",
+      scope: conversation.id,
+      key: "temporary decision",
+      content: "Only relevant to this conversation",
+    });
+    await db.settings.put({
+      name: `checkpoint:${conversation.id}`,
+      value: { id: "checkpoint" },
+    });
+
+    await useChatStore.getState().deleteConversation(conversation.id);
+
+    expect(await db.memories.get(memory.id)).toBeUndefined();
+    expect(await db.settings.get(`checkpoint:${conversation.id}`)).toBeUndefined();
+  });
+
   it("removes the last assistant response before regenerating it", async () => {
     const user = message("user-1", "user", "Try this", 1);
     const assistant = message("assistant-1", "assistant", "Old response", 2);
@@ -296,6 +332,12 @@ describe("chat retries", () => {
 
 describe("private sessions", () => {
   it("keeps the conversation and messages in memory only", async () => {
+    await new MemoryRepository(new IndexedDBAdapter(db)).create({
+      type: "long-term",
+      scope: "global",
+      key: "private test",
+      content: "MUST_NOT_REACH_PRIVATE_SESSION",
+    });
     useChatStore.getState().togglePrivateSession();
     expect(useChatStore.getState()).toMatchObject({
       privateSession: true,
@@ -313,6 +355,9 @@ describe("private sessions", () => {
     ]);
     expect(await db.conversations.count()).toBe(1);
     expect(await db.messages.count()).toBe(0);
+    expect(JSON.stringify(vi.mocked(streamAssistant).mock.calls[0]?.[2])).not.toContain(
+      "MUST_NOT_REACH_PRIVATE_SESSION",
+    );
   });
 
   it("discards private session state when the session closes", async () => {

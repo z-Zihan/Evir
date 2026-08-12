@@ -4295,7 +4295,9 @@
 
 .memory-create-card {
   display: grid;
-  grid-template-columns: minmax(0, 0.6fr) minmax(0, 1fr) auto;
+  grid-template-columns:
+    minmax(105px, 0.45fr) minmax(95px, 0.4fr) minmax(0, 0.65fr) minmax(0, 1fr)
+    auto;
   align-items: end;
   gap: 8px;
   padding: 12px;
@@ -4303,8 +4305,17 @@
   border-radius: 9px;
   background: color-mix(in srgb, var(--background) 30%, var(--surface));
 }
+.memory-create-card label {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+  color: var(--muted-foreground);
+  font-size: 10.5px;
+}
 .memory-create-card input,
-.memory-create-card textarea {
+.memory-create-card textarea,
+.memory-create-card select {
   min-height: 36px;
   padding: 8px 9px;
   border: 1px solid var(--border);
@@ -4312,6 +4323,10 @@
   background: var(--surface);
   color: var(--foreground);
   font-size: 10.5px;
+}
+.memory-create-card select {
+  height: 36px;
+  padding: 0 9px;
 }
 .memory-create-card textarea {
   height: 36px;
@@ -4339,6 +4354,52 @@
 }
 .memory-item.pinned {
   border-left: 2px solid var(--primary);
+}
+.memory-item.disabled {
+  opacity: 0.62;
+}
+.memory-control-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+}
+.memory-control-bar > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.memory-control-bar strong {
+  font-size: var(--font-size-sm);
+}
+.memory-control-bar span,
+.memory-meta {
+  color: var(--muted-foreground);
+  font-size: 10.5px;
+}
+.memory-master-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.memory-edit-form {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 6px;
+}
+.memory-edit-form > div {
+  display: flex;
+  gap: 6px;
+}
+.memory-clear-button {
+  align-self: flex-start;
 }
 .memory-item-actions {
   display: flex;

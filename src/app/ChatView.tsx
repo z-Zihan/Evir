@@ -33,6 +33,7 @@ import { useConfirmationDialog } from "./useConfirmationDialog";
 import type { ModelSwitchAssessment } from "../core/providers/model-switching";
 import { SkillPicker } from "./SkillPicker";
 import { useSkillStore } from "../features/skills/skill-store";
+import { useMemoryStore } from "../features/memory/memory-store";
 
 const modelSwitchCoordinator = new ModelSwitchCoordinatorImpl();
 
@@ -52,6 +53,7 @@ interface MessageListProps {
   localUserAvatar: string;
   onEdit: (messageId: string, content: string) => Promise<void>;
   onRegenerate: () => Promise<void>;
+  onRemember?: (message: MessageRecord) => Promise<void>;
 }
 
 const MessageList = memo(function MessageList({
@@ -61,6 +63,7 @@ const MessageList = memo(function MessageList({
   localUserAvatar,
   onEdit,
   onRegenerate,
+  onRemember,
 }: MessageListProps) {
   return (
     <>
@@ -73,6 +76,7 @@ const MessageList = memo(function MessageList({
           localUserAvatar={localUserAvatar}
           onEdit={onEdit}
           onRegenerate={onRegenerate}
+          {...(onRemember ? { onRemember } : {})}
         />
       ))}
     </>
@@ -109,8 +113,10 @@ export function ChatView({
     pendingToolApproval,
     selectedSkillIds,
     toggleSelectedSkill,
+    privateSession,
   } = useChatStore();
   const installedSkills = useSkillStore((state) => state.skills);
+  const addMemory = useMemoryStore((state) => state.addMemory);
   const { getDefaultProvider, switchProvider } = useProviderStore();
   const [localDisplayName, setLocalDisplayName] = useState("");
   const [localUserAvatar, setLocalUserAvatar] = useState("");
@@ -124,6 +130,24 @@ export function ChatView({
   const conversationTitle =
     conversations.find((conversation) => conversation.id === currentConversationId)?.title ||
     t("chat.title");
+  const rememberMessage = useCallback(
+    async (message: MessageRecord) => {
+      const content = message.content.trim().slice(0, 4_000);
+      const firstLine = content.split("\n", 1)[0]?.trim() ?? "";
+      await addMemory({
+        type: "conversation",
+        scope: message.conversationId,
+        key: firstLine.slice(0, 80) || t("memory.savedMessage"),
+        content,
+        source: {
+          kind: "manual",
+          conversationId: message.conversationId,
+          messageIds: [message.id],
+        },
+      });
+    },
+    [addMemory, t],
+  );
 
   const tokenCount = useConversationTokenCount(currentConversationId);
   const hasMessageError = messages.some(
@@ -217,6 +241,7 @@ export function ChatView({
         }
         const request: ModelSwitchRequest = {
           conversationId: currentConversationId,
+          privateSession,
           fromProviderId: provider?.id ?? "",
           fromModelId: provider?.modelId ?? "",
           toProviderId: nextProvider.id,
@@ -331,6 +356,7 @@ export function ChatView({
               localUserAvatar={localUserAvatar}
               onEdit={editMessage}
               onRegenerate={regenerate}
+              {...(!privateSession ? { onRemember: rememberMessage } : {})}
             />
             {latestAgentRun?.conversationId === currentConversationId && (
               <AgentRunSummary record={latestAgentRun} onLayoutChange={scrollToBottom} />

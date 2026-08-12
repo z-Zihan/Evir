@@ -23,6 +23,7 @@ vi.mock("../../core/storage/db", () => ({
     providers: { clear: mockClear },
     usage_records: { clear: mockClear },
     mcpServers: { clear: mockClear },
+    memories: { clear: mockClear, toArray: () => Promise.resolve([]) },
     settings: { clear: mockClear },
     transaction: (...args: unknown[]) => {
       const fn = args[args.length - 1];

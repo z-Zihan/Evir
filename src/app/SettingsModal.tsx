@@ -33,6 +33,8 @@ import { UsagePanel } from "./UsagePanel";
 import { downloadBlob, exportConversations } from "../features/chat/conversation-export";
 import { importConversations } from "../features/chat/conversation-import";
 import { getRuntime } from "../runtime/use-runtime";
+import { useChatStore } from "../features/chat/chat-store";
+import { useWorkspaceStore } from "../features/workspace/workspace-store";
 
 export type SettingsTab =
   | "providers"
@@ -106,6 +108,8 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
+  const currentConversationId = useChatStore((state) => state.currentConversationId);
+  const currentWorkspace = useWorkspaceStore((state) => state.currentWorkspace);
   onCloseRef.current = onClose;
   const visibleGroups = SETTINGS_GROUPS.map((group) => ({
     ...group,
@@ -322,7 +326,12 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
               {activeTab === "about" && <AboutSettings />}
               {activeTab === "theme" && <ThemeSettings />}
               {activeTab === "language" && <LanguageSettings />}
-              {activeTab === "memory" && <MemorySettings conversationId={null} />}
+              {activeTab === "memory" && (
+                <MemorySettings
+                  conversationId={currentConversationId}
+                  workspacePath={currentWorkspace}
+                />
+              )}
               {activeTab === "diagnostics" && <DiagnosticsSettings />}
             </div>
           </main>

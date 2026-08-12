@@ -24,6 +24,7 @@ export type ModelSwitchBlockReason =
 
 export interface ModelSwitchRequest {
   conversationId: string;
+  privateSession?: boolean;
   runId?: string;
   fromProviderId: string;
   fromModelId: string;

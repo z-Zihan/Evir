@@ -3,6 +3,7 @@ import type { ConversationRecord, MessageRecord } from "../../core/storage/db";
 import type { ChatState } from "./chat-store";
 import { getStructuredStorage } from "../../runtime/structured-storage";
 import type { AgentRunRecord } from "./agent-run-record";
+import type { MemoryRecord } from "../../core/memory/types";
 
 type ChatStoreSet = StoreApi<ChatState>["setState"];
 type ChatStoreGet = StoreApi<ChatState>["getState"];
@@ -74,12 +75,13 @@ export async function selectConversation(set: ChatStoreSet, id: string): Promise
 
 export async function deleteConversation(set: ChatStoreSet, id: string): Promise<void> {
   const storage = getStructuredStorage();
-  const [messages, agentRuns, toolExecutions] = await Promise.all([
+  const [messages, agentRuns, toolExecutions, conversationMemories] = await Promise.all([
     storage.query<MessageRecord>("messages", { conversationId: id }),
     storage.query<{ id: string; conversationId: string }>("agent_runs", { conversationId: id }),
     storage.query<{ id: string; conversationId: string }>("tool_executions", {
       conversationId: id,
     }),
+    storage.query<MemoryRecord>("memories", { scope: id }),
   ]);
   const messageIds = new Set(messages.map(({ id: messageId }) => messageId));
   const attachments = await storage.readAll<{ id: string; messageId: string }>("attachments");
@@ -106,6 +108,12 @@ export async function deleteConversation(set: ChatStoreSet, id: string): Promise
       entity: "agent_runs" as const,
       id: runId,
     })),
+    ...conversationMemories.map(({ id: memoryId }) => ({
+      type: "delete" as const,
+      entity: "memories" as const,
+      id: memoryId,
+    })),
+    { type: "delete", entity: "settings", id: `checkpoint:${id}` },
     { type: "delete", entity: "conversations", id },
   ]);
   set(({ conversations, currentConversationId }) => ({

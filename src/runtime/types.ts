@@ -3,6 +3,7 @@ import type { InteractionMode, ToolRegistry } from "../core/providers/tool-regis
 import type { ToolExecutor } from "../core/tools/tool-executor";
 import type { StoragePort } from "../core/storage/storage-port";
 import type { FileContextReference } from "../core/context/types";
+import type { ComponentRuntimePort } from "../core/components/types";
 
 export type RuntimeTarget = "web" | "desktop";
 
@@ -34,5 +35,6 @@ export interface EvirRuntime {
   structuredStorage?: StoragePort;
   toolRegistry?: ToolRegistry;
   toolExecutor?: ToolExecutor;
+  componentRuntime?: ComponentRuntimePort;
   agentRun?: AgentRunContext;
 }

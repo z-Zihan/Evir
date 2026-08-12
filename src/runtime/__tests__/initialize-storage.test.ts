@@ -13,8 +13,13 @@ const mocks = vi.hoisted(() => ({
   usageRows: vi.fn(() => Promise.resolve([{ id: "u1" }])),
   mcpRows: vi.fn(() => Promise.resolve([{ id: "server1" }])),
   settingRows: vi.fn(() => Promise.resolve([{ name: "theme", value: "dark" }])),
+  memoryRows: vi.fn(() => Promise.resolve([{ id: "memory1" }])),
   keychainSet: vi.fn(() => Promise.resolve()),
-  read: vi.fn((): Promise<unknown> => Promise.resolve(undefined)),
+  read: vi.fn((entity: string, id: string): Promise<unknown> => {
+    void entity;
+    void id;
+    return Promise.resolve(undefined);
+  }),
   readAll: vi.fn(() => Promise.resolve([])),
   write: vi.fn(() => Promise.resolve()),
   writeMany: vi.fn(() => Promise.resolve()),
@@ -32,6 +37,7 @@ vi.mock("../../core/storage/db", () => ({
     usage_records: { toArray: mocks.usageRows },
     mcpServers: { toArray: mocks.mcpRows },
     settings: { toArray: mocks.settingRows },
+    memories: { toArray: mocks.memoryRows },
   },
 }));
 
@@ -103,16 +109,21 @@ describe("initializeRuntimeStorage", () => {
     expect(mocks.writeMany).toHaveBeenCalledWith("usage_records", [{ id: "u1" }]);
     expect(mocks.writeMany).toHaveBeenCalledWith("mcp_servers", [{ id: "server1" }]);
     expect(mocks.writeMany).toHaveBeenCalledWith("settings", [{ name: "theme", value: "dark" }]);
+    expect(mocks.writeMany).toHaveBeenCalledWith("memories", [{ id: "memory1" }]);
     expect(mocks.write).toHaveBeenCalledWith("settings", "desktopStructuredStorageMigrationV1", {
       name: "desktopStructuredStorageMigrationV1",
+      value: true,
+    });
+    expect(mocks.write).toHaveBeenCalledWith("settings", "desktopStructuredStorageMigrationV2", {
+      name: "desktopStructuredStorageMigrationV2",
       value: true,
     });
   });
 
   it("does not repeat a completed migration", async () => {
-    mocks.read.mockResolvedValue({
-      name: "desktopStructuredStorageMigrationV1",
-      value: true,
+    mocks.read.mockImplementation((entity, id) => {
+      void entity;
+      return Promise.resolve({ name: id, value: true });
     });
 
     await initializeRuntimeStorage();
