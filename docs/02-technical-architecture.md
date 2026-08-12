@@ -398,6 +398,6 @@ Diagnostic、Audit、Crash 分开存储。`DiagnosticExportService` 生成脱敏
 
 ## 21. 可组合组件运行时
 
-Web/Desktop Runtime 使用可信内置 `ComponentRuntime` 组装工具，并为 Harness Middleware、工作流和受限 UI 贡献预留统一生命周期。组件通过 Manifest 声明目标宿主、依赖与贡献；`EffectScope` 记录幂等逆操作；`reconcile` 在配置或定义变化时只卸载受影响的依赖子图，并在激活失败时恢复旧组件图。
+Web/Desktop Runtime 使用可信内置 `ComponentRuntime` 组装工具与 Harness Middleware，并为工作流和受限 UI 贡献预留统一生命周期。组件通过 Manifest 声明目标宿主、依赖与贡献；`EffectScope` 记录幂等逆操作；`reconcile` 在配置或定义变化时只卸载受影响的依赖子图，并在激活失败时恢复旧组件图。`HarnessMiddlewareRegistry` 按固定顺序执行请求、上下文、工具调用与完成阶段，并拒绝重复注册和重复 `next()`。
 
-Manifest 依赖只决定生命周期，不授予权限。Tool Registry、Tool Executor、工作区校验、审批和 Tauri/Rust 权限仍是强制安全边界。第一阶段只接受随 Evir 构建的 `builtin` 组件，不加载任意第三方 JavaScript。完整契约见 `docs/21-composable-component-runtime.md`。
+Manifest 依赖只决定生命周期，不授予权限。Tool Policy 由宿主以 protected Middleware 注册；Tool Registry、Tool Executor、工作区校验、审批和 Tauri/Rust 权限仍是强制安全边界。当前只接受随 Evir 构建的 `builtin` 组件，不加载任意第三方 JavaScript。完整契约见 `docs/21-composable-component-runtime.md`。

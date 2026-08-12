@@ -1,5 +1,6 @@
 import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { HarnessMiddlewareRegistry } from "../../../core/harness/middleware-registry";
 import { db } from "../../../core/storage/db";
 import type { EvirRuntime } from "../../../runtime/types";
 import type { AgentLoopResult } from "../agent-loop";
@@ -33,23 +34,41 @@ beforeEach(async () => {
 });
 
 describe("Agent run completion evidence", () => {
-  it("does not mark model text alone as complete", () => {
-    const record = buildAgentRunRecord(resultWith(), "conversation-1");
+  it("does not mark model text alone as complete", async () => {
+    const record = await buildAgentRunRecord(resultWith(), "conversation-1");
     expect(record.status).toBe("needs_verification");
     expect(record.resolution.complete).toBe(false);
   });
 
-  it("accepts successful command evidence and rejects failed verification", () => {
-    const passed = buildAgentRunRecord(resultWith("run_command"), "conversation-1");
-    const failed = buildAgentRunRecord(resultWith("run_command", false), "conversation-1");
+  it("falls back to needs_verification when Verification middleware is disabled", async () => {
+    const harnessMiddlewareRegistry = new HarnessMiddlewareRegistry();
+    const runtime: EvirRuntime = {
+      target: "desktop",
+      capabilities: new Set(),
+      has: () => false,
+      harnessMiddlewareRegistry,
+    };
+    const record = await buildAgentRunRecord(resultWith("run_command"), "conversation-1", runtime);
+
+    expect(record.status).toBe("needs_verification");
+    expect(record.verificationEvidence).toEqual([]);
+    expect(record.resolution).toEqual({
+      complete: false,
+      reason: "Verification middleware is disabled or unavailable.",
+    });
+  });
+
+  it("accepts successful command evidence and rejects failed verification", async () => {
+    const passed = await buildAgentRunRecord(resultWith("run_command"), "conversation-1");
+    const failed = await buildAgentRunRecord(resultWith("run_command", false), "conversation-1");
     expect(passed.status).toBe("completed");
     expect(passed.resolution.complete).toBe(true);
     expect(failed.status).toBe("failed");
     expect(failed.resolution.complete).toBe(false);
   });
 
-  it("incorporates automatic workspace verification", () => {
-    const record = buildAgentRunRecord(resultWith(), "conversation-1");
+  it("incorporates automatic workspace verification", async () => {
+    const record = await buildAgentRunRecord(resultWith(), "conversation-1");
     const verified = applyAutomaticVerification(record, {
       command: "pnpm check",
       exitCode: 0,
@@ -72,7 +91,7 @@ describe("Agent run rollback", () => {
       has: () => true,
       storage: { restoreSnapshot },
     } as unknown as EvirRuntime;
-    const base = buildAgentRunRecord(resultWith("git_diff"), "conversation-1");
+    const base = await buildAgentRunRecord(resultWith("git_diff"), "conversation-1");
     const record = {
       ...base,
       snapshots: [

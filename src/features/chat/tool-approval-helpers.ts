@@ -165,6 +165,7 @@ export async function finalizeApprovalFlow(
   conversationId: string,
   pendingToolCallId: string,
   priorTurn: AgentLoopTurn,
+  runtime: EvirRuntime,
 ): Promise<void> {
   const persist = !get().privateSession;
   const newTurns = loopResult.turns;
@@ -179,7 +180,7 @@ export async function finalizeApprovalFlow(
     ...loopResult,
     turns: [priorTurn, ...loopResult.turns],
   };
-  const agentRunRecord = buildAgentRunRecord(fullResult, conversationId);
+  const agentRunRecord = await buildAgentRunRecord(fullResult, conversationId, runtime);
   if (persist) await persistAgentRun(agentRunRecord);
   const isNotBlockedMessage = (m: MessageRecord) =>
     !(m.toolCalls?.some((tc) => tc.id === pendingToolCallId) && !m.toolResults?.length);

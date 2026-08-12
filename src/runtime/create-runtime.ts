@@ -3,11 +3,16 @@ import { IndexedDBAdapter } from "../core/storage/indexed-db-adapter";
 import { ToolExecutor } from "../core/tools/tool-executor";
 import { createToolRegistry } from "../core/tools/tool-registry-impl";
 import { ComponentRuntime } from "../core/components/component-runtime";
+import { HarnessMiddlewareRegistry } from "../core/harness/middleware-registry";
 import type { ComponentConfigurationMap } from "../core/components/types";
 import {
   BUILTIN_TOOL_COMPONENTS,
   capabilityDependencies,
 } from "./components/builtin-tool-components";
+import {
+  createProtectedToolPolicyMiddleware,
+  registerBuiltinHarnessComponents,
+} from "./components/builtin-harness-components";
 import type { Capability, EvirRuntime, RuntimeTarget } from "./types";
 
 function buildRuntime(target: RuntimeTarget, capabilities: Capability[]): EvirRuntime {
@@ -39,6 +44,11 @@ export function createRuntime(options: CreateRuntimeOptions = {}): EvirRuntime {
   const target: RuntimeTarget = import.meta.env.VITE_EVIR_TARGET === "desktop" ? "desktop" : "web";
   const toolRegistry = createToolRegistry();
   const toolExecutor = new ToolExecutor(toolRegistry);
+  const harnessMiddlewareRegistry = new HarnessMiddlewareRegistry();
+  harnessMiddlewareRegistry.registerProtected(
+    createProtectedToolPolicyMiddleware(),
+    "evir.host.tool-policy",
+  );
   const capabilities: Capability[] =
     target === "desktop"
       ? ["chat", "attachments", "filesystem", "terminal", "git", "localMcp", "backgroundTasks"]
@@ -47,9 +57,14 @@ export function createRuntime(options: CreateRuntimeOptions = {}): EvirRuntime {
   const componentRuntime = new ComponentRuntime({
     target,
     toolRegistry,
-    hostDependencies: capabilityDependencies(runtime.capabilities),
+    harnessMiddlewareRegistry,
+    hostDependencies: [
+      ...capabilityDependencies(runtime.capabilities),
+      "service:harness-middleware-registry",
+    ],
   });
   for (const component of BUILTIN_TOOL_COMPONENTS) componentRuntime.register(component);
+  registerBuiltinHarnessComponents(componentRuntime);
   componentRuntime.reconcile(options.componentConfiguration);
 
   if (target === "desktop") {
@@ -61,6 +76,7 @@ export function createRuntime(options: CreateRuntimeOptions = {}): EvirRuntime {
       toolRegistry,
       toolExecutor,
       componentRuntime,
+      harnessMiddlewareRegistry,
       mode: "agent" as const,
       getWorkspaceRoot,
       selectWorkspaceDirectory,
@@ -72,6 +88,7 @@ export function createRuntime(options: CreateRuntimeOptions = {}): EvirRuntime {
     toolRegistry,
     toolExecutor,
     componentRuntime,
+    harnessMiddlewareRegistry,
     mode: "ask" as const,
   };
 }

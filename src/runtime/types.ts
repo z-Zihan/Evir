@@ -4,6 +4,7 @@ import type { ToolExecutor } from "../core/tools/tool-executor";
 import type { StoragePort } from "../core/storage/storage-port";
 import type { FileContextReference } from "../core/context/types";
 import type { ComponentRuntimePort } from "../core/components/types";
+import type { HarnessMiddlewareRegistryPort } from "../core/harness/types";
 
 export type RuntimeTarget = "web" | "desktop";
 
@@ -36,5 +37,6 @@ export interface EvirRuntime {
   toolRegistry?: ToolRegistry;
   toolExecutor?: ToolExecutor;
   componentRuntime?: ComponentRuntimePort;
+  harnessMiddlewareRegistry?: HarnessMiddlewareRegistryPort;
   agentRun?: AgentRunContext;
 }

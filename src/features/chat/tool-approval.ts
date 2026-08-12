@@ -55,6 +55,7 @@ export async function approveTool(
     pending.conversationId,
     pending.toolCallId,
     resolvedTurn,
+    runtime,
   );
 }
 
@@ -91,5 +92,6 @@ export async function denyTool(
     pending.conversationId,
     pending.toolCallId,
     resolvedTurn,
+    runtime,
   );
 }

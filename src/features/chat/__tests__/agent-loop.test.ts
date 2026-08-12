@@ -6,6 +6,11 @@ import { createToolRegistry } from "../../../core/tools/tool-registry-impl";
 import type { EvirRuntime } from "../../../runtime/types";
 import { MAX_AGENT_ITERATIONS, runAgentLoop } from "../agent-loop";
 import { streamAssistant } from "../chat-stream";
+import { HarnessMiddlewareRegistry } from "../../../core/harness/middleware-registry";
+import {
+  createLoopDetectionMiddleware,
+  createProtectedToolPolicyMiddleware,
+} from "../../../runtime/components/builtin-harness-components";
 
 vi.mock("../chat-stream", () => ({ streamAssistant: vi.fn() }));
 
@@ -96,6 +101,40 @@ describe("runAgentLoop", () => {
     expect(result.maxIterationsReached).toBe(true);
     expect(result.turns).toHaveLength(MAX_AGENT_ITERATIONS);
     expect(vi.mocked(streamAssistant)).toHaveBeenCalledTimes(MAX_AGENT_ITERATIONS);
+  });
+
+  it("uses the component-provided loop detector to stop repeated calls", async () => {
+    vi.mocked(streamAssistant).mockResolvedValue({
+      content: "",
+      status: "complete",
+      toolCalls: [{ id: "call-1", toolName: "read_file", arguments: "{}" }],
+    });
+    const runtime = setupRuntime(() => Promise.resolve({ success: true, output: "same" }));
+    const harnessMiddlewareRegistry = new HarnessMiddlewareRegistry();
+    harnessMiddlewareRegistry.registerProtected(
+      createProtectedToolPolicyMiddleware(),
+      "evir.host.tool-policy",
+    );
+    harnessMiddlewareRegistry.register(
+      createLoopDetectionMiddleware({
+        warnRepeatedToolCalls: 1,
+        stopRepeatedToolCalls: 2,
+        stopUnchangedErrors: 2,
+      }),
+      "evir.harness.loop-detection",
+    );
+
+    const result = await runAgentLoop({
+      provider,
+      conversationId: "conversation-1",
+      messages: [{ role: "user", content: "Loop" }],
+      runtime: { ...runtime, harnessMiddlewareRegistry },
+      onDelta: vi.fn(),
+    });
+
+    expect(result.maxIterationsReached).toBe(true);
+    expect(result.turns).toHaveLength(2);
+    expect(result.turns.at(-1)?.stream.errorMessage).toBe("tools.maxIterations");
   });
 });
 

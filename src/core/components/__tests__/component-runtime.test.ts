@@ -3,6 +3,7 @@ import { createToolRegistry } from "../../tools/tool-registry-impl";
 import type { ToolDefinition } from "../../providers/tool-registry";
 import { ComponentRuntime } from "../component-runtime";
 import type { ComponentDefinition } from "../types";
+import { HarnessMiddlewareRegistry } from "../../harness/middleware-registry";
 
 function component(
   id: string,
@@ -281,6 +282,46 @@ describe("ComponentRuntime", () => {
       "activate:second:1.0.0",
       "dispose:second:1.0.0",
       "dispose:first:1.0.0",
+    ]);
+  });
+
+  it("rolls back Harness middleware registration when replacement activation fails", () => {
+    const toolRegistry = createToolRegistry();
+    const harnessMiddlewareRegistry = new HarnessMiddlewareRegistry();
+    const runtime = new ComponentRuntime({
+      target: "desktop",
+      toolRegistry,
+      harnessMiddlewareRegistry,
+      hostDependencies: ["service:harness-middleware-registry"],
+    });
+    const definition = (version: string, fail = false): ComponentDefinition<null> => ({
+      manifest: {
+        id: "harness-normalization",
+        version,
+        kind: "harness-middleware",
+        targets: ["desktop"],
+        provides: ["harness-middleware:input-normalization"],
+        requires: ["service:harness-middleware-registry"],
+        defaultEnabled: true,
+        trust: "builtin",
+      },
+      parseConfig: () => null,
+      activate(context) {
+        context.registerHarnessMiddleware({
+          id: "input-normalization",
+          version,
+          execute: (event, next) => next(event),
+        });
+        if (fail) throw new Error("replacement failed");
+      },
+    });
+    runtime.register(definition("1.0.0"));
+    runtime.reconcile();
+    runtime.replace(definition("2.0.0", true));
+
+    expect(() => runtime.reconcile()).toThrow("replacement failed");
+    expect(harnessMiddlewareRegistry.inspect()).toEqual([
+      expect.objectContaining({ id: "input-normalization", version: "1.0.0" }),
     ]);
   });
 });

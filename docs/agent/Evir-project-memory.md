@@ -45,7 +45,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - EvirRuntime 区分 Web/Desktop，按 Capability 注册工具
 - Ask 不主动操作本地资源；Plan 只读检查；Agent 权限控制执行
 - Tool Registry 按模式和风险过滤，非仅 Prompt 约束
-- Web/Desktop Runtime 通过可信内置 Component Runtime 组装工具；Manifest 依赖不授予权限，Tool Registry、审批和 Tauri 边界继续强制执行
+- Web/Desktop Runtime 通过可信内置 Component Runtime 组装工具与 Harness Middleware；Manifest 依赖不授予权限，Tool Policy 是宿主保护项，Tool Registry、审批和 Tauri 边界继续强制执行
 
 ## 7. Provider and Protocol Rules
 
@@ -205,7 +205,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 **部分实现：**
 
-- ModelSwitchCoordinator、ContextBuilder、Logger、StoragePort 和 Harness 各层已有实现/测试，但真实跨 Provider、完整中间件编排和文件日志仍需继续验证或实现
+- ModelSwitchCoordinator、ContextBuilder、Logger、StoragePort 和 Harness 各层已有实现/测试；完整中间件注册与执行编排已接入，真实跨 Provider 和文件日志仍需继续验证或实现
 - Personalization 目前是简单偏好；Notification 和命令面板未实现
 - VS Code 已有配置、Ask、停止、Workspace Agent、审批、Diff/最后写入回滚与真实 Host/Light/Dark 证据；Agent step/tool/verification/completion Activity、High Contrast 和完整本地化未完成
 - CLI 已有 configure/doctor/ask/agent、stdin、SIGINT、工作区边界、逐次审批、共享 Profile/Keyring、smoke/tarball；友好配置错误、中英文、JSON/JSONL、稳定退出码和 Agent 运行证据未完成
@@ -282,6 +282,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 ## 24. Update Log
 
+- 2026-08-12 | working tree | Harness Middleware 接入 Component Runtime：新增固定顺序 Registry；Input/Mode/Capability/Context/Skill/Memory/Loop/Checkpoint/Verification/Observability 均以可卸载组件运行；Tool Policy 为宿主 protected 项；执行路径、独立禁用和失败回滚有回归测试
 - 2026-08-12 | working tree | 新增可信内置 Component Runtime；Desktop filesystem/terminal/git 工具从静态循环迁移为可配置组件，支持依赖拓扑、幂等 LIFO 卸载、定向重载和失败回滚；第三方任意代码加载与组件管理 UI 不在第一阶段范围
 - 2026-08-12 | working tree | Web/Desktop 性能与 Skill 构建边界拆分：Web 保留 10 个共享 Skill 和 350KiB 初始 JS gzip 门禁；Desktop 提供 26 个桌面扩展 Skill、3MiB 前端资源预算和 120/180MiB 安装包目标/警戒；产物分别输出到 `dist/web`、`dist/desktop`
 - 2026-08-12 | working tree | Desktop 精选库扩展为 36 个 Skill；新增分类/搜索、用户自定义分类、输入框按消息显式选择、Ask 能力过滤、上下文预算与 Trigger 冲突测试；全部默认关闭，不设固定自动激活数量上限

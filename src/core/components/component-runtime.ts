@@ -1,4 +1,5 @@
 import type { ToolRegistry } from "../providers/tool-registry";
+import type { HarnessMiddlewareRegistryPort } from "../harness/types";
 import { EffectScope } from "./effect-scope";
 import type {
   ComponentActivationContext,
@@ -30,6 +31,7 @@ interface ActiveComponent extends DesiredComponent {
 export interface ComponentRuntimeOptions {
   target: ComponentTarget;
   toolRegistry: ToolRegistry;
+  harnessMiddlewareRegistry?: HarnessMiddlewareRegistryPort;
   hostDependencies?: readonly string[];
 }
 
@@ -120,11 +122,13 @@ export class ComponentRuntime implements ComponentRuntimePort {
   private lastConfiguration: ComponentConfigurationMap = {};
   private readonly target: ComponentTarget;
   private readonly toolRegistry: ToolRegistry;
+  private readonly harnessMiddlewareRegistry: HarnessMiddlewareRegistryPort | undefined;
   private readonly hostDependencies: ReadonlySet<string>;
 
   constructor(options: ComponentRuntimeOptions) {
     this.target = options.target;
     this.toolRegistry = options.toolRegistry;
+    this.harnessMiddlewareRegistry = options.harnessMiddlewareRegistry;
     this.hostDependencies = new Set(options.hostDependencies ?? []);
   }
 
@@ -288,6 +292,12 @@ export class ComponentRuntime implements ComponentRuntimePort {
       registerTool: (tool) => {
         this.toolRegistry.register(tool);
         return scope.add(() => this.toolRegistry.unregister(tool.id));
+      },
+      registerHarnessMiddleware: (middleware) => {
+        if (!this.harnessMiddlewareRegistry) {
+          throw new Error(`Harness middleware registry unavailable for component: ${id}`);
+        }
+        return scope.add(this.harnessMiddlewareRegistry.register(middleware, id));
       },
       onDispose: (disposer) => scope.add(disposer),
     };

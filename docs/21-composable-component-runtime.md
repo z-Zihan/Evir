@@ -4,7 +4,7 @@
 
 Evir 的长期方向是让工具、Harness Middleware、工作流、权限策略适配器和界面贡献可以在代码与配置层重新组合，使产品在不增加首次使用步骤的前提下，逐渐适配用户自己的工作方式。
 
-第一阶段只建立可信内置组件运行时：
+第一阶段建立可信内置组件运行时：
 
 - 现有能力可以声明为组件并按目标宿主组装。
 - 组件声明依赖与贡献，不自行控制全局启动顺序。
@@ -13,6 +13,8 @@ Evir 的长期方向是让工具、Harness Middleware、工作流、权限策略
 - 组件的每个内部效果都进入幂等、LIFO 的恢复链。
 
 这是一项内部架构能力，不增加 Provider 首次配置步骤，也不在主界面增加插件入口。
+
+第二阶段把 Harness Middleware 接入同一生命周期。Middleware 由组件注册到版本化 Registry，按固定规范顺序执行；关闭可移除 Middleware 时系统安全降级，权限与 Tool Policy 仍由宿主强制执行。
 
 ## 2. 产品方案决策
 
@@ -57,6 +59,24 @@ Host Capability
 | `evir.tools.terminal`   | `capability:terminal`   | `tools:terminal`   |
 | `evir.tools.git`        | `capability:git`        | `tools:git`        |
 
+当前 Harness 组装为：
+
+| Middleware          | 组件管理 | 关闭后的降级行为                     |
+| ------------------- | -------- | ------------------------------------ |
+| Input Normalization | 是       | 使用原始输入                         |
+| Mode Policy         | 是       | 宿主仍强制 Web Ask 和 Tool 边界      |
+| Capability Gate     | 是       | 应用层仍拒绝无 Tool Calling 的 Agent |
+| Context Budget      | 是       | 本轮不主动压缩                       |
+| Skill Routing       | 是       | 只保留用户显式选择的 Skill           |
+| Memory Retrieval    | 是       | 本轮不注入长期记忆                   |
+| Loop Detection      | 是       | 仍受 Agent 最大迭代数限制            |
+| Checkpoint          | 是       | 本轮不创建新 Checkpoint              |
+| Verification        | 是       | 任务停在 `needs_verification`        |
+| Observability       | 是       | 不记录该层 Harness 事件              |
+| Tool Policy         | 否       | 宿主保护项，不允许组件替换或删除     |
+
+`HarnessMiddlewareRegistry` 拒绝重复 ID、未知 ID、无版本实现和重复调用 `next()`。执行顺序固定为规范顺序，不依赖组件注册先后；卸载只能移除同一组件拥有的 Middleware。
+
 ## 4. 生命周期与一致性
 
 ```text
@@ -85,6 +105,15 @@ registered → inactive → active → disposed
 createRuntime({
   componentConfiguration: {
     "evir.tools.terminal": { enabled: false },
+    "evir.harness.observability": { enabled: false },
+    "evir.harness.loop-detection": {
+      enabled: true,
+      config: {
+        warnRepeatedToolCalls: 6,
+        stopRepeatedToolCalls: 12,
+        stopUnchangedErrors: 12,
+      },
+    },
   },
 });
 ```
@@ -101,6 +130,7 @@ createRuntime({
 - Tool Executor 仍检查 Runtime Capability、工作区和审批状态。
 - Tauri/Rust 命令继续执行第二层工作区与系统权限校验。
 - 组件不得修改 Security、Permission 或 Tool Policy 的高优先级规则。
+- Tool Policy 由宿主以 protected Middleware 注册；组件配置中伪造同名组件或尝试重复注册都不能替换它。
 - 第三方不可信代码未来必须隔离运行，不能只依靠依赖注入或 JavaScript Proxy。
 
 ## 7. 状态与失败行为
@@ -132,10 +162,20 @@ createRuntime({
 - 依赖消失时自动卸载依赖者，依赖恢复时按拓扑顺序重新连接。
 - 重复贡献等冲突在修改当前活动图之前被拒绝。
 
-## 10. 后续阶段
+## 10. 第二阶段验收标准
 
-1. 把 Harness Middleware 注册接入同一 Component Runtime。
-2. 增加版本化配置 Repository、迁移和用户可见状态事件。
-3. 定义声明式工作流和受限 UI Slot，不允许任意 DOM 注入。
-4. 设计隔离 Bridge、签名、来源和资源配额后，再评估第三方组件。
-5. 最后才增加设置页管理入口，并完成启用、禁用、失败、升级、删除和恢复闭环。
+- Harness Middleware 按固定顺序执行，与组件注册顺序无关。
+- 输入规范化、模式、能力、Context Budget、Skill、Memory、Checkpoint、Loop Detection、Verification 和 Observability 均通过组件贡献进入 Registry。
+- 单独关闭 Observability、Skill Routing、Memory、Loop Detection 或 Verification 时，其他 Harness 和工具仍可运行，并采用文档化安全降级。
+- Tool Policy 由宿主保护，不能通过 Component 配置关闭或替换。
+- Middleware 替换激活失败时，旧版本注册恢复，Registry 不残留新版本效果。
+- Agent Loop 在调用工具前经过 Tool Policy 和 Loop Detection；完成状态经过 Verification，模型文本不能单独标记完成。
+- 私密会话仍跳过长期记忆和持久 Checkpoint。
+- Middleware 不引入后台进程、启动扫描或新增运行时依赖。
+
+## 11. 后续阶段
+
+1. 增加版本化配置 Repository、迁移和用户可见状态事件。
+2. 定义声明式工作流和受限 UI Slot，不允许任意 DOM 注入。
+3. 设计隔离 Bridge、签名、来源和资源配额后，再评估第三方组件。
+4. 最后才增加设置页管理入口，并完成启用、禁用、失败、升级、删除和恢复闭环。

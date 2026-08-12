@@ -25,13 +25,13 @@ export interface AgentRunRecord {
   updatedAt: number;
 }
 
-export function buildAgentRunRecord(
+export async function buildAgentRunRecord(
   result: AgentLoopResult,
   conversationId: string,
-): AgentRunRecord {
+  runtime?: EvirRuntime,
+): Promise<AgentRunRecord> {
   const toolCalls = result.turns.flatMap((turn) => turn.toolCalls ?? []);
   const toolResults = result.turns.flatMap((turn) => turn.toolResults ?? []);
-  const verificationEvidence = taskResolver.collectEvidence(toolResults);
   const lastTurn = result.turns.at(-1);
   const awaitingApproval = result.turns.some((turn) => turn.pendingApproval);
   const modelClaimsComplete =
@@ -39,7 +39,23 @@ export function buildAgentRunRecord(
     !result.maxIterationsReached &&
     lastTurn?.stream.status === "complete" &&
     !lastTurn.stream.toolCalls?.length;
-  const resolution = taskResolver.resolveTask(verificationEvidence, modelClaimsComplete);
+  let verificationEvidence = taskResolver.collectEvidence(toolResults);
+  let resolution = taskResolver.resolveTask(verificationEvidence, modelClaimsComplete);
+  if (runtime?.harnessMiddlewareRegistry) {
+    const completion = await runtime.harnessMiddlewareRegistry.dispatch({
+      type: "completion",
+      conversationId,
+      runId: result.agentRun.id,
+      toolResults,
+      modelClaimsComplete,
+      verificationEvidence: [],
+    });
+    verificationEvidence = completion.verificationEvidence;
+    resolution = completion.resolution ?? {
+      complete: false,
+      reason: "Verification middleware is disabled or unavailable.",
+    };
+  }
   const hasFailure = toolResults.some(({ success }) => !success);
   const status: AgentRunStatus = awaitingApproval
     ? "awaiting_approval"

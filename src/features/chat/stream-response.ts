@@ -86,6 +86,21 @@ function providerMessages(history: MessageRecord[], protocolId: string): Provide
     .flatMap((message) => providerMessage(message, protocolId));
 }
 
+function normalizeLatestUserMessage(
+  history: MessageRecord[],
+  normalizedInput: string,
+): MessageRecord[] {
+  for (let index = history.length - 1; index >= 0; index -= 1) {
+    const message = history[index];
+    if (message?.role !== "user") continue;
+    if (message.content === normalizedInput) return history;
+    const normalized = [...history];
+    normalized[index] = { ...message, content: normalizedInput };
+    return normalized;
+  }
+  return history;
+}
+
 function modeHint(mode: ChatState["mode"]): string {
   if (mode === "agent") return i18n.t("chat.modeHints.agent");
   if (mode === "plan") return i18n.t("chat.modeHints.plan");
@@ -238,21 +253,26 @@ async function summarizeAndPersist(
     if (toSummarize.length < 3) break;
 
     try {
-      console.debug(
-        "[evir] context-summary",
-        `round ${round + 1}: summarizing ${toSummarize.length} messages`,
-      );
+      logger.debug("context", "context.summary-started", {
+        conversationId,
+        round: round + 1,
+        messageCount: toSummarize.length,
+      });
       const sourceMessages = await expandSummarySources(toSummarize);
       const summary = await summarizeConversation(provider, sourceMessages);
       const compressed = buildCompressedHistory(summary, toKeep, conversationId, sourceMessages);
       await persistSummarization(toSummarize, sourceMessages, compressed[0]!);
       current = compressed;
-      console.debug(
-        "[evir] context-summary",
-        `round ${round + 1}: compressed to ${current.length} messages`,
-      );
+      logger.debug("context", "context.summary-completed", {
+        conversationId,
+        round: round + 1,
+        messageCount: current.length,
+      });
     } catch (error) {
-      console.error("[evir] context-summary failed:", error);
+      logger.error("context", "context.summary-failed", {
+        conversationId,
+        error: error instanceof Error ? error.message : String(error),
+      });
       break;
     }
 
@@ -279,10 +299,36 @@ export async function streamResponse(
   if (readinessError) return set({ error: readinessError });
 
   set({ isStreaming: true, streamingContent: "", error: null });
-  // Web never exposes local execution modes. Enforce that boundary in the
-  // application layer as well as the UI so a stale/default Agent state cannot
-  // leave browser users in an unavailable mode with no way to switch back.
-  const mode = runtime.target === "web" ? "ask" : get().mode;
+  const lastUserMessage = [...history].reverse().find((message) => message.role === "user");
+  const requestedMode = get().mode;
+  let mode = runtime.target === "web" ? "ask" : requestedMode;
+  let normalizedUserInput = lastUserMessage?.content ?? "";
+  if (runtime.harnessMiddlewareRegistry) {
+    const request = await runtime.harnessMiddlewareRegistry.dispatch({
+      type: "request",
+      conversationId,
+      target: runtime.target,
+      requestedMode,
+      effectiveMode: mode,
+      providerToolCalling: provider.modelCapabilities?.toolCalling === true,
+      userInput: lastUserMessage?.content ?? "",
+      normalizedInput: lastUserMessage?.content ?? "",
+      blocked: false,
+    });
+    mode = request.effectiveMode;
+    normalizedUserInput = request.normalizedInput;
+    if (request.blocked) {
+      set({
+        isStreaming: false,
+        streamingContent: "",
+        error:
+          request.blockReason === "agent-requires-tool-calling"
+            ? "chat.agentRequiresToolCalling"
+            : (request.blockReason ?? "chat.streamEnded"),
+      });
+      return;
+    }
+  }
   if (mode === "agent" && provider.modelCapabilities?.toolCalling !== true) {
     set({ isStreaming: false, streamingContent: "", error: "chat.agentRequiresToolCalling" });
     return;
@@ -294,7 +340,18 @@ export async function streamResponse(
     provider.modelCapabilities?.maxContextTokens ?? DEFAULT_MAX_CONTEXT_TOKENS;
   const budgetManager = budgetManagerInstance;
   const inputTokens = estimateMessagesTokens(history);
-  const snapshot = budgetManager.snapshot(provider.modelId, maxContextTokens, inputTokens);
+  let snapshot = budgetManager.snapshot(provider.modelId, maxContextTokens, inputTokens);
+  if (runtime.harnessMiddlewareRegistry) {
+    const budget = await runtime.harnessMiddlewareRegistry.dispatch({
+      type: "context-budget",
+      conversationId,
+      modelId: provider.modelId,
+      maxContextTokens,
+      estimatedInputTokens: inputTokens,
+    });
+    snapshot =
+      budget.snapshot ?? ({ ...snapshot, utilizationRatio: 0, compressionStage: "none" } as const);
+  }
 
   let effectiveHistory = history;
   if (budgetManager.shouldCompact(snapshot)) {
@@ -316,13 +373,15 @@ export async function streamResponse(
       }
     }
 
-    console.debug(
-      "[evir] context-budget",
-      `stage=${snapshot.compressionStage}`,
-      `utilization=${(snapshot.utilizationRatio * 100).toFixed(1)}%`,
-      `inputTokens=${inputTokens}`,
-    );
+    logger.debug("context", "context.budget-compacted", {
+      conversationId,
+      stage: snapshot.compressionStage,
+      utilizationRatio: snapshot.utilizationRatio,
+      inputTokens,
+    });
   }
+
+  effectiveHistory = normalizeLatestUserMessage(effectiveHistory, normalizedUserInput);
 
   const messages = providerMessages(effectiveHistory, provider.protocolId);
 
@@ -336,13 +395,35 @@ export async function streamResponse(
       return skill && (mode !== "ask" || skill.manifest.capabilities.length === 0);
     }),
   );
-  const lastUserMessage = [...history].reverse().find((m) => m.role === "user");
-  const routeResult = lastUserMessage
-    ? routeSkill(lastUserMessage.content, skillStore.skills, skillStore.enabledSkillIds)
-    : { matchedSkills: [], matchReasons: new Map<string, string[]>() };
-  const compatibleRoutedSkills = routeResult.matchedSkills.filter(
-    (skill) => mode !== "ask" || skill.manifest.capabilities.length === 0,
-  );
+  let compatibleRoutedSkills: typeof skillStore.skills = [];
+  let routeReasons = new Map<string, string[]>();
+  if (lastUserMessage) {
+    if (runtime.harnessMiddlewareRegistry) {
+      const routing = await runtime.harnessMiddlewareRegistry.dispatch({
+        type: "skill-routing",
+        conversationId,
+        mode,
+        userInput: normalizedUserInput,
+        skills: skillStore.skills,
+        enabledSkillIds: skillStore.enabledSkillIds,
+        matchedSkillIds: [],
+        matchReasons: {},
+      });
+      const matched = new Set(routing.matchedSkillIds);
+      compatibleRoutedSkills = skillStore.skills.filter((skill) => matched.has(skill.manifest.id));
+      routeReasons = new Map(Object.entries(routing.matchReasons));
+    } else {
+      const routeResult = routeSkill(
+        normalizedUserInput,
+        skillStore.skills,
+        skillStore.enabledSkillIds,
+      );
+      compatibleRoutedSkills = routeResult.matchedSkills.filter(
+        (skill) => mode !== "ask" || skill.manifest.capabilities.length === 0,
+      );
+      routeReasons = routeResult.matchReasons;
+    }
+  }
   const activeSkillIds = new Set([
     ...compatibleExplicitSkillIds,
     ...compatibleRoutedSkills.map((skill) => skill.manifest.id),
@@ -364,7 +445,7 @@ export async function streamResponse(
       return;
     }
     const routeInfo = compatibleRoutedSkills.map((skill) => {
-      const reasons = routeResult.matchReasons.get(skill.manifest.id) ?? [];
+      const reasons = routeReasons.get(skill.manifest.id) ?? [];
       return `- ${skill.manifest.name}: ${reasons.join(", ")}`;
     });
     const explicitInfo = skillStore.skills
@@ -392,37 +473,73 @@ export async function streamResponse(
         estimateTokens(activeSkills) -
         estimateTokens(skillRouting),
     );
-    try {
-      const retrieval = await retrieveMemoryContext(getStructuredStorage(), {
+    const maxCharacters = Math.min(6_000, Math.floor(remainingAfterHistoryAndSkills * 0.15) * 4);
+    if (runtime.harnessMiddlewareRegistry) {
+      const retrieval = await runtime.harnessMiddlewareRegistry.dispatch({
+        type: "memory-retrieval",
         conversationId,
+        storage: getStructuredStorage(),
         workspacePath: runtime.getWorkspaceRoot?.() ?? null,
-        query: lastUserMessage?.content ?? "",
-        maxCharacters: Math.min(6_000, Math.floor(remainingAfterHistoryAndSkills * 0.15) * 4),
+        query: normalizedUserInput,
+        maxCharacters,
+        context: "",
+        memories: [],
+        memoryIds: [],
       });
       memoryContext = retrieval.context;
       relevantMemoryIds = retrieval.memoryIds;
-    } catch (error) {
-      logger.warn("memory", "memory.context-load-failed", {
-        conversationId,
-        error: error instanceof Error ? error.message : String(error),
-      });
+    } else {
+      try {
+        const retrieval = await retrieveMemoryContext(getStructuredStorage(), {
+          conversationId,
+          workspacePath: runtime.getWorkspaceRoot?.() ?? null,
+          query: normalizedUserInput,
+          maxCharacters,
+        });
+        memoryContext = retrieval.context;
+        relevantMemoryIds = retrieval.memoryIds;
+      } catch (error) {
+        logger.warn("memory", "memory.context-load-failed", {
+          conversationId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
   }
   if (snapshot.compressionStage === "checkpoint-compaction" && !get().privateSession) {
-    try {
-      const objective =
-        history.find((message) => message.role === "user")?.content.slice(0, 200) ??
-        "Unknown objective";
-      await createCheckpoint(conversationId, effectiveHistory, objective, {
+    const objective =
+      history.find((message) => message.role === "user")?.content.slice(0, 200) ??
+      "Unknown objective";
+    if (runtime.harnessMiddlewareRegistry) {
+      await runtime.harnessMiddlewareRegistry.dispatch({
+        type: "checkpoint",
+        conversationId,
+        privateSession: false,
+        compressionStage: snapshot.compressionStage,
+        messages: effectiveHistory,
+        objective,
         mode,
         relevantMemoryIds,
+        persistCheckpoint: () =>
+          createCheckpoint(conversationId, effectiveHistory, objective, {
+            mode,
+            relevantMemoryIds,
+          }).then(() => undefined),
+        persisted: false,
       });
-      logger.debug("context", "checkpoint.created", { conversationId });
-    } catch (error) {
-      logger.error("context", "checkpoint.create-failed", {
-        conversationId,
-        error: error instanceof Error ? error.message : String(error),
-      });
+    } else {
+      try {
+        await createCheckpoint(conversationId, effectiveHistory, objective, {
+          mode,
+          relevantMemoryIds,
+        });
+        logger.debug("context", "checkpoint.created", { conversationId });
+      } catch (error) {
+        logger.error("context", "checkpoint.create-failed", {
+          conversationId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
   }
   const fileReferences = await latestFileReferences(conversationId, get().latestAgentRun);
@@ -471,7 +588,7 @@ export async function streamResponse(
       turn: lastTurn,
       agentRun: result.agentRun,
     };
-    const agentRunRecord = buildAgentRunRecord(result, conversationId);
+    const agentRunRecord = await buildAgentRunRecord(result, conversationId, runtime);
     if (!get().privateSession) await persistAgentRun(agentRunRecord);
 
     set(({ conversations, currentConversationId, messages: currentMessages }) => ({
@@ -499,7 +616,8 @@ export async function streamResponse(
     : await persistResponse(assistants, conversationId, title);
   const lastStream: StreamResult | undefined = result.turns.at(-1)?.stream;
   const error = result.maxIterationsReached ? "tools.maxIterations" : lastStream?.errorMessage;
-  const agentRunRecord = mode === "agent" ? buildAgentRunRecord(result, conversationId) : null;
+  const agentRunRecord =
+    mode === "agent" ? await buildAgentRunRecord(result, conversationId, runtime) : null;
   if (agentRunRecord && !get().privateSession) await persistAgentRun(agentRunRecord);
 
   set(({ conversations, currentConversationId, messages: currentMessages }) => ({

@@ -86,12 +86,13 @@ Evir 当前产品定义已经形成完整闭环，可以进入分阶段开发。
 
 ### 3.3 Harness
 
-设计规则已闭环；当前实现有独立的 Context、Tool Policy、Loop Detection、Checkpoint 和 Verification 模块，但不是所有计划中间件都已完整接线：
+设计规则已闭环；当前实现已把计划内 Harness Middleware 注册到可组合 Component Runtime，并接入请求、上下文、工具调用与完成判定路径：
 
 - Context、Mode、Capability、Skill、Tool Policy、Loop Detection、Checkpoint、Verification 和 Observability 分层。
 - 约束通过代码、Lint、测试和 CI 强制执行。
 - 文档与 `AGENTS.md` 作为机器可读事实来源。
 - Middleware 可拆卸，防止因模型升级而被复杂控制流绑死。
+- Tool Policy 是宿主保护项，普通组件不能替换；关闭可移除 Middleware 时采用安全降级。
 
 ### 3.4 本地日志
 

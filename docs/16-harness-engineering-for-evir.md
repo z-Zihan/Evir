@@ -206,4 +206,4 @@ run-start → step → tool-pending → approval → tool-result
 
 Harness 的可拆卸性由 `ComponentRuntime` 提供生命周期基础：组件声明 `provides/requires`，每项注册通过 `EffectScope` 生成逆操作，配置或代码定义变化时只重载受影响组件及其传递依赖者。新图激活失败必须恢复旧图，不能留下部分注册的 Tool 或监听器。
 
-第一阶段已将 Desktop filesystem、terminal 和 git 工具从 `createRuntime` 的硬编码循环迁移为可信内置组件。Middleware、工作流与 UI Slot 后续接入同一协议，但 Permission、Tool Policy 和 Tauri 强制边界不得成为可被普通组件替换的贡献点。详细设计与验收见 `docs/21-composable-component-runtime.md`。
+第一阶段已将 Desktop filesystem、terminal 和 git 工具从 `createRuntime` 的硬编码循环迁移为可信内置组件。第二阶段已把 Input Normalization、Mode Policy、Capability Gate、Context Budget、Skill Routing、Memory Retrieval、Loop Detection、Checkpoint、Verification 和 Observability 注册到同一 Component Runtime，并在请求、上下文、工具调用和完成判定的真实路径执行。Tool Policy 作为宿主 protected Middleware 常驻，Permission 和 Tauri 强制边界仍不可被普通组件替换。详细设计与验收见 `docs/21-composable-component-runtime.md`。
