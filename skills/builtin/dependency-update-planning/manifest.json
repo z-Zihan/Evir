@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "dependency-update-planning",
+  "name": "Dependency Update Planning",
+  "version": "1.0.0-evir.1",
+  "description": "Review and plan dependency updates from local manifests and lockfiles with compatibility, supply-chain, migration, and rollback evidence.",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": ["filesystem.read"],
+  "optionalCapabilities": ["filesystem.write", "terminal.run", "git"],
+  "optionalMcpServers": [],
+  "riskLevel": "medium",
+  "category": "security",
+  "platforms": ["desktop"],
+  "localizations": {
+    "zh-CN": {
+      "name": "依赖更新规划",
+      "description": "依据本地清单和锁文件规划依赖更新，覆盖兼容性、供应链、迁移与回滚证据。"
+    }
+  },
+  "triggers": [
+    "dependency update plan",
+    "dependabot review",
+    "upgrade dependencies",
+    "package security update",
+    "依赖更新计划",
+    "审查 Dependabot",
+    "升级依赖",
+    "依赖安全更新"
+  ],
+  "attribution": {
+    "author": "GitHub Awesome Copilot contributors",
+    "repository": "https://github.com/github/awesome-copilot",
+    "license": "MIT",
+    "upstreamPath": "skills/dependabot/SKILL.md",
+    "upstreamRevision": "0a6e37e4e242c944380228fa29dbd14e64ac1b63",
+    "adapted": true
+  }
+}

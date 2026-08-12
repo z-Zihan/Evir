@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "id": "security-review",
+  "name": "Security Review",
+  "version": "1.0.0-evir.1",
+  "description": "Use when reviewing code, configuration, dependencies, or data flows for vulnerabilities, secrets exposure, or broken trust boundaries.",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": [],
+  "optionalCapabilities": ["filesystem.read", "terminal.run"],
+  "optionalMcpServers": [],
+  "riskLevel": "low",
+  "category": "security",
+  "platforms": ["web", "desktop"],
+  "localizations": {
+    "zh-CN": {
+      "name": "安全审查",
+      "description": "适用于审查代码、配置、依赖和数据流中的漏洞、密钥泄露与信任边界问题。"
+    }
+  },
+  "triggers": [
+    "security review",
+    "vulnerability",
+    "threat",
+    "secret leak",
+    "injection",
+    "安全审查",
+    "漏洞",
+    "威胁",
+    "密钥泄露",
+    "注入"
+  ],
+  "attribution": {
+    "author": "GitHub Awesome Copilot contributors",
+    "repository": "https://github.com/github/awesome-copilot",
+    "license": "MIT",
+    "upstreamPath": "skills/security-review/SKILL.md",
+    "upstreamRevision": "0a6e37e4e242c944380228fa29dbd14e64ac1b63",
+    "adapted": true
+  }
+}

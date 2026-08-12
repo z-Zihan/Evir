@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "data-analysis",
+  "name": "Local Data Analysis",
+  "version": "1.0.0-evir.1",
+  "description": "Use on Desktop when profiling, cleaning, comparing, or analyzing local CSV, TSV, JSON, or spreadsheet-like data with reproducible evidence.",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": ["filesystem.read"],
+  "optionalCapabilities": ["filesystem.write", "terminal.run"],
+  "optionalMcpServers": [],
+  "riskLevel": "medium",
+  "category": "data",
+  "platforms": ["desktop"],
+  "localizations": {
+    "zh-CN": {
+      "name": "本地数据分析",
+      "description": "适用于在桌面端分析、清洗、比较本地 CSV、TSV、JSON 或表格型数据，并保留可复现证据。"
+    }
+  },
+  "triggers": [
+    "analyze csv",
+    "analyze data",
+    "data quality",
+    "compare datasets",
+    "分析数据",
+    "分析 CSV",
+    "数据质量",
+    "对比数据集"
+  ],
+  "attribution": {
+    "author": "Anthropic",
+    "repository": "https://github.com/anthropics/skills",
+    "license": "Apache-2.0",
+    "upstreamPath": "skills/xlsx/SKILL.md",
+    "upstreamRevision": "f17010c9bb483898c1d9c9f42dde2b3a98889434",
+    "adapted": true
+  }
+}

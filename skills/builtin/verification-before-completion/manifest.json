@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "id": "verification-before-completion",
+  "name": "Verification Before Completion",
+  "version": "1.0.0-evir.1",
+  "description": "Use before claiming that work is complete, fixed, passing, secure, deployed, or ready to merge.",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": [],
+  "optionalCapabilities": ["filesystem.read", "terminal.run"],
+  "optionalMcpServers": [],
+  "riskLevel": "low",
+  "category": "developer-tools",
+  "platforms": ["web", "desktop"],
+  "localizations": {
+    "zh-CN": {
+      "name": "完成前验证",
+      "description": "适用于声称工作已完成、已修复、已通过、已部署或可以合入之前。"
+    }
+  },
+  "triggers": [
+    "verify",
+    "done",
+    "complete",
+    "ready to merge",
+    "passes",
+    "验收",
+    "验证",
+    "完成",
+    "可以合入",
+    "通过"
+  ],
+  "attribution": {
+    "author": "Jesse Vincent / Superpowers contributors",
+    "repository": "https://github.com/obra/superpowers",
+    "license": "MIT",
+    "upstreamPath": "skills/verification-before-completion/SKILL.md",
+    "upstreamRevision": "44c9b2d6e889982ac18c27d05a19fefe335194e1",
+    "adapted": true
+  }
+}

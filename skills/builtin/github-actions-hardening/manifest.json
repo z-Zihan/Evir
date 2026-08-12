@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "github-actions-hardening",
+  "name": "GitHub Actions Hardening",
+  "version": "1.0.0-evir.1",
+  "description": "Review local GitHub Actions workflows for permissions, untrusted input, dependency pinning, secret exposure, and release integrity.",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": ["filesystem.read"],
+  "optionalCapabilities": ["filesystem.write", "git"],
+  "optionalMcpServers": [],
+  "riskLevel": "high",
+  "category": "git-devops",
+  "platforms": ["desktop"],
+  "localizations": {
+    "zh-CN": {
+      "name": "GitHub Actions 加固",
+      "description": "审查本地 GitHub Actions 工作流的权限、不可信输入、依赖固定、密钥泄漏和发布完整性。"
+    }
+  },
+  "triggers": [
+    "harden github actions",
+    "workflow security",
+    "actions permissions review",
+    "ci supply chain",
+    "加固 GitHub Actions",
+    "工作流安全",
+    "Actions 权限审查",
+    "CI 供应链"
+  ],
+  "attribution": {
+    "author": "GitHub Awesome Copilot contributors",
+    "repository": "https://github.com/github/awesome-copilot",
+    "license": "MIT",
+    "upstreamPath": "skills/github-actions-hardening/SKILL.md",
+    "upstreamRevision": "0a6e37e4e242c944380228fa29dbd14e64ac1b63",
+    "adapted": true
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "cli-design",
+  "name": "CLI Design",
+  "version": "1.0.0-evir.1",
+  "description": "Design or review command-line interfaces for predictable arguments, output streams, errors, automation, and safe defaults.",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": ["filesystem.read"],
+  "optionalCapabilities": ["filesystem.write", "terminal.run"],
+  "optionalMcpServers": [],
+  "riskLevel": "medium",
+  "category": "developer-tools",
+  "platforms": ["desktop"],
+  "localizations": {
+    "zh-CN": {
+      "name": "CLI 设计",
+      "description": "设计或审查可预测参数、输出流、错误、自动化和安全默认值的命令行界面。"
+    }
+  },
+  "triggers": [
+    "design a cli",
+    "command line interface",
+    "cli usability",
+    "cli output contract",
+    "设计命令行",
+    "CLI 交互",
+    "命令行可用性",
+    "命令行输出契约"
+  ],
+  "attribution": {
+    "author": "GitHub Awesome Copilot contributors",
+    "repository": "https://github.com/github/awesome-copilot",
+    "license": "MIT",
+    "upstreamPath": "skills/cli-mastery/SKILL.md",
+    "upstreamRevision": "0a6e37e4e242c944380228fa29dbd14e64ac1b63",
+    "adapted": true
+  }
+}

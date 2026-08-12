@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "architecture-decision-record",
+  "name": "Architecture Decision Record",
+  "version": "1.0.0-evir.1",
+  "description": "Use when a consequential technical choice needs a durable record of context, alternatives, trade-offs, and follow-up evidence.",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": [],
+  "optionalCapabilities": ["filesystem.read", "filesystem.write"],
+  "optionalMcpServers": [],
+  "riskLevel": "low",
+  "category": "programming",
+  "platforms": ["web", "desktop"],
+  "localizations": {
+    "zh-CN": {
+      "name": "架构决策记录",
+      "description": "适用于持久记录重要技术决策的背景、备选方案、取舍和后续证据。"
+    }
+  },
+  "triggers": [
+    "adr",
+    "architecture decision",
+    "technical decision",
+    "trade-off record",
+    "架构决策",
+    "技术选型",
+    "决策记录",
+    "方案取舍"
+  ],
+  "attribution": {
+    "author": "GitHub Awesome Copilot contributors",
+    "repository": "https://github.com/github/awesome-copilot",
+    "license": "MIT",
+    "upstreamPath": "skills/create-architectural-decision-record/SKILL.md",
+    "upstreamRevision": "0a6e37e4e242c944380228fa29dbd14e64ac1b63",
+    "adapted": true
+  }
+}

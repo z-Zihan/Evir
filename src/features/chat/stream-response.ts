@@ -26,7 +26,7 @@ import {
 } from "../../core/context/conversation-summarizer";
 import { useMemoryStore } from "../memory/memory-store";
 import { createCheckpoint } from "../../core/context/checkpoint";
-import { estimateMessagesTokens } from "../../core/context/token-estimate";
+import { estimateMessagesTokens, estimateTokens } from "../../core/context/token-estimate";
 import { getStructuredStorage } from "../../runtime/structured-storage";
 import { buildAgentRunRecord, persistAgentRun, type AgentRunRecord } from "./agent-run-record";
 import { buildRunCapsule, serializeCapsule } from "../../core/context/run-capsule";
@@ -270,6 +270,7 @@ export async function streamResponse(
   history: MessageRecord[],
   conversationId: string,
   runtime: EvirRuntime,
+  explicitlySelectedSkillIds: ReadonlySet<string> = new Set<string>(),
 ): Promise<void> {
   const provider = useProviderStore.getState().getDefaultProvider();
   if (!provider) return set({ error: "chat.noProvider" });
@@ -339,26 +340,50 @@ export async function streamResponse(
   const hint = modeHint(mode);
   let activeSkills = "";
   let skillRouting = "";
-  if (mode === "agent" || mode === "plan") {
-    const skillStore = useSkillStore.getState();
-    activeSkills = await skillStore.getEnabledContent();
-    // Auto-route skills based on user input
-    const lastUserMessage = [...history].reverse().find((m) => m.role === "user");
-    if (lastUserMessage) {
-      const routeResult = routeSkill(
-        lastUserMessage.content,
-        skillStore.skills,
-        skillStore.enabledSkillIds,
-      );
-      if (routeResult.matchedSkills.length > 0) {
-        const routeInfo = routeResult.matchedSkills
-          .map((s) => {
-            const reasons = routeResult.matchReasons.get(s.manifest.id) ?? [];
-            return `- ${s.manifest.name}: ${reasons.join(", ")}`;
-          })
-          .join("\n");
-        skillRouting = `Matched skills:\n${routeInfo}`;
-      }
+  const skillStore = useSkillStore.getState();
+  const compatibleExplicitSkillIds = new Set(
+    [...explicitlySelectedSkillIds].filter((id) => {
+      const skill = skillStore.skills.find((candidate) => candidate.manifest.id === id);
+      return skill && (mode !== "ask" || skill.manifest.capabilities.length === 0);
+    }),
+  );
+  const lastUserMessage = [...history].reverse().find((m) => m.role === "user");
+  const routeResult = lastUserMessage
+    ? routeSkill(lastUserMessage.content, skillStore.skills, skillStore.enabledSkillIds)
+    : { matchedSkills: [], matchReasons: new Map<string, string[]>() };
+  const compatibleRoutedSkills = routeResult.matchedSkills.filter(
+    (skill) => mode !== "ask" || skill.manifest.capabilities.length === 0,
+  );
+  const activeSkillIds = new Set([
+    ...compatibleExplicitSkillIds,
+    ...compatibleRoutedSkills.map((skill) => skill.manifest.id),
+  ]);
+  if (activeSkillIds.size > 0) {
+    activeSkills = await skillStore.getSkillContent(activeSkillIds);
+    const availableInputTokens =
+      snapshot.maxContextTokens -
+      snapshot.reservedOutputTokens -
+      snapshot.reservedToolTokens -
+      snapshot.safetyMarginTokens;
+    const remainingInputTokens = Math.max(
+      0,
+      availableInputTokens - estimateMessagesTokens(effectiveHistory),
+    );
+    const skillTokenBudget = Math.floor(remainingInputTokens * 0.4);
+    if (estimateTokens(activeSkills) > skillTokenBudget) {
+      set({ isStreaming: false, streamingContent: "", error: "chat.skillContextTooLarge" });
+      return;
+    }
+    const routeInfo = compatibleRoutedSkills.map((skill) => {
+      const reasons = routeResult.matchReasons.get(skill.manifest.id) ?? [];
+      return `- ${skill.manifest.name}: ${reasons.join(", ")}`;
+    });
+    const explicitInfo = skillStore.skills
+      .filter((skill) => compatibleExplicitSkillIds.has(skill.manifest.id))
+      .map((skill) => `- ${skill.manifest.name}: explicitly selected by user`);
+    const routingLines = [...explicitInfo, ...routeInfo];
+    if (routingLines.length > 0) {
+      skillRouting = `Active skills:\n${routingLines.join("\n")}`;
     }
   }
   // Inject memory context if available (skip in private sessions)

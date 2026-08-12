@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "release-readiness",
+  "name": "Release Readiness",
+  "version": "1.0.0-evir.1",
+  "description": "Use on Desktop when deciding whether a branch, build, package, or product increment is ready to release or hand off.",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": ["filesystem.read", "git"],
+  "optionalCapabilities": ["terminal.run"],
+  "optionalMcpServers": [],
+  "riskLevel": "low",
+  "category": "git-devops",
+  "platforms": ["desktop"],
+  "localizations": {
+    "zh-CN": {
+      "name": "发布就绪检查",
+      "description": "适用于在桌面端判断分支、构建、安装包或产品增量是否可以发布或交接。"
+    }
+  },
+  "triggers": [
+    "release readiness",
+    "ready to release",
+    "ship checklist",
+    "release gate",
+    "发布检查",
+    "能否发布",
+    "交付验收",
+    "发布门禁"
+  ],
+  "attribution": {
+    "author": "Jesse Vincent / Superpowers contributors",
+    "repository": "https://github.com/obra/superpowers",
+    "license": "MIT",
+    "upstreamPath": "skills/finishing-a-development-branch/SKILL.md",
+    "upstreamRevision": "44c9b2d6e889982ac18c27d05a19fefe335194e1",
+    "adapted": true
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "email-drafting",
+  "name": "Email Drafting",
+  "version": "1.0.0-evir.1",
+  "description": "Draft clear professional email from local context while preserving intent, facts, audience, and requested action.",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": [],
+  "optionalCapabilities": ["filesystem.read"],
+  "optionalMcpServers": [],
+  "riskLevel": "low",
+  "category": "content-creation",
+  "platforms": ["desktop"],
+  "localizations": {
+    "zh-CN": {
+      "name": "邮件起草",
+      "description": "依据本地上下文起草清晰专业的邮件，保留真实意图、事实、受众和期望动作。"
+    }
+  },
+  "triggers": [
+    "draft an email",
+    "professional email",
+    "follow-up email",
+    "rewrite this email",
+    "起草邮件",
+    "写一封邮件",
+    "跟进邮件",
+    "润色邮件"
+  ],
+  "attribution": {
+    "author": "GitHub Awesome Copilot contributors",
+    "repository": "https://github.com/github/awesome-copilot",
+    "license": "MIT",
+    "upstreamPath": "skills/email-drafter/SKILL.md",
+    "upstreamRevision": "0a6e37e4e242c944380228fa29dbd14e64ac1b63",
+    "adapted": true
+  }
+}

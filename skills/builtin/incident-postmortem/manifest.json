@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "incident-postmortem",
+  "name": "Incident Postmortem",
+  "version": "1.0.0-evir.1",
+  "description": "Build a blameless, evidence-backed incident timeline, impact analysis, root causes, detection gaps, and owned corrective actions.",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": ["filesystem.read"],
+  "optionalCapabilities": ["filesystem.write"],
+  "optionalMcpServers": [],
+  "riskLevel": "medium",
+  "category": "information-gathering",
+  "platforms": ["desktop"],
+  "localizations": {
+    "zh-CN": {
+      "name": "事故复盘",
+      "description": "建立非责备、基于证据的事故时间线、影响分析、根因、检测缺口和有负责人的整改项。"
+    }
+  },
+  "triggers": [
+    "incident postmortem",
+    "outage review",
+    "incident timeline",
+    "corrective actions after incident",
+    "事故复盘",
+    "故障复盘",
+    "事故时间线",
+    "故障整改项"
+  ],
+  "attribution": {
+    "author": "GitHub Awesome Copilot contributors",
+    "repository": "https://github.com/github/awesome-copilot",
+    "license": "MIT",
+    "upstreamPath": "skills/incident-postmortem/SKILL.md",
+    "upstreamRevision": "0a6e37e4e242c944380228fa29dbd14e64ac1b63",
+    "adapted": true
+  }
+}

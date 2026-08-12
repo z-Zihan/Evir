@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "requirements-discovery",
+  "name": "Requirements Discovery",
+  "version": "1.0.0-evir.1",
+  "description": "Use when a feature, workflow, or behavior change is underspecified and multiple materially different solutions are plausible.",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": [],
+  "optionalCapabilities": ["filesystem.read"],
+  "optionalMcpServers": [],
+  "riskLevel": "low",
+  "category": "information-gathering",
+  "platforms": ["web", "desktop"],
+  "localizations": {
+    "zh-CN": {
+      "name": "需求探索",
+      "description": "适用于功能、流程或行为变更仍不明确，且存在多种实质性方案时。"
+    }
+  },
+  "triggers": [
+    "brainstorm",
+    "explore approaches",
+    "requirements",
+    "design options",
+    "需求梳理",
+    "方案探索",
+    "功能设计",
+    "产品方案"
+  ],
+  "attribution": {
+    "author": "Jesse Vincent / Superpowers contributors",
+    "repository": "https://github.com/obra/superpowers",
+    "license": "MIT",
+    "upstreamPath": "skills/brainstorming/SKILL.md",
+    "upstreamRevision": "44c9b2d6e889982ac18c27d05a19fefe335194e1",
+    "adapted": true
+  }
+}

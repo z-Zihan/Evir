@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "sql-optimization",
+  "name": "SQL Optimization",
+  "version": "1.0.0-evir.1",
+  "description": "Develop evidence-driven SQL performance hypotheses from local queries, plans, schemas, and workload constraints.",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": ["filesystem.read"],
+  "optionalCapabilities": ["filesystem.write", "terminal.run"],
+  "optionalMcpServers": [],
+  "riskLevel": "medium",
+  "category": "data",
+  "platforms": ["desktop"],
+  "localizations": {
+    "zh-CN": {
+      "name": "SQL 优化",
+      "description": "依据本地查询、执行计划、Schema 与负载约束形成有证据的 SQL 性能假设。"
+    }
+  },
+  "triggers": [
+    "optimize sql",
+    "slow query",
+    "query execution plan",
+    "database query performance",
+    "优化 SQL",
+    "慢查询",
+    "查询执行计划",
+    "数据库查询性能"
+  ],
+  "attribution": {
+    "author": "GitHub Awesome Copilot contributors",
+    "repository": "https://github.com/github/awesome-copilot",
+    "license": "MIT",
+    "upstreamPath": "skills/sql-optimization/SKILL.md",
+    "upstreamRevision": "0a6e37e4e242c944380228fa29dbd14e64ac1b63",
+    "adapted": true
+  }
+}

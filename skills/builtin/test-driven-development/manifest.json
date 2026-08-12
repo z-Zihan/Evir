@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "test-driven-development",
+  "name": "Test-Driven Development",
+  "version": "1.0.0-evir.1",
+  "description": "Use when implementing a behavior change, bug fix, or refactor that can be expressed through automated tests.",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": [],
+  "optionalCapabilities": ["filesystem.read", "filesystem.write", "terminal.run"],
+  "optionalMcpServers": [],
+  "riskLevel": "low",
+  "category": "programming",
+  "platforms": ["web", "desktop"],
+  "localizations": {
+    "zh-CN": {
+      "name": "测试驱动开发",
+      "description": "适用于能通过自动化测试表达的行为变更、缺陷修复和重构。"
+    }
+  },
+  "triggers": [
+    "tdd",
+    "test first",
+    "regression test",
+    "behavior change",
+    "测试驱动",
+    "先写测试",
+    "回归测试",
+    "行为变更"
+  ],
+  "attribution": {
+    "author": "Jesse Vincent / Superpowers contributors",
+    "repository": "https://github.com/obra/superpowers",
+    "license": "MIT",
+    "upstreamPath": "skills/test-driven-development/SKILL.md",
+    "upstreamRevision": "44c9b2d6e889982ac18c27d05a19fefe335194e1",
+    "adapted": true
+  }
+}

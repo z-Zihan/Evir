@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "system-command-planning",
+  "name": "System Command Planning",
+  "version": "1.0.0-evir.1",
+  "description": "Plan and review local system command sequences with explicit scope, prerequisites, rollback, verification, and approval boundaries.",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": ["filesystem.read"],
+  "optionalCapabilities": ["terminal.run"],
+  "optionalMcpServers": [],
+  "riskLevel": "high",
+  "category": "system-tools",
+  "platforms": ["desktop"],
+  "localizations": {
+    "zh-CN": {
+      "name": "系统命令规划",
+      "description": "规划和审查本地系统命令序列，明确作用域、前置条件、回滚、验证与审批边界。"
+    }
+  },
+  "triggers": [
+    "system command plan",
+    "shell command sequence",
+    "safe terminal steps",
+    "command rollback plan",
+    "系统命令规划",
+    "终端命令步骤",
+    "安全执行命令",
+    "命令回滚方案"
+  ],
+  "attribution": {
+    "author": "GitHub Awesome Copilot contributors",
+    "repository": "https://github.com/github/awesome-copilot",
+    "license": "MIT",
+    "upstreamPath": "skills/system-commandline-cli/SKILL.md",
+    "upstreamRevision": "0a6e37e4e242c944380228fa29dbd14e64ac1b63",
+    "adapted": true
+  }
+}

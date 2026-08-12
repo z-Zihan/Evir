@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "meeting-minutes",
+  "name": "Meeting Minutes",
+  "version": "1.0.0-evir.1",
+  "description": "Turn local notes or transcripts into concise meeting minutes with decisions, owners, deadlines, and unresolved items.",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": [],
+  "optionalCapabilities": ["filesystem.read", "filesystem.write"],
+  "optionalMcpServers": [],
+  "riskLevel": "low",
+  "category": "office-productivity",
+  "platforms": ["desktop"],
+  "localizations": {
+    "zh-CN": {
+      "name": "会议纪要",
+      "description": "将本地笔记或转录整理为包含决策、负责人、截止时间与未决事项的简洁会议纪要。"
+    }
+  },
+  "triggers": [
+    "meeting minutes",
+    "meeting notes summary",
+    "decision log from meeting",
+    "action items from meeting",
+    "整理会议纪要",
+    "总结会议记录",
+    "提取会议决策",
+    "会议行动项"
+  ],
+  "attribution": {
+    "author": "GitHub Awesome Copilot contributors",
+    "repository": "https://github.com/github/awesome-copilot",
+    "license": "MIT",
+    "upstreamPath": "skills/meeting-minutes/SKILL.md",
+    "upstreamRevision": "0a6e37e4e242c944380228fa29dbd14e64ac1b63",
+    "adapted": true
+  }
+}

@@ -7,6 +7,7 @@ import {
   PanelLeft,
   Paperclip,
   Settings2,
+  Sparkles,
   Square,
   X,
 } from "lucide-react";
@@ -30,6 +31,8 @@ import { loadPersonalizationPreferences } from "../features/settings/personaliza
 import { AgentRunSummary } from "./AgentRunSummary";
 import { useConfirmationDialog } from "./useConfirmationDialog";
 import type { ModelSwitchAssessment } from "../core/providers/model-switching";
+import { SkillPicker } from "./SkillPicker";
+import { useSkillStore } from "../features/skills/skill-store";
 
 const modelSwitchCoordinator = new ModelSwitchCoordinatorImpl();
 
@@ -104,7 +107,10 @@ export function ChatView({
     conversations,
     latestAgentRun,
     pendingToolApproval,
+    selectedSkillIds,
+    toggleSelectedSkill,
   } = useChatStore();
+  const installedSkills = useSkillStore((state) => state.skills);
   const { getDefaultProvider, switchProvider } = useProviderStore();
   const [localDisplayName, setLocalDisplayName] = useState("");
   const [localUserAvatar, setLocalUserAvatar] = useState("");
@@ -403,6 +409,29 @@ export function ChatView({
               )}
             </div>
           )}
+          {selectedSkillIds.size > 0 && (
+            <div className="pending-skills" aria-label={t("skill.selectedForMessage")}>
+              {installedSkills
+                .filter((skill) => selectedSkillIds.has(skill.manifest.id))
+                .map((skill) => {
+                  const locale = i18n.resolvedLanguage === "zh-CN" ? "zh-CN" : "en";
+                  const name = skill.manifest.localizations?.[locale]?.name ?? skill.manifest.name;
+                  return (
+                    <button
+                      key={skill.manifest.id}
+                      type="button"
+                      className="pending-skill-chip"
+                      onClick={() => toggleSelectedSkill(skill.manifest.id)}
+                      aria-label={t("skill.removeSelected", { name })}
+                    >
+                      <Sparkles size={12} aria-hidden="true" />
+                      {name}
+                      <X size={11} aria-hidden="true" />
+                    </button>
+                  );
+                })}
+            </div>
+          )}
           <textarea
             ref={textareaRef}
             aria-label={t("chat.placeholder")}
@@ -424,6 +453,8 @@ export function ChatView({
               >
                 <Paperclip size={16} />
               </button>
+
+              <SkillPicker mode={runtime.target === "web" ? "ask" : mode} disabled={isStreaming} />
 
               <button
                 type="button"

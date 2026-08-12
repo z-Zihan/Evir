@@ -21,6 +21,14 @@ const sampleSkills: InstalledSkill[] = [
       optionalCapabilities: [],
       optionalMcpServers: [],
       riskLevel: "low",
+      attribution: {
+        author: "Community Author",
+        repository: "https://github.com/community/skills",
+        license: "MIT",
+        upstreamPath: "skills/bug-fix/SKILL.md",
+        upstreamRevision: "abc123",
+        adapted: true,
+      },
     } satisfies SkillManifest,
     rootPath: "/skills/builtin/bug-fix",
     builtIn: true,
@@ -55,6 +63,7 @@ const sampleSkills: InstalledSkill[] = [
       optionalCapabilities: [],
       optionalMcpServers: [],
       riskLevel: "medium",
+      platforms: ["desktop"],
     } satisfies SkillManifest,
     rootPath: "/skills/builtin/code-review",
     builtIn: true,
@@ -86,7 +95,7 @@ vi.mock("../../features/skills/skill-store", () => ({
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string) => key,
-    i18n: { exists: () => false },
+    i18n: { exists: () => false, resolvedLanguage: "en" },
   }),
 }));
 
@@ -116,6 +125,28 @@ describe("SkillSettings", () => {
       expect(screen.getAllByText("skill.low")).toHaveLength(2);
     });
     expect(screen.getByText("skill.medium")).toBeDefined();
+  });
+
+  it("shows verifiable community provenance for adapted built-ins", async () => {
+    mockLoadSkills.mockResolvedValue(undefined);
+    const { SkillSettings } = await import("../SkillSettings");
+    render(<SkillSettings />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Community Author/)).toBeDefined();
+    });
+    expect(screen.getByText(/MIT/)).toBeDefined();
+    expect(screen.getByText(/skill\.adapted/)).toBeDefined();
+  });
+
+  it("marks Desktop-only skills", async () => {
+    mockLoadSkills.mockResolvedValue(undefined);
+    const { SkillSettings } = await import("../SkillSettings");
+    render(<SkillSettings />);
+
+    await waitFor(() => {
+      expect(screen.getByText("skill.desktopOnly")).toBeDefined();
+    });
   });
 
   it("calls toggleSkill when toggle is clicked", async () => {

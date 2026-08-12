@@ -23,6 +23,7 @@ export async function sendChatMessage(
   if (readinessError) return set({ error: readinessError });
 
   const attachments = get().pendingAttachments;
+  const selectedSkillIds = new Set(get().selectedSkillIds);
   let conversationId = get().currentConversationId;
   if (!conversationId)
     conversationId = await get().createConversation(provider.id, provider.modelId);
@@ -88,7 +89,15 @@ export async function sendChatMessage(
   set({
     messages: [...history, userMessage],
     pendingAttachments: [],
+    selectedSkillIds: new Set<string>(),
     latestAgentRun: null,
   });
-  await streamResponse(set, get, [...history, userMessage], conversationId, getRuntime());
+  await streamResponse(
+    set,
+    get,
+    [...history, userMessage],
+    conversationId,
+    getRuntime(),
+    selectedSkillIds,
+  );
 }

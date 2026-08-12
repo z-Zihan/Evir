@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "daily-focus",
+  "name": "Daily Focus",
+  "version": "1.0.0-evir.1",
+  "description": "Turn a local task list into a realistic daily focus plan with priorities, time constraints, dependencies, and shutdown criteria.",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": [],
+  "optionalCapabilities": ["filesystem.read", "filesystem.write"],
+  "optionalMcpServers": [],
+  "riskLevel": "low",
+  "category": "office-productivity",
+  "platforms": ["desktop"],
+  "localizations": {
+    "zh-CN": {
+      "name": "每日聚焦",
+      "description": "把本地任务清单整理成考虑优先级、时间约束、依赖和收工标准的现实日计划。"
+    }
+  },
+  "triggers": [
+    "daily focus",
+    "plan my day",
+    "today priorities",
+    "daily task board",
+    "今日计划",
+    "安排今天",
+    "每日重点",
+    "今日优先级"
+  ],
+  "attribution": {
+    "author": "GitHub Awesome Copilot contributors",
+    "repository": "https://github.com/github/awesome-copilot",
+    "license": "MIT",
+    "upstreamPath": "skills/daily-focus-board/SKILL.md",
+    "upstreamRevision": "0a6e37e4e242c944380228fa29dbd14e64ac1b63",
+    "adapted": true
+  }
+}

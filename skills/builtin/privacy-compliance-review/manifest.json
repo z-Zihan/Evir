@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "privacy-compliance-review",
+  "name": "Privacy Compliance Review",
+  "version": "1.0.0-evir.1",
+  "description": "Map local product data flows and identify GDPR-style privacy questions, evidence gaps, and remediation work without giving legal advice.",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": ["filesystem.read"],
+  "optionalCapabilities": ["filesystem.write"],
+  "optionalMcpServers": [],
+  "riskLevel": "high",
+  "category": "legal",
+  "platforms": ["desktop"],
+  "localizations": {
+    "zh-CN": {
+      "name": "隐私合规审查",
+      "description": "梳理本地产品数据流，识别 GDPR 类隐私问题、证据缺口与整改工作，不提供法律意见。"
+    }
+  },
+  "triggers": [
+    "privacy compliance review",
+    "gdpr review",
+    "personal data flow",
+    "data retention assessment",
+    "隐私合规审查",
+    "GDPR 审查",
+    "个人数据流",
+    "数据保留评估"
+  ],
+  "attribution": {
+    "author": "GitHub Awesome Copilot contributors",
+    "repository": "https://github.com/github/awesome-copilot",
+    "license": "MIT",
+    "upstreamPath": "skills/gdpr-compliant/SKILL.md",
+    "upstreamRevision": "0a6e37e4e242c944380228fa29dbd14e64ac1b63",
+    "adapted": true
+  }
+}

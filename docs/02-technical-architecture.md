@@ -24,7 +24,10 @@
 
 ```text
 pnpm build:web
-  -> dist/              静态 Web 资源
+  -> dist/web/          静态 Web 资源（10 个共享 Skill）
+
+pnpm build:desktop:frontend
+  -> dist/desktop/      Tauri 前端资源（共享 10 + Desktop-only 26）
 
 pnpm build:desktop
   -> Tauri bundles      当前操作系统安装包

@@ -2,12 +2,38 @@
   "schemaVersion": 1,
   "id": "frontend-design",
   "name": "frontend-design",
-  "version": "1.0.0",
-  "description": "Create distinctive, production-grade frontend interfaces with high design quality. Use this skill when building web components, pages, or applications. Generates creative, polished code that avoids ge",
+  "version": "1.1.0-evir.1",
+  "description": "Use when creating or substantially restyling web interfaces, components, pages, dashboards, or interactive prototypes.",
   "entry": "SKILL.md",
   "source": "builtin",
   "capabilities": [],
   "optionalCapabilities": [],
   "optionalMcpServers": [],
-  "riskLevel": "low"
+  "riskLevel": "low",
+  "category": "design",
+  "platforms": ["web", "desktop"],
+  "localizations": {
+    "zh-CN": {
+      "name": "前端设计",
+      "description": "适用于创建或大幅重塑网页界面、组件、页面、仪表盘和交互原型。"
+    }
+  },
+  "triggers": [
+    "frontend",
+    "web design",
+    "interface design",
+    "ui design",
+    "网页设计",
+    "前端",
+    "界面设计",
+    "页面设计"
+  ],
+  "attribution": {
+    "author": "Anthropic",
+    "repository": "https://github.com/anthropics/skills",
+    "license": "Apache-2.0",
+    "upstreamPath": "skills/frontend-design/SKILL.md",
+    "upstreamRevision": "f17010c9bb483898c1d9c9f42dde2b3a98889434",
+    "adapted": true
+  }
 }

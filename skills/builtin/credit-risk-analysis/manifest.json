@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "credit-risk-analysis",
+  "name": "Credit Risk Analysis",
+  "version": "1.0.0-evir.1",
+  "description": "Analyze user-provided credit-risk datasets and assumptions with transparent metrics, bias checks, scenarios, and evidence limits.",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": ["filesystem.read"],
+  "optionalCapabilities": ["filesystem.write", "terminal.run"],
+  "optionalMcpServers": [],
+  "riskLevel": "high",
+  "category": "finance-investing",
+  "platforms": ["desktop"],
+  "localizations": {
+    "zh-CN": {
+      "name": "信用风险分析",
+      "description": "以透明指标、偏差检查、情景和证据边界分析用户提供的信用风险数据与假设。"
+    }
+  },
+  "triggers": [
+    "credit risk analysis",
+    "default risk dataset",
+    "loan portfolio risk",
+    "credit model review",
+    "信用风险分析",
+    "违约风险数据",
+    "贷款组合风险",
+    "信用模型审查"
+  ],
+  "attribution": {
+    "author": "GitHub Awesome Copilot contributors",
+    "repository": "https://github.com/github/awesome-copilot",
+    "license": "MIT",
+    "upstreamPath": "skills/datanalysis-credit-risk/SKILL.md",
+    "upstreamRevision": "0a6e37e4e242c944380228fa29dbd14e64ac1b63",
+    "adapted": true
+  }
+}

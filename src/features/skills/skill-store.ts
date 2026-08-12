@@ -6,6 +6,10 @@ import { validateManifest } from "../../core/skills/types";
 import { createSkillRegistry, type SkillRegistry } from "../../core/skills/skill-registry";
 import type { InstalledSkill } from "../../core/skills/types";
 import { getStructuredStorage } from "../../runtime/structured-storage";
+import {
+  customCategoryLocalizations,
+  normalizeCustomCategory,
+} from "../../core/skills/skill-categories";
 
 const SKILL_ENABLED_SETTING = "skillEnabledIds";
 
@@ -15,9 +19,15 @@ interface SkillState {
   loadSkills: () => Promise<void>;
   toggleSkill: (id: string) => Promise<void>;
   isEnabled: (id: string) => boolean;
-  getEnabledContent: () => Promise<string>;
+  getEnabledContent: (selectedIds?: ReadonlySet<string>) => Promise<string>;
+  getSkillContent: (selectedIds: ReadonlySet<string>) => Promise<string>;
   importSkill: (manifest: SkillManifest, content: string) => Promise<string>;
-  createSkill: (name: string, description: string, content: string) => Promise<string>;
+  createSkill: (
+    name: string,
+    description: string,
+    content: string,
+    category?: string,
+  ) => Promise<string>;
   installSkill: (manifest: SkillManifest, content: string) => Promise<string>;
   uninstallSkill: (id: string) => Promise<void>;
   updateSkill: (id: string, content: string, description?: string) => Promise<void>;
@@ -114,11 +124,12 @@ export const useSkillStore = create<SkillState>((set, get) => ({
     return get().installSkill({ ...manifest, source: "imported" }, content);
   },
 
-  createSkill: async (name, description, content) => {
+  createSkill: async (name, description, content, category = "other") => {
     const id = `created-${name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .slice(0, 30)}-${Date.now()}`;
+    const categoryLocalizations = customCategoryLocalizations(category);
     const manifest: SkillManifest = {
       schemaVersion: 1,
       id,
@@ -131,6 +142,9 @@ export const useSkillStore = create<SkillState>((set, get) => ({
       optionalCapabilities: [],
       optionalMcpServers: [],
       riskLevel: "low",
+      platforms: ["web", "desktop"],
+      category: normalizeCustomCategory(category),
+      ...(categoryLocalizations ? { categoryLocalizations } : {}),
     };
     await getStructuredStorage().write("settings", `skill:${id}`, {
       name: `skill:${id}`,
@@ -202,14 +216,22 @@ export const useSkillStore = create<SkillState>((set, get) => ({
 
   listAll: () => get().skills,
 
-  getEnabledContent: async () => {
-    const { enabledSkillIds, skills } = get();
+  getEnabledContent: async (selectedIds) => {
+    const { enabledSkillIds } = get();
+    const activeIds = new Set(
+      [...enabledSkillIds].filter((id) => selectedIds === undefined || selectedIds.has(id)),
+    );
+    return get().getSkillContent(activeIds);
+  },
+
+  getSkillContent: async (selectedIds) => {
+    const { skills } = get();
     const reg = getRegistry();
     const builtinIds = new Set(reg.list().map((s) => s.manifest.id));
-    const builtinEnabledIds = new Set([...enabledSkillIds].filter((id) => builtinIds.has(id)));
-    const builtinContent = await reg.getEnabledContent(builtinEnabledIds);
+    const selectedBuiltinIds = new Set([...selectedIds].filter((id) => builtinIds.has(id)));
+    const builtinContent = await reg.getEnabledContent(selectedBuiltinIds);
 
-    const customSkills = skills.filter((s) => !s.builtIn && enabledSkillIds.has(s.manifest.id));
+    const customSkills = skills.filter((s) => !s.builtIn && selectedIds.has(s.manifest.id));
     const customContents = await Promise.all(
       customSkills.map(async (s) => {
         const record = await getStructuredStorage().read<SettingRecord>(

@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "sql-review",
+  "name": "SQL Review",
+  "version": "1.0.0-evir.1",
+  "description": "Review local SQL for correctness, safety, portability, maintainability, and evidence-backed data assumptions.",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": ["filesystem.read"],
+  "optionalCapabilities": ["filesystem.write"],
+  "optionalMcpServers": [],
+  "riskLevel": "medium",
+  "category": "data",
+  "platforms": ["desktop"],
+  "localizations": {
+    "zh-CN": {
+      "name": "SQL 审查",
+      "description": "审查本地 SQL 的正确性、安全性、可移植性、可维护性和数据假设证据。"
+    }
+  },
+  "triggers": [
+    "review sql",
+    "sql correctness",
+    "unsafe query review",
+    "sql maintainability",
+    "审查 SQL",
+    "SQL 正确性",
+    "查询安全审查",
+    "SQL 可维护性"
+  ],
+  "attribution": {
+    "author": "GitHub Awesome Copilot contributors",
+    "repository": "https://github.com/github/awesome-copilot",
+    "license": "MIT",
+    "upstreamPath": "skills/sql-code-review/SKILL.md",
+    "upstreamRevision": "0a6e37e4e242c944380228fa29dbd14e64ac1b63",
+    "adapted": true
+  }
+}

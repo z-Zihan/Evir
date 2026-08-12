@@ -699,7 +699,7 @@
 }
 
 .composer {
-  overflow: hidden;
+  overflow: visible;
   border-radius: 14px;
   box-shadow:
     0 10px 32px color-mix(in srgb, black 8%, transparent),
@@ -816,6 +816,152 @@
 .composer-tool-button:disabled {
   cursor: not-allowed;
   opacity: 0.35;
+}
+
+.composer-tool-button.active {
+  background: color-mix(in srgb, var(--primary) 10%, var(--surface)) !important;
+  color: var(--primary) !important;
+}
+
+.pending-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 8px 14px 0;
+}
+
+.pending-skill-chip {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  gap: 4px;
+  padding: 0 7px;
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--primary) 7%, var(--surface));
+  color: var(--foreground);
+  cursor: pointer;
+  font-size: 9.5px;
+}
+
+.composer-skill-picker {
+  position: relative;
+}
+
+.composer-skill-count {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  min-width: 13px;
+  height: 13px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 8px;
+  line-height: 13px;
+}
+
+.composer-skill-menu {
+  position: absolute;
+  z-index: 80;
+  bottom: 36px;
+  left: -42px;
+  display: grid;
+  width: min(380px, calc(100vw - 24px));
+  max-height: min(430px, 60vh);
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  box-shadow: 0 16px 48px color-mix(in srgb, black 18%, transparent);
+}
+
+.composer-skill-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted-foreground);
+}
+
+.composer-skill-search input {
+  width: 100%;
+  min-height: 28px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 11px;
+}
+
+.composer-skill-results {
+  overflow: auto;
+  padding: 6px;
+}
+
+.composer-skill-group h4 {
+  margin: 7px 7px 4px;
+  color: var(--muted-foreground);
+  font-size: 8.5px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.composer-skill-group > button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+  text-align: left;
+}
+
+.composer-skill-group > button:hover:not(:disabled),
+.composer-skill-group > button.selected {
+  background: var(--surface-hover);
+}
+
+.composer-skill-group > button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.composer-skill-group > button span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.composer-skill-group strong,
+.composer-skill-group small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer-skill-group strong {
+  font-size: 10.5px;
+}
+
+.composer-skill-group small,
+.composer-skill-empty {
+  color: var(--muted-foreground);
+  font-size: 9px;
+}
+
+.composer-skill-empty {
+  display: block;
+  padding: 16px;
+  text-align: center;
 }
 
 .send-button {
@@ -4825,6 +4971,34 @@
   grid-column: 1 / -1;
   gap: 7px;
 }
+.skill-filter-search {
+  display: flex;
+  min-width: 190px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--muted-foreground);
+}
+.skill-filter-search input {
+  width: 100%;
+  min-height: 30px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 10px;
+}
+.skill-toolbar select {
+  min-height: 32px;
+  padding: 0 28px 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--foreground);
+  font-size: 10px;
+}
 .skill-create-form {
   margin: 0;
   padding: 0;
@@ -4975,7 +5149,7 @@
 }
 .skill-risk.high {
   background: color-mix(in srgb, var(--danger) 10%, transparent);
-  color: var(--danger);
+  color: color-mix(in srgb, var(--danger) 88%, var(--foreground));
 }
 .skill-source {
   background: var(--surface-hover);

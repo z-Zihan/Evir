@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "performance-review-writing",
+  "name": "Performance Review Writing",
+  "version": "1.0.0-evir.1",
+  "description": "Structure evidence-based performance reviews, self-reviews, and feedback without inventing achievements or ratings.",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": [],
+  "optionalCapabilities": ["filesystem.read"],
+  "optionalMcpServers": [],
+  "riskLevel": "low",
+  "category": "office-documents",
+  "platforms": ["desktop"],
+  "localizations": {
+    "zh-CN": {
+      "name": "绩效材料写作",
+      "description": "基于证据组织绩效评价、自评与反馈，不虚构成果或评级。"
+    }
+  },
+  "triggers": [
+    "performance review",
+    "self review",
+    "peer feedback",
+    "promotion evidence",
+    "绩效评价",
+    "绩效自评",
+    "同事反馈",
+    "晋升材料"
+  ],
+  "attribution": {
+    "author": "GitHub Awesome Copilot contributors",
+    "repository": "https://github.com/github/awesome-copilot",
+    "license": "MIT",
+    "upstreamPath": "skills/performance-review-writer/SKILL.md",
+    "upstreamRevision": "0a6e37e4e242c944380228fa29dbd14e64ac1b63",
+    "adapted": true
+  }
+}

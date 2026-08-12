@@ -18,8 +18,9 @@ UI 采用局部 Buffer，每 16-50ms 或每帧批量提交，不为每个 Token 
 - Desktop 冷启动 P50 小于 2 秒，P95 小于 4 秒。
 - Desktop 空闲内存目标不高于 150MB，回归警戒线 200MB。
 - Desktop 空闲 CPU 长时间平均低于 1%，不允许无意义轮询。
-- 不含可选 Sidecar 的 Desktop 安装产物目标不高于 35MB；超过需提供分析。
-- Web 初始 JavaScript gzip 目标不高于 350KB；重型功能拆分为异步 Chunk。
+- Web 初始 JavaScript gzip 目标不高于 350KB；重型功能拆分为异步 Chunk，Web 只打包 10 个共享 Skill 正文。
+- Desktop 前端资源（minified，含按需 Chunk 和法务资产）目标不高于 3MiB；它与 Web 首屏预算独立，不套用 350KB 门槛。
+- 不含可选 Sidecar 的 Desktop 安装产物目标不高于 120MiB，超过 120MiB 必须分析；180MiB 是阻断性回归警戒线，不是可消耗配额。
 - 本地 1 万条消息/记录的常用搜索目标小于 150ms。
 - VS Code 扩展激活不阻塞 Workbench；打开视图到可输入 P95 目标 < 500ms（已缓存 Extension Host），流式事件批量提交且不重绘全部历史消息。
 - CLI `--help` / `--version` 热启动目标 < 200ms、冷启动目标 < 500ms；Ask 首 Token 额外 Presenter 开销 < 20ms。
@@ -38,7 +39,7 @@ UI 采用局部 Buffer，每 16-50ms 或每帧批量提交，不为每个 Token 
 
 ## 4. 性能门禁
 
-每个 Release 记录：Web bundle、Desktop 包体积、冷启动、空闲内存/CPU、流式渲染延迟、长列表 FPS、1MB/10MB 工具输出测试。新增依赖导致显著回归时必须说明收益或回退。
+每个 Release 分别记录：Web 初始/全部 JavaScript、Web 10 个 Skill Chunk、Desktop 前端总资源与 36 个 Skill Chunk、各架构 Desktop 安装包、冷启动、空闲内存/CPU、流式渲染延迟、长列表 FPS、1MB/10MB 工具输出测试。安装包不存在时必须标为未测量；早于当前源码的旧产物标为 stale，不能伪造当前通过。新增依赖导致显著回归时必须说明收益或回退。
 
 同时记录 VS Code 激活/视图打开/侧栏长会话、VSIX 大小，以及 CLI `help/version/ask` 启动、RSS、1MB 输出、tarball 大小。Extension Host 和 CLI 不允许空闲轮询或预加载 MCP/Skill。
 
@@ -58,3 +59,10 @@ UI 采用局部 Buffer，每 16-50ms 或每帧批量提交，不为每个 Token 
 - Vite Web build 1.57 s；298 个单测 benchmark 3.63 s。
 - 主 JavaScript chunk 约 897 KB minified，仍触发 Vite 大 chunk 告警。该项记录为性能债，未提高告警阈值；后续应按设置和 Markdown 能力做安全拆分。
 - Desktop 冷启动分位、空闲 CPU/内存、长列表 FPS、1MB/10MB 输出和签名包体积尚未完成正式测量，不得视为通过。
+
+## 7. Web / Desktop 独立构建门禁（2026-08-12）
+
+- `pnpm build:web` 输出到 `dist/web`，只包含 10 个共享 Skill 正文 Chunk。
+- `pnpm build:desktop:frontend` 输出到 `dist/desktop`，包含 10 个共享 + 26 个 Desktop-only Skill 正文 Chunk。
+- `pnpm benchmark` 同时读取两份产物；Web 检查 350KiB 初始 JS gzip，Desktop 检查 3MiB 前端资源，并在存在安装包时报告 120/180MiB 状态。
+- 增大 Desktop 包体预算不允许引入完整 Chromium、启动时加载全部 Skill、空闲 Sidecar 或轮询；冷启动、内存和 CPU 门禁保持不变。

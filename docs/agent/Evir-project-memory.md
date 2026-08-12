@@ -110,15 +110,20 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 ## 15. Performance Budgets
 
-| 指标               | 预算                      |
-| ------------------ | ------------------------- |
-| Web JS gzip        | ≤ 350 KB                  |
-| 流式首 Token 显示  | ≤ 100ms                   |
-| Desktop 冷启动 P50 | < 2s                      |
-| 空闲内存           | ≤ 150 MB                  |
-| 空闲 CPU           | < 1%                      |
-| 安装产物           | ≤ 35 MB                   |
-| 当前实际 Web gzip  | 280.06 KB（2026-08-07）✅ |
+| 指标                   | 预算                       |
+| ---------------------- | -------------------------- |
+| Web 初始 JS gzip       | ≤ 350 KiB                  |
+| Web 内置 Skill         | 10 个共享项，正文按需加载  |
+| Desktop 前端资源       | ≤ 3 MiB                    |
+| Desktop 内置 Skill     | 共享 10 + 桌面专属 26      |
+| 流式首 Token 显示      | ≤ 100ms                    |
+| Desktop 冷启动 P50     | < 2s                       |
+| 空闲内存               | ≤ 150 MB                   |
+| 空闲 CPU               | < 1%                       |
+| Desktop 安装产物目标   | ≤ 120 MiB                  |
+| 安装产物回归警戒线     | 180 MiB                    |
+| 当前实际 Web 初始 gzip | 267.56 KiB（2026-08-12）✅ |
+| 当前 Desktop 前端资源  | 1.06 MiB（2026-08-12）✅   |
 
 ## 16. Engineering Standards
 
@@ -185,7 +190,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 **阶段 4 新增：**
 
 - Skill 创建/删除/导入（skill-store: importSkill/createSkill/deleteSkill）
-- Skill 路由器（关键词匹配 + 模式表 + 匹配原因，6 tests）
+- Skill 路由器（中英文精选触发词 + 相关性排序 + 每轮最多 3 个 + 匹配原因）
 - SkillSettings UI 升级（创建表单 + 删除按钮 + 源标记）
 - 路由接入 stream-response（<skill_routing> XML 注入）
 - About 面板（版本号、描述、GitHub 链接、许可证）
@@ -216,7 +221,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 阶段 1（Provider 与纯净聊天 MVP）🔧 92% — 确定性自动化完成，真实多 Provider 网络验收未重复
 阶段 2（Desktop Agent 与本地工具）🔧 78% — 12 工具+快照+循环检测+验证+UI，原生真实任务未验收
 阶段 3（上下文压缩与记忆）✅ 完成 — LLM 摘要+记忆系统+Checkpoint+Handoff+隐私会话+崩溃恢复
-阶段 4（Skill 系统）🔧 核心完成 — 路由+创建/删除/导入+5 内置 Skill
+阶段 4（Skill 系统）🔧 核心完成 — 路由+创建/删除/导入；Web 10 个共享社区精选 Skill，Desktop 额外 26 个扩展 Skill；支持分类搜索与下一条消息显式选择，正文按需懒加载
 阶段 S（稳定性与体验整改）✅ 仓库内确定性范围完成；真实原生/外部发布门槛未全部通过
 
 ## 19. Verified User Capabilities
@@ -229,7 +234,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 1. MCP Server 仅配置管理，无实际连接
 2. Desktop Agent 原生真实端到端验收待完成（工作区修改、验证、Diff、回滚和系统权限）
-3. macOS 签名身份缺失，`.app` 在 codesign 阶段失败；Windows 未验证
+3. macOS 签名身份缺失，`.app` 在 codesign 阶段失败；Windows 未验证；现有 arm64/x64 DMG 早于本轮源码，只能作为 stale 包体参考
 4. Web 主 chunk 仍较大，虽在 gzip 总预算内但需后续拆分
 5. 真实付费 Provider、跨 Provider 网络和超时条件未在本轮自动化执行
 6. Desktop 冷启动分位、空闲 CPU/内存和大输出性能未正式测量
@@ -240,7 +245,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 ## 21. Active Decisions
 
-- 当前优先级是完成阶段 S 真实验收，不新增 Provider、Skill、MCP 或 Computer Use 产品能力
+- 完成 2026-08-12 社区 Skill 精选库后，当前优先级回到阶段 S 真实验收；不继续无边界扩张 Provider、Skill、MCP 或 Computer Use
 - Web 使用 IndexedDB；真实 Tauri Desktop 的结构化实体走 SQLite Adapter
 - Web 只提供聊天/附件；Desktop 默认 Agent、可切换 Ask，Plan 不作为一级入口
 - Tool Registry 与 Tauri 命令双层强制工作区边界；清除工作区立即撤销本地工具范围
@@ -273,6 +278,10 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - [docs/reviews/vscode-cli-product-ui-review.md](../reviews/vscode-cli-product-ui-review.md)
 
 ## 24. Update Log
+
+- 2026-08-12 | working tree | Web/Desktop 性能与 Skill 构建边界拆分：Web 保留 10 个共享 Skill 和 350KiB 初始 JS gzip 门禁；Desktop 提供 26 个桌面扩展 Skill、3MiB 前端资源预算和 120/180MiB 安装包目标/警戒；产物分别输出到 `dist/web`、`dist/desktop`
+- 2026-08-12 | working tree | Desktop 精选库扩展为 36 个 Skill；新增分类/搜索、用户自定义分类、输入框按消息显式选择、Ask 能力过滤、上下文预算与 Trigger 冲突测试；全部默认关闭，不设固定自动激活数量上限
+- 2026-08-12 | working tree | 内置 Skill 重构为 10 个社区精选 Evir 适配版；移除 3 个依赖缺失旁文件、外部状态目录或多 Agent 集群的旧项；新增作者/仓库/许可证/上游 Commit 元数据、第三方声明、中英文触发和正文懒加载
 
 - 2026-08-11 | working tree | Release workflow 增加 macOS arm64/x64 双 target 与架构化 Artifact，文档补充 M 芯片/Intel 下载选择和双架构发布门禁；真实 Tag、签名、公证和实体机安装仍待外部验收
 - 2026-08-11 | working tree | 补齐 VS Code/CLI 的核心 PRD、技术架构、设计、工程、开发、发布和专项规格；基于真实 VS Code Light/Dark 截图及 CLI 输出完成产品/UI 评审，明确运行证据、能力验证、CLI 错误/语言/机器输出等发布前缺口

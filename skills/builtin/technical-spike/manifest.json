@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "technical-spike",
+  "name": "Technical Spike",
+  "version": "1.0.0-evir.1",
+  "description": "Plan and execute a bounded local technical investigation that reduces a specific engineering uncertainty with reproducible evidence.",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": ["filesystem.read"],
+  "optionalCapabilities": ["filesystem.write", "terminal.run", "git"],
+  "optionalMcpServers": [],
+  "riskLevel": "medium",
+  "category": "research",
+  "platforms": ["desktop"],
+  "localizations": {
+    "zh-CN": {
+      "name": "技术调研实验",
+      "description": "规划并执行有边界的本地技术调查，用可复现证据降低明确的工程不确定性。"
+    }
+  },
+  "triggers": [
+    "technical spike",
+    "engineering investigation",
+    "prototype an uncertainty",
+    "feasibility experiment",
+    "技术调研实验",
+    "工程调查",
+    "验证技术不确定性",
+    "可行性实验"
+  ],
+  "attribution": {
+    "author": "GitHub Awesome Copilot contributors",
+    "repository": "https://github.com/github/awesome-copilot",
+    "license": "MIT",
+    "upstreamPath": "skills/create-technical-spike/SKILL.md",
+    "upstreamRevision": "0a6e37e4e242c944380228fa29dbd14e64ac1b63",
+    "adapted": true
+  }
+}

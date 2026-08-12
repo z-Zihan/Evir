@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "code-tour",
+  "name": "Code Tour",
+  "version": "1.0.0-evir.1",
+  "description": "Create an evidence-backed walkthrough of a local code path, feature, or architecture for a new contributor.",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": ["filesystem.read"],
+  "optionalCapabilities": ["git"],
+  "optionalMcpServers": [],
+  "riskLevel": "low",
+  "category": "developer-tools",
+  "platforms": ["desktop"],
+  "localizations": {
+    "zh-CN": {
+      "name": "代码导览",
+      "description": "为新贡献者创建基于证据的本地代码路径、功能或架构导览。"
+    }
+  },
+  "triggers": [
+    "code tour",
+    "walk through this feature",
+    "trace code path",
+    "explain this module",
+    "代码导览",
+    "讲解这个功能",
+    "追踪代码路径",
+    "解释这个模块"
+  ],
+  "attribution": {
+    "author": "GitHub Awesome Copilot contributors",
+    "repository": "https://github.com/github/awesome-copilot",
+    "license": "MIT",
+    "upstreamPath": "skills/code-tour/SKILL.md",
+    "upstreamRevision": "0a6e37e4e242c944380228fa29dbd14e64ac1b63",
+    "adapted": true
+  }
+}

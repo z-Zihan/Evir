@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "id": "documentation-writing",
+  "name": "Documentation Writing",
+  "version": "1.0.0-evir.1",
+  "description": "Use when creating or restructuring tutorials, how-to guides, reference documentation, or conceptual explanations.",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": [],
+  "optionalCapabilities": ["filesystem.read", "filesystem.write"],
+  "optionalMcpServers": [],
+  "riskLevel": "low",
+  "category": "office-documents",
+  "platforms": ["web", "desktop"],
+  "localizations": {
+    "zh-CN": {
+      "name": "文档写作",
+      "description": "适用于创建或重构教程、操作指南、参考文档和概念解释。"
+    }
+  },
+  "triggers": [
+    "documentation",
+    "tutorial",
+    "how-to",
+    "reference guide",
+    "explanation",
+    "文档",
+    "教程",
+    "操作指南",
+    "参考手册",
+    "原理说明"
+  ],
+  "attribution": {
+    "author": "GitHub Awesome Copilot contributors",
+    "repository": "https://github.com/github/awesome-copilot",
+    "license": "MIT",
+    "upstreamPath": "skills/documentation-writer/SKILL.md",
+    "upstreamRevision": "0a6e37e4e242c944380228fa29dbd14e64ac1b63",
+    "adapted": true
+  }
+}

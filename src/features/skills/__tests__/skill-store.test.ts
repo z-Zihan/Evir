@@ -123,6 +123,34 @@ describe("skill-store", () => {
     expect(content).not.toContain("Code Review");
   });
 
+  it("loads only routed content when selected ids are provided", async () => {
+    await useSkillStore.getState().toggleSkill("bug-fix");
+    await useSkillStore.getState().toggleSkill("code-review");
+
+    const content = await useSkillStore.getState().getEnabledContent(new Set(["code-review"]));
+
+    expect(content).toContain("Code Review");
+    expect(content).not.toContain("Bug Fix");
+  });
+
+  it("loads explicitly selected content even when the Skill is globally disabled", async () => {
+    const content = await useSkillStore.getState().getSkillContent(new Set(["code-review"]));
+
+    expect(useSkillStore.getState().enabledSkillIds.size).toBe(0);
+    expect(content).toContain("Code Review");
+    expect(content).not.toContain("Bug Fix");
+  });
+
+  it("preserves a user-defined non-Latin category label", async () => {
+    const id = await useSkillStore
+      .getState()
+      .createSkill("Campaign Helper", "Campaign helper", "Instructions", "营销");
+    const created = useSkillStore.getState().skills.find((skill) => skill.manifest.id === id);
+
+    expect(created?.manifest.category).toMatch(/^custom-[a-z0-9]+$/);
+    expect(created?.manifest.categoryLocalizations).toEqual({ en: "营销", "zh-CN": "营销" });
+  });
+
   const customManifest = {
     schemaVersion: 1 as const,
     id: "my-custom-skill",

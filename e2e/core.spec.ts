@@ -27,6 +27,61 @@ test("first run and runtime capability boundaries", async ({ page }, testInfo) =
   expect(consoleErrors).toEqual([]);
 });
 
+test("shows the platform-specific built-in Skill catalog", async ({ page }, testInfo) => {
+  await configurePage(page);
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "Skills", exact: true }).click();
+
+  const expectedSkillCount = isDesktop(testInfo) ? 36 : 10;
+  await expect(page.locator(".skill-item")).toHaveCount(expectedSkillCount);
+  await expect(page.locator(".skill-toggle input:checked")).toHaveCount(0);
+  await expect(page.getByText("Desktop only", { exact: true })).toHaveCount(
+    isDesktop(testInfo) ? 26 : 0,
+  );
+
+  const settings = page.getByRole("dialog", { name: "Settings" });
+  await settings.getByRole("textbox", { name: "Search Skills" }).fill("Meeting Minutes");
+  await expect(page.locator(".skill-item")).toHaveCount(isDesktop(testInfo) ? 1 : 0);
+
+  if (isDesktop(testInfo)) {
+    await settings.getByRole("textbox", { name: "Search Skills" }).fill("");
+    await settings
+      .getByRole("combobox", { name: "Filter by category" })
+      .selectOption("finance-investing");
+    await expect(page.locator(".skill-item")).toHaveCount(1);
+    await expect(settings.getByText("Credit Risk Analysis", { exact: true })).toBeVisible();
+  }
+});
+
+test("selects a disabled Skill for one message and clears it after send", async ({ page }) => {
+  await configurePage(page);
+  await seedFixture(page);
+
+  await page.getByRole("button", { name: "Choose Skills for this message" }).click();
+  const picker = page.getByRole("dialog", { name: "Choose Skills for this message" });
+  await picker.getByRole("button", { name: /Requirements Discovery/ }).click();
+  await expect(page.getByRole("button", { name: "Remove Requirements Discovery" })).toBeVisible();
+
+  await page.locator("textarea").fill("Clarify this requirement");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page.getByText(/Deterministic fixture response/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remove Requirements Discovery" })).toHaveCount(0);
+});
+
+test("prevents Ask mode from selecting local-capability Skills", async ({ page }, testInfo) => {
+  test.skip(!isDesktop(testInfo), "Desktop-only Skill capability boundary");
+  await configurePage(page);
+  await seedFixture(page);
+
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  await page.getByRole("button", { name: "Choose Skills for this message" }).click();
+  const localSkill = page
+    .getByRole("dialog", { name: "Choose Skills for this message" })
+    .getByRole("button", { name: /File Organization/ });
+  await expect(localSkill).toBeDisabled();
+  await expect(localSkill).toHaveAttribute("title", "This Skill requires Agent mode");
+});
+
 test("streams a deterministic response through the production adapter", async ({ page }) => {
   await configurePage(page);
   await seedFixture(page);

@@ -102,7 +102,8 @@
     "tokenCount": "{{count}} tokens",
     "retry": "重试",
     "privateSession": "隐私会话",
-    "agentRequiresToolCalling": "当前模型未标记为支持 Tool Calling。请切换到提问模式，或在供应商设置中更新模型能力。"
+    "agentRequiresToolCalling": "当前模型未标记为支持 Tool Calling。请切换到提问模式，或在供应商设置中更新模型能力。",
+    "skillContextTooLarge": "所选 Skill 无法放入当前模型的剩余上下文。请减少 Skill、缩短会话，或选择上下文窗口更大的模型。"
   },
   "runtime": {
     "agentReady": "本地 Agent Runtime",
@@ -449,6 +450,9 @@
     "riskLevel": "风险等级",
     "noSkills": "暂无安装的 Skill",
     "builtin": "内置",
+    "community": "社区精选",
+    "adapted": "Evir 适配版",
+    "desktopOnly": "仅桌面端",
     "low": "低",
     "medium": "中",
     "high": "高",
@@ -476,7 +480,35 @@
     "localOnly": "Skill 内容仅保存在本地。",
     "installedSkills": "已安装的 Skill",
     "installedDescription": "只在相关任务中按需加载，不会随应用启动全部读取",
-    "capabilityCount": "{{count}} 项能力"
+    "capabilityCount": "{{count}} 项能力",
+    "search": "搜索 Skill",
+    "filterCategory": "按分类筛选",
+    "allCategories": "全部分类",
+    "filteredCount": "显示 {{visible}} / {{total}} 个 Skill",
+    "noSearchResults": "没有符合当前筛选条件的 Skill。",
+    "category": "分类",
+    "categoryPlaceholder": "选择或输入分类",
+    "chooseForMessage": "为本次消息选择 Skill",
+    "selectedForMessage": "下一条消息将使用的 Skill",
+    "removeSelected": "移除 {{name}}",
+    "requiresAgentMode": "此 Skill 需要 Agent 模式"
+  },
+  "skillCategories": {
+    "programming": "编程",
+    "office-documents": "办公文档",
+    "data": "数据",
+    "git-devops": "Git / DevOps",
+    "security": "安全",
+    "research": "研究",
+    "information-gathering": "信息收集",
+    "system-tools": "系统工具",
+    "office-productivity": "办公效率",
+    "developer-tools": "开发工具",
+    "content-creation": "内容创作",
+    "design": "设计",
+    "legal": "法律",
+    "finance-investing": "金融投资",
+    "other": "其他"
   },
   "mcp": {
     "title": "MCP 服务器",

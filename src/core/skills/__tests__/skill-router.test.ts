@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { routeSkill } from "../skill-router";
+import { findSkillTriggerConflicts, routeSkill } from "../skill-router";
 import type { InstalledSkill } from "../types";
 
 function makeSkill(id: string, name: string, desc: string): InstalledSkill {
@@ -20,6 +20,12 @@ function makeSkill(id: string, name: string, desc: string): InstalledSkill {
     rootPath: "",
     builtIn: true,
   };
+}
+
+function makeTriggeredSkill(id: string, triggers: string[]): InstalledSkill {
+  const skill = makeSkill(id, id, `Instructions for ${id}`);
+  skill.manifest.triggers = triggers;
+  return skill;
 }
 
 const skills = [
@@ -62,5 +68,49 @@ describe("routeSkill", () => {
     const reasons = result.matchReasons.get("bug-fix");
     expect(reasons).toBeDefined();
     expect(reasons!.length).toBeGreaterThan(0);
+  });
+
+  it("uses curated bilingual triggers without relying on description filler words", () => {
+    const triggered = makeTriggeredSkill("systematic-debugging", [
+      "root cause",
+      "根因",
+      "test failure",
+    ]);
+    const result = routeSkill(
+      "先定位这个测试失败的根因",
+      [triggered],
+      new Set([triggered.manifest.id]),
+    );
+
+    expect(result.matchedSkills.map((skill) => skill.manifest.id)).toEqual([
+      "systematic-debugging",
+    ]);
+  });
+
+  it("does not impose a fixed match-count limit", () => {
+    const candidates = [
+      makeTriggeredSkill("one", ["review"]),
+      makeTriggeredSkill("two", ["review"]),
+      makeTriggeredSkill("three", ["review"]),
+      makeTriggeredSkill("four", ["review"]),
+    ];
+    const result = routeSkill(
+      "review this change",
+      candidates,
+      new Set(candidates.map((skill) => skill.manifest.id)),
+    );
+
+    expect(result.matchedSkills).toHaveLength(4);
+  });
+
+  it("reports exact trigger conflicts across skills", () => {
+    const candidates = [
+      makeTriggeredSkill("one", ["shared trigger"]),
+      makeTriggeredSkill("two", ["Shared   Trigger"]),
+    ];
+
+    expect(findSkillTriggerConflicts(candidates)).toEqual([
+      { trigger: "shared trigger", skillIds: ["one", "two"] },
+    ]);
   });
 });

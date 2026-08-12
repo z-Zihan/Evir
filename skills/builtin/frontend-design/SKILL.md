@@ -5,6 +5,9 @@ description: Create distinctive, production-grade frontend interfaces with high 
 
 # Frontend Design
 
+> Adapted for Evir from Anthropic's `frontend-design` Skill. Evir's project instructions,
+> accessibility requirements, dependency policy, and runtime permissions always take priority.
+
 Create distinctive, production-grade frontend interfaces that avoid generic "AI slop" aesthetics. Implement real working code with exceptional attention to aesthetic details and creative choices.
 
 ## Design Thinking

@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "context-mapping",
+  "name": "Context Mapping",
+  "version": "1.0.0-evir.1",
+  "description": "Organize local stakeholders, systems, constraints, terms, dependencies, and unknowns into a shared context map.",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": ["filesystem.read"],
+  "optionalCapabilities": ["filesystem.write"],
+  "optionalMcpServers": [],
+  "riskLevel": "low",
+  "category": "information-gathering",
+  "platforms": ["desktop"],
+  "localizations": {
+    "zh-CN": {
+      "name": "上下文地图",
+      "description": "把本地利益相关方、系统、约束、术语、依赖和未知项整理为共享上下文地图。"
+    }
+  },
+  "triggers": [
+    "build context map",
+    "map stakeholders and systems",
+    "project context inventory",
+    "shared terminology map",
+    "建立上下文地图",
+    "梳理相关方和系统",
+    "项目上下文清单",
+    "统一术语地图"
+  ],
+  "attribution": {
+    "author": "GitHub Awesome Copilot contributors",
+    "repository": "https://github.com/github/awesome-copilot",
+    "license": "MIT",
+    "upstreamPath": "skills/context-map/SKILL.md",
+    "upstreamRevision": "0a6e37e4e242c944380228fa29dbd14e64ac1b63",
+    "adapted": true
+  }
+}

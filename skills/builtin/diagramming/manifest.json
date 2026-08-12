@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "diagramming",
+  "name": "Diagramming",
+  "version": "1.0.0-evir.1",
+  "description": "Design clear local architecture, process, sequence, and relationship diagrams from verified entities and connections.",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": [],
+  "optionalCapabilities": ["filesystem.read", "filesystem.write"],
+  "optionalMcpServers": [],
+  "riskLevel": "low",
+  "category": "design",
+  "platforms": ["desktop"],
+  "localizations": {
+    "zh-CN": {
+      "name": "图表与流程图",
+      "description": "依据已验证的实体和关系设计清晰的本地架构图、流程图、时序图和关系图。"
+    }
+  },
+  "triggers": [
+    "create a diagram",
+    "architecture diagram",
+    "process flow diagram",
+    "sequence diagram",
+    "创建图表",
+    "架构图",
+    "流程图",
+    "时序图"
+  ],
+  "attribution": {
+    "author": "GitHub Awesome Copilot contributors",
+    "repository": "https://github.com/github/awesome-copilot",
+    "license": "MIT",
+    "upstreamPath": "skills/draw-io-diagram-generator/SKILL.md",
+    "upstreamRevision": "0a6e37e4e242c944380228fa29dbd14e64ac1b63",
+    "adapted": true
+  }
+}

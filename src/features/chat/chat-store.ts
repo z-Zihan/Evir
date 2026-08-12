@@ -26,6 +26,7 @@ import {
 } from "./conversation-ops";
 import { getStructuredStorage } from "../../runtime/structured-storage";
 import type { AgentRunRecord } from "./agent-run-record";
+import { useSkillStore } from "../skills/skill-store";
 export interface ChatState {
   conversations: ConversationRecord[];
   currentConversationId: string | null;
@@ -39,6 +40,7 @@ export interface ChatState {
   privateSession: boolean;
   privateConversationId: string | null;
   latestAgentRun: AgentRunRecord | null;
+  selectedSkillIds: Set<string>;
   loadConversations: () => Promise<void>;
   createConversation: (providerId: string, modelId: string) => Promise<string>;
   createOrReuseConversation: (providerId: string, modelId: string) => Promise<string>;
@@ -59,6 +61,8 @@ export interface ChatState {
   approveTool: () => Promise<void>;
   denyTool: () => Promise<void>;
   branchConversation: (messageId: string) => Promise<string>;
+  toggleSelectedSkill: (id: string) => void;
+  clearSelectedSkills: () => void;
 }
 export const useChatStore = create<ChatState>((set, get) => ({
   conversations: [],
@@ -73,6 +77,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   privateSession: false,
   privateConversationId: null,
   latestAgentRun: null,
+  selectedSkillIds: new Set<string>(),
   loadConversations: async () => doLoadConversations(set),
   createConversation: async (providerId, modelId) =>
     doCreateConversation(set, providerId, modelId, get().privateSession),
@@ -104,7 +109,30 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }));
   },
   clearAttachments: () => set({ pendingAttachments: [] }),
-  setMode: (mode) => set({ mode }),
+  toggleSelectedSkill: (id) =>
+    set((state) => {
+      const next = new Set(state.selectedSkillIds);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return { selectedSkillIds: next };
+    }),
+  clearSelectedSkills: () => set({ selectedSkillIds: new Set<string>() }),
+  setMode: (mode) =>
+    set((state) => {
+      if (mode !== "ask") return { mode };
+      const compatibleIds = new Set(
+        useSkillStore
+          .getState()
+          .skills.filter((skill) => skill.manifest.capabilities.length === 0)
+          .map((skill) => skill.manifest.id),
+      );
+      return {
+        mode,
+        selectedSkillIds: new Set(
+          [...state.selectedSkillIds].filter((skillId) => compatibleIds.has(skillId)),
+        ),
+      };
+    }),
   togglePrivateSession: () =>
     set((state) => {
       if (state.isStreaming) return {};
@@ -116,6 +144,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           messages: [],
           streamingContent: "",
           pendingAttachments: [],
+          selectedSkillIds: new Set<string>(),
           pendingToolApproval: null,
           error: null,
           latestAgentRun: null,
@@ -131,6 +160,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         messages: [],
         streamingContent: "",
         pendingAttachments: [],
+        selectedSkillIds: new Set<string>(),
         pendingToolApproval: null,
         error: null,
         latestAgentRun: null,

@@ -5,6 +5,59 @@ export interface SkillRouteResult {
   matchReasons: Map<string, string[]>;
 }
 
+const DESCRIPTION_STOP_WORDS = new Set([
+  "and",
+  "for",
+  "from",
+  "into",
+  "the",
+  "this",
+  "use",
+  "using",
+  "when",
+  "with",
+]);
+
+interface ScoredSkill {
+  skill: InstalledSkill;
+  reasons: string[];
+  score: number;
+}
+
+export interface SkillTriggerConflict {
+  trigger: string;
+  skillIds: string[];
+}
+
+function normalizeTrigger(trigger: string): string {
+  return trigger.toLocaleLowerCase().trim().replace(/\s+/g, " ");
+}
+
+export function findSkillTriggerConflicts(
+  skills: readonly InstalledSkill[],
+): SkillTriggerConflict[] {
+  const owners = new Map<string, Set<string>>();
+  for (const skill of skills) {
+    for (const trigger of skill.manifest.triggers ?? []) {
+      const normalized = normalizeTrigger(trigger);
+      const ids = owners.get(normalized) ?? new Set<string>();
+      ids.add(skill.manifest.id);
+      owners.set(normalized, ids);
+    }
+  }
+  return [...owners.entries()]
+    .filter(([, ids]) => ids.size > 1)
+    .map(([trigger, ids]) => ({ trigger, skillIds: [...ids].sort() }))
+    .sort((a, b) => a.trigger.localeCompare(b.trigger));
+}
+
+function descriptionKeywords(description: string): string[] {
+  return description
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}-]+/u)
+    .filter((word) => word.length >= 4 && !DESCRIPTION_STOP_WORDS.has(word));
+}
+
 /**
  * Simple keyword-based skill router.
  * Matches user input against skill descriptions and names.
@@ -15,12 +68,12 @@ export function routeSkill(
   enabledSkillIds: Set<string>,
 ): SkillRouteResult {
   const input = userInput.toLowerCase();
-  const matched: InstalledSkill[] = [];
-  const reasons = new Map<string, string[]>();
+  const scored: ScoredSkill[] = [];
 
   for (const skill of availableSkills) {
     if (!enabledSkillIds.has(skill.manifest.id)) continue;
     const skillReasons: string[] = [];
+    let score = 0;
     const name = skill.manifest.name.toLowerCase();
     const desc = skill.manifest.description.toLowerCase();
     const id = skill.manifest.id.toLowerCase();
@@ -28,13 +81,26 @@ export function routeSkill(
     // Match by skill id/name appearing in input
     if (input.includes(id) || input.includes(name)) {
       skillReasons.push(`input mentions "${skill.manifest.name}"`);
+      score += 100;
     }
 
-    // Match by keywords in description
-    const keywords = desc.split(/[\s,，。]+/).filter((w) => w.length > 2);
-    for (const kw of keywords) {
-      if (input.includes(kw)) {
-        skillReasons.push(`input matches keyword "${kw}"`);
+    for (const trigger of skill.manifest.triggers ?? []) {
+      const normalizedTrigger = trigger.toLowerCase().trim();
+      if (input.includes(normalizedTrigger)) {
+        skillReasons.push(`input matches curated trigger "${trigger}"`);
+        score += 20 + Math.min(normalizedTrigger.length, 20);
+      }
+    }
+
+    // Imported skills may not have curated triggers. Description matches are deliberately
+    // low-weight and exclude filler words so they cannot overwhelm explicit metadata.
+    if ((skill.manifest.triggers?.length ?? 0) === 0) {
+      const keywords = descriptionKeywords(desc);
+      for (const kw of keywords) {
+        if (input.includes(kw)) {
+          skillReasons.push(`input matches keyword "${kw}"`);
+          score += 1;
+        }
       }
     }
 
@@ -51,14 +117,21 @@ export function routeSkill(
     for (const p of skillPatterns) {
       if (input.includes(p)) {
         skillReasons.push(`input matches pattern "${p}"`);
+        score += 10;
       }
     }
 
     if (skillReasons.length > 0) {
-      matched.push(skill);
-      reasons.set(skill.manifest.id, skillReasons);
+      scored.push({ skill, reasons: [...new Set(skillReasons)], score });
     }
   }
 
-  return { matchedSkills: matched, matchReasons: reasons };
+  scored.sort(
+    (a, b) => b.score - a.score || a.skill.manifest.id.localeCompare(b.skill.manifest.id),
+  );
+  const selected = scored;
+  return {
+    matchedSkills: selected.map(({ skill }) => skill),
+    matchReasons: new Map(selected.map(({ skill, reasons }) => [skill.manifest.id, reasons])),
+  };
 }

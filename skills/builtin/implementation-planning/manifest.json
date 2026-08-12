@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "implementation-planning",
+  "name": "Implementation Planning",
+  "version": "1.0.0-evir.1",
+  "description": "Use when a defined change spans multiple files, layers, migrations, or independently verifiable delivery steps.",
+  "entry": "SKILL.md",
+  "source": "builtin",
+  "capabilities": [],
+  "optionalCapabilities": ["filesystem.read"],
+  "optionalMcpServers": [],
+  "riskLevel": "low",
+  "category": "programming",
+  "platforms": ["web", "desktop"],
+  "localizations": {
+    "zh-CN": {
+      "name": "实施计划",
+      "description": "适用于跨多个文件、架构层、迁移步骤或独立验收阶段的明确改动。"
+    }
+  },
+  "triggers": [
+    "implementation plan",
+    "delivery plan",
+    "break down task",
+    "plan the change",
+    "实施计划",
+    "开发计划",
+    "任务拆解",
+    "执行方案"
+  ],
+  "attribution": {
+    "author": "Jesse Vincent / Superpowers contributors",
+    "repository": "https://github.com/obra/superpowers",
+    "license": "MIT",
+    "upstreamPath": "skills/writing-plans/SKILL.md",
+    "upstreamRevision": "44c9b2d6e889982ac18c27d05a19fefe335194e1",
+    "adapted": true
+  }
+}

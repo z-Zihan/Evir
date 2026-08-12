@@ -18,16 +18,25 @@ jobs:
           cache: pnpm
       - run: pnpm install --no-frozen-lockfile
       - run: pnpm build:web
+      - run: pnpm build:desktop:frontend
       - run: node scripts/benchmark.mjs
-      - name: Check gzip size budget
+      - name: Check platform budgets
         run: |
-          GZIP_BYTES=$(node -e "console.log(require('./docs/benchmarks/latest.json').web.jsGzipSizeBytes)")
-          BUDGET_BYTES=$((350 * 1024))
-          echo "JS gzip size: $GZIP_BYTES bytes (budget: $BUDGET_BYTES bytes)"
-          if [ "$GZIP_BYTES" -gt "$BUDGET_BYTES" ]; then
-            echo "::error::JS gzip size ($GZIP_BYTES bytes) exceeds budget of 350KB ($BUDGET_BYTES bytes)"
-            exit 1
-          fi
+          node -e "
+          const report = require('./docs/benchmarks/latest.json');
+          const checks = [
+            ['Web initial JS gzip', report.web.budgetStatus],
+            ['Web Skill chunks', report.web.skillChunkStatus],
+            ['Desktop frontend resources', report.desktop.frontend.budgetStatus],
+            ['Desktop Skill chunks', report.desktop.frontend.skillChunkStatus],
+          ];
+          let failed = false;
+          for (const [name, status] of checks) {
+            console.log(name + ': ' + status);
+            if (status !== 'pass') failed = true;
+          }
+          if (failed) process.exit(1);
+          "
       - name: Download previous benchmark
         id: prev-benchmark
         uses: dawidd6/action-download-artifact@v6
@@ -54,9 +63,10 @@ jobs:
           const curr = JSON.parse(fs.readFileSync('docs/benchmarks/latest.json', 'utf8'));
 
           const metrics = [
-            ['web.jsGzipSizeBytes', prev.web?.jsGzipSizeBytes, curr.web?.jsGzipSizeBytes],
+            ['web.initialJsGzipSizeBytes', prev.web?.initialJsGzipSizeBytes ?? prev.web?.jsGzipSizeBytes, curr.web?.initialJsGzipSizeBytes],
             ['web.cssGzipSizeBytes', prev.web?.cssGzipSizeBytes, curr.web?.cssGzipSizeBytes],
-            ['dist.totalSizeBytes', prev.dist?.totalSizeBytes, curr.dist?.totalSizeBytes],
+            ['web.totalSizeBytes', prev.web?.totalSizeBytes ?? prev.dist?.totalSizeBytes, curr.web?.totalSizeBytes],
+            ['desktop.frontend.totalSizeBytes', prev.desktop?.frontend?.totalSizeBytes, curr.desktop?.frontend?.totalSizeBytes],
             ['tests.durationMs', prev.tests?.durationMs, curr.tests?.durationMs],
           ];
 
