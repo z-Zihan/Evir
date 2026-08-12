@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LockKeyhole, UnlockKeyhole } from "lucide-react";
-import type { ProviderRecord } from "../core/storage/db";
+import type { ProviderRecord, SettingRecord } from "../core/storage/db";
 import { useChatStore } from "../features/chat/chat-store";
 import { useConfirmationDialog } from "./useConfirmationDialog";
 import { getStructuredStorage } from "../runtime/structured-storage";
@@ -40,6 +40,9 @@ export function PrivacySettings() {
       const conversationMemories = (await storage.readAll<MemoryRecord>("memories")).filter(
         ({ type }) => type === "conversation",
       );
+      const conversationCheckpoints = (await storage.readAll<SettingRecord>("settings")).filter(
+        ({ name }) => name.startsWith("checkpoint:"),
+      );
       await storage.apply([
         { type: "clear", entity: "conversations" },
         { type: "clear", entity: "messages" },
@@ -48,6 +51,11 @@ export function PrivacySettings() {
           type: "delete" as const,
           entity: "memories" as const,
           id,
+        })),
+        ...conversationCheckpoints.map(({ name }) => ({
+          type: "delete" as const,
+          entity: "settings" as const,
+          id: name,
         })),
       ]);
       useChatStore.setState({ conversations: [], currentConversationId: null, messages: [] });

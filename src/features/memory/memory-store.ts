@@ -55,7 +55,10 @@ export const useMemoryStore = create<MemoryState>((set, get) => ({
   addMemory: async (input) => {
     try {
       const memory = await repository().create(input);
-      set(({ memories }) => ({ memories: [memory, ...memories], error: null }));
+      set(({ memories }) => ({
+        memories: [memory, ...memories.filter(({ id }) => id !== memory.id)],
+        error: null,
+      }));
       return memory.id;
     } catch (error) {
       set({ error: messageOf(error) });

@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mockClear = vi.fn(() => Promise.resolve());
+const mockDelete = vi.fn(() => Promise.resolve());
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -24,7 +25,15 @@ vi.mock("../../core/storage/db", () => ({
     usage_records: { clear: mockClear },
     mcpServers: { clear: mockClear },
     memories: { clear: mockClear, toArray: () => Promise.resolve([]) },
-    settings: { clear: mockClear },
+    settings: {
+      clear: mockClear,
+      delete: mockDelete,
+      toArray: () =>
+        Promise.resolve([
+          { name: "checkpoint:conversation-1", value: {} },
+          { name: "memory.enabled", value: false },
+        ]),
+    },
     transaction: (...args: unknown[]) => {
       const fn = args[args.length - 1];
       return typeof fn === "function" ? (fn as () => Promise<void>)() : Promise.resolve();
@@ -87,6 +96,8 @@ describe("PrivacySettings", () => {
     );
     await vi.waitFor(() => {
       expect(mockClear).toHaveBeenCalled();
+      expect(mockDelete).toHaveBeenCalledWith("checkpoint:conversation-1");
+      expect(mockDelete).not.toHaveBeenCalledWith("memory.enabled");
     });
   });
 });
