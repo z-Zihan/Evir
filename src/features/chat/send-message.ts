@@ -6,9 +6,23 @@ import { providerReadinessError } from "./chat-stream";
 import { streamResponse } from "./stream-response";
 import { getRuntime } from "../../runtime/use-runtime";
 import { getStructuredStorage } from "../../runtime/structured-storage";
+import { prepareTask } from "../orchestration/orchestration-session";
+import { ModelTaskIntakeAnalyzer } from "../orchestration/model-task-intake-analyzer";
+import { ModelPlanGenerator } from "../orchestration/model-plan-generator";
 
 type ChatStoreSet = StoreApi<ChatState>["setState"];
 type ChatStoreGet = StoreApi<ChatState>["getState"];
+
+export async function executePreparedStream(
+  set: ChatStoreSet,
+  get: ChatStoreGet,
+  history: MessageRecord[],
+  conversationId: string,
+  selectedSkillIds?: ReadonlySet<string>,
+): Promise<void> {
+  const runtime = getRuntime();
+  await streamResponse(set, get, history, conversationId, runtime, selectedSkillIds);
+}
 
 export async function sendChatMessage(
   set: ChatStoreSet,
@@ -92,12 +106,32 @@ export async function sendChatMessage(
     selectedSkillIds: new Set<string>(),
     latestAgentRun: null,
   });
-  await streamResponse(
-    set,
-    get,
-    [...history, userMessage],
-    conversationId,
-    getRuntime(),
-    selectedSkillIds,
-  );
+  const nextHistory = [...history, userMessage];
+  let preparation: Awaited<ReturnType<typeof prepareTask>> = "not-applicable";
+  if (get().mode === "agent") {
+    try {
+      preparation = await prepareTask({
+        objective: text,
+        conversationId,
+        runtime: getRuntime(),
+        privateSession: get().privateSession,
+        analyzer: new ModelTaskIntakeAnalyzer(provider),
+        planner: new ModelPlanGenerator(provider),
+      });
+    } catch {
+      set({ error: "orchestration.preparationFailed" });
+      return;
+    }
+  }
+  if (
+    preparation === "cancelled" ||
+    preparation === "clarification" ||
+    preparation === "confirmation"
+  )
+    return;
+  if (preparation === "ready") {
+    await executePreparedStream(set, get, nextHistory, conversationId, selectedSkillIds);
+    return;
+  }
+  await streamResponse(set, get, nextHistory, conversationId, getRuntime(), selectedSkillIds);
 }

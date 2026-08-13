@@ -11,11 +11,16 @@ import { useProviderStore } from "../provider/provider-store";
 import { formatAttachmentForProvider } from "./attachment-utils";
 import { runAgentLoop, type AgentLoopResult } from "./agent-loop";
 import type { ChatState } from "./chat-store";
-import { providerReadinessError, streamAssistant, type StreamResult } from "./chat-stream";
+import {
+  createActiveTaskController,
+  providerReadinessError,
+  streamAssistant,
+  type StreamResult,
+} from "./chat-stream";
 import { useSkillStore } from "../skills/skill-store";
 import { routeSkill } from "../../core/skills/skill-router";
 import type { EvirRuntime } from "../../runtime/types";
-import type { PendingToolApproval } from "./tool-approval";
+import { toApprovalRecord, type PendingToolApproval } from "./tool-approval";
 import { toMessage, sorted } from "./chat-helpers";
 import { createContextBudgetManager } from "../../core/context/context-budget-manager";
 import { compactToolOutputs } from "../../core/context/compact-tool-outputs";
@@ -37,6 +42,8 @@ import {
   buildPersonalizationPrompt,
   loadPersonalizationPreferences,
 } from "../settings/personalization-settings";
+import { runOrchestratedAgent } from "../orchestration/run-orchestrated-agent";
+import { useOrchestrationStore } from "../orchestration/orchestration-store";
 
 const budgetManagerInstance = createContextBudgetManager();
 const MAX_SUMMARIZATION_ROUNDS = 2;
@@ -114,16 +121,40 @@ async function getLoopResult(
   set: ChatStoreSet,
   mode: ChatState["mode"],
   runtime: EvirRuntime,
+  privateSession: boolean,
 ): Promise<AgentLoopResult> {
   const onDelta = (streamingContent: string) => set({ streamingContent });
-  if (mode === "agent") {
-    return runAgentLoop({
-      provider,
-      conversationId,
-      messages,
-      runtime,
-      onDelta,
-    });
+  if (mode === "agent" || mode === "plan") {
+    const task = createActiveTaskController();
+    try {
+      const orchestration = useOrchestrationStore.getState().current;
+      if (
+        mode === "agent" &&
+        orchestration?.conversationId === conversationId &&
+        orchestration.phase === "execution"
+      ) {
+        return await runOrchestratedAgent({
+          provider,
+          conversationId,
+          messages,
+          runtime,
+          privateSession,
+          onDelta,
+          signal: task.signal,
+        });
+      }
+      return await runAgentLoop({
+        provider,
+        conversationId,
+        messages,
+        runtime,
+        onDelta,
+        mode,
+        signal: task.signal,
+      });
+    } finally {
+      task.dispose();
+    }
   }
   const stream = await streamAssistant(provider, conversationId, messages, onDelta);
   return {
@@ -559,17 +590,62 @@ export async function streamResponse(
   });
   if (systemPrompt) messages.unshift({ role: "system", content: systemPrompt });
 
-  const result = await getLoopResult(provider, conversationId, messages, set, mode, runtime);
+  const result = await getLoopResult(
+    provider,
+    conversationId,
+    messages,
+    set,
+    mode,
+    runtime,
+    get().privateSession,
+  );
   if (result.turns.length === 0) {
     set({ isStreaming: false, streamingContent: "", error: "chat.streamEnded" });
     return;
   }
 
   const lastTurn = result.turns[result.turns.length - 1];
-  const blocked = lastTurn?.pendingApproval;
+  const approvalContexts =
+    result.approvalContexts ??
+    (lastTurn?.pendingApproval
+      ? [
+          {
+            runId: "",
+            nodeId: "",
+            mode: "agent" as const,
+            allowedToolIds: runtime.toolRegistry?.listForMode("agent").map(({ id }) => id) ?? [],
+            messages: result.messages,
+            turn: lastTurn,
+            agentRun: result.agentRun,
+          },
+        ]
+      : []);
+  const pendingApprovals = approvalContexts.flatMap((context) => {
+    const blocked = context.turn.pendingApproval;
+    if (!blocked) return [];
+    return [
+      {
+        approvalId: crypto.randomUUID(),
+        toolCallId: blocked.toolCallId,
+        toolName: blocked.toolName,
+        args: blocked.args,
+        conversationId,
+        messages: context.messages,
+        providerId: provider.id,
+        turn: context.turn,
+        agentRun: context.agentRun,
+        mode: context.mode,
+        allowedToolIds: context.allowedToolIds,
+        ...(context.runId && context.nodeId
+          ? { orchestration: { runId: context.runId, nodeId: context.nodeId } }
+          : {}),
+      } satisfies PendingToolApproval,
+    ];
+  });
 
-  if (blocked && mode === "agent") {
-    const earlierTurns = result.turns.slice(0, -1);
+  if (pendingApprovals.length > 0 && mode === "agent") {
+    const blockedTurns = new Set(approvalContexts.map(({ turn }) => turn));
+    const earlierTurns = result.turns.filter((turn) => !blockedTurns.has(turn));
     const earlierMessages = earlierTurns.map((turn) => toMessage(turn, conversationId));
     if (earlierMessages.length > 0) {
       const conversation = get().conversations.find(({ id }) => id === conversationId);
@@ -577,17 +653,15 @@ export async function streamResponse(
       if (!get().privateSession) await persistResponse(earlierMessages, conversationId, title);
     }
 
-    const blockedMessage = toMessage(lastTurn, conversationId);
-    const pendingApproval: PendingToolApproval = {
-      toolCallId: blocked.toolCallId,
-      toolName: blocked.toolName,
-      args: blocked.args,
-      conversationId,
-      messages: result.messages,
-      providerId: provider.id,
-      turn: lastTurn,
-      agentRun: result.agentRun,
-    };
+    const blockedMessages = approvalContexts.map(({ turn }) => toMessage(turn, conversationId));
+    const [pendingApproval, ...remainingApprovals] = pendingApprovals;
+    if (!pendingApproval) return;
+    if (!get().privateSession) {
+      await getStructuredStorage().writeMany(
+        "approvals",
+        pendingApprovals.map((pending) => toApprovalRecord(pending)),
+      );
+    }
     const agentRunRecord = await buildAgentRunRecord(result, conversationId, runtime);
     if (!get().privateSession) await persistAgentRun(agentRunRecord);
 
@@ -598,11 +672,11 @@ export async function streamResponse(
         ),
       ),
       ...(currentConversationId === conversationId
-        ? { messages: [...currentMessages, ...earlierMessages, blockedMessage] }
+        ? { messages: [...currentMessages, ...earlierMessages, ...blockedMessages] }
         : {}),
       isStreaming: false,
       streamingContent: "",
-      pendingToolApproval: pendingApproval,
+      pendingToolApproval: { ...pendingApproval, remainingApprovals },
       latestAgentRun: agentRunRecord,
     }));
     return;

@@ -15,7 +15,7 @@ function runtime(mode: "ask" | "plan" | "agent"): EvirRuntime {
 
 function tool(
   riskLevel: RiskLevel,
-  execute = vi.fn(() => Promise.resolve({ success: true, output: "ok" })),
+  execute: ToolDefinition["execute"] = () => Promise.resolve({ success: true, output: "ok" }),
 ): ToolDefinition {
   return {
     id: "test_tool",
@@ -74,5 +74,41 @@ describe("ToolExecutor", () => {
     const result = await new ToolExecutor(registry).execute("test_tool", {}, runtime("ask"));
     expect(result).toMatchObject({ success: false, error: "tool_not_allowed" });
     expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("propagates cancellation to the tool and active command adapter", async () => {
+    const registry = createToolRegistry();
+    const cancelActiveCommands = vi.fn(() => Promise.resolve());
+    const execute = vi.fn(
+      (_args: Record<string, unknown>, _runtime: EvirRuntime, signal?: AbortSignal) =>
+        new Promise<{ success: true; output: string }>((resolve) => {
+          signal?.addEventListener(
+            "abort",
+            () => resolve({ success: true, output: "late result" }),
+            { once: true },
+          );
+        }),
+    );
+    registry.register(tool("L1", execute));
+    const controller = new AbortController();
+    const current: EvirRuntime = {
+      ...runtime("agent"),
+      storage: {
+        cancelActiveCommands,
+      } as unknown as NonNullable<EvirRuntime["storage"]>,
+    };
+
+    const pending = new ToolExecutor(registry).execute(
+      "test_tool",
+      {},
+      current,
+      false,
+      controller.signal,
+    );
+    controller.abort();
+
+    await expect(pending).resolves.toMatchObject({ success: false, error: "tool_cancelled" });
+    expect(execute).toHaveBeenCalledWith({}, current, controller.signal);
+    expect(cancelActiveCommands).toHaveBeenCalledOnce();
   });
 });

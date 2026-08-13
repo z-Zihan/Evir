@@ -5,7 +5,19 @@ import type { ProviderRecord, UsageRecord } from "../../core/storage/db";
 import i18n from "../../i18n/config";
 import { useUsageStore } from "../usage/usage-store";
 
-let activeController: AbortController | undefined;
+const activeControllers = new Set<AbortController>();
+
+export function createActiveTaskController(): {
+  signal: AbortSignal;
+  dispose(): void;
+} {
+  const controller = new AbortController();
+  activeControllers.add(controller);
+  return {
+    signal: controller.signal,
+    dispose: () => activeControllers.delete(controller),
+  };
+}
 
 function formatProviderError(errorType: ProviderErrorType, providerMessage: string): string {
   const display = getErrorDisplay(errorType, (key) => i18n.t(key));
@@ -27,7 +39,7 @@ export function providerReadinessError(provider: ProviderRecord): string | undef
 }
 
 export function stopActiveStream(): void {
-  activeController?.abort();
+  for (const controller of activeControllers) controller.abort();
 }
 
 function batchDeltas(onDelta: (content: string) => void) {
@@ -64,14 +76,8 @@ export async function streamAssistant(
   messages: { role: string; content: unknown }[],
   onDelta: (delta: string) => void,
   tools?: unknown[],
+  externalSignal?: AbortSignal,
 ): Promise<StreamResult> {
-  if (activeController) {
-    return {
-      content: "",
-      status: "error",
-      errorMessage: "chat.alreadyStreaming",
-    } satisfies StreamResult;
-  }
   const configuredAdapter = createConfiguredAdapter(provider.protocolId, {
     providerId: provider.id,
     baseUrl: provider.baseUrl,
@@ -86,7 +92,10 @@ export async function streamAssistant(
   }
 
   const controller = new AbortController();
-  activeController = controller;
+  const abortFromExternal = () => controller.abort();
+  if (externalSignal?.aborted) controller.abort();
+  else externalSignal?.addEventListener("abort", abortFromExternal, { once: true });
+  activeControllers.add(controller);
   let content = "";
   let status: StreamResult["status"] = "complete";
   let errorMessage: string | undefined;
@@ -163,7 +172,8 @@ export async function streamAssistant(
           )
         : undefined;
   } finally {
-    if (activeController === controller) activeController = undefined;
+    activeControllers.delete(controller);
+    externalSignal?.removeEventListener("abort", abortFromExternal);
     batched.flush(content);
   }
 

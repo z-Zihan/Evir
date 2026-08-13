@@ -20,7 +20,11 @@ export interface ToolDefinition {
   riskLevel: RiskLevel;
   requiredCapability?: Capability;
   schema: Record<string, unknown>;
-  execute(args: Record<string, unknown>, runtime: EvirRuntime): Promise<ToolResult>;
+  execute(
+    args: Record<string, unknown>,
+    runtime: EvirRuntime,
+    signal?: AbortSignal,
+  ): Promise<ToolResult>;
 }
 
 export interface ToolRegistry {

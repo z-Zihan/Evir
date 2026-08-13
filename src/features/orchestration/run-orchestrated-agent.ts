@@ -1,0 +1,507 @@
+import { AgentDispatcher, restrictTools } from "../../core/orchestration/agent-dispatcher";
+import { createRunEvent, OrchestrationRepository } from "../../core/orchestration/repository";
+import { GraphScheduler, type NodeExecutionResult } from "../../core/orchestration/scheduler";
+import type {
+  AgentAssignment,
+  PlanGraph,
+  PlanNode,
+  RunEventV1,
+  WorkerReport,
+} from "../../core/orchestration/types";
+import { ToolRegistryImpl } from "../../core/tools/tool-registry-impl";
+import { ToolExecutor } from "../../core/tools/tool-executor";
+import type { ProviderRecord } from "../../core/storage/db";
+import type { EvirRuntime } from "../../runtime/types";
+import {
+  runAgentLoop,
+  type AgentApprovalContext,
+  type AgentLoopResult,
+  type AgentMessage,
+} from "../chat/agent-loop";
+import { useOrchestrationStore } from "./orchestration-store";
+
+interface OrchestratedRunInput {
+  provider: ProviderRecord;
+  conversationId: string;
+  messages: AgentMessage[];
+  runtime: EvirRuntime;
+  privateSession: boolean;
+  onDelta(content: string): void;
+  signal?: AbortSignal;
+}
+
+const activeSchedulers = new Map<string, GraphScheduler>();
+
+export function pauseOrchestration(runId: string): boolean {
+  const scheduler = activeSchedulers.get(runId);
+  scheduler?.pause();
+  return Boolean(scheduler);
+}
+
+export function cancelOrchestration(runId: string): boolean {
+  const scheduler = activeSchedulers.get(runId);
+  scheduler?.cancel();
+  return Boolean(scheduler);
+}
+
+function scopedRuntime(runtime: EvirRuntime, allowedToolIds: readonly string[]) {
+  const registry = new ToolRegistryImpl();
+  const allowed = new Set(allowedToolIds);
+  for (const tool of runtime.toolRegistry?.list() ?? []) {
+    if (allowed.has(tool.id)) registry.register(tool);
+  }
+  return {
+    ...runtime,
+    toolRegistry: registry,
+    toolExecutor: new ToolExecutor(registry),
+    agentRun: { id: crypto.randomUUID(), snapshots: [], fileReferences: [] },
+  } satisfies EvirRuntime;
+}
+
+function toolsForNode(node: PlanNode, runtime: EvirRuntime): string[] {
+  const writes = node.resourceScopes.some(({ access }) => access === "write");
+  return (runtime.toolRegistry?.list() ?? [])
+    .filter(
+      (tool) =>
+        !tool.requiredCapability || node.requiredCapabilities.includes(tool.requiredCapability),
+    )
+    .filter((tool) => writes || tool.riskLevel === "L0" || tool.riskLevel === "L1")
+    .map(({ id }) => id);
+}
+
+function nodeMessages(
+  messages: AgentMessage[],
+  node: PlanNode,
+  completedSummaries: ReadonlyMap<string, string>,
+): AgentMessage[] {
+  const protectedMessages = messages.filter(({ role }) => role === "system");
+  const latestUser = [...messages].reverse().find(({ role }) => role === "user");
+  const dependencies = node.dependencies
+    .map((id) => completedSummaries.get(id))
+    .filter((value): value is string => Boolean(value));
+  return [
+    ...protectedMessages,
+    ...(latestUser ? [latestUser] : []),
+    {
+      role: "system",
+      content: [
+        `Execute only this plan node: ${node.title}.`,
+        `Objective: ${node.objective}`,
+        node.successCriteria.length ? `Success criteria: ${node.successCriteria.join("; ")}` : "",
+        dependencies.length ? `Dependency results:\n${dependencies.join("\n")}` : "",
+        "Do not create another agent. Return a concise result with observable evidence.",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    },
+  ];
+}
+
+function loopStatus(result: AgentLoopResult): NodeExecutionResult["status"] {
+  const last = result.turns.at(-1);
+  if (last?.pendingApproval) return "blocked";
+  if (last?.stream.status === "stopped") return "cancelled";
+  if (result.maxIterationsReached || last?.stream.status === "error") return "failed";
+  return "completed";
+}
+
+function loopSummary(result: AgentLoopResult): string {
+  return result.turns.at(-1)?.stream.content.trim() || "Node completed without a text summary";
+}
+
+function reportFromLoop(assignment: AgentAssignment, result: AgentLoopResult): WorkerReport {
+  const nodeStatus = loopStatus(result);
+  const evidence = result.turns.flatMap((turn) =>
+    (turn.toolResults ?? [])
+      .filter(({ success }) => success)
+      .map(({ toolName, output }) => `${toolName}: ${output.slice(0, 500)}`),
+  );
+  const errors = result.turns.flatMap((turn) =>
+    (turn.toolResults ?? [])
+      .filter(({ success }) => !success)
+      .map(({ toolName, error, output }) => `${toolName}: ${error ?? output}`),
+  );
+  return {
+    assignmentId: assignment.id,
+    status:
+      nodeStatus === "completed"
+        ? "completed"
+        : nodeStatus === "cancelled"
+          ? "cancelled"
+          : evidence.length > 0
+            ? "partial"
+            : "failed",
+    summary: loopSummary(result),
+    artifacts: result.agentRun.fileReferences.map(({ path }) => path),
+    verificationEvidence: evidence,
+    unresolvedErrors: errors,
+  };
+}
+
+function eventForResult(result: NodeExecutionResult): RunEventV1["type"] {
+  if (result.status === "completed") return "node.completed";
+  if (result.status === "blocked") return "node.blocked";
+  return "node.failed";
+}
+
+export async function runOrchestratedAgent(input: OrchestratedRunInput): Promise<AgentLoopResult> {
+  const initial = useOrchestrationStore.getState().current;
+  if (!initial?.plan || initial.conversationId !== input.conversationId) {
+    return runAgentLoop({ ...input, mode: "agent" });
+  }
+  const repository = new OrchestrationRepository(input.runtime.structuredStorage!);
+  const turns: AgentLoopResult["turns"] = [];
+  const approvalContexts: AgentApprovalContext[] = [];
+  const completedSummaries = new Map(
+    initial.events.flatMap(({ type, nodeId, summary }) =>
+      type === "node.completed" && nodeId ? [[nodeId, summary] as const] : [],
+    ),
+  );
+  const verificationEvidence = new Set(
+    initial.events.flatMap(({ type, nodeId }) =>
+      type === "verification.completed" && nodeId ? [nodeId] : [],
+    ),
+  );
+  const pendingPlanEvents: RunEventV1[] = [];
+  const managerRun = {
+    id: initial.runId,
+    snapshots: [],
+    fileReferences: [],
+  } as AgentLoopResult["agentRun"];
+
+  const appendEvent = async (event: RunEventV1): Promise<void> => {
+    if (!input.privateSession) await repository.appendEvent(event);
+    const current = useOrchestrationStore.getState().current;
+    if (current?.runId === initial.runId) {
+      useOrchestrationStore
+        .getState()
+        .setCurrent({ ...current, events: [...current.events, event] });
+    }
+  };
+
+  const queuePlanEvent = (event: RunEventV1): void => {
+    pendingPlanEvents.push(event);
+    const current = useOrchestrationStore.getState().current;
+    if (current?.runId === initial.runId) {
+      useOrchestrationStore
+        .getState()
+        .setCurrent({ ...current, events: [...current.events, event] });
+    }
+  };
+
+  const updateAssignment = async (assignment: AgentAssignment): Promise<void> => {
+    if (!input.privateSession) await repository.persistAssignment(assignment);
+    const current = useOrchestrationStore.getState().current;
+    if (!current || current.runId !== initial.runId) return;
+    const assignments = current.assignments.some(({ id }) => id === assignment.id)
+      ? current.assignments.map((item) => (item.id === assignment.id ? assignment : item))
+      : [...current.assignments, assignment];
+    useOrchestrationStore.getState().setCurrent({ ...current, assignments });
+  };
+
+  const executeLoop = async (node: PlanNode, signal: AbortSignal, worker: boolean) => {
+    const allowedTools = toolsForNode(node, input.runtime);
+    const runtime = scopedRuntime(input.runtime, allowedTools);
+    const mode = node.resourceScopes.some(({ access }) => access === "write") ? "agent" : "plan";
+    const result = await runAgentLoop({
+      provider: input.provider,
+      conversationId: input.conversationId,
+      messages: nodeMessages(input.messages, node, completedSummaries),
+      runtime,
+      onDelta: worker ? () => undefined : (content) => input.onDelta(content),
+      maxIterations: 12,
+      mode,
+      signal,
+    });
+    const pendingTurn = result.turns.find(({ pendingApproval }) => pendingApproval);
+    if (pendingTurn) {
+      approvalContexts.push({
+        runId: initial.runId,
+        nodeId: node.id,
+        mode,
+        allowedToolIds: allowedTools,
+        messages: result.messages,
+        turn: pendingTurn,
+        agentRun: result.agentRun,
+      });
+    }
+    managerRun.snapshots.push(...result.agentRun.snapshots);
+    managerRun.fileReferences.push(...result.agentRun.fileReferences);
+    return result;
+  };
+
+  const executor = async (node: PlanNode, signal: AbortSignal): Promise<NodeExecutionResult> => {
+    if (signal.aborted) return { status: "cancelled", summary: "Cancelled before execution" };
+    if (node.kind === "approval") {
+      const confirmed = useOrchestrationStore
+        .getState()
+        .current?.events.some(({ type }) => type === "plan.confirmed");
+      return confirmed
+        ? { status: "completed", summary: "Plan-level approval confirmed by the user" }
+        : { status: "blocked", summary: "Plan-level approval is awaiting user confirmation" };
+    }
+    if (node.kind === "join" && node.requiredCapabilities.length === 0) {
+      const summary = node.dependencies
+        .map((id) => completedSummaries.get(id))
+        .filter(Boolean)
+        .join("\n");
+      completedSummaries.set(node.id, summary);
+      return { status: "completed", summary: summary || "Dependencies joined" };
+    }
+    if (node.kind === "subgraph") {
+      const workflow = node.subgraphId
+        ? input.runtime.workflowRegistry?.get(node.subgraphId)
+        : undefined;
+      if (!workflow) return { status: "failed", summary: "Built-in workflow is unavailable" };
+      const childNodes = workflow.nodes.map((item, index) => {
+        const id = `${node.id}/${index + 1}`;
+        const dependencies = workflow.edges
+          .filter(({ toIndex }) => toIndex === index)
+          .map(({ fromIndex }) => `${node.id}/${fromIndex + 1}`);
+        return {
+          ...item,
+          id,
+          dependencies,
+          requiredCapabilities: item.requiredCapabilities.length
+            ? item.requiredCapabilities
+            : node.requiredCapabilities,
+          resourceScopes: item.resourceScopes.length ? item.resourceScopes : node.resourceScopes,
+          status: dependencies.length === 0 ? ("ready" as const) : ("pending" as const),
+        };
+      });
+      const childPlan: PlanGraph = {
+        ...initial.plan!,
+        id: `${initial.plan!.id}:${node.id}`,
+        nodes: childNodes,
+        edges: workflow.edges.map(({ fromIndex, toIndex, when }) => ({
+          from: `${node.id}/${fromIndex + 1}`,
+          to: `${node.id}/${toIndex + 1}`,
+          when,
+        })),
+        status: "ready",
+        requiresConfirmation: false,
+      };
+      const nested = await new GraphScheduler(executor, 2, {
+        onNodeReady: async (child) => {
+          await appendEvent(
+            createRunEvent("node.ready", initial.runId, input.conversationId, child.title, {
+              nodeId: child.id,
+            }),
+          );
+        },
+        onNodeStarted: async (child) => {
+          await appendEvent(
+            createRunEvent("node.started", initial.runId, input.conversationId, child.title, {
+              nodeId: child.id,
+            }),
+          );
+        },
+        onNodeFinished: async (child, result) => {
+          await appendEvent(
+            createRunEvent(
+              eventForResult(result),
+              initial.runId,
+              input.conversationId,
+              result.summary,
+              { nodeId: child.id },
+            ),
+          );
+        },
+      }).run(childPlan);
+      const summary = `Built-in workflow ${workflow.id}@${workflow.version} finished with ${nested.status}`;
+      completedSummaries.set(node.id, summary);
+      return {
+        status:
+          nested.status === "completed"
+            ? "completed"
+            : nested.status === "cancelled"
+              ? "cancelled"
+              : nested.status === "paused"
+                ? "blocked"
+                : "failed",
+        summary,
+      };
+    }
+    if (node.kind !== "subagent") {
+      const result = await executeLoop(node, signal, false);
+      turns.push(...result.turns);
+      const summary = loopSummary(result);
+      completedSummaries.set(node.id, summary);
+      if (
+        node.kind === "verification" &&
+        !result.turns.some((turn) => turn.toolResults?.some(({ success }) => success))
+      ) {
+        return {
+          status: "failed",
+          summary: "Verification produced no successful tool evidence",
+        };
+      }
+      if (node.kind === "verification") verificationEvidence.add(node.id);
+      return { status: loopStatus(result), summary };
+    }
+
+    const parentTools = input.runtime.toolRegistry?.list().map(({ id }) => id) ?? [];
+    const dispatcher = new AgentDispatcher({
+      execute: async (assignment, workerSignal) => {
+        const result = await executeLoop(node, workerSignal, true);
+        turns.push(...result.turns);
+        return reportFromLoop(assignment, result);
+      },
+    });
+    const assignment = dispatcher.createAssignment({
+      parentRunId: initial.runId,
+      nodeId: node.id,
+      objective: node.objective,
+      allowedTools: restrictTools(parentTools, toolsForNode(node, input.runtime)),
+      resourceScopes: node.resourceScopes,
+      contextReferences: node.dependencies,
+      expectedOutputSchema: { type: "object", required: ["summary", "verificationEvidence"] },
+      budget: { maxTurns: 12 },
+    });
+    await appendEvent(
+      createRunEvent("agent.spawned", initial.runId, input.conversationId, node.title, {
+        nodeId: node.id,
+        assignmentId: assignment.id,
+      }),
+    );
+    await updateAssignment({ ...assignment, status: "running", updatedAt: Date.now() });
+    const report = await dispatcher.dispatch(assignment, signal);
+    if (approvalContexts.some(({ nodeId }) => nodeId === node.id)) {
+      await updateAssignment({ ...assignment, status: "blocked", updatedAt: Date.now() });
+      return { status: "blocked", summary: "Worker is waiting for tool approval" };
+    }
+    const finalAssignment = { ...assignment, status: report.status, updatedAt: Date.now() };
+    await appendEvent(
+      createRunEvent(
+        report.status === "completed" ? "agent.completed" : "agent.failed",
+        initial.runId,
+        input.conversationId,
+        report.summary,
+        {
+          nodeId: node.id,
+          assignmentId: assignment.id,
+          data: {
+            artifacts: report.artifacts,
+            verificationEvidence: report.verificationEvidence,
+            unresolvedErrors: report.unresolvedErrors,
+          },
+        },
+      ),
+    );
+    await updateAssignment(finalAssignment);
+    completedSummaries.set(node.id, report.summary);
+    return {
+      status: report.status === "partial" ? "failed" : report.status,
+      summary: report.summary,
+    };
+  };
+
+  const scheduler = new GraphScheduler(executor, 2, {
+    onNodeReady: (node) => {
+      queuePlanEvent(
+        createRunEvent("node.ready", initial.runId, input.conversationId, node.title, {
+          nodeId: node.id,
+        }),
+      );
+    },
+    onNodeStarted: (node) => {
+      queuePlanEvent(
+        createRunEvent("node.started", initial.runId, input.conversationId, node.title, {
+          nodeId: node.id,
+        }),
+      );
+    },
+    onNodeFinished: (node, result) => {
+      queuePlanEvent(
+        createRunEvent(
+          eventForResult(result),
+          initial.runId,
+          input.conversationId,
+          result.summary,
+          { nodeId: node.id },
+        ),
+      );
+      if (node.kind === "verification" && result.status === "completed") {
+        verificationEvidence.add(node.id);
+        queuePlanEvent(
+          createRunEvent(
+            "verification.completed",
+            initial.runId,
+            input.conversationId,
+            result.summary,
+            { nodeId: node.id },
+          ),
+        );
+      }
+    },
+    onNodeSkipped: (node) => {
+      queuePlanEvent(
+        createRunEvent("node.skipped", initial.runId, input.conversationId, node.title, {
+          nodeId: node.id,
+        }),
+      );
+    },
+    onPlanChanged: async (plan) => {
+      const events = pendingPlanEvents.splice(0);
+      if (!input.privateSession) await repository.persistPlanWithEvents(plan, events);
+      const current = useOrchestrationStore.getState().current;
+      if (current?.runId === initial.runId)
+        useOrchestrationStore.getState().setCurrent({
+          ...current,
+          plan,
+          phase: plan.status === "paused" ? "paused" : "execution",
+        });
+    },
+  });
+  activeSchedulers.set(initial.runId, scheduler);
+  const abortScheduler = () => scheduler.cancel();
+  if (input.signal?.aborted) scheduler.cancel();
+  else input.signal?.addEventListener("abort", abortScheduler, { once: true });
+  let plan: PlanGraph;
+  try {
+    plan = await scheduler.run(initial.plan);
+  } finally {
+    input.signal?.removeEventListener("abort", abortScheduler);
+    activeSchedulers.delete(initial.runId);
+  }
+  if (
+    plan.status === "completed" &&
+    initial.brief.goalKind !== "answer" &&
+    verificationEvidence.size === 0
+  ) {
+    plan = { ...plan, status: "failed", updatedAt: Date.now() };
+  }
+  const terminalType =
+    plan.status === "completed"
+      ? "run.completed"
+      : plan.status === "partial"
+        ? "run.partial"
+        : plan.status === "cancelled"
+          ? "run.cancelled"
+          : plan.status === "paused"
+            ? "run.paused"
+            : "run.failed";
+  const terminalEvent = createRunEvent(
+    terminalType,
+    initial.runId,
+    input.conversationId,
+    `Run ${plan.status}`,
+  );
+  if (!input.privateSession) await repository.persistPlanWithEvents(plan, [terminalEvent]);
+  const current = useOrchestrationStore.getState().current;
+  if (current?.runId === initial.runId) {
+    useOrchestrationStore.getState().setCurrent({
+      ...current,
+      plan,
+      phase: plan.status === "paused" ? "paused" : "finished",
+      events: [...current.events, terminalEvent],
+    });
+  }
+  return {
+    turns,
+    maxIterationsReached: turns.some(({ stream }) => stream.errorMessage === "tools.maxIterations"),
+    messages: input.messages,
+    agentRun: managerRun,
+    ...(approvalContexts.length > 0 ? { approvalContexts } : {}),
+  };
+}

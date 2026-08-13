@@ -13,6 +13,12 @@ const SUPPORTED_ENTITIES = [
   "mcp_servers",
   "settings",
   "agent_runs",
+  "task_briefs",
+  "plans",
+  "run_steps",
+  "run_events",
+  "agent_assignments",
+  "approvals",
   "tool_executions",
   "artifacts",
   "memories",
@@ -99,13 +105,25 @@ export class IndexedDBAdapter implements StoragePort {
         ? this.database.mcpServers
         : entity === "agent_runs"
           ? this.database.agentRuns
-          : entity === "tool_executions"
-            ? this.database.toolExecutions
-            : entity === "artifacts"
-              ? this.database.artifacts
-              : entity === "memories"
-                ? this.database.memories
-                : this.database[entity];
+          : entity === "task_briefs"
+            ? this.database.taskBriefs
+            : entity === "plans"
+              ? this.database.plans
+              : entity === "run_steps"
+                ? this.database.runSteps
+                : entity === "run_events"
+                  ? this.database.runEvents
+                  : entity === "agent_assignments"
+                    ? this.database.agentAssignments
+                    : entity === "approvals"
+                      ? this.database.approvals
+                      : entity === "tool_executions"
+                        ? this.database.toolExecutions
+                        : entity === "artifacts"
+                          ? this.database.artifacts
+                          : entity === "memories"
+                            ? this.database.memories
+                            : this.database[entity];
     return table as unknown as Table<StoredRecord, string>;
   }
 }

@@ -1,5 +1,6 @@
 import type { ToolDefinition } from "../providers/tool-registry";
 import type { HarnessMiddleware } from "../harness/types";
+import type { WorkflowDefinition } from "../orchestration/types";
 
 export type ComponentTarget = "web" | "desktop";
 export type ComponentKind = "tool" | "harness-middleware" | "workflow" | "ui" | "infrastructure";
@@ -23,6 +24,7 @@ export interface ComponentActivationContext {
   hasDependency(dependency: string): boolean;
   registerTool(tool: ToolDefinition): ComponentDisposer;
   registerHarnessMiddleware(middleware: HarnessMiddleware): ComponentDisposer;
+  registerWorkflow(workflow: WorkflowDefinition): ComponentDisposer;
   onDispose(disposer: ComponentDisposer): ComponentDisposer;
 }
 

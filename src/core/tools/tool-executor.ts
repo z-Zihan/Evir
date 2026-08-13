@@ -57,6 +57,7 @@ export class ToolExecutor {
     args: Record<string, unknown>,
     runtime: EvirRuntime,
     approved = false,
+    signal?: AbortSignal,
   ): Promise<ToolResult> {
     const tool =
       this.registry.get(toolName) ?? this.registry.list().find((item) => item.name === toolName);
@@ -67,14 +68,22 @@ export class ToolExecutor {
     if (validationError) {
       return failure(messageFor(validationError, tool, mode), validationError);
     }
+    if (signal?.aborted) return failure("Tool execution cancelled", "tool_cancelled");
 
+    const cancelActiveCommands = () => {
+      void runtime.storage?.cancelActiveCommands();
+    };
+    signal?.addEventListener("abort", cancelActiveCommands, { once: true });
     try {
-      return await tool.execute(args, runtime);
+      const result = await tool.execute(args, runtime, signal);
+      return signal?.aborted ? failure("Tool execution cancelled", "tool_cancelled") : result;
     } catch (error) {
       return failure(
         error instanceof Error ? error.message : "Tool execution failed",
         "tool_error",
       );
+    } finally {
+      signal?.removeEventListener("abort", cancelActiveCommands);
     }
   }
 }

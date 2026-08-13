@@ -22,11 +22,28 @@ const provider: ProviderRecord = {
 };
 
 function setupRuntime(execute: ToolExecutor["execute"]): EvirRuntime {
+  const toolRegistry = createToolRegistry();
+  for (const [id, riskLevel] of [
+    ["read_file", "L1"],
+    ["apply_patch", "L2"],
+    ["run_command", "L3"],
+    ["delete_file", "L3"],
+  ] as const) {
+    toolRegistry.register({
+      id,
+      name: id,
+      description: id,
+      source: "evir-local",
+      riskLevel,
+      schema: { type: "object" },
+      execute: () => Promise.resolve({ success: true, output: "unused" }),
+    });
+  }
   return {
     target: "desktop",
     capabilities: new Set(["filesystem"]),
     has: (capability) => capability === "filesystem",
-    toolRegistry: createToolRegistry(),
+    toolRegistry,
     toolExecutor: { execute } as unknown as ToolExecutor,
   };
 }

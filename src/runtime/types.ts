@@ -5,6 +5,7 @@ import type { StoragePort } from "../core/storage/storage-port";
 import type { FileContextReference } from "../core/context/types";
 import type { ComponentRuntimePort } from "../core/components/types";
 import type { HarnessMiddlewareRegistryPort } from "../core/harness/types";
+import type { WorkflowRegistryPort } from "../core/orchestration/workflow-registry";
 
 export type RuntimeTarget = "web" | "desktop";
 
@@ -38,5 +39,6 @@ export interface EvirRuntime {
   toolExecutor?: ToolExecutor;
   componentRuntime?: ComponentRuntimePort;
   harnessMiddlewareRegistry?: HarnessMiddlewareRegistryPort;
+  workflowRegistry?: WorkflowRegistryPort;
   agentRun?: AgentRunContext;
 }

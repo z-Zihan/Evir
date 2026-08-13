@@ -1,5 +1,6 @@
 import type { ToolRegistry } from "../providers/tool-registry";
 import type { HarnessMiddlewareRegistryPort } from "../harness/types";
+import type { WorkflowRegistryPort } from "../orchestration/workflow-registry";
 import { EffectScope } from "./effect-scope";
 import type {
   ComponentActivationContext,
@@ -32,6 +33,7 @@ export interface ComponentRuntimeOptions {
   target: ComponentTarget;
   toolRegistry: ToolRegistry;
   harnessMiddlewareRegistry?: HarnessMiddlewareRegistryPort;
+  workflowRegistry?: WorkflowRegistryPort;
   hostDependencies?: readonly string[];
 }
 
@@ -123,12 +125,14 @@ export class ComponentRuntime implements ComponentRuntimePort {
   private readonly target: ComponentTarget;
   private readonly toolRegistry: ToolRegistry;
   private readonly harnessMiddlewareRegistry: HarnessMiddlewareRegistryPort | undefined;
+  private readonly workflowRegistry: WorkflowRegistryPort | undefined;
   private readonly hostDependencies: ReadonlySet<string>;
 
   constructor(options: ComponentRuntimeOptions) {
     this.target = options.target;
     this.toolRegistry = options.toolRegistry;
     this.harnessMiddlewareRegistry = options.harnessMiddlewareRegistry;
+    this.workflowRegistry = options.workflowRegistry;
     this.hostDependencies = new Set(options.hostDependencies ?? []);
   }
 
@@ -298,6 +302,12 @@ export class ComponentRuntime implements ComponentRuntimePort {
           throw new Error(`Harness middleware registry unavailable for component: ${id}`);
         }
         return scope.add(this.harnessMiddlewareRegistry.register(middleware, id));
+      },
+      registerWorkflow: (workflow) => {
+        if (!this.workflowRegistry) {
+          throw new Error(`Workflow registry unavailable for component: ${id}`);
+        }
+        return scope.add(this.workflowRegistry.register(workflow));
       },
       onDispose: (disposer) => scope.add(disposer),
     };

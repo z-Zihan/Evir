@@ -34,6 +34,7 @@ import type { ModelSwitchAssessment } from "../core/providers/model-switching";
 import { SkillPicker } from "./SkillPicker";
 import { useSkillStore } from "../features/skills/skill-store";
 import { useMemoryStore } from "../features/memory/memory-store";
+import { TaskWorkbench } from "./TaskWorkbench";
 
 const modelSwitchCoordinator = new ModelSwitchCoordinatorImpl();
 
@@ -358,6 +359,7 @@ export function ChatView({
               onRegenerate={regenerate}
               {...(!privateSession ? { onRemember: rememberMessage } : {})}
             />
+            {mode === "agent" && <TaskWorkbench />}
             {latestAgentRun?.conversationId === currentConversationId && (
               <AgentRunSummary record={latestAgentRun} onLayoutChange={scrollToBottom} />
             )}

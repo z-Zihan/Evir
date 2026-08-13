@@ -20,6 +20,8 @@ export interface AgentLoopOptions {
   runtime: EvirRuntime;
   onDelta: (content: string) => void;
   maxIterations?: number;
+  mode?: "plan" | "agent";
+  signal?: AbortSignal;
 }
 
 interface AgentToolCall {
@@ -40,6 +42,17 @@ export interface AgentLoopResult {
   turns: AgentLoopTurn[];
   maxIterationsReached: boolean;
   messages: AgentMessage[];
+  agentRun: AgentRunContext;
+  approvalContexts?: AgentApprovalContext[];
+}
+
+export interface AgentApprovalContext {
+  runId: string;
+  nodeId: string;
+  mode: "plan" | "agent";
+  allowedToolIds: string[];
+  messages: AgentMessage[];
+  turn: AgentLoopTurn;
   agentRun: AgentRunContext;
 }
 
@@ -69,6 +82,8 @@ function parseArguments(value: string): Record<string, unknown> | undefined {
 async function executeCalls(
   stream: StreamResult,
   runtime: EvirRuntime,
+  allowedToolIds: ReadonlySet<string>,
+  signal?: AbortSignal,
 ): Promise<{ calls: CallWithRaw[]; results: ToolResultRecord[] }> {
   const calls: CallWithRaw[] = [];
   const results: ToolResultRecord[] = [];
@@ -80,13 +95,19 @@ async function executeCalls(
       arguments: args ?? {},
     };
     calls.push({ record, rawArguments: rawCall.arguments });
-    const result = args
-      ? await runtime.toolExecutor?.execute(rawCall.toolName, args, runtime, false)
-      : {
+    const result = !allowedToolIds.has(rawCall.toolName)
+      ? {
           success: false,
-          output: "Tool arguments must be a JSON object",
-          error: "invalid_arguments",
-        };
+          output: "Tool is not available in this execution scope",
+          error: "tool_not_allowed",
+        }
+      : args
+        ? await runtime.toolExecutor?.execute(rawCall.toolName, args, runtime, false, signal)
+        : {
+            success: false,
+            output: "Tool arguments must be a JSON object",
+            error: "invalid_arguments",
+          };
     results.push({
       toolCallId: rawCall.id,
       toolName: rawCall.toolName,
@@ -143,7 +164,8 @@ function findBlockedCall(
 export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoopResult> {
   const turns: AgentLoopTurn[] = [];
   const messages = [...options.messages];
-  const definitions = options.runtime.toolRegistry?.listForMode("agent") ?? [];
+  const mode = options.mode ?? "agent";
+  const definitions = options.runtime.toolRegistry?.listForMode(mode) ?? [];
   const tools = providerTools(definitions);
   const allowedToolIds = new Set(definitions.map(({ id }) => id));
   const maximum = options.maxIterations ?? MAX_AGENT_ITERATIONS;
@@ -152,7 +174,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
     snapshots: [],
     fileReferences: [],
   };
-  const runtime = { ...options.runtime, mode: "agent" as const, agentRun };
+  const runtime = { ...options.runtime, mode, agentRun };
   const harness = runtime.harnessMiddlewareRegistry;
   if (harness) {
     await harness.dispatch({
@@ -172,7 +194,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
         conversationId: options.conversationId,
         runId: agentRun.id,
         phase: "run-end",
-        mode: "agent",
+        mode,
         allowedToolIds,
         blocked: false,
       });
@@ -194,6 +216,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
       messages,
       options.onDelta,
       tools,
+      options.signal,
     );
     if (stream.status !== "complete" || !stream.toolCalls?.length) {
       turns.push({ stream });
@@ -214,7 +237,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
         conversationId: options.conversationId,
         runId: agentRun.id,
         phase: "before-execute",
-        mode: "agent",
+        mode,
         toolName: rawCall.toolName,
         arguments: args,
         allowedToolIds,
@@ -242,7 +265,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
         );
       }
     }
-    const { calls, results } = await executeCalls(stream, runtime);
+    const { calls, results } = await executeCalls(stream, runtime, allowedToolIds, options.signal);
     for (const result of results) {
       if (!harness) continue;
       const loop = await harness.dispatch({
@@ -250,7 +273,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
         conversationId: options.conversationId,
         runId: agentRun.id,
         phase: "after-execute",
-        mode: "agent",
+        mode,
         result,
         allowedToolIds,
         blocked: false,

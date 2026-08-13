@@ -94,4 +94,23 @@ describe("IndexedDBAdapter", () => {
 
     expect(await storage.query("memories", { scope: "global" })).toEqual([memory]);
   });
+
+  it("stores and queries orchestration records by run", async () => {
+    const brief = { id: "brief-1", runId: "run-1", version: 1 };
+    const plan = { id: "plan-1", runId: "run-1", revision: 1 };
+    const event = { id: "event-1", runId: "run-1", timestamp: 1 };
+    const assignment = { id: "assignment-1", parentRunId: "run-1", status: "queued" };
+
+    await storage.write("task_briefs", brief.id, brief);
+    await storage.write("plans", plan.id, plan);
+    await storage.write("run_events", event.id, event);
+    await storage.write("agent_assignments", assignment.id, assignment);
+
+    expect(await storage.query("task_briefs", { runId: "run-1" })).toEqual([brief]);
+    expect(await storage.query("plans", { runId: "run-1" })).toEqual([plan]);
+    expect(await storage.query("run_events", { runId: "run-1" })).toEqual([event]);
+    expect(await storage.query("agent_assignments", { parentRunId: "run-1" })).toEqual([
+      assignment,
+    ]);
+  });
 });

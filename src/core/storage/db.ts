@@ -131,6 +131,12 @@ export class EvirDB extends Dexie {
   mcpServers!: Table<McpServerRecord, string>;
   settings!: Table<SettingRecord, string>;
   agentRuns!: Table<GenericEntityRecord, string>;
+  taskBriefs!: Table<GenericEntityRecord, string>;
+  plans!: Table<GenericEntityRecord, string>;
+  runSteps!: Table<GenericEntityRecord, string>;
+  runEvents!: Table<GenericEntityRecord, string>;
+  agentAssignments!: Table<GenericEntityRecord, string>;
+  approvals!: Table<GenericEntityRecord, string>;
   toolExecutions!: Table<GenericEntityRecord, string>;
   artifacts!: Table<GenericEntityRecord, string>;
   memories!: Table<GenericEntityRecord, string>;
@@ -193,6 +199,25 @@ export class EvirDB extends Dexie {
       mcpServers: "id",
       settings: "name",
       agentRuns: "id, conversationId, updatedAt",
+      toolExecutions: "id, runId, createdAt",
+      artifacts: "id, relatedEntityId, createdAt",
+      memories: "id, scope, type, updatedAt, enabled, pinned",
+    });
+    this.version(7).stores({
+      providers: "id",
+      conversations: "id, updatedAt",
+      messages: "id, conversationId, createdAt",
+      attachments: "id, messageId",
+      usage_records: "id, conversationId, createdAt",
+      mcpServers: "id",
+      settings: "name",
+      agentRuns: "id, conversationId, updatedAt",
+      taskBriefs: "id, runId, conversationId, version, updatedAt",
+      plans: "id, runId, conversationId, revision, updatedAt",
+      runSteps: "id, runId, planId, status",
+      runEvents: "id, runId, conversationId, timestamp, type",
+      agentAssignments: "id, parentRunId, nodeId, status",
+      approvals: "id, runId, nodeId, status",
       toolExecutions: "id, runId, createdAt",
       artifacts: "id, relatedEntityId, createdAt",
       memories: "id, scope, type, updatedAt, enabled, pinned",

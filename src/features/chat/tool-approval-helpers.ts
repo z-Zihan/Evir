@@ -100,12 +100,14 @@ export async function executeApproved(
   pending: PendingToolApproval,
   runtime: EvirRuntime,
   persist = true,
+  signal?: AbortSignal,
 ): Promise<{ messages: AgentMessage[]; msg: MessageRecord; resolvedTurn: AgentLoopTurn }> {
   const approvedResult = await runtime.toolExecutor?.execute(
     pending.toolName,
     pending.args,
     runtime,
     true,
+    signal,
   );
   const replacement: ToolResultRecord = {
     toolCallId: pending.toolCallId,

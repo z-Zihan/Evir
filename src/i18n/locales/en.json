@@ -1,6 +1,8 @@
 {
   "common": {
-    "loading": "Loading"
+    "loading": "Loading",
+    "save": "Save",
+    "cancel": "Cancel"
   },
   "sidebar": {
     "newChat": "New chat",
@@ -682,6 +684,72 @@
     "modelCount": "{{count}} models",
     "requests": "{{count}} messages",
     "noData": "Usage trends will appear here after you send messages."
+  },
+  "orchestration": {
+    "phase": {
+      "idle": "Ready",
+      "intake": "Understanding task",
+      "clarification": "Waiting for clarification",
+      "planning": "Planning task",
+      "confirmation": "Plan needs confirmation",
+      "execution": "Executing plan",
+      "paused": "Task paused",
+      "blocked": "More direction needed",
+      "finished": "Task finished"
+    },
+    "stop": "Stop task",
+    "pause": "Pause at checkpoint",
+    "resume": "Resume task",
+    "preparationFailed": "Task analysis or plan storage failed. Please try again.",
+    "clarificationTitle": "A few details are needed",
+    "clarificationDescription": "Evir only asks when the answer changes scope, permissions, data handling, cost, or verification.",
+    "assumptions": "Current assumptions",
+    "dataDestination": "Data destination",
+    "blockedTitle": "The task cannot continue safely",
+    "blockedDescription": "Edit the original goal in the composer with the missing scope or verification details, then send it again, or cancel this task.",
+    "answerPlaceholder": "Type an answer",
+    "continue": "Continue",
+    "planTitle": "Execution plan",
+    "planRevision": "Revision {{revision}}",
+    "editStep": "Edit pending step",
+    "confirmPlan": "Confirm and start",
+    "graphDetails": "Dependency details",
+    "agents": "Assigned agents",
+    "nodeStatus": {
+      "failed": "Failed",
+      "blocked": "Blocked",
+      "cancelled": "Cancelled"
+    },
+    "summary": {
+      "title": "Run summary",
+      "status": {
+        "completed": "Completed with verification",
+        "partial": "Partially completed",
+        "failed": "Failed",
+        "cancelled": "Cancelled",
+        "paused": "Paused",
+        "ready": "Ready",
+        "running": "Running",
+        "draft": "Draft",
+        "awaiting_confirmation": "Waiting for confirmation"
+      },
+      "completed": "Completed steps",
+      "unresolved": "Unresolved steps",
+      "skipped": "Skipped steps",
+      "evidence": "Verification evidence",
+      "evidenceNotRequired": "This answer-only task did not require local verification.",
+      "noEvidence": "No successful verification evidence was recorded.",
+      "unresolvedItems": "Unresolved items"
+    },
+    "agentStatus": {
+      "queued": "Queued",
+      "running": "Running",
+      "blocked": "Waiting for approval",
+      "completed": "Completed",
+      "partial": "Partial",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    }
   },
   "diagnostics": {
     "title": "Diagnostics",

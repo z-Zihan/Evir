@@ -205,6 +205,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 **部分实现：**
 
+- 智能任务编排已具备 Task Brief、自适应澄清、结构化 Planner、DAG/资源锁 Scheduler、事件持久化、六个内置子图、同模型受限子 Agent 和任务工作台；确定性自动化已接入，真实 Provider + 原生 Desktop 完整任务尚未验收，不能标为发布完成
 - ModelSwitchCoordinator、ContextBuilder、Logger、StoragePort 和 Harness 各层已有实现/测试；完整中间件注册与执行编排已接入，真实跨 Provider 和文件日志仍需继续验证或实现
 - Personalization 目前是简单偏好；Notification 和命令面板未实现
 - VS Code 已有配置、Ask、停止、Workspace Agent、审批、Diff/最后写入回滚与真实 Host/Light/Dark 证据；Agent step/tool/verification/completion Activity、High Contrast 和完整本地化未完成
@@ -282,6 +283,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 ## 24. Update Log
 
+- 2026-08-13 | working tree | 新增智能任务理解与多 Agent 编排：结构化 Brief/Plan、关键澄清、事件优先存储、DAG/资源锁、检查点暂停恢复、同模型受限 Worker、内置子图和聊天内任务工作台；真实 Provider/原生 Desktop 闭环仍待外部验收
 - 2026-08-12 | working tree | Harness Middleware 接入 Component Runtime：新增固定顺序 Registry；Input/Mode/Capability/Context/Skill/Memory/Loop/Checkpoint/Verification/Observability 均以可卸载组件运行；Tool Policy 为宿主 protected 项；执行路径、独立禁用和失败回滚有回归测试
 - 2026-08-12 | working tree | 新增可信内置 Component Runtime；Desktop filesystem/terminal/git 工具从静态循环迁移为可配置组件，支持依赖拓扑、幂等 LIFO 卸载、定向重载和失败回滚；第三方任意代码加载与组件管理 UI 不在第一阶段范围
 - 2026-08-12 | working tree | Web/Desktop 性能与 Skill 构建边界拆分：Web 保留 10 个共享 Skill 和 350KiB 初始 JS gzip 门禁；Desktop 提供 26 个桌面扩展 Skill、3MiB 前端资源预算和 120/180MiB 安装包目标/警戒；产物分别输出到 `dist/web`、`dist/desktop`

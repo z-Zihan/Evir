@@ -207,3 +207,10 @@ run-start → step → tool-pending → approval → tool-result
 Harness 的可拆卸性由 `ComponentRuntime` 提供生命周期基础：组件声明 `provides/requires`，每项注册通过 `EffectScope` 生成逆操作，配置或代码定义变化时只重载受影响组件及其传递依赖者。新图激活失败必须恢复旧图，不能留下部分注册的 Tool 或监听器。
 
 第一阶段已将 Desktop filesystem、terminal 和 git 工具从 `createRuntime` 的硬编码循环迁移为可信内置组件。第二阶段已把 Input Normalization、Mode Policy、Capability Gate、Context Budget、Skill Routing、Memory Retrieval、Loop Detection、Checkpoint、Verification 和 Observability 注册到同一 Component Runtime，并在请求、上下文、工具调用和完成判定的真实路径执行。Tool Policy 作为宿主 protected Middleware 常驻，Permission 和 Tauri 强制边界仍不可被普通组件替换。详细设计与验收见 `docs/21-composable-component-runtime.md`。
+
+## 13. Graph Scheduler 与 Worker Harness
+
+- Task Intake 和 Planner 只产生经过 Schema 验证的候选结构；PlanValidator 强制无环、注册能力、审批边界、节点/嵌套上限和安全 revision。
+- Graph Scheduler 是并发、条件边、资源锁、取消和暂停的唯一宿主决定者；Provider 并行 Tool Calling 不能绕过它。
+- Worker 复用当前 Provider/Model，但使用独立 AgentRunContext、最小消息包、工具子集、资源作用域和预算；首版禁止 Worker 再派发。
+- WorkerReport 只返回摘要、Artifact、验证证据和未解决错误。模型文本不能替代 Verification Middleware 的完成证据。

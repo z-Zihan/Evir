@@ -66,3 +66,10 @@ UI 采用局部 Buffer，每 16-50ms 或每帧批量提交，不为每个 Token 
 - `pnpm build:desktop:frontend` 输出到 `dist/desktop`，包含 10 个共享 + 26 个 Desktop-only Skill 正文 Chunk。
 - `pnpm benchmark` 同时读取两份产物；Web 检查 350KiB 初始 JS gzip，Desktop 检查 3MiB 前端资源，并在存在安装包时报告 120/180MiB 状态。
 - 增大 Desktop 包体预算不允许引入完整 Chromium、启动时加载全部 Skill、空闲 Sidecar 或轮询；冷启动、内存和 CPU 门禁保持不变。
+
+## 8. 编排性能门禁
+
+- Scheduler 默认并发 2、可配置 1-4；不得通过空闲轮询等待节点，状态由事件和 Promise 推进。
+- 记录 Brief 完成、首次节点启动、并行重叠、冲突串行、暂停恢复和验证耗时；原始 Worker/Tool 输出不得长期进入 React 全局状态。
+- 50 节点计划和 4 Worker 压力场景必须保持 UI 可交互；同资源写入并发数必须为 0，停止后继续执行节点数必须为 0。
+- 模型 Task Intake/Planner 是可见的额外 Provider 请求，应记录延迟和用量；简单 Ask 与 Web 路径不进入该流程。

@@ -214,7 +214,7 @@ describe("adapter registry", () => {
 });
 
 describe("streamAssistant", () => {
-  it("rejects a second stream while one is active", async () => {
+  it("supports parallel worker streams and cancels all active streams", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(
@@ -240,14 +240,9 @@ describe("streamAssistant", () => {
     };
 
     const first = streamAssistant(provider, "conversation-1", [], () => undefined);
-    const second = await streamAssistant(provider, "conversation-1", [], () => undefined);
-
-    expect(second).toEqual({
-      content: "",
-      status: "error",
-      errorMessage: "chat.alreadyStreaming",
-    });
+    const second = streamAssistant(provider, "conversation-1", [], () => undefined);
     stopActiveStream();
     await expect(first).resolves.toMatchObject({ status: "stopped" });
+    await expect(second).resolves.toMatchObject({ status: "stopped" });
   });
 });

@@ -82,9 +82,12 @@ test("prevents Ask mode from selecting local-capability Skills", async ({ page }
   await expect(localSkill).toHaveAttribute("title", "This Skill requires Agent mode");
 });
 
-test("streams a deterministic response through the production adapter", async ({ page }) => {
+test("streams a deterministic response through the production adapter", async ({
+  page,
+}, testInfo) => {
   await configurePage(page);
   await seedFixture(page);
+  if (isDesktop(testInfo)) await page.getByRole("button", { name: "Ask", exact: true }).click();
   const composer = page.locator("textarea");
   await composer.fill("Explain this fixture");
   await page.getByRole("button", { name: "Send", exact: true }).click();
@@ -94,9 +97,10 @@ test("streams a deterministic response through the production adapter", async ({
   await expect(composer).toBeEnabled();
 });
 
-test("stops an active stream and remains usable", async ({ page }) => {
+test("stops an active stream and remains usable", async ({ page }, testInfo) => {
   await configurePage(page);
   await seedFixture(page);
+  if (isDesktop(testInfo)) await page.getByRole("button", { name: "Ask", exact: true }).click();
   const composer = page.locator("textarea");
   await composer.fill("[slow] verify cancellation");
   await page.getByRole("button", { name: "Send", exact: true }).click();
@@ -106,6 +110,41 @@ test("stops an active stream and remains usable", async ({ page }) => {
   await stop.click();
   await expect(page.getByText("stopped", { exact: true })).toBeVisible();
   await expect(composer).toBeEnabled();
+});
+
+test("Desktop Agent renders the event-driven task workbench", async ({ page }, testInfo) => {
+  test.skip(!isDesktop(testInfo), "Task orchestration is a Desktop capability");
+  await configurePage(page);
+  await seedFixture(page);
+  const composer = page.locator("textarea");
+  await composer.fill("Explain this fixture");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+
+  await expect(page.getByText("Understanding task", { exact: true })).toBeVisible();
+  await expect(page.getByText("Task finished", { exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("Execution plan", { exact: true })).toBeVisible();
+  await expect(page.getByText("Answer", { exact: true })).toBeVisible();
+  await expect(page.getByText("Run summary", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("This answer-only task did not require local verification.", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText(/Deterministic fixture response/)).toBeVisible();
+
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 900, height: 500 },
+    { width: 1600, height: 1000 },
+  ]) {
+    await page.setViewportSize(viewport);
+    const workbench = page.locator(".task-workbench");
+    await expect(workbench).toBeVisible();
+    const bounds = await workbench.boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(bounds?.x ?? -1).toBeGreaterThanOrEqual(0);
+    expect((bounds?.x ?? 0) + (bounds?.width ?? viewport.width + 1)).toBeLessThanOrEqual(
+      viewport.width,
+    );
+  }
 });
 
 test("maps provider errors without crashing and offers retry", async ({ page }) => {

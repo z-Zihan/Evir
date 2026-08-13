@@ -14,6 +14,8 @@ import {
   registerBuiltinHarnessComponents,
 } from "./components/builtin-harness-components";
 import type { Capability, EvirRuntime, RuntimeTarget } from "./types";
+import { WorkflowRegistry } from "../core/orchestration/workflow-registry";
+import { builtinWorkflowComponent } from "./components/builtin-workflow-components";
 
 function buildRuntime(target: RuntimeTarget, capabilities: Capability[]): EvirRuntime {
   const capabilitySet = new Set(capabilities);
@@ -45,6 +47,7 @@ export function createRuntime(options: CreateRuntimeOptions = {}): EvirRuntime {
   const toolRegistry = createToolRegistry();
   const toolExecutor = new ToolExecutor(toolRegistry);
   const harnessMiddlewareRegistry = new HarnessMiddlewareRegistry();
+  const workflowRegistry = new WorkflowRegistry();
   harnessMiddlewareRegistry.registerProtected(
     createProtectedToolPolicyMiddleware(),
     "evir.host.tool-policy",
@@ -58,13 +61,16 @@ export function createRuntime(options: CreateRuntimeOptions = {}): EvirRuntime {
     target,
     toolRegistry,
     harnessMiddlewareRegistry,
+    workflowRegistry,
     hostDependencies: [
       ...capabilityDependencies(runtime.capabilities),
       "service:harness-middleware-registry",
+      "service:workflow-registry",
     ],
   });
   for (const component of BUILTIN_TOOL_COMPONENTS) componentRuntime.register(component);
   registerBuiltinHarnessComponents(componentRuntime);
+  componentRuntime.register(builtinWorkflowComponent);
   componentRuntime.reconcile(options.componentConfiguration);
 
   if (target === "desktop") {
@@ -77,6 +83,7 @@ export function createRuntime(options: CreateRuntimeOptions = {}): EvirRuntime {
       toolExecutor,
       componentRuntime,
       harnessMiddlewareRegistry,
+      workflowRegistry,
       mode: "agent" as const,
       getWorkspaceRoot,
       selectWorkspaceDirectory,
@@ -89,6 +96,7 @@ export function createRuntime(options: CreateRuntimeOptions = {}): EvirRuntime {
     toolExecutor,
     componentRuntime,
     harnessMiddlewareRegistry,
+    workflowRegistry,
     mode: "ask" as const,
   };
 }

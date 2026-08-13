@@ -175,3 +175,9 @@ Evir 的产品需求已经足够完整。接下来最重要的不是继续写规
 2026-08-07 的整改建立了 Playwright E2E、358 张 UI 截图矩阵、视觉基准与全设置页 axe 门禁，并补充 390×844/900×500 紧凑布局回归。338 个 TypeScript 测试、7 个 Rust 测试及浏览器质量套件通过；macOS debug 原生应用可启动。详细证据见 `docs/reviews/ui-full-qa-report.md`。
 
 产品仍未发布就绪：真实 Provider、原生多工具 Agent 任务、MCP Runtime、正式性能测量、签名安装包和 Windows 尚未验收；本轮 Mac 锁屏，不能把浏览器 Desktop Runtime 验收替代为原生窗口交互验收。
+
+## 9. 编排实现状态（2026-08-13）
+
+仓库已加入独立编排 Domain、结构化 Task Intake/Planner、机械 Plan 校验、事件优先存储、DAG Scheduler、资源冲突串行、同模型受限 Worker、六个可信内置子图和聊天内任务工作台。旧 Agent Loop 继续作为节点执行器和兼容路径，Tool Registry/Harness/审批边界没有下放给模型。
+
+该状态只代表仓库实现与确定性自动化范围。真实 Provider 的结构化输出差异、原生 Desktop 多 Worker、系统审批、崩溃恢复、Diff/回滚、性能和手工屏幕阅读器仍必须按产品计划单独验收；完成这些证据前不得把新 Scheduler 宣布为默认发布就绪。

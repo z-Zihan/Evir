@@ -57,3 +57,10 @@ Artifact 是任务产生或使用的较大内容，不应全部放进消息正�
 ## 7. 导入导出
 
 备份包建议使用 `.evir-backup`，包含 manifest、结构化数据、Skill、非敏感 MCP 配置和 Artifact 索引。API Key 默认不导出；用户明确选择时必须密码加密。
+
+## 8. 编排事件与恢复
+
+- 新增 `task_briefs`、`plans`、`run_steps`、`run_events`、`agent_assignments` 和 `approvals`；Web IndexedDB 使用版本化迁移，Desktop SQLite `app_entities` 使用实体白名单。
+- 每个状态变化先追加 `RunEventV1`，再事务更新 Plan/Step/Assignment 派生快照；恢复读取最新 revision、事件历史和最近安全检查点。
+- 旧 `agent_runs` 继续作为 legacy flat run 可读，不做破坏性迁移。
+- 隐私会话不持久化 Brief、Plan、事件或 Worker 内容。异常退出后，运行中的写入、命令、外发和不可逆节点恢复为等待用户决策，而不是自动重放。

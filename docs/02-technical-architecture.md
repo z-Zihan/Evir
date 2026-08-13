@@ -401,3 +401,19 @@ Diagnostic、Audit、Crash 分开存储。`DiagnosticExportService` 生成脱敏
 Web/Desktop Runtime 使用可信内置 `ComponentRuntime` 组装工具与 Harness Middleware，并为工作流和受限 UI 贡献预留统一生命周期。组件通过 Manifest 声明目标宿主、依赖与贡献；`EffectScope` 记录幂等逆操作；`reconcile` 在配置或定义变化时只卸载受影响的依赖子图，并在激活失败时恢复旧组件图。`HarnessMiddlewareRegistry` 按固定顺序执行请求、上下文、工具调用与完成阶段，并拒绝重复注册和重复 `next()`。
 
 Manifest 依赖只决定生命周期，不授予权限。Tool Policy 由宿主以 protected Middleware 注册；Tool Registry、Tool Executor、工作区校验、审批和 Tauri/Rust 权限仍是强制安全边界。当前只接受随 Evir 构建的 `builtin` 组件，不加载任意第三方 JavaScript。完整契约见 `docs/21-composable-component-runtime.md`。
+
+## 22. 任务编排 Domain
+
+`src/core/orchestration` 是不依赖 React、Provider SDK、Tauri 或数据库实现的独立 Domain，包含 Task Brief、PlanGraph、PlanValidator、GraphScheduler、AgentDispatcher、WorkflowRegistry、RunEventV1 和 Repository Port。
+
+```text
+TaskIntakeService → PlanGeneratorPort → PlanValidator
+                 → OrchestrationRepository → GraphScheduler
+                 → AgentDispatcher / built-in subgraph → Agent Loop
+                 → verification evidence → RunEventV1 Presenter
+```
+
+- Provider Adapter 只通过结构化 Tool Calling 提供 Brief/DAG 候选；宿主 Schema、Capability、审批边界、无环和资源锁校验拥有最终决定权。
+- Scheduler 控制 Provider 原生并行 Tool Calling 之上的实际并发，并把同一 AbortSignal 传播到 Worker、Provider 流、工具和子进程。
+- 旧 Agent Loop 保留为非编排路径和兼容执行器；编排节点复用同一 Tool Registry、Harness、审批和验证边界。
+- 六个内置子图由可信 Component Runtime 注册；组件依赖不授予工具或资源权限。

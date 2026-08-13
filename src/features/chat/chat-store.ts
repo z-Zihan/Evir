@@ -13,7 +13,12 @@ import { sendChatMessage } from "./send-message";
 import { streamResponse } from "./stream-response";
 import { getRuntime } from "../../runtime/use-runtime";
 import { branchConversation as doBranchConversation } from "./branch-conversation";
-import { approveTool, denyTool, type PendingToolApproval } from "./tool-approval";
+import {
+  approveTool,
+  cancelPendingToolApprovals,
+  denyTool,
+  type PendingToolApproval,
+} from "./tool-approval";
 import {
   loadConversations as doLoadConversations,
   createConversation as doCreateConversation,
@@ -220,8 +225,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     await streamResponse(set, get, updated, currentConversationId, getRuntime());
   },
   stopGeneration: () => {
+    const { pendingToolApproval, privateSession } = get();
     stopActiveStream();
     void getRuntime().storage?.cancelActiveCommands();
+    void cancelPendingToolApprovals(pendingToolApproval, privateSession);
+    set({ pendingToolApproval: null, isStreaming: false });
   },
   branchConversation: async (messageId) => {
     const { currentConversationId, messages, conversations, isStreaming, privateSession } = get();

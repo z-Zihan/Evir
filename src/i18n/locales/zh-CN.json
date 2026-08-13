@@ -1,6 +1,8 @@
 {
   "common": {
-    "loading": "加载中"
+    "loading": "加载中",
+    "save": "保存",
+    "cancel": "取消"
   },
   "sidebar": {
     "newChat": "新建对话",
@@ -679,6 +681,72 @@
     "modelCount": "{{count}} 个模型",
     "requests": "{{count}} 条消息",
     "noData": "发送消息后，这里会显示真实的用量趋势。"
+  },
+  "orchestration": {
+    "phase": {
+      "idle": "准备就绪",
+      "intake": "正在理解任务",
+      "clarification": "等待补充信息",
+      "planning": "正在制定计划",
+      "confirmation": "计划需要确认",
+      "execution": "正在执行计划",
+      "paused": "任务已暂停",
+      "blocked": "需要更多指引",
+      "finished": "任务已结束"
+    },
+    "stop": "停止任务",
+    "pause": "在检查点暂停",
+    "resume": "继续任务",
+    "preparationFailed": "任务理解或计划保存失败，请重试。",
+    "clarificationTitle": "还需要确认少量信息",
+    "clarificationDescription": "仅当答案会影响范围、权限、数据去向、成本或验收时才会提问。",
+    "assumptions": "当前假设",
+    "dataDestination": "数据去向",
+    "blockedTitle": "任务暂时无法安全继续",
+    "blockedDescription": "请在输入框中补充原目标缺少的范围或验收信息后重新发送，也可以取消当前任务。",
+    "answerPlaceholder": "输入回答",
+    "continue": "继续",
+    "planTitle": "执行计划",
+    "planRevision": "第 {{revision}} 版",
+    "editStep": "编辑待执行步骤",
+    "confirmPlan": "确认并开始",
+    "graphDetails": "依赖关系详情",
+    "agents": "已分派 Agent",
+    "nodeStatus": {
+      "failed": "失败",
+      "blocked": "受阻",
+      "cancelled": "已取消"
+    },
+    "summary": {
+      "title": "运行总结",
+      "status": {
+        "completed": "已完成并验证",
+        "partial": "部分完成",
+        "failed": "执行失败",
+        "cancelled": "已取消",
+        "paused": "已暂停",
+        "ready": "准备执行",
+        "running": "执行中",
+        "draft": "草稿",
+        "awaiting_confirmation": "等待确认"
+      },
+      "completed": "完成步骤",
+      "unresolved": "未解决步骤",
+      "skipped": "跳过步骤",
+      "evidence": "验证证据",
+      "evidenceNotRequired": "该纯回答任务不需要本地验证。",
+      "noEvidence": "未记录成功的验证证据。",
+      "unresolvedItems": "未解决事项"
+    },
+    "agentStatus": {
+      "queued": "等待中",
+      "running": "执行中",
+      "blocked": "等待审批",
+      "completed": "已完成",
+      "partial": "部分完成",
+      "failed": "失败",
+      "cancelled": "已取消"
+    }
   },
   "diagnostics": {
     "title": "诊断",

@@ -182,3 +182,11 @@ Coding Agent 必须：
 - 工作区先解析为真实绝对路径；所有工具参数再次校验 realpath/symlink 边界。写入和命令在非 TTY 中默认拒绝。
 - 子进程使用参数数组和 `shell: false`，限制输出、超时与并发；取消时终止进程树并保留可诊断摘要。
 - `pnpm --dir packages/cli check` 之外，发布前必须通过 smoke、tarball 内容、macOS/Windows/Linux、TTY/非 TTY、管道、Ctrl+C、无颜色和损坏配置测试。
+
+## 18. 编排规范
+
+- PlanGraph、WorkerReport 和 RunEvent 外部输入必须严格 Schema 校验并拒绝未知状态。
+- 事件先持久化，再更新派生 Plan/Step/Assignment 快照；隐私会话只能使用内存状态。
+- Ready 判断、条件边、资源冲突、并发上限和 Capability 子集由代码执行，不能依赖 Prompt。
+- 子 Agent 使用独立 AgentRunContext、工具白名单和 AbortSignal；任何模型点名但未注册/未分配的工具都必须在 Executor 前拒绝。
+- 验证节点没有成功工具证据时不得完成。取消、审批阻塞和部分成功必须保持不同终态。
