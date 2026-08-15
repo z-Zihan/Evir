@@ -6,6 +6,7 @@ import type { FileContextReference } from "../core/context/types";
 import type { ComponentRuntimePort } from "../core/components/types";
 import type { HarnessMiddlewareRegistryPort } from "../core/harness/types";
 import type { WorkflowRegistryPort } from "../core/orchestration/workflow-registry";
+import type { McpRuntimePort } from "../core/mcp/runtime-service";
 
 export type RuntimeTarget = "web" | "desktop";
 
@@ -40,5 +41,6 @@ export interface EvirRuntime {
   componentRuntime?: ComponentRuntimePort;
   harnessMiddlewareRegistry?: HarnessMiddlewareRegistryPort;
   workflowRegistry?: WorkflowRegistryPort;
+  getMcpRuntime?: () => Promise<McpRuntimePort>;
   agentRun?: AgentRunContext;
 }

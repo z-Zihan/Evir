@@ -183,6 +183,8 @@ describe("runAgentLoop permission handling", () => {
       toolCallId: "call-1",
       toolName: "write_file",
       args: { path: "/tmp/a", content: "hi" },
+      riskLevel: "L3",
+      source: "evir-local",
     });
     expect(execute).not.toHaveBeenCalled();
   });

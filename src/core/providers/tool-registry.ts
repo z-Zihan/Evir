@@ -12,6 +12,13 @@ export interface ToolResult {
   error?: string;
 }
 
+export interface ToolApprovalDetails {
+  target: string;
+  impact: "local-process-access" | "remote-data-transfer";
+  reversible: boolean;
+  dataDestination?: string;
+}
+
 export interface ToolDefinition {
   id: string;
   name: string;
@@ -19,6 +26,7 @@ export interface ToolDefinition {
   source: ToolSource;
   riskLevel: RiskLevel;
   requiredCapability?: Capability;
+  approval?: ToolApprovalDetails;
   schema: Record<string, unknown>;
   execute(
     args: Record<string, unknown>,

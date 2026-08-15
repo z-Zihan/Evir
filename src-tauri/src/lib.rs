@@ -1,4 +1,8 @@
 mod commands;
+mod mcp_stdio;
+mod mcp_stdio_process;
+#[cfg(all(test, unix))]
+mod mcp_stdio_process_tests;
 mod storage;
 
 #[cfg(test)]
@@ -27,6 +31,7 @@ pub fn run() {
                 error
             })?;
             app.manage(storage::DatabaseState::new(conn));
+            app.manage(mcp_stdio::McpStdioState::default());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -61,6 +66,11 @@ pub fn run() {
             commands::fs_create_snapshot,
             commands::fs_seal_snapshot,
             commands::fs_restore_snapshot,
+            mcp_stdio::mcp_stdio_start,
+            mcp_stdio::mcp_stdio_request,
+            mcp_stdio::mcp_stdio_send,
+            mcp_stdio::mcp_stdio_status,
+            mcp_stdio::mcp_stdio_stop,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Evir");

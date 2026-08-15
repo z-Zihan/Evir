@@ -1,4 +1,9 @@
-import type { ToolDefinition } from "../../core/providers/tool-registry";
+import type {
+  RiskLevel,
+  ToolApprovalDetails,
+  ToolDefinition,
+  ToolSource,
+} from "../../core/providers/tool-registry";
 import type { ProviderRecord, ToolCallRecord, ToolResultRecord } from "../../core/storage/db";
 import { TOOL_PERMISSION_REQUIRED } from "../../core/tools/tool-executor";
 import type { AgentRunContext, EvirRuntime } from "../../runtime/types";
@@ -10,7 +15,14 @@ export interface AgentLoopTurn {
   stream: StreamResult;
   toolCalls?: ToolCallRecord[];
   toolResults?: ToolResultRecord[];
-  pendingApproval?: { toolCallId: string; toolName: string; args: Record<string, unknown> };
+  pendingApproval?: {
+    toolCallId: string;
+    toolName: string;
+    args: Record<string, unknown>;
+    riskLevel?: RiskLevel;
+    source?: ToolSource;
+    approval?: ToolApprovalDetails;
+  };
 }
 
 export interface AgentLoopOptions {
@@ -165,6 +177,9 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
   const turns: AgentLoopTurn[] = [];
   const messages = [...options.messages];
   const mode = options.mode ?? "agent";
+  if (mode === "agent" && options.runtime.getMcpRuntime) {
+    await (await options.runtime.getMcpRuntime()).activatePersisted();
+  }
   const definitions = options.runtime.toolRegistry?.listForMode(mode) ?? [];
   const tools = providerTools(definitions);
   const allowedToolIds = new Set(definitions.map(({ id }) => id));
@@ -296,7 +311,19 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
     const turn: AgentLoopTurn = { stream, toolCalls, toolResults: results };
     if (requiresPermission(results)) {
       const blocked = findBlockedCall(calls, results);
-      if (blocked) turn.pendingApproval = blocked;
+      const definition = blocked ? runtime.toolRegistry?.get(blocked.toolName) : undefined;
+      if (blocked) {
+        turn.pendingApproval = {
+          ...blocked,
+          ...(definition
+            ? {
+                riskLevel: definition.riskLevel,
+                source: definition.source,
+                ...(definition.approval ? { approval: definition.approval } : {}),
+              }
+            : {}),
+        };
+      }
       turns.push(turn);
       return finish({ turns, maxIterationsReached: false, messages, agentRun }, "blocked");
     }

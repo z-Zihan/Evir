@@ -73,6 +73,26 @@ export function createRuntime(options: CreateRuntimeOptions = {}): EvirRuntime {
   componentRuntime.register(builtinWorkflowComponent);
   componentRuntime.reconcile(options.componentConfiguration);
 
+  let mcpRuntimePromise: Promise<import("../core/mcp/runtime-service").McpRuntimePort> | undefined;
+  const getMcpRuntime = () => {
+    mcpRuntimePromise ??= Promise.all([
+      import("../core/mcp/runtime-service"),
+      import("../core/mcp/mcp-repository"),
+    ]).then(([{ McpRuntimeService }, { McpServerRepository }]) => {
+      const mcpStorage =
+        target === "desktop" && "__TAURI_INTERNALS__" in globalThis
+          ? desktopStructuredStorage
+          : runtime.structuredStorage!;
+      return new McpRuntimeService(
+        componentRuntime,
+        options.componentConfiguration,
+        undefined,
+        new McpServerRepository(mcpStorage),
+      );
+    });
+    return mcpRuntimePromise;
+  };
+
   if (target === "desktop") {
     return {
       ...runtime,
@@ -84,6 +104,7 @@ export function createRuntime(options: CreateRuntimeOptions = {}): EvirRuntime {
       componentRuntime,
       harnessMiddlewareRegistry,
       workflowRegistry,
+      getMcpRuntime,
       mode: "agent" as const,
       getWorkspaceRoot,
       selectWorkspaceDirectory,

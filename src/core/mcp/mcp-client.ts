@@ -1,351 +1,298 @@
-import type { HttpMcpServer, McpServerConfig, McpTool, StdioMcpServer } from "./types";
+import type { McpServerConfig, McpTool } from "./types";
+import {
+  MCP_PROTOCOL_VERSION,
+  MAX_MCP_DISCOVERY_PAGES,
+  MAX_MCP_SCHEMA_BYTES,
+  MAX_MCP_TOOL_COUNT,
+  McpProtocolError,
+  parseCallToolResult,
+  parseInitializeResult,
+  parseListToolsResult,
+  type McpCallToolResult,
+  type McpInitializeResult,
+} from "./protocol";
+import {
+  HttpMcpTransport,
+  StdioMcpTransport,
+  defaultInvoke,
+  type InvokeFn,
+  type ListenFn,
+  type McpRequestOptions,
+  type McpTransport,
+} from "./transports";
 
 export type { McpTool } from "./types";
+export type { InvokeFn, ListenFn, McpTransport } from "./transports";
+export type { McpCallToolResult } from "./protocol";
 
-export type McpConnectionState = "disconnected" | "connecting" | "connected" | "error";
+export type McpConnectionState =
+  | "disconnected"
+  | "starting"
+  | "initializing"
+  | "discovering"
+  | "ready"
+  | "reconnecting"
+  | "stopping"
+  | "error";
 
-export interface ToolResultContentBlock {
-  type: string;
-  text?: string;
-  [key: string]: unknown;
+export interface McpClientSnapshot {
+  state: McpConnectionState;
+  tools: readonly McpTool[];
+  serverInfo?: McpInitializeResult["serverInfo"] | undefined;
+  capabilities?: Record<string, unknown> | undefined;
+  protocolVersion?: string | undefined;
+  pid?: number | undefined;
+  lastReadyAt?: number | undefined;
+  error?: string | undefined;
 }
 
-export interface ToolResult {
-  content: ToolResultContentBlock[];
-  isError?: boolean;
-}
-
-export class McpClientError extends Error {}
-
-interface JsonRpcSuccess {
-  jsonrpc: "2.0";
-  id: number;
-  result: unknown;
-}
-
-interface JsonRpcFailure {
-  jsonrpc: "2.0";
-  id: number;
-  error: { code: number; message: string; data?: unknown };
-}
-
-type JsonRpcResponse = JsonRpcSuccess | JsonRpcFailure;
-
-interface StdioCommandResult {
-  stdout: string;
-  stderr: string;
-  exit_code: number | null;
-  success: boolean;
-}
-
-interface McpTransport {
-  request(method: string, params?: Record<string, unknown>): Promise<unknown>;
-  close(): Promise<void>;
-}
-
-export type InvokeFn = <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
-
-const PROTOCOL_VERSION = "2024-11-05";
-const MAX_RECONNECT_ATTEMPTS = 3;
-const RECONNECT_DELAY_MS = 1000;
-const STDIO_TIMEOUT_MS = 30_000;
-
-// Loaded lazily so this module has no static dependency on the Tauri runtime; callers may
-// also inject their own InvokeFn (e.g. in tests) instead of relying on this default.
-let tauriInvoke: InvokeFn | null = null;
-
-const defaultInvoke: InvokeFn = async (command, args) => {
-  if (!tauriInvoke) {
-    const module = await import("@tauri-apps/api/core");
-    tauriInvoke = module.invoke;
+export class McpClientError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = "McpClientError";
   }
-  return tauriInvoke(command, args);
-};
+}
+
+export interface McpClientDependencies {
+  invoke?: InvokeFn;
+  listen?: ListenFn;
+  openTransport?: (server: McpServerConfig) => Promise<McpTransport>;
+}
 
 function isDesktopRuntime(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 }
 
-function isJsonRpcFailure(response: JsonRpcResponse): response is JsonRpcFailure {
-  return "error" in response;
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function normalizeToolResult(result: unknown): ToolResult {
-  if (
-    typeof result === "object" &&
-    result !== null &&
-    Array.isArray((result as { content?: unknown }).content)
-  ) {
-    return result as ToolResult;
-  }
-  return { content: [{ type: "text", text: JSON.stringify(result ?? null) }] };
-}
-
-async function resolveSecretRefs(
-  refs: Record<string, string>,
-  invoke: InvokeFn,
-): Promise<Record<string, string>> {
-  const resolved: Record<string, string> = {};
-  await Promise.all(
-    Object.entries(refs).map(async ([key, ref]) => {
-      const value = await invoke<string | null>("keychain_get", { key: ref });
-      if (value !== null) resolved[key] = value;
-    }),
-  );
-  return resolved;
-}
-
-function parseSseJsonRpc(text: string, id: number): JsonRpcResponse {
-  const dataLines = text
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.startsWith("data:"))
-    .map((line) => line.slice("data:".length).trim())
-    .filter(Boolean);
-
-  for (let i = dataLines.length - 1; i >= 0; i -= 1) {
-    const line = dataLines[i];
-    if (!line) continue;
-    let parsed: JsonRpcResponse;
-    try {
-      parsed = JSON.parse(line) as JsonRpcResponse;
-    } catch {
-      continue;
-    }
-    if (parsed.id === id) return parsed;
-  }
-  throw new McpClientError("No valid JSON-RPC response received from MCP server");
-}
-
-// The desktop backend only exposes a one-shot `run_command` (spawn, wait for exit, capture
-// stdout) rather than a persistent stdin/stdout pipe. Each JSON-RPC call is therefore sent as
-// a trailing CLI argument and the response is read back from the process's captured stdout.
-class StdioTransport implements McpTransport {
-  private nextId = 1;
-  private envPromise: Promise<Record<string, string>> | null = null;
-
-  constructor(
-    private readonly server: StdioMcpServer,
-    private readonly invoke: InvokeFn,
-  ) {}
-
-  private resolveEnv(): Promise<Record<string, string>> {
-    if (!this.envPromise)
-      this.envPromise = resolveSecretRefs(this.server.envSecretRefs, this.invoke);
-    return this.envPromise;
-  }
-
-  async request(method: string, params?: Record<string, unknown>): Promise<unknown> {
-    const id = this.nextId++;
-    const payload = JSON.stringify({ jsonrpc: "2.0", id, method, params: params ?? {} });
-    const env = await this.resolveEnv();
-
-    const result = await this.invoke<StdioCommandResult>("run_command", {
-      cwd: this.server.cwd ?? ".",
-      program: this.server.command,
-      args: [...this.server.args, payload],
-      timeoutMs: STDIO_TIMEOUT_MS,
-      env,
-    });
-
-    if (!result.success) {
-      throw new McpClientError(result.stderr.trim() || `MCP server exited with a non-zero status`);
-    }
-    return parseJsonRpcStdout(result.stdout, id);
-  }
-
-  close(): Promise<void> {
-    // No persistent process is held open between requests — nothing to tear down.
-    return Promise.resolve();
-  }
-}
-
-function parseJsonRpcStdout(stdout: string, id: number): unknown {
-  const lines = stdout
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  for (let i = lines.length - 1; i >= 0; i -= 1) {
-    const line = lines[i];
-    if (!line) continue;
-    let parsed: JsonRpcResponse;
-    try {
-      parsed = JSON.parse(line) as JsonRpcResponse;
-    } catch {
-      continue;
-    }
-    if (parsed.id !== id) continue;
-    if (isJsonRpcFailure(parsed)) throw new McpClientError(parsed.error.message);
-    return parsed.result;
-  }
-  throw new McpClientError("No valid JSON-RPC response received from MCP server");
-}
-
-class HttpTransport implements McpTransport {
-  private nextId = 1;
-  private sessionId: string | null = null;
-  private headerPromise: Promise<Record<string, string>> | null = null;
-
-  constructor(
-    private readonly server: HttpMcpServer,
-    private readonly invoke: InvokeFn,
-  ) {}
-
-  private resolveSecretHeaders(): Promise<Record<string, string>> {
-    if (!this.headerPromise)
-      this.headerPromise = resolveSecretRefs(this.server.headerSecretRefs, this.invoke);
-    return this.headerPromise;
-  }
-
-  async request(method: string, params?: Record<string, unknown>): Promise<unknown> {
-    const id = this.nextId++;
-    const secretHeaders = await this.resolveSecretHeaders();
-    const headers: Record<string, string> = {
-      ...secretHeaders,
-      "Content-Type": "application/json",
-      Accept: "application/json, text/event-stream",
-    };
-    if (this.sessionId) headers["Mcp-Session-Id"] = this.sessionId;
-
-    let response: Response;
-    try {
-      response = await fetch(this.server.url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ jsonrpc: "2.0", id, method, params: params ?? {} }),
-      });
-    } catch (error) {
-      throw new McpClientError(error instanceof Error ? error.message : "Network request failed");
-    }
-
-    if (!response.ok) {
-      throw new McpClientError(`MCP server responded with HTTP ${response.status}`);
-    }
-
-    const sessionHeader = response.headers.get("Mcp-Session-Id");
-    if (sessionHeader) this.sessionId = sessionHeader;
-
-    const contentType = response.headers.get("Content-Type") ?? "";
-    const body: JsonRpcResponse = contentType.includes("text/event-stream")
-      ? parseSseJsonRpc(await response.text(), id)
-      : ((await response.json()) as JsonRpcResponse);
-    if (isJsonRpcFailure(body)) throw new McpClientError(body.error.message);
-    return body.result;
-  }
-
-  close(): Promise<void> {
-    this.sessionId = null;
-    return Promise.resolve();
-  }
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return "MCP operation failed";
 }
 
 export class McpClient {
-  private state: McpConnectionState = "disconnected";
-  private transport: McpTransport | null = null;
-  private tools: McpTool[] = [];
-  private server: McpServerConfig | null = null;
-  private reconnectAttempts = 0;
-  private cancelled = false;
-  private readonly stateListeners = new Set<(state: McpConnectionState) => void>();
+  private snapshot: McpClientSnapshot = { state: "disconnected", tools: [] };
+  private transport: McpTransport | undefined;
+  private generation = 0;
+  private readonly listeners = new Set<(snapshot: McpClientSnapshot) => void>();
+  private notificationDisposer: (() => void) | undefined;
+  private readonly dependencies: McpClientDependencies;
 
-  constructor(private readonly invoke: InvokeFn = defaultInvoke) {}
+  constructor(dependencies: McpClientDependencies | InvokeFn = {}) {
+    this.dependencies =
+      typeof dependencies === "function" ? { invoke: dependencies } : dependencies;
+  }
+
+  getSnapshot(): McpClientSnapshot {
+    return this.snapshot;
+  }
 
   getState(): McpConnectionState {
-    return this.state;
+    return this.snapshot.state;
   }
 
   onStateChange(listener: (state: McpConnectionState) => void): () => void {
-    this.stateListeners.add(listener);
-    return () => this.stateListeners.delete(listener);
+    return this.subscribe((snapshot) => listener(snapshot.state));
   }
 
-  private setState(state: McpConnectionState): void {
-    this.state = state;
-    for (const listener of this.stateListeners) listener(state);
+  subscribe(listener: (snapshot: McpClientSnapshot) => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
   }
 
-  async connect(server: McpServerConfig): Promise<void> {
-    this.server = server;
-    this.reconnectAttempts = 0;
-    this.cancelled = false;
-    await this.attemptConnect();
+  private publish(update: Partial<McpClientSnapshot>): void {
+    this.snapshot = { ...this.snapshot, ...update };
+    for (const listener of this.listeners) listener(this.snapshot);
   }
 
-  private async attemptConnect(): Promise<void> {
-    if (this.cancelled) return;
-    const server = this.server;
-    if (!server) throw new McpClientError("No server configured");
-
-    this.setState("connecting");
-
-    if (server.transport === "stdio" && !isDesktopRuntime()) {
-      this.setState("error");
-      throw new McpClientError("stdio MCP servers require the desktop app");
+  private async openTransport(server: McpServerConfig): Promise<McpTransport> {
+    if (this.dependencies.openTransport) return this.dependencies.openTransport(server);
+    if (server.transport === "stdio") {
+      if (!isDesktopRuntime())
+        throw new McpClientError("stdio MCP servers require the desktop app");
+      const invoke = this.dependencies.invoke ?? defaultInvoke;
+      return this.dependencies.listen
+        ? StdioMcpTransport.open(server, invoke, this.dependencies.listen)
+        : StdioMcpTransport.open(server, invoke);
     }
+    return new HttpMcpTransport(server, this.dependencies.invoke ?? defaultInvoke);
+  }
 
-    const transport: McpTransport =
-      server.transport === "stdio"
-        ? new StdioTransport(server, this.invoke)
-        : new HttpTransport(server, this.invoke);
-
+  async connect(server: McpServerConfig, options: McpRequestOptions = {}): Promise<void> {
+    await this.disconnect();
+    const generation = ++this.generation;
+    this.publish({ state: "starting", tools: [], error: undefined });
+    let transport: McpTransport | undefined;
     try {
-      await transport.request("initialize", {
-        protocolVersion: PROTOCOL_VERSION,
-        capabilities: {},
-        clientInfo: { name: "evir", version: "0.1.0" },
-      });
-      const listResult = (await transport.request("tools/list", {})) as { tools?: McpTool[] };
-
+      transport = await this.openTransport(server);
+      if (generation !== this.generation) {
+        await transport.close();
+        return;
+      }
       this.transport = transport;
-      this.tools = listResult.tools ?? [];
-      this.reconnectAttempts = 0;
-      this.setState("connected");
+      let toolsChangedDuringStartup = false;
+      this.notificationDisposer = transport.onNotification((method) => {
+        if (
+          (method === "evir/process_exited" || method === "evir/transport_closed") &&
+          generation === this.generation
+        ) {
+          this.failConnection(
+            method === "evir/process_exited" ? "MCP server process exited" : "MCP transport closed",
+          );
+          return;
+        }
+        if (method !== "notifications/tools/list_changed" || generation !== this.generation) return;
+        if (this.snapshot.state === "ready") void this.refreshTools(generation);
+        else toolsChangedDuringStartup = true;
+      });
+      this.publish({ state: "initializing", pid: transport.pid });
+      const initialize = parseInitializeResult(
+        await transport.request(
+          "initialize",
+          {
+            protocolVersion: MCP_PROTOCOL_VERSION,
+            capabilities: {},
+            clientInfo: { name: "evir", version: "0.1.0" },
+          },
+          options,
+        ),
+      );
+      if (initialize.protocolVersion !== MCP_PROTOCOL_VERSION) {
+        throw new McpProtocolError(
+          `Unsupported MCP protocol version: ${initialize.protocolVersion}`,
+        );
+      }
+      transport.setProtocolVersion(initialize.protocolVersion);
+      await transport.notify("notifications/initialized");
+      this.publish({ state: "discovering" });
+      const tools = await this.discoverTools(transport, options);
+      if (generation !== this.generation) return;
+      this.publish({
+        state: "ready",
+        tools,
+        serverInfo: initialize.serverInfo,
+        capabilities: initialize.capabilities,
+        protocolVersion: initialize.protocolVersion,
+        lastReadyAt: Date.now(),
+        error: undefined,
+      });
+      if (toolsChangedDuringStartup) void this.refreshTools(generation);
     } catch (error) {
-      await transport.close();
-      await this.handleConnectFailure(error);
+      if (transport) await transport.close().catch(() => undefined);
+      if (generation === this.generation) {
+        this.transport = undefined;
+        this.publish({ state: "error", tools: [], error: errorMessage(error), pid: undefined });
+      }
+      throw error instanceof Error ? error : new McpClientError(errorMessage(error));
     }
   }
 
-  private async handleConnectFailure(error: unknown): Promise<void> {
-    this.reconnectAttempts += 1;
-    if (this.cancelled) return;
-    if (this.reconnectAttempts > MAX_RECONNECT_ATTEMPTS) {
-      this.setState("error");
-      throw error instanceof Error ? error : new McpClientError(String(error));
+  private async discoverTools(
+    transport: McpTransport,
+    options: McpRequestOptions = {},
+  ): Promise<McpTool[]> {
+    const tools: McpTool[] = [];
+    const names = new Set<string>();
+    const cursors = new Set<string>();
+    let pageCount = 0;
+    let cursor: string | undefined;
+    do {
+      pageCount += 1;
+      if (pageCount > MAX_MCP_DISCOVERY_PAGES) {
+        throw new McpProtocolError("MCP tool discovery exceeded the page limit");
+      }
+      const page = parseListToolsResult(
+        await transport.request("tools/list", cursor ? { cursor } : {}, options),
+      );
+      for (const tool of page.tools) {
+        if (names.has(tool.name))
+          throw new McpProtocolError(`Duplicate MCP tool name: ${tool.name}`);
+        if (
+          new TextEncoder().encode(JSON.stringify(tool.inputSchema)).byteLength >
+          MAX_MCP_SCHEMA_BYTES
+        ) {
+          throw new McpProtocolError(`MCP input schema exceeds the size limit: ${tool.name}`);
+        }
+        if (
+          tool.outputSchema &&
+          new TextEncoder().encode(JSON.stringify(tool.outputSchema)).byteLength >
+            MAX_MCP_SCHEMA_BYTES
+        ) {
+          throw new McpProtocolError(`MCP output schema exceeds the size limit: ${tool.name}`);
+        }
+        names.add(tool.name);
+        tools.push(tool);
+        if (tools.length > MAX_MCP_TOOL_COUNT) {
+          throw new McpProtocolError("MCP tool discovery exceeded the tool limit");
+        }
+      }
+      cursor = page.nextCursor;
+      if (cursor && cursors.has(cursor)) {
+        throw new McpProtocolError("MCP tool discovery repeated a cursor");
+      }
+      if (cursor) cursors.add(cursor);
+    } while (cursor);
+    return tools;
+  }
+
+  private async refreshTools(generation: number): Promise<void> {
+    const transport = this.transport;
+    if (!transport || generation !== this.generation) return;
+    try {
+      const tools = await this.discoverTools(transport);
+      if (generation === this.generation) this.publish({ tools });
+    } catch (error) {
+      if (generation === this.generation) this.publish({ error: errorMessage(error) });
     }
-    await delay(RECONNECT_DELAY_MS);
-    if (this.cancelled) return;
-    await this.attemptConnect();
   }
 
   listTools(): Promise<McpTool[]> {
-    return Promise.resolve(this.tools);
+    return Promise.resolve([...this.snapshot.tools]);
   }
 
-  async callTool(name: string, args: Record<string, unknown>): Promise<ToolResult> {
-    if (!this.transport || this.state !== "connected") {
-      throw new McpClientError("MCP client is not connected");
+  async callTool(
+    name: string,
+    args: Record<string, unknown>,
+    options: McpRequestOptions = {},
+  ): Promise<McpCallToolResult> {
+    if (!this.transport || this.snapshot.state !== "ready") {
+      throw new McpClientError("MCP client is not ready");
     }
     try {
-      const result = await this.transport.request("tools/call", { name, arguments: args });
-      return normalizeToolResult(result);
+      return parseCallToolResult(
+        await this.transport.request("tools/call", { name, arguments: args }, options),
+      );
     } catch (error) {
-      this.setState("error");
+      const isCancellation = error instanceof DOMException && error.name === "AbortError";
+      const isToolError = error instanceof McpProtocolError && error.code !== undefined;
+      if (!isCancellation && !isToolError) this.failConnection(errorMessage(error));
       throw error;
     }
   }
 
+  private failConnection(message: string): void {
+    const transport = this.transport;
+    if (!transport) return;
+    this.transport = undefined;
+    this.publish({ state: "error", tools: [], error: message, pid: undefined });
+    void transport.close().catch(() => undefined);
+  }
+
   async disconnect(): Promise<void> {
-    this.cancelled = true;
-    if (this.transport) await this.transport.close();
-    this.transport = null;
-    this.tools = [];
-    this.reconnectAttempts = 0;
-    this.setState("disconnected");
+    const transport = this.transport;
+    if (!transport && this.snapshot.state === "disconnected") return;
+    ++this.generation;
+    this.publish({ state: "stopping" });
+    this.notificationDisposer?.();
+    this.notificationDisposer = undefined;
+    this.transport = undefined;
+    if (transport) await transport.close();
+    this.publish({
+      state: "disconnected",
+      tools: [],
+      serverInfo: undefined,
+      capabilities: undefined,
+      protocolVersion: undefined,
+      pid: undefined,
+      error: undefined,
+    });
   }
 }

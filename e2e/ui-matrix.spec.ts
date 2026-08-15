@@ -119,6 +119,41 @@ test("captures the required responsive, theme, and language matrix", async ({ pa
     }
   }
 
+  if (isDesktop(testInfo)) {
+    await page.evaluate(() => {
+      localStorage.setItem("evir-language", "en");
+      localStorage.setItem("evir-theme", "light");
+    });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.reload();
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    const settings = page.getByRole("dialog", { name: "Settings", exact: true });
+    await settings.getByRole("button", { name: "MCP", exact: true }).click();
+    await settings.getByRole("button", { name: "Add server", exact: true }).first().click();
+    const serverDialog = page.getByRole("dialog", { name: "Add MCP server", exact: true });
+    await serverDialog.getByLabel("Name *").fill("Native fixture with a bounded long name");
+    await serverDialog.getByLabel("Command *").fill("/usr/local/bin/node");
+    await serverDialog
+      .getByLabel("Arguments")
+      .fill("/tmp/evir-mcp-stdio-fixture.mjs, --deterministic");
+    await serverDialog.getByLabel("Working directory").fill("/tmp");
+    await serverDialog.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(settings.getByText("Disabled", { exact: true }).first()).toBeVisible();
+    await page.screenshot({
+      path: join(output, "settings-mcp-configured-1280x800.png"),
+      fullPage: true,
+    });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await settings.getByRole("button", { name: "Test connection", exact: true }).click();
+    await expect(settings.getByRole("alert")).toContainText("Connection test failed");
+    await page.screenshot({
+      path: join(output, "settings-mcp-connection-error-390x844.png"),
+      fullPage: true,
+    });
+    await settings.getByRole("button", { name: "Close", exact: true }).click();
+  }
+
   await page.setViewportSize({ width: 800, height: 600 });
   await page.getByRole("button", { name: /Show sidebar|显示侧边栏/i }).click();
   await page

@@ -293,6 +293,7 @@ export class ComponentRuntime implements ComponentRuntimePort {
       componentId: id,
       target: this.target,
       hasDependency: (dependency) => this.hasActiveDependency(dependency),
+      hasTool: (toolId) => this.toolRegistry.get(toolId) !== undefined,
       registerTool: (tool) => {
         this.toolRegistry.register(tool);
         return scope.add(() => this.toolRegistry.unregister(tool.id));

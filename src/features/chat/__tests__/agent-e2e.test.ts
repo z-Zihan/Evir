@@ -161,6 +161,8 @@ describe("agent-loop end-to-end workflows", () => {
       toolCallId: "call-1",
       toolName: "delete_file",
       args: { path: "/tmp/a" },
+      riskLevel: "L3",
+      source: "evir-local",
     });
     expect(vi.mocked(streamAssistant)).toHaveBeenCalledTimes(1);
   });

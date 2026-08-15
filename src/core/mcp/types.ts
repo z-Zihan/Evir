@@ -11,7 +11,7 @@ export interface StdioMcpServer extends McpServerBase {
   transport: "stdio";
   command: string;
   args: string[];
-  cwd?: string;
+  cwd?: string | undefined;
   envSecretRefs: Record<string, string>;
 }
 
@@ -25,6 +25,7 @@ export type McpServerConfig = StdioMcpServer | HttpMcpServer;
 
 export interface McpTool {
   name: string;
-  description?: string;
+  description?: string | undefined;
   inputSchema: Record<string, unknown>;
+  outputSchema?: Record<string, unknown> | undefined;
 }

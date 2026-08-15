@@ -5,7 +5,7 @@ import { useMcpStore } from "../mcp-store";
 
 beforeEach(async () => {
   await Promise.all(db.tables.map((t) => t.clear()));
-  useMcpStore.setState({ servers: [] });
+  useMcpStore.setState({ servers: [], runtimeSnapshots: {}, connectionTests: {} });
 });
 
 describe("mcp-store", () => {

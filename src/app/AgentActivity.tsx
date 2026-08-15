@@ -46,7 +46,9 @@ export function AgentActivity({ toolCalls, toolResults, messageStatus }: AgentAc
   const isStreaming = useChatStore((state) => state.isStreaming);
   const approveTool = useChatStore((state) => state.approveTool);
   const denyTool = useChatStore((state) => state.denyTool);
+  const pendingApproval = useChatStore((state) => state.pendingToolApproval);
   const resultsByCallId = new Map(toolResults.map((result) => [result.toolCallId, result]));
+  const approvalArguments = pendingApproval ? JSON.stringify(pendingApproval.args) : "";
 
   const completed = toolCalls.filter((call) => {
     const result = resultsByCallId.get(call.id);
@@ -174,6 +176,53 @@ export function AgentActivity({ toolCalls, toolResults, messageStatus }: AgentAc
           <div className="approval-copy">
             <strong>{t("tools.approvalTitle")}</strong>
             <p>{t("tools.approvalDescription")}</p>
+            {pendingApproval && (
+              <dl className="approval-facts">
+                <div>
+                  <dt>{t("tools.approvalTool")}</dt>
+                  <dd>{pendingApproval.toolName}</dd>
+                </div>
+                {pendingApproval.riskLevel && (
+                  <div>
+                    <dt>{t("tools.approvalRisk")}</dt>
+                    <dd>{pendingApproval.riskLevel}</dd>
+                  </div>
+                )}
+                {pendingApproval.approval?.target && (
+                  <div>
+                    <dt>{t("tools.approvalTarget")}</dt>
+                    <dd>{pendingApproval.approval.target}</dd>
+                  </div>
+                )}
+                {pendingApproval.approval?.dataDestination && (
+                  <div>
+                    <dt>{t("tools.dataDestination")}</dt>
+                    <dd>{pendingApproval.approval.dataDestination}</dd>
+                  </div>
+                )}
+                {pendingApproval.approval?.impact && (
+                  <div>
+                    <dt>{t("tools.approvalImpact")}</dt>
+                    <dd>{t(`tools.approvalImpacts.${pendingApproval.approval.impact}`)}</dd>
+                  </div>
+                )}
+                {pendingApproval.approval && (
+                  <div>
+                    <dt>{t("tools.reversible")}</dt>
+                    <dd>
+                      {pendingApproval.approval.reversible ? t("common.yes") : t("common.no")}
+                    </dd>
+                  </div>
+                )}
+                <div>
+                  <dt>{t("tools.arguments")}</dt>
+                  <dd>
+                    {approvalArguments.slice(0, 500)}
+                    {approvalArguments.length > 500 ? "…" : ""}
+                  </dd>
+                </div>
+              </dl>
+            )}
           </div>
           <div className="approval-actions">
             <button

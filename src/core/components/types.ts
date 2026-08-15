@@ -22,6 +22,7 @@ export interface ComponentActivationContext {
   readonly componentId: string;
   readonly target: ComponentTarget;
   hasDependency(dependency: string): boolean;
+  hasTool(toolId: string): boolean;
   registerTool(tool: ToolDefinition): ComponentDisposer;
   registerHarnessMiddleware(middleware: HarnessMiddleware): ComponentDisposer;
   registerWorkflow(workflow: WorkflowDefinition): ComponentDisposer;

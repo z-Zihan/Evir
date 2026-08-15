@@ -2768,6 +2768,7 @@
 
 .mcp-item-copy > div {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: 7px;
 }
@@ -2782,11 +2783,120 @@
   font-size: 8.5px;
 }
 
+.mcp-item-copy .mcp-runtime-error {
+  max-height: 4.2em;
+  overflow: auto;
+  color: var(--destructive);
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.mcp-item-copy .mcp-connection-test-result {
+  max-height: 4.2em;
+  overflow: auto;
+  color: var(--success);
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
 .mcp-item-copy p {
   overflow: hidden;
   margin: 4px 0 0;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.mcp-runtime-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 6px 0 0;
+}
+
+.mcp-runtime-metadata div {
+  display: inline-flex;
+  gap: 4px;
+  font-size: 8px;
+}
+
+.mcp-runtime-metadata dt {
+  color: var(--muted-foreground);
+}
+
+.mcp-runtime-metadata dd {
+  margin: 0;
+  color: var(--foreground);
+  font-family: var(--font-mono);
+}
+
+.mcp-tool-details {
+  margin-top: 8px;
+  color: var(--foreground);
+  font-size: 9px;
+}
+
+.mcp-tool-details > summary,
+.mcp-tool-test details summary {
+  width: fit-content;
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.mcp-tool-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.mcp-tool-test {
+  display: grid;
+  gap: 7px;
+  padding: 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+}
+
+.mcp-tool-test p {
+  overflow: visible;
+  white-space: normal;
+}
+
+.mcp-tool-test label {
+  display: grid;
+  gap: 4px;
+}
+
+.mcp-tool-test textarea {
+  min-height: 64px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--foreground);
+  font: 9px/1.45 var(--font-mono);
+}
+
+.mcp-tool-test pre {
+  overflow: auto;
+  max-height: 180px;
+  margin: 5px 0 0;
+  padding: 7px;
+  border-radius: 6px;
+  background: var(--code-background);
+  font: 8.5px/1.45 var(--font-mono);
+  white-space: pre-wrap;
+}
+
+.mcp-tool-test .secondary-button {
+  width: fit-content;
+  min-height: 28px;
+  padding: 0 9px;
+  font-size: 9px;
+}
+
+.mcp-test-result.error {
+  color: var(--destructive);
 }
 
 .mcp-toggle {
@@ -2852,6 +2962,11 @@
 .mcp-item-actions button:hover {
   background: var(--surface-hover);
   color: var(--foreground);
+}
+
+.mcp-item-actions button:disabled {
+  cursor: wait;
+  opacity: 0.5;
 }
 
 .mcp-empty-state {
@@ -3130,15 +3245,18 @@
     justify-content: space-between;
   }
   .mcp-item {
-    grid-template-columns: 8px 34px minmax(0, 1fr) auto;
+    grid-template-columns: 8px 34px minmax(0, 1fr);
+    align-items: start;
   }
   .mcp-toggle {
     grid-column: 3;
+    grid-row: 2;
     justify-self: start;
   }
   .mcp-item-actions {
-    grid-column: 4;
-    grid-row: 1 / span 2;
+    grid-column: 3;
+    grid-row: 2;
+    justify-self: end;
   }
   .mcp-transport-options {
     grid-template-columns: 1fr;
@@ -3628,12 +3746,16 @@
 .approval-panel {
   display: grid;
   grid-template-columns: 22px minmax(0, 1fr) auto;
-  align-items: center;
+  align-items: start;
   gap: 10px;
   padding: 11px;
   border-top: 1px solid color-mix(in srgb, var(--warning) 28%, var(--border));
   background: color-mix(in srgb, var(--warning) 7%, var(--surface));
   color: var(--warning);
+}
+
+.approval-panel > svg {
+  margin-top: 2px;
 }
 
 .approval-copy strong {
@@ -3646,6 +3768,38 @@
   font-size: 10px;
   line-height: 1.45;
 }
+
+.approval-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px 12px;
+  margin: 9px 0 0;
+}
+
+.approval-facts > div {
+  min-width: 0;
+}
+
+.approval-facts dt {
+  margin-bottom: 2px;
+  color: var(--muted-foreground);
+  font-size: 8.5px;
+  font-weight: 650;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.approval-facts dd {
+  max-height: 4.2em;
+  margin: 0;
+  overflow: auto;
+  color: var(--foreground);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
 .approval-actions {
   display: flex;
   gap: 7px;
@@ -3932,6 +4086,9 @@
   .approval-actions {
     grid-column: 1 / -1;
     justify-content: flex-end;
+  }
+  .approval-facts {
+    grid-template-columns: 1fr;
   }
   .settings-data-actions {
     align-items: flex-start;

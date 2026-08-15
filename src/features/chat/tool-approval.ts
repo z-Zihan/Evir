@@ -15,12 +15,20 @@ import { resolveCurrentApprovalNode } from "../orchestration/orchestration-sessi
 import { useOrchestrationStore } from "../orchestration/orchestration-store";
 import { getStructuredStorage } from "../../runtime/structured-storage";
 import { createActiveTaskController } from "./chat-stream";
+import type {
+  RiskLevel,
+  ToolApprovalDetails,
+  ToolSource,
+} from "../../core/providers/tool-registry";
 
 export interface PendingToolApproval {
   approvalId?: string;
   toolCallId: string;
   toolName: string;
   args: Record<string, unknown>;
+  riskLevel?: RiskLevel;
+  source?: ToolSource;
+  approval?: ToolApprovalDetails;
   conversationId: string;
   messages: AgentMessage[];
   providerId: string;
@@ -41,6 +49,9 @@ export interface ApprovalRecord {
   toolCallId: string;
   toolName: string;
   args: Record<string, unknown>;
+  riskLevel?: RiskLevel;
+  source?: ToolSource;
+  approval?: ToolApprovalDetails;
   messages: AgentMessage[];
   providerId: string;
   turn: AgentLoopTurn;
@@ -49,6 +60,52 @@ export interface ApprovalRecord {
   allowedToolIds: string[];
   createdAt: number;
   updatedAt: number;
+}
+
+const RISK_LEVELS: readonly RiskLevel[] = ["L0", "L1", "L2", "L3", "L4"];
+const TOOL_SOURCES: readonly ToolSource[] = [
+  "evir-local",
+  "mcp-local",
+  "mcp-remote",
+  "provider-server",
+];
+
+function riskLevelOf(value: unknown): RiskLevel | undefined {
+  return typeof value === "string" && RISK_LEVELS.includes(value as RiskLevel)
+    ? (value as RiskLevel)
+    : undefined;
+}
+
+function toolSourceOf(value: unknown): ToolSource | undefined {
+  return typeof value === "string" && TOOL_SOURCES.includes(value as ToolSource)
+    ? (value as ToolSource)
+    : undefined;
+}
+
+function approvalDetailsOf(value: unknown): ToolApprovalDetails | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const candidate = value as Record<string, unknown>;
+  const target = candidate["target"];
+  const impact = candidate["impact"];
+  const reversible = candidate["reversible"];
+  const dataDestination = candidate["dataDestination"];
+  if (
+    typeof target !== "string" ||
+    target.length === 0 ||
+    target.length > 1_000 ||
+    (impact !== "local-process-access" && impact !== "remote-data-transfer") ||
+    typeof reversible !== "boolean" ||
+    (dataDestination !== undefined &&
+      (typeof dataDestination !== "string" || dataDestination.length > 2_048))
+  ) {
+    return undefined;
+  }
+  return {
+    target,
+    impact,
+    reversible,
+    ...(typeof dataDestination === "string" ? { dataDestination } : {}),
+  };
 }
 
 export function toApprovalRecord(
@@ -65,6 +122,9 @@ export function toApprovalRecord(
     toolCallId: pending.toolCallId,
     toolName: pending.toolName,
     args: pending.args,
+    ...(pending.riskLevel ? { riskLevel: pending.riskLevel } : {}),
+    ...(pending.source ? { source: pending.source } : {}),
+    ...(pending.approval ? { approval: pending.approval } : {}),
     messages: pending.messages,
     providerId: pending.providerId,
     turn: pending.turn,
@@ -77,11 +137,17 @@ export function toApprovalRecord(
 }
 
 export function fromApprovalRecord(record: ApprovalRecord): PendingToolApproval {
+  const riskLevel = riskLevelOf(record.riskLevel);
+  const source = toolSourceOf(record.source);
+  const approval = approvalDetailsOf(record.approval);
   return {
     approvalId: record.id,
     toolCallId: record.toolCallId,
     toolName: record.toolName,
     args: record.args,
+    ...(riskLevel ? { riskLevel } : {}),
+    ...(source ? { source } : {}),
+    ...(approval ? { approval } : {}),
     conversationId: record.conversationId,
     messages: record.messages,
     providerId: record.providerId,
@@ -147,12 +213,19 @@ function continuedApproval(
 ): PendingToolApproval | null {
   const blocked = turn.pendingApproval;
   if (!blocked) return null;
+  const next = { ...pending };
+  delete next.riskLevel;
+  delete next.source;
+  delete next.approval;
   return {
-    ...pending,
+    ...next,
     approvalId: crypto.randomUUID(),
     toolCallId: blocked.toolCallId,
     toolName: blocked.toolName,
     args: blocked.args,
+    ...(blocked.riskLevel ? { riskLevel: blocked.riskLevel } : {}),
+    ...(blocked.source ? { source: blocked.source } : {}),
+    ...(blocked.approval ? { approval: blocked.approval } : {}),
     messages,
     turn,
     agentRun,
