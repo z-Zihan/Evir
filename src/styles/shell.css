@@ -138,9 +138,9 @@
 }
 
 .task-status-bar {
-  min-height: 52px;
+  min-height: 44px;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 8px 12px;
   background: var(--muted);
   border-bottom: 1px solid var(--border);
 }
@@ -187,8 +187,13 @@
   padding: 12px;
 }
 
+/* 澄清卡片：对话式提问而非重型表单 —— 左侧细强调线 + 轻底色 */
 .clarification-card {
   padding: 14px 16px 16px;
+  margin: 12px;
+  border-left: 2px solid var(--primary);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  background: color-mix(in srgb, var(--muted) 45%, var(--surface));
 }
 
 .clarification-heading {
@@ -258,6 +263,19 @@
   color: var(--muted-foreground);
   background: color-mix(in srgb, var(--muted) 70%, transparent);
   border-radius: 8px;
+}
+
+/* 每个澄清问题一张安静的小卡：编号 + 问题 + 建议词 + 输入框 */
+.clarification-question {
+  margin: 12px 0 0;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.clarification-question legend {
+  margin-bottom: 10px;
 }
 
 .clarification-context summary {
@@ -398,29 +416,61 @@
 .task-step {
   min-height: 42px;
   gap: 9px;
-  padding: 7px 0;
-  border-top: 1px solid var(--border);
+  padding: 7px 4px 7px 2px;
+  border-top: 0;
+  position: relative;
 }
 
-.task-step:first-child {
-  border-top: 0;
+/* 时间线连接线：把步骤列表串成 Claude Code 式 TODO 进度 */
+.plan-timeline ol {
+  position: relative;
+}
+
+.plan-timeline ol::before {
+  content: "";
+  position: absolute;
+  left: 9px;
+  top: 24px;
+  bottom: 24px;
+  width: 1px;
+  background: var(--border);
+}
+
+.task-step-marker {
+  position: relative;
+  z-index: 1;
+  width: 15px;
+  flex: 0 0 15px;
+  background: var(--surface);
 }
 
 .task-step-copy {
   flex: 1;
 }
 
-.task-step-completed {
-  opacity: 0.7;
+.task-step-completed .task-step-marker {
+  color: var(--success, #16a34a);
+}
+
+.task-step-completed .task-step-copy strong {
+  color: var(--muted-foreground);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--muted-foreground) 55%, transparent);
+  text-decoration-thickness: 1px;
+}
+
+.task-step-running .task-step-copy strong {
+  color: var(--foreground);
+}
+
+.task-step-running {
+  background: color-mix(in srgb, var(--primary) 5%, transparent);
+  border-radius: var(--radius-sm);
 }
 
 .task-step-failed .task-step-marker,
 .task-step-blocked .task-step-marker {
   color: var(--danger);
-}
-
-.task-step-completed .task-step-marker {
-  color: var(--success);
 }
 
 .task-icon-button {
@@ -2791,6 +2841,24 @@
 .settings-form-dialog.wide .provider-preset-grid {
   max-height: none;
   min-height: 0;
+}
+
+.settings-form-discard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 11px 18px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-hover);
+  font-size: 0.86rem;
+  color: var(--foreground);
+}
+
+.settings-form-discard-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .settings-form-dialog-header {

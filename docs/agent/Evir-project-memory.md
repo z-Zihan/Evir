@@ -283,6 +283,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 ## 24. Update Log
 
+- 2026-08-26 | working tree | 原生桌面实测全链路（配置→计划确认→节点隔离→L3 审批→真实磁盘写入→验证器拒信模型文字→部分完成）；随后修复：工具被步骤权限拦截时改用"当前步骤未授权"文案（不再误称浏览器模式）；脏表单 Esc/背景点击先确认丢弃；Provider 输入关闭系统自动纠正；获取模型始终显示成功/失败反馈；新增结构化日志（tool-call-blocked / approval.requested|granted|denied / orchestration.node-started|node-finished|model-plan-rejected / provider.fetch-models-*）；任务步骤列表升级为时间线样式（连接线/完成态划线/运行态高亮），澄清卡片改为对话式轻样式
 - 2026-08-26 | working tree | 全功能 GUI 点击审查后收口：移除未接线的 `command-palette`（⌘K）与 `open-workspace`（⌘⇧O）死快捷键及其文案/分组（展示层与实际能力一致，均为 6 个已接线快捷键）；清理 sidebar 搜索与 shortcuts 残留 i18n 死键；项目记忆更正"侧栏搜索"过时声明（该功能已在 R4-T3 移除）
 
 - 2026-08-13 | working tree | 新增智能任务理解与多 Agent 编排：结构化 Brief/Plan、关键澄清、事件优先存储、DAG/资源锁、检查点暂停恢复、同模型受限 Worker、内置子图和聊天内任务工作台；真实 Provider/原生 Desktop 闭环仍待外部验收

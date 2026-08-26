@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { X } from "lucide-react";
 
 interface SettingsFormDialogProps {
@@ -7,6 +7,9 @@ interface SettingsFormDialogProps {
   children: ReactNode;
   onClose: () => void;
   wide?: boolean;
+  /** 为 true 时，Esc/背景点击/关闭按钮会先要求确认丢弃未保存的更改 */
+  dirty?: boolean;
+  discardPrompt?: { message: string; keepLabel: string; discardLabel: string };
 }
 
 export function SettingsFormDialog({
@@ -15,13 +18,28 @@ export function SettingsFormDialog({
   children,
   onClose,
   wide = false,
+  dirty = false,
+  discardPrompt,
 }: SettingsFormDialogProps) {
   const titleId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+  const keepRef = useRef<HTMLButtonElement>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
+
+  useEffect(() => {
+    if (!dirty) setConfirmingDiscard(false);
+  }, [dirty]);
+
+  const requestClose = () => {
+    if (dirtyRef.current) setConfirmingDiscard(true);
+    else onCloseRef.current();
+  };
 
   useEffect(() => {
     previousFocusRef.current =
@@ -30,7 +48,7 @@ export function SettingsFormDialog({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        onCloseRef.current();
+        requestClose();
         return;
       }
       if (event.key !== "Tab" || !dialogRef.current) return;
@@ -57,8 +75,12 @@ export function SettingsFormDialog({
     };
   }, []);
 
+  useEffect(() => {
+    if (confirmingDiscard) keepRef.current?.focus();
+  }, [confirmingDiscard]);
+
   return (
-    <div className="settings-form-backdrop" onMouseDown={onClose}>
+    <div className="settings-form-backdrop" onMouseDown={requestClose}>
       <section
         ref={dialogRef}
         className={`settings-form-dialog${wide ? " wide" : ""}`}
@@ -72,11 +94,39 @@ export function SettingsFormDialog({
             <h4 id={titleId}>{title}</h4>
             {description && <p>{description}</p>}
           </div>
-          <button ref={closeRef} type="button" onClick={onClose} aria-label={title} title={title}>
+          <button
+            ref={closeRef}
+            type="button"
+            onClick={requestClose}
+            aria-label={title}
+            title={title}
+          >
             <X size={17} />
           </button>
         </header>
         <div className="settings-form-dialog-body">{children}</div>
+        {confirmingDiscard && (
+          <footer
+            className="settings-form-discard"
+            role="alertdialog"
+            aria-label={discardPrompt?.message ?? "Unsaved changes"}
+          >
+            <span>{discardPrompt?.message ?? "Unsaved changes will be lost."}</span>
+            <div className="settings-form-discard-actions">
+              <button
+                ref={keepRef}
+                type="button"
+                className="secondary-button"
+                onClick={() => setConfirmingDiscard(false)}
+              >
+                {discardPrompt?.keepLabel ?? "Keep editing"}
+              </button>
+              <button type="button" className="danger-button" onClick={() => onCloseRef.current()}>
+                {discardPrompt?.discardLabel ?? "Discard changes"}
+              </button>
+            </div>
+          </footer>
+        )}
       </section>
     </div>
   );

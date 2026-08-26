@@ -2,6 +2,7 @@ import { continueAgentLoop, type AgentLoopTurn, type AgentMessage } from "./agen
 import type { AgentRunContext, EvirRuntime } from "../../runtime/types";
 import { ToolRegistryImpl } from "../../core/tools/tool-registry-impl";
 import { ToolExecutor } from "../../core/tools/tool-executor";
+import { logger } from "../../core/logging/logger";
 import {
   getApprovalContext,
   persistTurn,
@@ -282,6 +283,13 @@ export async function approveTool(
 ): Promise<void> {
   const ctx = getApprovalContext(pending, set, get);
   if (!ctx) return;
+  logger.info("approval", "approval.granted", {
+    conversationId: pending.conversationId,
+    toolCallId: pending.toolCallId,
+    toolName: pending.toolName,
+    ...(pending.riskLevel ? { riskLevel: pending.riskLevel } : {}),
+    ...(pending.orchestration ? { runId: pending.orchestration.runId } : {}),
+  });
   const { provider, runtime: baseRuntime, streamStartedAt } = ctx;
   const runtime = approvalRuntime(baseRuntime, pending);
   if (!runtime.toolExecutor) {
@@ -363,6 +371,13 @@ export async function denyTool(
 ): Promise<void> {
   const ctx = getApprovalContext(pending, set, get);
   if (!ctx) return;
+  logger.info("approval", "approval.denied", {
+    conversationId: pending.conversationId,
+    toolCallId: pending.toolCallId,
+    toolName: pending.toolName,
+    ...(pending.riskLevel ? { riskLevel: pending.riskLevel } : {}),
+    ...(pending.orchestration ? { runId: pending.orchestration.runId } : {}),
+  });
   const { provider, runtime: baseRuntime, streamStartedAt } = ctx;
   const runtime = approvalRuntime(baseRuntime, pending);
   const task = createActiveTaskController();

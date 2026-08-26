@@ -48,4 +48,42 @@ describe("SettingsFormDialog", () => {
 
     expect(document.activeElement).toBe(input);
   });
+
+  it("closes immediately when the form is clean", () => {
+    const onClose = vi.fn();
+    render(
+      <SettingsFormDialog title="Edit" onClose={onClose} dirty={false}>
+        <input aria-label="Name" />
+      </SettingsFormDialog>,
+    );
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("asks before discarding unsaved changes and still closes after confirmation", () => {
+    const onClose = vi.fn();
+    const { rerender } = render(
+      <SettingsFormDialog title="Edit" onClose={onClose} dirty>
+        <input aria-label="Name" />
+      </SettingsFormDialog>,
+    );
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("alertdialog")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(onClose).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+    expect(onClose).toHaveBeenCalledOnce();
+
+    rerender(
+      <SettingsFormDialog title="Edit" onClose={onClose} dirty={false}>
+        <input aria-label="Name" />
+      </SettingsFormDialog>,
+    );
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(2);
+  });
 });

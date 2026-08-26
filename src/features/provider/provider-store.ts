@@ -347,15 +347,24 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
           apiKey: true,
         })
         .parse(input);
-      return (
+      const models =
         (await listModelsForProtocol(config.protocolId, {
           providerId: config.protocolId,
           baseUrl: config.baseUrl,
           apiKey: config.apiKey,
-        })) ?? []
-      );
+        })) ?? [];
+      logger.info("provider", "provider.fetch-models-completed", {
+        protocolId: config.protocolId,
+        baseUrl: config.baseUrl,
+        modelCount: models.length,
+      });
+      return models;
     } catch (error) {
-      console.error("[evir] fetchModels failed:", error);
+      logger.warn("provider", "provider.fetch-models-failed", {
+        protocolId: input.protocolId,
+        baseUrl: input.baseUrl,
+        reason: error instanceof Error ? error.message : String(error),
+      });
       return [];
     }
   },

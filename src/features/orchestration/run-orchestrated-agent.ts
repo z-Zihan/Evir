@@ -1,6 +1,7 @@
 import { AgentDispatcher, restrictTools } from "../../core/orchestration/agent-dispatcher";
 import { createRunEvent, OrchestrationRepository } from "../../core/orchestration/repository";
 import { GraphScheduler, type NodeExecutionResult } from "../../core/orchestration/scheduler";
+import { logger } from "../../core/logging/logger";
 import type {
   AgentAssignment,
   PlanGraph,
@@ -230,7 +231,10 @@ export async function runOrchestratedAgent(input: OrchestratedRunInput): Promise
     return result;
   };
 
-  const executor = async (node: PlanNode, signal: AbortSignal): Promise<NodeExecutionResult> => {
+  const executeNodeInner = async (
+    node: PlanNode,
+    signal: AbortSignal,
+  ): Promise<NodeExecutionResult> => {
     if (signal.aborted) return { status: "cancelled", summary: "Cancelled before execution" };
     if (node.kind === "approval") {
       const confirmed = useOrchestrationStore
@@ -394,6 +398,28 @@ export async function runOrchestratedAgent(input: OrchestratedRunInput): Promise
       status: report.status === "partial" ? "failed" : report.status,
       summary: report.summary,
     };
+  };
+
+  const executor = async (node: PlanNode, signal: AbortSignal): Promise<NodeExecutionResult> => {
+    const startedAt = Date.now();
+    logger.info("agent", "orchestration.node-started", {
+      runId: initial.runId,
+      conversationId: input.conversationId,
+      nodeId: node.id,
+      nodeKind: node.kind,
+      title: node.title,
+    });
+    const result = await executeNodeInner(node, signal);
+    logger.info("agent", "orchestration.node-finished", {
+      runId: initial.runId,
+      conversationId: input.conversationId,
+      nodeId: node.id,
+      nodeKind: node.kind,
+      status: result.status,
+      durationMs: Date.now() - startedAt,
+      summary: result.summary.slice(0, 200),
+    });
+    return result;
   };
 
   const scheduler = new GraphScheduler(executor, 2, {

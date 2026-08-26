@@ -6,6 +6,7 @@ import type {
 } from "../../core/providers/tool-registry";
 import type { ProviderRecord, ToolCallRecord, ToolResultRecord } from "../../core/storage/db";
 import { TOOL_PERMISSION_REQUIRED } from "../../core/tools/tool-executor";
+import { logger } from "../../core/logging/logger";
 import type { AgentRunContext, EvirRuntime } from "../../runtime/types";
 import { streamAssistant, type StreamResult } from "./chat-stream";
 
@@ -262,12 +263,25 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
       });
       if (policy.blocked) {
         const summary = policy.loopSignal?.summary ?? `Tool not allowed: ${rawCall.toolName}`;
+        const errorMessageKey =
+          policy.blockReason === "loop-detected"
+            ? "tools.maxIterations"
+            : policy.blockReason === "tool-not-allowed"
+              ? "tools.notAllowedByStep"
+              : "tools.notAvailable";
+        logger.warn("tool", "agent.tool-call-blocked", {
+          conversationId: options.conversationId,
+          runId: agentRun.id,
+          toolName: rawCall.toolName,
+          blockReason: policy.blockReason ?? "unknown",
+          mode,
+          allowedToolIds: [...allowedToolIds],
+        });
         turns.push({
           stream: {
             ...stream,
             status: "error",
-            errorMessage:
-              policy.blockReason === "loop-detected" ? "tools.maxIterations" : "tools.notAvailable",
+            errorMessage: errorMessageKey,
             content: `${stream.content}\n\n⚠️ ${summary}`,
           },
         });

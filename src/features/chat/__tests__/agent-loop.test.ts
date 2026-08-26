@@ -136,6 +136,50 @@ describe("runAgentLoop", () => {
     expect(result.turns).toHaveLength(2);
     expect(result.turns.at(-1)?.stream.errorMessage).toBe("tools.maxIterations");
   });
+
+  it("explains step-scoped tool blocks instead of claiming browser mode", async () => {
+    vi.mocked(streamAssistant).mockResolvedValueOnce({
+      content: "",
+      status: "complete",
+      toolCalls: [{ id: "call-1", toolName: "write_file", arguments: "{}" }],
+    });
+    // 只授予 read 工具，write_file 应被 tool-policy 以 tool-not-allowed 拦截
+    const runtime = setupRuntime(() => Promise.resolve({ success: true, output: "ok" }));
+    const readRuntime: EvirRuntime = {
+      ...runtime,
+      toolRegistry: (() => {
+        const registry = createToolRegistry();
+        registry.register({
+          id: "read_file",
+          name: "read_file",
+          description: "Read",
+          source: "evir-local",
+          riskLevel: "L1",
+          schema: { type: "object" },
+          execute: () => Promise.resolve({ success: true, output: "" }),
+        });
+        return registry;
+      })(),
+    };
+    const harnessMiddlewareRegistry = new HarnessMiddlewareRegistry();
+    harnessMiddlewareRegistry.registerProtected(
+      createProtectedToolPolicyMiddleware(),
+      "evir.host.tool-policy",
+    );
+
+    const result = await runAgentLoop({
+      provider,
+      conversationId: "conversation-1",
+      messages: [{ role: "user", content: "Write it" }],
+      runtime: { ...readRuntime, harnessMiddlewareRegistry },
+      onDelta: vi.fn(),
+    });
+
+    const blockedTurn = result.turns.at(-1);
+    expect(blockedTurn?.stream.status).toBe("error");
+    expect(blockedTurn?.stream.errorMessage).toBe("tools.notAllowedByStep");
+    expect(blockedTurn?.stream.content).toContain("Tool not allowed: write_file");
+  });
 });
 
 function setupL3Runtime(execute: ToolDefinition["execute"]): EvirRuntime {

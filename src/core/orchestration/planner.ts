@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { logger } from "../logging/logger";
 import type { TaskBrief, PlanGraph, PlanNode, ResourceScope } from "./types";
 
 export interface PlanGeneratorPort {
@@ -239,7 +240,13 @@ export async function createPlannedGraph(
       createdAt: now,
       updatedAt: now,
     };
-  } catch {
+  } catch (error) {
+    logger.warn("agent", "orchestration.model-plan-rejected", {
+      runId: brief.runId,
+      conversationId: brief.conversationId,
+      workspacePath: workspacePath ?? null,
+      reason: error instanceof Error ? error.message : String(error),
+    });
     return createPlan(brief, workspacePath);
   }
 }

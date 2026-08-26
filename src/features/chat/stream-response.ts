@@ -672,6 +672,11 @@ export async function streamResponse(
   });
 
   if (pendingApprovals.length > 0 && mode === "agent") {
+    logger.info("approval", "approval.requested", {
+      conversationId,
+      count: pendingApprovals.length,
+      tools: pendingApprovals.map(({ toolName, riskLevel }) => ({ toolName, riskLevel })),
+    });
     const blockedTurns = new Set(approvalContexts.map(({ turn }) => turn));
     const earlierTurns = result.turns.filter((turn) => !blockedTurns.has(turn));
     const earlierMessages = earlierTurns.map((turn) => toMessage(turn, conversationId));

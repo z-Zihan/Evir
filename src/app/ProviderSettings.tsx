@@ -109,6 +109,7 @@ export function ProviderSettings() {
   const [presetFilter, setPresetFilter] = useState<PresetFilter>("all");
   const [presetQuery, setPresetQuery] = useState("");
   const [form, setForm] = useState<ProviderConfigInput>({ ...EMPTY_FORM });
+  const [baselineForm, setBaselineForm] = useState<ProviderConfigInput>({ ...EMPTY_FORM });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
@@ -122,9 +123,15 @@ export function ProviderSettings() {
     setSelectedPresetId(null);
     setPresetQuery("");
     setForm({ ...EMPTY_FORM });
+    setBaselineForm({ ...EMPTY_FORM });
     setErrors({});
     setTestResult(null);
     setModels([]);
+  };
+
+  const applyForm = (next: ProviderConfigInput) => {
+    setForm(next);
+    setBaselineForm({ ...next });
   };
 
   const openAdd = () => {
@@ -137,7 +144,7 @@ export function ProviderSettings() {
     if (!provider) return;
     setEditingId(id);
     setSelectedPresetId(null);
-    setForm({
+    applyForm({
       name: provider.name,
       protocolId: provider.protocolId as ProviderConfigInput["protocolId"],
       baseUrl: provider.baseUrl,
@@ -155,12 +162,12 @@ export function ProviderSettings() {
   const choosePreset = (preset: ProviderPreset | null) => {
     if (!preset) {
       setSelectedPresetId("custom");
-      setForm({ ...EMPTY_FORM });
+      applyForm({ ...EMPTY_FORM });
     } else {
       const protocolId = supportedProtocol(preset);
       if (!protocolId) return;
       setSelectedPresetId(preset.id);
-      setForm({
+      applyForm({
         ...EMPTY_FORM,
         name: preset.name,
         protocolId,
@@ -244,7 +251,11 @@ export function ProviderSettings() {
     setFetchingModels(true);
     const discovered = await fetchModels(form);
     setModels(discovered);
-    setTestResult(discovered.length ? null : t("provider.fetchModelsFailed"));
+    setTestResult(
+      discovered.length
+        ? t("provider.fetchModelsSuccess", { count: discovered.length })
+        : t("provider.fetchModelsFailed"),
+    );
     setFetchingModels(false);
   };
 
@@ -255,6 +266,11 @@ export function ProviderSettings() {
       (!query || preset.name.toLowerCase().includes(query))
     );
   });
+
+  const formDirty = useMemo(
+    () => JSON.stringify(form) !== JSON.stringify(baselineForm),
+    [form, baselineForm],
+  );
 
   return (
     <div className="provider-settings">
@@ -411,6 +427,12 @@ export function ProviderSettings() {
           title={editingId ? t("provider.editProvider") : t("provider.configureProvider")}
           description={t("provider.formDescription")}
           onClose={resetDialog}
+          dirty={formDirty}
+          discardPrompt={{
+            message: t("provider.discardChangesMessage"),
+            keepLabel: t("provider.keepEditing"),
+            discardLabel: t("provider.discardChanges"),
+          }}
         >
           <form
             className="provider-form modal-form"
@@ -434,6 +456,9 @@ export function ProviderSettings() {
                 <input
                   autoFocus
                   value={form.name}
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
                   aria-invalid={Boolean(errors.name)}
                   onChange={(event) => updateField("name", event.target.value)}
                 />
@@ -471,6 +496,9 @@ export function ProviderSettings() {
                 </span>
                 <input
                   value={form.baseUrl}
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
                   aria-invalid={Boolean(errors.baseUrl)}
                   placeholder="https://api.example.com/v1"
                   onChange={(event) => updateField("baseUrl", event.target.value)}
@@ -530,6 +558,9 @@ export function ProviderSettings() {
                   <input
                     list="provider-model-options"
                     value={form.modelId}
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
                     aria-invalid={Boolean(errors.modelId)}
                     onChange={(event) => updateField("modelId", event.target.value)}
                   />
