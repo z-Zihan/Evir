@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { z } from "zod";
 import { getAdapter, listModelsForProtocol } from "../../core/providers/adapter-registry";
+import { logger } from "../../core/logging/logger";
 import type { ProviderError } from "../../core/providers/stream-events";
 // NOTE: Uses Dexie directly for indexed queries; StoragePort covers basic CRUD
 import type { ProviderRecord, SettingRecord } from "../../core/storage/db";
@@ -59,7 +60,15 @@ async function persistProvider(provider: ProviderRecord): Promise<void> {
   if (isNativeDesktopRuntime()) {
     const storage = getRuntime().storage;
     if (!storage) throw new Error("Desktop secure storage is unavailable");
-    await storage.keychainSet(providerSecretKey(provider.id), provider.apiKey);
+    const secretKey = providerSecretKey(provider.id);
+    await storage.keychainSet(secretKey, provider.apiKey);
+    const persistedApiKey = await storage.keychainGet(secretKey);
+    if (persistedApiKey !== provider.apiKey) {
+      logger.error("security", "provider.credential-persist-failed", {
+        providerId: provider.id,
+      });
+      throw new Error("Provider credential could not be verified in secure storage");
+    }
     await repository().write("providers", provider.id, { ...provider, apiKey: "" });
     return;
   }
@@ -283,11 +292,50 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
     const config = connectionSchema.parse(input);
     const adapter = getAdapter(config.protocolId);
     if (!adapter) throw new Error("Provider adapter not found");
-    return adapter.testConnection({
-      providerId: input.name || "test",
+    const startedAt = Date.now();
+    const endpoint = new URL(config.baseUrl);
+    const safeContext = {
+      protocolId: config.protocolId,
       modelId: config.modelId,
-      authConfig: { baseUrl: config.baseUrl, apiKey: config.apiKey },
-    });
+      endpoint: `${endpoint.protocol}//${endpoint.host}${endpoint.pathname}`,
+    };
+    try {
+      const result = await adapter.testConnection({
+        providerId: input.name || "test",
+        modelId: config.modelId,
+        authConfig: { baseUrl: config.baseUrl, apiKey: config.apiKey },
+      });
+      const durationMs = Date.now() - startedAt;
+      if (result.ok) {
+        logger.info("provider", "provider.connection-test.succeeded", {
+          ...safeContext,
+          durationMs,
+        });
+      } else {
+        logger.error(
+          "provider",
+          `provider.connection-test.failed: ${result.error?.message ?? "Unknown provider error"}`,
+          {
+            ...safeContext,
+            durationMs,
+            errorType: result.error?.type,
+            providerResponse: result.error?.providerDetails,
+          },
+        );
+      }
+      return result;
+    } catch (error) {
+      logger.error(
+        "provider",
+        `provider.connection-test.failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+        {
+          ...safeContext,
+          durationMs: Date.now() - startedAt,
+          errorType: "UNEXPECTED_ERROR",
+        },
+      );
+      throw error;
+    }
   },
 
   fetchModels: async (input) => {

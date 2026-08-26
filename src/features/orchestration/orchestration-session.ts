@@ -89,6 +89,8 @@ export async function prepareTask(input: {
   useOrchestrationStore.getState().setPreparing({
     conversationId: input.conversationId,
     objective: input.objective,
+    stage: "intake",
+    startedAt: Date.now(),
   });
   try {
     cancelledPreparations.delete(input.conversationId);
@@ -148,6 +150,7 @@ export async function prepareTask(input: {
       useOrchestrationStore.getState().setPreparing(null);
       return "clarification";
     }
+    useOrchestrationStore.getState().setPreparationStage(input.conversationId, "planning");
     const plan = await buildValidatedPlan(
       brief,
       input.runtime.getWorkspaceRoot?.() ?? null,

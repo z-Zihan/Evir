@@ -19,7 +19,14 @@ async function migrateProviders(storage: StoragePort): Promise<void> {
   const sanitized: ProviderRecord[] = [];
   for (const provider of providers) {
     if (provider.apiKey) {
-      await getRuntime().storage?.keychainSet(`provider:${provider.id}:api-key`, provider.apiKey);
+      const key = `provider:${provider.id}:api-key`;
+      const secureStorage = getRuntime().storage;
+      if (!secureStorage) throw new Error("Desktop secure storage is unavailable");
+      await secureStorage.keychainSet(key, provider.apiKey);
+      const persistedApiKey = await secureStorage.keychainGet(key);
+      if (persistedApiKey !== provider.apiKey) {
+        throw new Error("Provider credential migration could not be verified in secure storage");
+      }
     }
     sanitized.push({ ...provider, apiKey: "" });
   }

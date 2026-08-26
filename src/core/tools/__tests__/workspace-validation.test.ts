@@ -72,6 +72,25 @@ describe("tool workspace boundary", () => {
     );
   });
 
+  it("resolves safe model-relative paths from the workspace root", () => {
+    expect(validateWorkspacePath("input.txt", runtime)).toBe("/tmp/project/input.txt");
+    expect(validateWorkspacePath(".", runtime)).toBe("/tmp/project");
+    expect(validateWorkspacePath(".git/HEAD", runtime)).toBe("/tmp/project/.git/HEAD");
+  });
+
+  it("does not duplicate a workspace basename in a model-relative path", () => {
+    expect(validateWorkspacePath("project/src/index.ts", runtime)).toBe(
+      "/tmp/project/src/index.ts",
+    );
+    expect(validateWorkspacePath("project", runtime)).toBe("/tmp/project");
+  });
+
+  it("blocks traversal and absolute-looking paths from another platform", () => {
+    expect(validateWorkspacePath("../outside.txt", runtime)).toBeUndefined();
+    expect(validateWorkspacePath("src/../../outside.txt", runtime)).toBeUndefined();
+    expect(validateWorkspacePath("C:\\outside.txt", runtime)).toBeUndefined();
+  });
+
   it("blocks sibling prefixes and paths outside the selected workspace", () => {
     expect(validateWorkspacePath("/tmp/project-copy/file.ts", runtime)).toBeUndefined();
     expect(validateWorkspacePath("/tmp/other/file.ts", runtime)).toBeUndefined();
@@ -80,6 +99,19 @@ describe("tool workspace boundary", () => {
   it("blocks all local paths when no workspace is selected", () => {
     const noWorkspace = { ...runtime, getWorkspaceRoot: () => null };
     expect(validateWorkspacePath("/tmp/project/file.ts", noWorkspace)).toBeUndefined();
+  });
+
+  it("resolves Windows relative paths case-insensitively", () => {
+    const windowsRuntime = { ...runtime, getWorkspaceRoot: () => "C:\\Users\\Me\\Project" };
+    expect(validateWorkspacePath("src\\index.ts", windowsRuntime)).toBe(
+      "C:/Users/Me/Project/src/index.ts",
+    );
+    expect(validateWorkspacePath("project\\README.md", windowsRuntime)).toBe(
+      "C:/Users/Me/Project/README.md",
+    );
+    expect(validateWorkspacePath("C:\\users\\me\\project\\src\\index.ts", windowsRuntime)).toBe(
+      "C:/users/me/project/src/index.ts",
+    );
   });
 });
 

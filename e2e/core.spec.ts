@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 import { agentMessages, configurePage, isDesktop, seedFixture } from "./helpers";
 
 test("first run and runtime capability boundaries", async ({ page }, testInfo) => {
@@ -112,6 +113,32 @@ test("stops an active stream and remains usable", async ({ page }, testInfo) => 
   await expect(composer).toBeEnabled();
 });
 
+test("keeps an active response inside its originating conversation", async ({ page }, testInfo) => {
+  await configurePage(page);
+  await seedFixture(page, { withConversation: true });
+  if (isDesktop(testInfo)) await page.getByRole("button", { name: "Ask", exact: true }).click();
+
+  await page.locator("textarea").fill("[slow] conversation A isolation");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page.locator(".message-streaming")).toContainText("deliberately streamed");
+
+  await page.getByRole("button", { name: "New chat", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "New conversation" })).toBeVisible();
+  await expect(page.locator(".message-streaming")).toHaveCount(0);
+  await expect(page.locator(".message-content", { hasText: "deliberately streamed" })).toHaveCount(
+    0,
+  );
+
+  const conversationA = page.locator(".conversation-item", { hasText: "Quality verification" });
+  await conversationA.click();
+  await expect(page.getByText(/deliberately streamed/)).toBeVisible({ timeout: 15_000 });
+
+  await page.locator(".conversation-item", { hasText: "New conversation" }).click();
+  await expect(page.locator(".message-content", { hasText: "deliberately streamed" })).toHaveCount(
+    0,
+  );
+});
+
 test("Desktop Agent renders the event-driven task workbench", async ({ page }, testInfo) => {
   test.skip(!isDesktop(testInfo), "Task orchestration is a Desktop capability");
   await configurePage(page);
@@ -120,8 +147,8 @@ test("Desktop Agent renders the event-driven task workbench", async ({ page }, t
   await composer.fill("Explain this fixture");
   await page.getByRole("button", { name: "Send", exact: true }).click();
 
-  await expect(page.getByText("Understanding task", { exact: true })).toBeVisible();
   await expect(page.getByText("Task finished", { exact: true })).toBeVisible({ timeout: 15_000 });
+  await page.getByRole("button", { name: "Show execution details" }).click();
   await expect(page.getByText("Execution plan", { exact: true })).toBeVisible();
   await expect(page.getByText("Answer", { exact: true })).toBeVisible();
   await expect(page.getByText("Run summary", { exact: true })).toBeVisible();
@@ -240,6 +267,65 @@ test("provider edits persist after closing settings and refreshing", async ({ pa
   await expect(
     page.getByRole("dialog", { name: "Settings" }).getByText("Renamed Fixture"),
   ).toBeVisible();
+});
+
+test("failed provider connection is visible in redacted diagnostic logs", async ({ page }) => {
+  await configurePage(page);
+  await seedFixture(page);
+
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  const settings = page.getByRole("dialog", { name: "Settings", exact: true });
+  const providerRow = settings.locator(".provider-connection-row", { hasText: "Local Fixture" });
+  await providerRow.getByRole("button", { name: "Edit", exact: true }).click();
+
+  const form = page.getByRole("dialog", { name: "Edit model provider" });
+  const secret = "sk-evir-e2e-quota-key";
+  await form.getByLabel(/^API Key/).fill(secret);
+  await form.getByRole("button", { name: "Test connection", exact: true }).click();
+  await expect(form.getByRole("status")).toContainText(
+    "Connection failed: 余额不足或无可用资源包,请充值。",
+  );
+
+  await form.getByRole("button", { name: "Cancel", exact: true }).click();
+  await settings.getByRole("button", { name: "Diagnostics", exact: true }).click();
+  await expect(
+    settings.getByText("provider.connection-test.failed: 余额不足或无可用资源包,请充值。", {
+      exact: true,
+    }),
+  ).toBeVisible();
+
+  const downloadPromise = page.waitForEvent("download");
+  await settings.getByRole("button", { name: "Export logs", exact: true }).click();
+  const download = await downloadPromise;
+  const downloadPath = await download.path();
+  expect(downloadPath).not.toBeNull();
+  if (!downloadPath) throw new Error("Diagnostic export did not produce a local file");
+  const exportedText = await readFile(downloadPath, "utf8");
+  const entries = JSON.parse(exportedText) as Array<{
+    event: string;
+    data?: {
+      errorType?: string;
+      providerResponse?: Record<string, unknown>;
+    };
+  }>;
+  const failure = entries.find((entry) =>
+    entry.event.startsWith("provider.connection-test.failed"),
+  );
+
+  expect(failure).toMatchObject({
+    data: {
+      errorType: "RATE_LIMITED",
+      providerResponse: {
+        status: 429,
+        code: "quota_exhausted",
+        errorType: "billing_error",
+        requestId: "fixture-request-429",
+        responseFormat: "json",
+      },
+    },
+  });
+  expect(exportedText).not.toContain(secret);
+  expect(exportedText).not.toContain("authorization");
 });
 
 test("theme selection applies immediately and persists across reload", async ({ page }) => {

@@ -5,10 +5,11 @@ const cors = {
   "access-control-allow-origin": "*",
   "access-control-allow-headers": "authorization, content-type",
   "access-control-allow-methods": "GET, POST, OPTIONS",
+  "access-control-expose-headers": "x-request-id",
 };
 
-function json(response, status, body) {
-  response.writeHead(status, { ...cors, "content-type": "application/json" });
+function json(response, status, body, headers = {}) {
+  response.writeHead(status, { ...cors, "content-type": "application/json", ...headers });
   response.end(JSON.stringify(body));
 }
 
@@ -72,6 +73,22 @@ const server = createServer((request, response) => {
   }
   if (request.url !== "/v1/chat/completions" || request.method !== "POST") {
     return json(response, 404, { error: { message: "Fixture route not found" } });
+  }
+
+  if (request.headers.authorization === "Bearer sk-evir-e2e-quota-key") {
+    return json(
+      response,
+      429,
+      {
+        error: {
+          code: "quota_exhausted",
+          type: "billing_error",
+          message: "余额不足或无可用资源包,请充值。",
+          authorization: "Bearer sk-evir-e2e-quota-key",
+        },
+      },
+      { "x-request-id": "fixture-request-429" },
+    );
   }
 
   let raw = "";

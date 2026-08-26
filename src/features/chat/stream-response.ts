@@ -44,6 +44,12 @@ import {
 } from "../settings/personalization-settings";
 import { runOrchestratedAgent } from "../orchestration/run-orchestrated-agent";
 import { useOrchestrationStore } from "../orchestration/orchestration-store";
+import {
+  beginConversationStream,
+  finishConversationStream,
+  updateConversationStream,
+  visibleForConversation,
+} from "./stream-ownership";
 
 const budgetManagerInstance = createContextBudgetManager();
 const MAX_SUMMARIZATION_ROUNDS = 2;
@@ -119,11 +125,13 @@ async function getLoopResult(
   conversationId: string,
   messages: ProviderMessage[],
   set: ChatStoreSet,
+  get: ChatStoreGet,
   mode: ChatState["mode"],
   runtime: EvirRuntime,
   privateSession: boolean,
 ): Promise<AgentLoopResult> {
-  const onDelta = (streamingContent: string) => set({ streamingContent });
+  const onDelta = (streamingContent: string) =>
+    updateConversationStream(set, get, conversationId, streamingContent);
   if (mode === "agent" || mode === "plan") {
     const task = createActiveTaskController();
     try {
@@ -329,7 +337,7 @@ export async function streamResponse(
   const readinessError = providerReadinessError(provider);
   if (readinessError) return set({ error: readinessError });
 
-  set({ isStreaming: true, streamingContent: "", error: null });
+  const streamStartedAt = beginConversationStream(set, conversationId);
   const lastUserMessage = [...history].reverse().find((message) => message.role === "user");
   const requestedMode = get().mode;
   let mode = runtime.target === "web" ? "ask" : requestedMode;
@@ -349,19 +357,23 @@ export async function streamResponse(
     mode = request.effectiveMode;
     normalizedUserInput = request.normalizedInput;
     if (request.blocked) {
-      set({
-        isStreaming: false,
-        streamingContent: "",
-        error:
-          request.blockReason === "agent-requires-tool-calling"
-            ? "chat.agentRequiresToolCalling"
-            : (request.blockReason ?? "chat.streamEnded"),
-      });
+      finishConversationStream(set, get, conversationId, streamStartedAt);
+      if (visibleForConversation(get, conversationId)) {
+        set({
+          error:
+            request.blockReason === "agent-requires-tool-calling"
+              ? "chat.agentRequiresToolCalling"
+              : (request.blockReason ?? "chat.streamEnded"),
+        });
+      }
       return;
     }
   }
   if (mode === "agent" && provider.modelCapabilities?.toolCalling !== true) {
-    set({ isStreaming: false, streamingContent: "", error: "chat.agentRequiresToolCalling" });
+    finishConversationStream(set, get, conversationId, streamStartedAt);
+    if (visibleForConversation(get, conversationId)) {
+      set({ error: "chat.agentRequiresToolCalling" });
+    }
     return;
   }
 
@@ -472,7 +484,8 @@ export async function streamResponse(
     );
     const skillTokenBudget = Math.floor(remainingInputTokens * 0.4);
     if (estimateTokens(activeSkills) > skillTokenBudget) {
-      set({ isStreaming: false, streamingContent: "", error: "chat.skillContextTooLarge" });
+      finishConversationStream(set, get, conversationId, streamStartedAt);
+      if (visibleForConversation(get, conversationId)) set({ error: "chat.skillContextTooLarge" });
       return;
     }
     const routeInfo = compatibleRoutedSkills.map((skill) => {
@@ -595,12 +608,14 @@ export async function streamResponse(
     conversationId,
     messages,
     set,
+    get,
     mode,
     runtime,
     get().privateSession,
   );
   if (result.turns.length === 0) {
-    set({ isStreaming: false, streamingContent: "", error: "chat.streamEnded" });
+    finishConversationStream(set, get, conversationId, streamStartedAt);
+    if (visibleForConversation(get, conversationId)) set({ error: "chat.streamEnded" });
     return;
   }
 
@@ -665,7 +680,14 @@ export async function streamResponse(
         pendingApprovals.map((pending) => toApprovalRecord(pending)),
       );
     }
-    const agentRunRecord = await buildAgentRunRecord(result, conversationId, runtime);
+    const agentRunRecord = await buildAgentRunRecord(result, conversationId, runtime, {
+      previous:
+        get().latestAgentRun?.id === result.agentRun.id
+          ? get().latestAgentRun
+          : get().privateSession
+            ? null
+            : await getStructuredStorage().read<AgentRunRecord>("agent_runs", result.agentRun.id),
+    });
     if (!get().privateSession) await persistAgentRun(agentRunRecord);
 
     set(({ conversations, currentConversationId, messages: currentMessages }) => ({
@@ -677,11 +699,15 @@ export async function streamResponse(
       ...(currentConversationId === conversationId
         ? { messages: [...currentMessages, ...earlierMessages, ...blockedMessages] }
         : {}),
-      isStreaming: false,
-      streamingContent: "",
-      pendingToolApproval: { ...pendingApproval, remainingApprovals },
-      latestAgentRun: agentRunRecord,
+      ...(currentConversationId === conversationId
+        ? {
+            streamingContent: "",
+            pendingToolApproval: { ...pendingApproval, remainingApprovals },
+            latestAgentRun: agentRunRecord,
+          }
+        : {}),
     }));
+    finishConversationStream(set, get, conversationId, streamStartedAt);
     return;
   }
 
@@ -694,7 +720,19 @@ export async function streamResponse(
   const lastStream: StreamResult | undefined = result.turns.at(-1)?.stream;
   const error = result.maxIterationsReached ? "tools.maxIterations" : lastStream?.errorMessage;
   const agentRunRecord =
-    mode === "agent" ? await buildAgentRunRecord(result, conversationId, runtime) : null;
+    mode === "agent"
+      ? await buildAgentRunRecord(result, conversationId, runtime, {
+          previous:
+            get().latestAgentRun?.id === result.agentRun.id
+              ? get().latestAgentRun
+              : get().privateSession
+                ? null
+                : await getStructuredStorage().read<AgentRunRecord>(
+                    "agent_runs",
+                    result.agentRun.id,
+                  ),
+        })
+      : null;
   if (agentRunRecord && !get().privateSession) await persistAgentRun(agentRunRecord);
 
   set(({ conversations, currentConversationId, messages: currentMessages }) => ({
@@ -706,9 +744,13 @@ export async function streamResponse(
     ...(currentConversationId === conversationId
       ? { messages: [...currentMessages, ...assistants] }
       : {}),
-    isStreaming: false,
-    streamingContent: "",
-    error: error ?? null,
-    latestAgentRun: agentRunRecord,
+    ...(currentConversationId === conversationId
+      ? {
+          streamingContent: "",
+          error: error ?? null,
+          latestAgentRun: agentRunRecord,
+        }
+      : {}),
   }));
+  finishConversationStream(set, get, conversationId, streamStartedAt);
 }

@@ -38,6 +38,8 @@ export interface ChatState {
   messages: MessageRecord[];
   mode: InteractionMode;
   isStreaming: boolean;
+  activeStreamConversationId: string | null;
+  activeStreamStartedAt: number | null;
   streamingContent: string;
   error: string | null;
   pendingAttachments: ProcessedAttachment[];
@@ -75,6 +77,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   messages: [],
   mode: "agent",
   isStreaming: false,
+  activeStreamConversationId: null,
+  activeStreamStartedAt: null,
   streamingContent: "",
   error: null,
   pendingAttachments: [],
@@ -88,7 +92,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     doCreateConversation(set, providerId, modelId, get().privateSession),
   createOrReuseConversation: async (providerId, modelId) =>
     doCreateOrReuseConversation(set, get, providerId, modelId),
-  selectConversation: async (id) => doSelectConversation(set, id),
+  selectConversation: async (id) => doSelectConversation(set, get, id),
   deleteConversation: async (id) => doDeleteConversation(set, id),
   renameConversation: async (id, title) => doRenameConversation(set, id, title),
   togglePin: async (id) => doTogglePin(set, get, id),
@@ -146,6 +150,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
           privateSession: true,
           privateConversationId: null,
           currentConversationId: null,
+          activeStreamConversationId: null,
+          activeStreamStartedAt: null,
           messages: [],
           streamingContent: "",
           pendingAttachments: [],
@@ -162,6 +168,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
           : state.conversations,
         privateConversationId: null,
         currentConversationId: null,
+        activeStreamConversationId: null,
+        activeStreamStartedAt: null,
         messages: [],
         streamingContent: "",
         pendingAttachments: [],
@@ -229,7 +237,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
     stopActiveStream();
     void getRuntime().storage?.cancelActiveCommands();
     void cancelPendingToolApprovals(pendingToolApproval, privateSession);
-    set({ pendingToolApproval: null, isStreaming: false });
+    set({
+      pendingToolApproval: null,
+      isStreaming: false,
+      activeStreamConversationId: null,
+      activeStreamStartedAt: null,
+      streamingContent: "",
+    });
   },
   branchConversation: async (messageId) => {
     const { currentConversationId, messages, conversations, isStreaming, privateSession } = get();

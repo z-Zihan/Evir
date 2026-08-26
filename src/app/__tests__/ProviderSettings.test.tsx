@@ -73,6 +73,26 @@ describe("ProviderSettings", () => {
     expect(addProvider).not.toHaveBeenCalled();
   });
 
+  it("selects protocols in-app with pressed state and arrow-key navigation", async () => {
+    const { ProviderSettings } = await import("../ProviderSettings");
+    render(<ProviderSettings />);
+
+    fireEvent.click(screen.getByRole("button", { name: "provider.add" }));
+    fireEvent.click(screen.getByRole("button", { name: /provider.custom/ }));
+
+    const compatible = screen.getByRole("button", { name: "OpenAI Compatible" });
+    const responses = screen.getByRole("button", { name: "OpenAI Responses" });
+    expect(compatible.getAttribute("aria-pressed")).toBe("true");
+    expect(responses.getAttribute("aria-pressed")).toBe("false");
+
+    compatible.focus();
+    fireEvent.keyDown(compatible, { key: "ArrowRight" });
+
+    expect(responses.getAttribute("aria-pressed")).toBe("true");
+    expect(responses).toBe(document.activeElement);
+    expect(screen.queryByRole("combobox", { name: /provider.protocol/ })).toBeNull();
+  });
+
   it("opens an existing provider in an edit dialog and saves changes", async () => {
     providers = [
       {

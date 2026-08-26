@@ -12,6 +12,7 @@ import {
   Pencil,
   ShieldAlert,
   Users,
+  X,
   XCircle,
 } from "lucide-react";
 import { getRuntime } from "../runtime/use-runtime";
@@ -47,6 +48,26 @@ function RunIcon({ status }: { status: PlanGraph["status"] | undefined }) {
   if (status === "cancelled") return <CircleSlash2 size={16} />;
   if (status === "partial" || status === "paused") return <ShieldAlert size={16} />;
   return <CheckCircle2 size={16} />;
+}
+
+function useElapsedSeconds(startedAt: number | undefined): number {
+  const [elapsedSeconds, setElapsedSeconds] = useState(() =>
+    startedAt ? Math.max(0, Math.floor((Date.now() - startedAt) / 1_000)) : 0,
+  );
+
+  useEffect(() => {
+    if (!startedAt) {
+      setElapsedSeconds(0);
+      return;
+    }
+    const update = () =>
+      setElapsedSeconds(Math.max(0, Math.floor((Date.now() - startedAt) / 1_000)));
+    update();
+    const interval = window.setInterval(update, 1_000);
+    return () => window.clearInterval(interval);
+  }, [startedAt]);
+
+  return elapsedSeconds;
 }
 
 function EditableStep({ node }: { node: PlanNode }) {
@@ -105,6 +126,7 @@ export function TaskWorkbench() {
   const stopGeneration = useChatStore((state) => state.stopGeneration);
   const snapshot = useOrchestrationStore((state) => state.current);
   const preparing = useOrchestrationStore((state) => state.preparing);
+  const elapsedSeconds = useElapsedSeconds(preparing?.startedAt);
   const questions = useMemo(
     () =>
       snapshot?.brief.unknowns.filter(
@@ -113,6 +135,7 @@ export function TaskWorkbench() {
     [snapshot],
   );
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [showFinishedDetails, setShowFinishedDetails] = useState(false);
   const firstQuestionRef = useRef<HTMLInputElement>(null);
   const rejectPlanRef = useRef<HTMLButtonElement>(null);
 
@@ -125,32 +148,46 @@ export function TaskWorkbench() {
     (!snapshot || snapshot.conversationId !== currentConversationId) &&
     preparing?.conversationId === currentConversationId
   ) {
+    const preparationKey = preparing.stage === "planning" ? "planning" : "intake";
     return (
-      <section className="task-workbench" aria-labelledby="task-workbench-title">
-        <header className="task-status-bar" aria-live="polite" aria-busy="true">
-          <span className="task-status-icon" aria-hidden="true">
-            <LoaderCircle size={16} className="spin" />
+      <section
+        className="task-workbench task-workbench-preparing"
+        aria-labelledby="task-workbench-title"
+      >
+        <div className="task-preparation-strip" aria-live="polite" aria-busy="true">
+          <span className="task-preparation-icon" aria-hidden="true">
+            <LoaderCircle size={15} className="spin" />
           </span>
-          <div>
-            <strong id="task-workbench-title">{t("orchestration.phase.intake")}</strong>
-            <span>{preparing.objective}</span>
+          <div className="task-preparation-copy">
+            <div className="task-preparation-heading">
+              <strong id="task-workbench-title">
+                {t(`orchestration.preparing.${preparationKey}Title`)}
+              </strong>
+              <span>{t("orchestration.preparing.elapsed", { seconds: elapsedSeconds })}</span>
+            </div>
+            <span>{t(`orchestration.preparing.${preparationKey}Description`)}</span>
+            {elapsedSeconds >= 15 && <small>{t("orchestration.preparing.slow")}</small>}
           </div>
           <button
             type="button"
-            className="secondary-button"
+            className="task-preparation-stop"
             onClick={() => {
               stopGeneration();
               cancelTaskPreparation(preparing.conversationId);
             }}
+            aria-label={t("orchestration.stop")}
+            title={t("orchestration.stop")}
           >
-            {t("orchestration.stop")}
+            <X size={14} aria-hidden="true" />
+            <span>{t("chat.stop")}</span>
           </button>
-        </header>
+        </div>
       </section>
     );
   }
   if (!snapshot || snapshot.conversationId !== currentConversationId) return null;
   const plan = snapshot.plan;
+  const finished = snapshot.phase === "finished";
   const active = plan?.nodes.find(({ status }) => status === "running" || status === "ready");
   const stop = () => {
     stopGeneration();
@@ -161,7 +198,10 @@ export function TaskWorkbench() {
   };
 
   return (
-    <section className="task-workbench" aria-labelledby="task-workbench-title">
+    <section
+      className={`task-workbench${finished ? " task-workbench-finished" : ""}`}
+      aria-labelledby="task-workbench-title"
+    >
       <header className="task-status-bar" aria-live="polite">
         <span className="task-status-icon" aria-hidden="true">
           {snapshot.phase === "finished" ? (
@@ -194,6 +234,26 @@ export function TaskWorkbench() {
               {t("orchestration.stop")}
             </button>
           )}
+          {finished && (
+            <button
+              type="button"
+              className="task-icon-button"
+              aria-expanded={showFinishedDetails}
+              aria-label={t(
+                showFinishedDetails ? "orchestration.hideDetails" : "orchestration.showDetails",
+              )}
+              title={t(
+                showFinishedDetails ? "orchestration.hideDetails" : "orchestration.showDetails",
+              )}
+              onClick={() => setShowFinishedDetails((value) => !value)}
+            >
+              <ChevronRight
+                className={showFinishedDetails ? "task-details-chevron-open" : ""}
+                size={14}
+                aria-hidden="true"
+              />
+            </button>
+          )}
         </div>
       </header>
 
@@ -205,8 +265,10 @@ export function TaskWorkbench() {
             void answerCurrentClarifications(answers);
           }}
         >
-          <div className="task-section-heading">
-            <ShieldAlert size={15} />
+          <div className="clarification-heading">
+            <span className="clarification-heading-icon" aria-hidden="true">
+              <ShieldAlert size={15} />
+            </span>
             <div>
               <strong>{t("orchestration.clarificationTitle")}</strong>
               <span>{t("orchestration.clarificationDescription")}</span>
@@ -214,38 +276,54 @@ export function TaskWorkbench() {
           </div>
           {(snapshot.brief.assumptions.length > 0 ||
             snapshot.brief.unknowns.some(({ impact }) => impact === "data")) && (
-            <div className="clarification-context">
-              {snapshot.brief.assumptions.length > 0 && (
-                <div>
-                  <strong>{t("orchestration.assumptions")}</strong>
-                  <ul>
-                    {snapshot.brief.assumptions.map((assumption) => (
-                      <li key={assumption.id}>{assumption.statement}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {snapshot.brief.unknowns.some(({ impact }) => impact === "data") && (
-                <div>
-                  <strong>{t("orchestration.dataDestination")}</strong>
-                  <ul>
-                    {snapshot.brief.unknowns
-                      .filter(({ impact }) => impact === "data")
-                      .map((unknown) => (
-                        <li key={unknown.id}>
-                          {unknown.answer ||
-                            unknown.suggestedAnswers.join(" / ") ||
-                            unknown.question}
-                        </li>
+            <details className="clarification-context">
+              <summary>
+                <span>{t("orchestration.assumptions")}</span>
+                <small>
+                  {t("orchestration.assumptionCount", {
+                    count:
+                      snapshot.brief.assumptions.length +
+                      snapshot.brief.unknowns.filter(({ impact }) => impact === "data").length,
+                  })}
+                </small>
+                <ChevronRight size={14} aria-hidden="true" />
+              </summary>
+              <div className="clarification-context-details">
+                {snapshot.brief.assumptions.length > 0 && (
+                  <div>
+                    <strong>{t("orchestration.assumptions")}</strong>
+                    <ul>
+                      {snapshot.brief.assumptions.map((assumption) => (
+                        <li key={assumption.id}>{assumption.statement}</li>
                       ))}
-                  </ul>
-                </div>
-              )}
-            </div>
+                    </ul>
+                  </div>
+                )}
+                {snapshot.brief.unknowns.some(({ impact }) => impact === "data") && (
+                  <div>
+                    <strong>{t("orchestration.dataDestination")}</strong>
+                    <ul>
+                      {snapshot.brief.unknowns
+                        .filter(({ impact }) => impact === "data")
+                        .map((unknown) => (
+                          <li key={unknown.id}>
+                            {unknown.answer ||
+                              unknown.suggestedAnswers.join(" / ") ||
+                              unknown.question}
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </details>
           )}
           {questions.map((question, index) => (
-            <fieldset key={question.id}>
-              <legend>{question.question}</legend>
+            <fieldset className="clarification-question" key={question.id}>
+              <legend>
+                <span aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+                {question.question}
+              </legend>
               {question.suggestedAnswers.length > 0 && (
                 <div className="clarification-suggestions">
                   {question.suggestedAnswers.map((suggestion) => (
@@ -257,7 +335,10 @@ export function TaskWorkbench() {
                         setAnswers((value) => ({ ...value, [question.id]: suggestion }))
                       }
                     >
-                      {suggestion}
+                      <span>{suggestion}</span>
+                      {answers[question.id] === suggestion && (
+                        <CheckCircle2 size={14} aria-hidden="true" />
+                      )}
                     </button>
                   ))}
                 </div>
@@ -272,7 +353,7 @@ export function TaskWorkbench() {
               />
             </fieldset>
           ))}
-          <div className="task-actions">
+          <div className="task-actions clarification-actions">
             <button
               className="primary-button"
               type="submit"
@@ -301,7 +382,7 @@ export function TaskWorkbench() {
         </div>
       )}
 
-      {plan && (
+      {plan && (!finished || showFinishedDetails) && (
         <div className="plan-timeline">
           <div className="task-section-heading">
             <GitFork size={15} />
@@ -349,7 +430,7 @@ export function TaskWorkbench() {
         </div>
       )}
 
-      {snapshot.assignments.length > 0 && (
+      {snapshot.assignments.length > 0 && (!finished || showFinishedDetails) && (
         <div className="agent-group">
           <div className="task-section-heading">
             <Users size={15} />
@@ -366,7 +447,7 @@ export function TaskWorkbench() {
         </div>
       )}
 
-      <TaskRunSummary snapshot={snapshot} />
+      {(!finished || showFinishedDetails) && <TaskRunSummary snapshot={snapshot} />}
     </section>
   );
 }

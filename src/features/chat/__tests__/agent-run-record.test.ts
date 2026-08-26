@@ -80,6 +80,68 @@ describe("Agent run completion evidence", () => {
     expect(verified.status).toBe("completed");
     expect(verified.resolution.complete).toBe(true);
   });
+
+  it("keeps files, snapshots, and tool evidence across an orchestrated continuation", async () => {
+    const first = await buildAgentRunRecord(
+      {
+        ...resultWith("write_file"),
+        agentRun: {
+          id: "worker-run",
+          snapshots: [
+            {
+              snapshot_id: "snapshot-1",
+              file_path: "/tmp/output.txt",
+              existed: false,
+              original_hash: null,
+            },
+          ],
+          fileReferences: [
+            {
+              path: "/tmp/output.txt",
+              contentHash: "written",
+              lastReadAt: 1,
+              summary: "created output",
+              stale: false,
+            },
+          ],
+        },
+      },
+      "conversation-1",
+      undefined,
+      { runId: "run-1" },
+    );
+    const continued = await buildAgentRunRecord(
+      {
+        ...resultWith("git_status"),
+        agentRun: { id: "run-1", snapshots: [], fileReferences: [] },
+        turns: [
+          {
+            stream: { content: "Verified", status: "complete" },
+            toolCalls: [{ id: "call-2", toolName: "git_status", arguments: {} }],
+            toolResults: [
+              {
+                toolCallId: "call-2",
+                toolName: "git_status",
+                success: true,
+                output: "?? output.txt",
+              },
+            ],
+          },
+        ],
+      },
+      "conversation-1",
+      undefined,
+      { previous: first },
+    );
+
+    expect(continued.id).toBe("run-1");
+    expect(continued.toolCalls.map(({ toolName }) => toolName)).toEqual([
+      "write_file",
+      "git_status",
+    ]);
+    expect(continued.snapshots).toHaveLength(1);
+    expect(continued.fileReferences).toHaveLength(1);
+  });
 });
 
 describe("Agent run rollback", () => {

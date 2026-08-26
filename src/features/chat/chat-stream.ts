@@ -77,6 +77,7 @@ export async function streamAssistant(
   onDelta: (delta: string) => void,
   tools?: unknown[],
   externalSignal?: AbortSignal,
+  timeoutMs?: number,
 ): Promise<StreamResult> {
   const configuredAdapter = createConfiguredAdapter(provider.protocolId, {
     providerId: provider.id,
@@ -92,6 +93,13 @@ export async function streamAssistant(
   }
 
   const controller = new AbortController();
+  let timedOut = false;
+  const timeout = timeoutMs
+    ? globalThis.setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, timeoutMs)
+    : undefined;
   const abortFromExternal = () => controller.abort();
   if (externalSignal?.aborted) controller.abort();
   else externalSignal?.addEventListener("abort", abortFromExternal, { once: true });
@@ -149,12 +157,14 @@ export async function streamAssistant(
         };
         void useUsageStore.getState().addRecord(usageRecord);
       } else if (event.type === "error") {
-        status =
-          controller.signal.aborted || event.error.type === ProviderErrorType.CANCELLED
+        status = timedOut
+          ? "error"
+          : controller.signal.aborted || event.error.type === ProviderErrorType.CANCELLED
             ? "stopped"
             : "error";
-        errorMessage =
-          status === "error"
+        errorMessage = timedOut
+          ? "chat.requestTimedOut"
+          : status === "error"
             ? formatProviderError(event.error.type, event.error.message)
             : undefined;
         break;
@@ -163,15 +173,17 @@ export async function streamAssistant(
       }
     }
   } catch (error) {
-    status = controller.signal.aborted ? "stopped" : "error";
-    errorMessage =
-      status === "error"
+    status = timedOut ? "error" : controller.signal.aborted ? "stopped" : "error";
+    errorMessage = timedOut
+      ? "chat.requestTimedOut"
+      : status === "error"
         ? formatProviderError(
             ProviderErrorType.PROVIDER_ERROR,
             error instanceof Error ? error.message : "",
           )
         : undefined;
   } finally {
+    if (timeout !== undefined) globalThis.clearTimeout(timeout);
     activeControllers.delete(controller);
     externalSignal?.removeEventListener("abort", abortFromExternal);
     batched.flush(content);

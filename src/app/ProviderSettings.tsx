@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
@@ -33,6 +33,17 @@ const SUPPORTED_PROTOCOLS = new Set<ProviderConfigInput["protocolId"]>([
   "anthropic-messages",
   "gemini-generate-content",
 ]);
+
+const PROTOCOL_OPTIONS: Array<{
+  id: ProviderConfigInput["protocolId"];
+  label: string;
+}> = [
+  { id: "openai-chat-completions", label: "OpenAI Chat Completions" },
+  { id: "openai-compatible-chat", label: "OpenAI Compatible" },
+  { id: "openai-responses", label: "OpenAI Responses" },
+  { id: "anthropic-messages", label: "Anthropic Messages" },
+  { id: "gemini-generate-content", label: "Gemini GenerateContent" },
+];
 
 const EMPTY_FORM: ProviderConfigInput = {
   name: "",
@@ -103,6 +114,7 @@ export function ProviderSettings() {
   const [testResult, setTestResult] = useState<string | null>(null);
   const [models, setModels] = useState<string[]>([]);
   const [fetchingModels, setFetchingModels] = useState(false);
+  const protocolButtons = useRef<Array<HTMLButtonElement | null>>([]);
 
   const resetDialog = () => {
     setStep("closed");
@@ -163,6 +175,26 @@ export function ProviderSettings() {
     setForm((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: undefined }));
     setTestResult(null);
+  };
+
+  const handleProtocolKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const lastIndex = PROTOCOL_OPTIONS.length - 1;
+    let nextIndex: number | null = null;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      nextIndex = index === lastIndex ? 0 : index + 1;
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      nextIndex = index === 0 ? lastIndex : index - 1;
+    } else if (event.key === "Home") {
+      nextIndex = 0;
+    } else if (event.key === "End") {
+      nextIndex = lastIndex;
+    }
+    if (nextIndex === null) return;
+    const nextOption = PROTOCOL_OPTIONS[nextIndex];
+    if (!nextOption) return;
+    event.preventDefault();
+    updateField("protocolId", nextOption.id);
+    protocolButtons.current[nextIndex]?.focus();
   };
 
   const fieldError = (field: ProviderField) =>
@@ -407,26 +439,32 @@ export function ProviderSettings() {
                 />
                 {fieldError("name") && <small className="field-error">{fieldError("name")}</small>}
               </label>
-              <label>
-                <span>
+              <fieldset className="provider-protocol-picker provider-field-wide">
+                <legend>
                   {t("provider.protocol")} <em>*</em>
-                </span>
-                <select
-                  value={form.protocolId}
-                  onChange={(event) =>
-                    updateField(
-                      "protocolId",
-                      event.target.value as ProviderConfigInput["protocolId"],
-                    )
-                  }
-                >
-                  <option value="openai-chat-completions">OpenAI Chat Completions</option>
-                  <option value="openai-compatible-chat">OpenAI Compatible</option>
-                  <option value="openai-responses">OpenAI Responses</option>
-                  <option value="anthropic-messages">Anthropic Messages</option>
-                  <option value="gemini-generate-content">Gemini GenerateContent</option>
-                </select>
-              </label>
+                </legend>
+                <div className="provider-protocol-options">
+                  {PROTOCOL_OPTIONS.map((option, index) => {
+                    const selected = form.protocolId === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        ref={(element) => {
+                          protocolButtons.current[index] = element;
+                        }}
+                        type="button"
+                        aria-pressed={selected}
+                        tabIndex={selected ? 0 : -1}
+                        onClick={() => updateField("protocolId", option.id)}
+                        onKeyDown={(event) => handleProtocolKeyDown(event, index)}
+                      >
+                        <span>{option.label}</span>
+                        {selected && <Check size={13} aria-hidden="true" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
               <label className="provider-field-wide">
                 <span>
                   {t("provider.baseUrl")} <em>*</em>

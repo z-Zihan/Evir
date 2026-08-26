@@ -25,10 +25,55 @@ export interface AgentRunRecord {
   updatedAt: number;
 }
 
+interface BuildAgentRunOptions {
+  previous?: AgentRunRecord | null | undefined;
+  runId?: string;
+}
+
+function uniqueBy<T>(items: readonly T[], key: (item: T) => string): T[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const value = key(item);
+    if (seen.has(value)) return false;
+    seen.add(value);
+    return true;
+  });
+}
+
+export function mergeAgentRunRecords(
+  previous: AgentRunRecord | null | undefined,
+  current: AgentRunRecord,
+): AgentRunRecord {
+  if (!previous || previous.id !== current.id || previous.conversationId !== current.conversationId)
+    return current;
+  return {
+    ...current,
+    toolCalls: uniqueBy([...previous.toolCalls, ...current.toolCalls], ({ id }) => id),
+    toolResults: uniqueBy(
+      [...previous.toolResults, ...current.toolResults],
+      ({ toolCallId }) => toolCallId,
+    ),
+    snapshots: uniqueBy(
+      [...previous.snapshots, ...current.snapshots],
+      ({ snapshot_id }) => snapshot_id,
+    ),
+    fileReferences: uniqueBy(
+      [...previous.fileReferences, ...current.fileReferences],
+      ({ path }) => path,
+    ),
+    verificationEvidence: uniqueBy(
+      [...previous.verificationEvidence, ...current.verificationEvidence],
+      ({ type, toolName, summary }) => `${type}:${toolName}:${summary}`,
+    ),
+    createdAt: previous.createdAt,
+  };
+}
+
 export async function buildAgentRunRecord(
   result: AgentLoopResult,
   conversationId: string,
   runtime?: EvirRuntime,
+  options: BuildAgentRunOptions = {},
 ): Promise<AgentRunRecord> {
   const toolCalls = result.turns.flatMap((turn) => turn.toolCalls ?? []);
   const toolResults = result.turns.flatMap((turn) => turn.toolResults ?? []);
@@ -67,8 +112,8 @@ export async function buildAgentRunRecord(
           ? "completed"
           : "needs_verification";
   const now = Date.now();
-  return {
-    id: result.agentRun.id,
+  const current: AgentRunRecord = {
+    id: options.runId ?? result.agentRun.id,
     conversationId,
     status,
     toolCalls,
@@ -81,6 +126,7 @@ export async function buildAgentRunRecord(
     createdAt: now,
     updatedAt: now,
   };
+  return mergeAgentRunRecords(options.previous, current);
 }
 
 export async function persistAgentRun(record: AgentRunRecord): Promise<void> {

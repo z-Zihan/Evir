@@ -10,6 +10,7 @@ import type { AgentRunContext, EvirRuntime } from "../../runtime/types";
 import { streamAssistant, type StreamResult } from "./chat-stream";
 
 export const MAX_AGENT_ITERATIONS = 12;
+export const AGENT_TURN_TIMEOUT_MS = 120_000;
 
 export interface AgentLoopTurn {
   stream: StreamResult;
@@ -232,6 +233,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
       options.onDelta,
       tools,
       options.signal,
+      AGENT_TURN_TIMEOUT_MS,
     );
     if (stream.status !== "complete" || !stream.toolCalls?.length) {
       turns.push({ stream });

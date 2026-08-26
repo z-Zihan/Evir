@@ -13,6 +13,8 @@ import { streamAssistant } from "../chat-stream";
 import { useSkillStore } from "../../skills/skill-store";
 import { MemoryRepository } from "../../../core/memory/memory-repository";
 import { IndexedDBAdapter } from "../../../core/storage/indexed-db-adapter";
+import { getStructuredStorage } from "../../../runtime/structured-storage";
+import { logger } from "../../../core/logging/logger";
 
 vi.mock("../../../i18n/config", () => ({
   default: { t: (key: string) => key },
@@ -80,6 +82,7 @@ beforeEach(async () => {
     messages: [],
     mode: "ask",
     isStreaming: false,
+    activeStreamConversationId: null,
     streamingContent: "",
     error: null,
     pendingAttachments: [],
@@ -88,6 +91,7 @@ beforeEach(async () => {
     privateSession: false,
     privateConversationId: null,
   });
+  logger.clear();
   vi.mocked(streamAssistant).mockResolvedValue({
     content: "Assistant response",
     status: "complete",
@@ -241,6 +245,109 @@ describe("chat retries", () => {
       { role: "user", content: "First prompt" },
     ]);
     expect(await db.messages.count()).toBe(2);
+  });
+
+  it("keeps a streaming response scoped to its originating conversation", async () => {
+    const otherConversation: ConversationRecord = {
+      ...conversation,
+      id: "conversation-2",
+      title: "Other conversation",
+      createdAt: 2,
+      updatedAt: 2,
+    };
+    await db.conversations.put(otherConversation);
+    useChatStore.setState({ conversations: [otherConversation, conversation] });
+
+    let releaseStream!: () => void;
+    const streamGate = new Promise<void>((resolve) => {
+      releaseStream = resolve;
+    });
+    let emitDelta!: (content: string) => void;
+    vi.mocked(streamAssistant).mockImplementation(async (_provider, _id, _messages, onDelta) => {
+      emitDelta = onDelta;
+      onDelta("A partial response");
+      await streamGate;
+      return { content: "A completed response", status: "complete" };
+    });
+
+    const sending = useChatStore.getState().sendMessage("Prompt in A");
+    await vi.waitFor(() => expect(streamAssistant).toHaveBeenCalledOnce());
+    expect(useChatStore.getState().activeStreamConversationId).toBe(conversation.id);
+
+    await useChatStore.getState().selectConversation(otherConversation.id);
+    emitDelta("A content that must not appear in B");
+    expect(useChatStore.getState()).toMatchObject({
+      currentConversationId: otherConversation.id,
+      messages: [],
+      streamingContent: "",
+      error: null,
+    });
+
+    releaseStream();
+    await sending;
+    expect(useChatStore.getState()).toMatchObject({
+      currentConversationId: otherConversation.id,
+      messages: [],
+      streamingContent: "",
+      isStreaming: false,
+      activeStreamConversationId: null,
+      error: null,
+    });
+    expect(await db.messages.where("conversationId").equals(otherConversation.id).count()).toBe(0);
+    expect(
+      (await db.messages.where("conversationId").equals(conversation.id).toArray()).map(
+        ({ content }) => content,
+      ),
+    ).toEqual(expect.arrayContaining(["Prompt in A", "A completed response"]));
+
+    await useChatStore.getState().selectConversation(conversation.id);
+    expect(useChatStore.getState().messages.map(({ content }) => content)).toEqual(
+      expect.arrayContaining(["Prompt in A", "A completed response"]),
+    );
+    const exportedLogs = logger.exportLogs();
+    expect(exportedLogs).toContain("chat.stream-started");
+    expect(exportedLogs).toContain("chat.stream-completed");
+    expect(exportedLogs).toContain(conversation.id);
+    expect(exportedLogs).not.toContain("Prompt in A");
+    expect(exportedLogs).not.toContain("A completed response");
+  });
+
+  it("does not let a stale conversation load replace a newer selection", async () => {
+    const second = { ...conversation, id: "conversation-2", title: "Second", updatedAt: 2 };
+    const third = { ...conversation, id: "conversation-3", title: "Third", updatedAt: 3 };
+    await db.conversations.bulkPut([second, third]);
+    const secondMessage = {
+      ...message("second-message", "user", "Second history", 2),
+      conversationId: second.id,
+    };
+    const thirdMessage = {
+      ...message("third-message", "user", "Third history", 3),
+      conversationId: third.id,
+    };
+    await db.messages.bulkPut([secondMessage, thirdMessage]);
+
+    const storage = getStructuredStorage();
+    const originalQuery = storage.query.bind(storage);
+    let releaseSecond!: () => void;
+    const secondGate = new Promise<void>((resolve) => {
+      releaseSecond = resolve;
+    });
+    vi.spyOn(storage, "query").mockImplementation(async (entity, query) => {
+      const conversationId = (query as { conversationId?: string }).conversationId;
+      if (entity === "messages" && conversationId === second.id) await secondGate;
+      return originalQuery(entity, query);
+    });
+
+    const selectingSecond = useChatStore.getState().selectConversation(second.id);
+    await vi.waitFor(() => expect(useChatStore.getState().currentConversationId).toBe(second.id));
+    await useChatStore.getState().selectConversation(third.id);
+    releaseSecond();
+    await selectingSecond;
+
+    expect(useChatStore.getState().currentConversationId).toBe(third.id);
+    expect(useChatStore.getState().messages.map(({ content }) => content)).toEqual([
+      "Third history",
+    ]);
   });
 
   it("loads relevant memory from storage without opening settings", async () => {

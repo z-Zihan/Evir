@@ -625,7 +625,11 @@ fn validate_path(path: &str) -> Result<PathBuf, String> {
     let suffix = path_buf
         .strip_prefix(existing_ancestor)
         .map_err(|error| error.to_string())?;
-    let canonical = canonical_ancestor.join(suffix);
+    let canonical = if suffix.as_os_str().is_empty() {
+        canonical_ancestor
+    } else {
+        canonical_ancestor.join(suffix)
+    };
     let blocked = [
         "/etc",
         "/var",
@@ -1264,10 +1268,34 @@ fn validate_update_sql(sql: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        cancel_command, merge_shared_provider_profiles, run_command, validate_entity,
+        cancel_command, fs_read_file, merge_shared_provider_profiles, run_command, validate_entity,
         validate_path_in_workspace, validate_query_sql, validate_shared_provider,
         validate_update_sql, SharedProviderProfile, STRUCTURED_ENTITIES,
     };
+
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn keyring_uses_native_macos_backend() {
+        let entry = keyring::Entry::new("evir-backend-test", "provider-test")
+            .expect("native Keychain entry should be constructible");
+        assert!(
+            entry.get_credential().is::<keyring::macos::MacCredential>(),
+            "keyring must not silently fall back to the in-memory mock backend"
+        );
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn keyring_uses_native_windows_backend() {
+        let entry = keyring::Entry::new("evir-backend-test", "provider-test")
+            .expect("native Credential Manager entry should be constructible");
+        assert!(
+            entry
+                .get_credential()
+                .is::<keyring::windows::WinCredential>(),
+            "keyring must not silently fall back to the in-memory mock backend"
+        );
+    }
 
     #[test]
     fn structured_entity_validation_is_allowlist_only() {
@@ -1476,9 +1504,18 @@ mod tests {
         symlink(&sibling, workspace.join("escape")).expect("symlink fixture should be created");
 
         let root = workspace.to_string_lossy();
-        assert!(
-            validate_path_in_workspace(&workspace.join("inside.txt").to_string_lossy(), &root)
-                .is_ok()
+        let inside_path = workspace.join("inside.txt");
+        assert_eq!(
+            validate_path_in_workspace(&inside_path.to_string_lossy(), &root)
+                .expect("inside file should validate"),
+            inside_path
+                .canonicalize()
+                .expect("inside file should canonicalize")
+        );
+        assert_eq!(
+            fs_read_file(inside_path.to_string_lossy().into_owned(), root.to_string())
+                .expect("existing file should be readable"),
+            "inside"
         );
         assert!(
             validate_path_in_workspace(&sibling.join("outside.txt").to_string_lossy(), &root)
@@ -1496,5 +1533,40 @@ mod tests {
         .is_err());
 
         std::fs::remove_dir_all(&base).expect("fixture should be removed");
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn workspace_validation_accepts_private_tmp_aliases() {
+        use std::path::PathBuf;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let private_workspace = PathBuf::from(format!(
+            "/private/tmp/evir-workspace-alias-{}-{suffix}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&private_workspace).expect("workspace should be created");
+        let private_file = private_workspace.join("inside.txt");
+        std::fs::write(&private_file, "inside").expect("fixture should be written");
+        let tmp_workspace =
+            private_workspace
+                .to_string_lossy()
+                .replacen("/private/tmp/", "/tmp/", 1);
+        let tmp_file = private_file
+            .to_string_lossy()
+            .replacen("/private/tmp/", "/tmp/", 1);
+
+        assert!(
+            validate_path_in_workspace(&private_file.to_string_lossy(), &tmp_workspace).is_ok()
+        );
+        assert!(
+            validate_path_in_workspace(&tmp_file, &private_workspace.to_string_lossy()).is_ok()
+        );
+
+        std::fs::remove_dir_all(&private_workspace).expect("fixture should be removed");
     }
 }

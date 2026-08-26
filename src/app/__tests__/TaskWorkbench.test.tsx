@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { OrchestrationSnapshot, PlanGraph } from "../../core/orchestration/types";
 import { useOrchestrationStore } from "../../features/orchestration/orchestration-store";
@@ -83,7 +83,43 @@ const plan: PlanGraph = {
 afterEach(cleanup);
 
 describe("TaskWorkbench", () => {
-  beforeEach(() => useOrchestrationStore.setState({ current: null }));
+  beforeEach(() => useOrchestrationStore.setState({ current: null, preparing: null }));
+
+  it("shows compact, timed feedback while the model analyzes a task", () => {
+    useOrchestrationStore.setState({
+      preparing: {
+        conversationId: "conversation-1",
+        objective: "A very long objective that is already visible in the user message",
+        stage: "intake",
+        startedAt: Date.now() - 20_000,
+      },
+    });
+
+    const { container } = render(<TaskWorkbench />);
+
+    expect(screen.getByText("orchestration.preparing.intakeTitle")).toBeTruthy();
+    expect(screen.getByText("orchestration.preparing.intakeDescription")).toBeTruthy();
+    expect(screen.getByText("orchestration.preparing.slow")).toBeTruthy();
+    expect(screen.queryByText(/A very long objective/)).toBeNull();
+    expect(container.querySelector(".task-preparation-strip")).toBeTruthy();
+  });
+
+  it("distinguishes plan generation from initial task analysis", () => {
+    useOrchestrationStore.setState({
+      preparing: {
+        conversationId: "conversation-1",
+        objective: "Prepare a plan",
+        stage: "planning",
+        startedAt: Date.now(),
+      },
+    });
+
+    render(<TaskWorkbench />);
+
+    expect(screen.getByText("orchestration.preparing.planningTitle")).toBeTruthy();
+    expect(screen.getByText("orchestration.preparing.planningDescription")).toBeTruthy();
+    expect(screen.queryByText("orchestration.preparing.slow")).toBeNull();
+  });
 
   it("focuses the first blocking clarification and exposes suggestions as pressed buttons", () => {
     useOrchestrationStore.setState({
@@ -106,6 +142,13 @@ describe("TaskWorkbench", () => {
     ).toBe("false");
     expect(screen.getByText("Use the current branch")).toBeTruthy();
     expect(screen.getAllByText("Configured provider only")).toHaveLength(2);
+    const assumptionLabels = screen.getAllByText("orchestration.assumptions");
+    const assumptionLabel = assumptionLabels[0];
+    if (!assumptionLabel) throw new Error("Missing assumptions disclosure");
+    const context = assumptionLabel.closest("details");
+    expect(context?.open).toBe(false);
+    fireEvent.click(assumptionLabel);
+    expect(context?.open).toBe(true);
   });
 
   it("focuses the safe rejection action when plan confirmation opens", () => {
@@ -153,6 +196,7 @@ describe("TaskWorkbench", () => {
 
     expect(container.querySelector(".lucide-circle-x")).toBeTruthy();
     expect(container.querySelector(".lucide-circle-check-big")).toBeFalsy();
+    fireEvent.click(screen.getByRole("button", { name: "orchestration.showDetails" }));
     expect(screen.getByText("orchestration.summary.title")).toBeTruthy();
     expect(screen.getAllByText("Change files")).toHaveLength(2);
     expect(screen.getByText("orchestration.summary.noEvidence")).toBeTruthy();

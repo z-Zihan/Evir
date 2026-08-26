@@ -105,156 +105,180 @@ export function AgentRunSummary({ record, onLayoutChange }: AgentRunSummaryProps
   );
   const commands = toolCalls.filter((c) => c.toolName === "run_command");
   const failed = toolResults.filter((r) => !r.success);
+  const summaryIcon =
+    record.status === "completed" ? (
+      <CheckCircle2 size={15} />
+    ) : record.status === "cancelled" || record.status === "rolled_back" ? (
+      <CircleSlash2 size={15} />
+    ) : (
+      <AlertTriangle size={15} />
+    );
 
   return (
-    <section className="agent-run-summary">
-      <div className="summary-header">
+    <details className="agent-run-summary">
+      <summary className="summary-header">
+        <span className={`summary-state summary-state-${record.status}`} aria-hidden="true">
+          {summaryIcon}
+        </span>
         <div>
           <span className="summary-eyebrow">{t("agent.evidence")}</span>
           <h3>{t("agent.runSummary")}</h3>
         </div>
+        <span className="summary-metrics">
+          {t("agent.filesModified")} {fileModifications.length}
+          {commands.length > 0 && ` · ${t("agent.commandsRun")} ${commands.length}`}
+        </span>
         {maxIterationsReached && (
           <span className="summary-warning">
             <AlertTriangle size={14} />
             {t("agent.maxIterations")}
           </span>
         )}
+        <ChevronRight className="summary-chevron" size={15} aria-hidden="true" />
+      </summary>
+      <div className="agent-run-details">
         {snapshots.length > 0 && record.status !== "rolled_back" && (
-          <button type="button" className="quiet-danger-button" onClick={requestRollback}>
+          <button
+            type="button"
+            className="quiet-danger-button summary-rollback"
+            onClick={requestRollback}
+          >
             <RotateCcw size={14} />
             {t("agent.rollback")}
           </button>
         )}
-      </div>
 
-      <div className="summary-section">
-        <h4>
-          <FileCode2 size={15} />
-          {t("agent.filesModified")}
-          <span>{fileModifications.length}</span>
-        </h4>
-        {fileModifications.length === 0 ? (
-          <p className="summary-empty">{t("agent.none")}</p>
-        ) : (
-          <ul>
-            {fileModifications.map((c, i) => (
-              <li key={i}>
-                <code>{c.toolName}</code>:{" "}
-                {typeof (c.arguments.path ?? c.arguments.file_path) === "string"
-                  ? ((c.arguments.path ?? c.arguments.file_path) as string)
-                  : "?"}
-              </li>
-            ))}
-          </ul>
+        <div className="summary-section">
+          <h4>
+            <FileCode2 size={15} />
+            {t("agent.filesModified")}
+            <span>{fileModifications.length}</span>
+          </h4>
+          {fileModifications.length === 0 ? (
+            <p className="summary-empty">{t("agent.none")}</p>
+          ) : (
+            <ul>
+              {fileModifications.map((c, i) => (
+                <li key={i}>
+                  <code>{c.toolName}</code>:{" "}
+                  {typeof (c.arguments.path ?? c.arguments.file_path) === "string"
+                    ? ((c.arguments.path ?? c.arguments.file_path) as string)
+                    : "?"}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {commands.length > 0 && (
+          <div className="summary-section">
+            <h4>
+              <TerminalSquare size={15} />
+              {t("agent.commandsRun")}
+              <span>{commands.length}</span>
+            </h4>
+            <ul>
+              {commands.map((c, i) => {
+                const idx = toolCalls.indexOf(c);
+                const r = idx >= 0 ? toolResults[idx] : undefined;
+                return (
+                  <li key={i}>
+                    <code>
+                      {String(c.arguments.program)}{" "}
+                      {Array.isArray(c.arguments.args)
+                        ? (c.arguments.args as string[]).join(" ")
+                        : ""}
+                    </code>
+                    {r && (
+                      <span
+                        className={r.success ? "result-ok" : "result-fail"}
+                        aria-label={r.success ? t("tools.success") : t("tools.failed")}
+                      >
+                        {r.success ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+
+        {verification && (
+          <div className="summary-section">
+            <h4>
+              <CheckCircle2 size={15} />
+              {t("agent.verification")}
+            </h4>
+            <div className={`verification-result verification-${verification.status}`}>
+              <span className="verification-status">
+                {verification.status === "passed" ? (
+                  <CheckCircle2 size={15} />
+                ) : verification.status === "failed" ? (
+                  <XCircle size={15} />
+                ) : (
+                  <CircleSlash2 size={15} />
+                )}{" "}
+                {verification.command}
+              </span>
+              {verification.exitCode !== null && (
+                <span className="verification-exit">exit: {verification.exitCode}</span>
+              )}
+              <span className="verification-time">
+                <Clock3 size={13} />
+                {(verification.durationMs / 1000).toFixed(1)}s
+              </span>
+              {verification.stderrPreview && (
+                <pre className="verification-output">
+                  {verification.stderrPreview.slice(0, 500)}
+                </pre>
+              )}
+            </div>
+          </div>
+        )}
+
+        {gitInfo?.isRepo && diff && diff !== "no changes" && (
+          <div className="summary-section">
+            <h4>
+              <GitCompareArrows size={15} />
+              {t("agent.gitChanges")}
+              <span>{gitInfo.branch}</span>
+            </h4>
+            <details>
+              <summary>
+                {t("agent.filesChanged", { count: gitInfo.entries.length })}
+                <ChevronRight size={14} />
+              </summary>
+              <pre className="git-diff-preview">{diff.slice(0, 3000)}</pre>
+            </details>
+          </div>
+        )}
+
+        {failed.length > 0 && (
+          <div className="summary-section summary-errors">
+            <h4>
+              <AlertTriangle size={15} />
+              {t("agent.unresolvedErrors")}
+              <span>{failed.length}</span>
+            </h4>
+            <ul>
+              {failed.map((r, i) => (
+                <li key={i}>
+                  {r.error}: {r.output.slice(0, 200)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {loading && (
+          <p className="summary-loading">
+            <LoaderCircle size={14} />
+            {t("agent.loading")}
+          </p>
         )}
       </div>
-
-      {commands.length > 0 && (
-        <div className="summary-section">
-          <h4>
-            <TerminalSquare size={15} />
-            {t("agent.commandsRun")}
-            <span>{commands.length}</span>
-          </h4>
-          <ul>
-            {commands.map((c, i) => {
-              const idx = toolCalls.indexOf(c);
-              const r = idx >= 0 ? toolResults[idx] : undefined;
-              return (
-                <li key={i}>
-                  <code>
-                    {String(c.arguments.program)}{" "}
-                    {Array.isArray(c.arguments.args)
-                      ? (c.arguments.args as string[]).join(" ")
-                      : ""}
-                  </code>
-                  {r && (
-                    <span
-                      className={r.success ? "result-ok" : "result-fail"}
-                      aria-label={r.success ? t("tools.success") : t("tools.failed")}
-                    >
-                      {r.success ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
-                    </span>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
-
-      {verification && (
-        <div className="summary-section">
-          <h4>
-            <CheckCircle2 size={15} />
-            {t("agent.verification")}
-          </h4>
-          <div className={`verification-result verification-${verification.status}`}>
-            <span className="verification-status">
-              {verification.status === "passed" ? (
-                <CheckCircle2 size={15} />
-              ) : verification.status === "failed" ? (
-                <XCircle size={15} />
-              ) : (
-                <CircleSlash2 size={15} />
-              )}{" "}
-              {verification.command}
-            </span>
-            {verification.exitCode !== null && (
-              <span className="verification-exit">exit: {verification.exitCode}</span>
-            )}
-            <span className="verification-time">
-              <Clock3 size={13} />
-              {(verification.durationMs / 1000).toFixed(1)}s
-            </span>
-            {verification.stderrPreview && (
-              <pre className="verification-output">{verification.stderrPreview.slice(0, 500)}</pre>
-            )}
-          </div>
-        </div>
-      )}
-
-      {gitInfo?.isRepo && diff && diff !== "no changes" && (
-        <div className="summary-section">
-          <h4>
-            <GitCompareArrows size={15} />
-            {t("agent.gitChanges")}
-            <span>{gitInfo.branch}</span>
-          </h4>
-          <details>
-            <summary>
-              {t("agent.filesChanged", { count: gitInfo.entries.length })}
-              <ChevronRight size={14} />
-            </summary>
-            <pre className="git-diff-preview">{diff.slice(0, 3000)}</pre>
-          </details>
-        </div>
-      )}
-
-      {failed.length > 0 && (
-        <div className="summary-section summary-errors">
-          <h4>
-            <AlertTriangle size={15} />
-            {t("agent.unresolvedErrors")}
-            <span>{failed.length}</span>
-          </h4>
-          <ul>
-            {failed.map((r, i) => (
-              <li key={i}>
-                {r.error}: {r.output.slice(0, 200)}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {loading && (
-        <p className="summary-loading">
-          <LoaderCircle size={14} />
-          {t("agent.loading")}
-        </p>
-      )}
       {confirmationDialog}
-    </section>
+    </details>
   );
 }

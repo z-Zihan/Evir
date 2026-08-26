@@ -3,6 +3,8 @@ import type { TaskBrief } from "../../core/orchestration/types";
 import type { ProviderRecord } from "../../core/storage/db";
 import { streamAssistant } from "../chat/chat-stream";
 
+const STRUCTURED_RESPONSE_TIMEOUT_MS = 45_000;
+
 const capability = [
   "chat",
   "attachments",
@@ -129,6 +131,8 @@ export class ModelPlanGenerator implements PlanGeneratorPort {
       ],
       () => undefined,
       [planTool],
+      undefined,
+      STRUCTURED_RESPONSE_TIMEOUT_MS,
     );
     const call = stream.toolCalls?.find(({ toolName }) => toolName === "submit_plan_graph");
     if (!call) throw new Error("Planner did not return a structured plan");

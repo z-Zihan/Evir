@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   settingRows: vi.fn(() => Promise.resolve([{ name: "theme", value: "dark" }])),
   memoryRows: vi.fn(() => Promise.resolve([{ id: "memory1" }])),
   keychainSet: vi.fn(() => Promise.resolve()),
+  keychainGet: vi.fn((): Promise<string | null> => Promise.resolve(null)),
   read: vi.fn((entity: string, id: string): Promise<unknown> => {
     void entity;
     void id;
@@ -55,6 +56,7 @@ const structuredStorage: StoragePort = {
 
 const secureStorage = {
   keychainSet: mocks.keychainSet,
+  keychainGet: mocks.keychainGet,
 } as unknown as DesktopStorageAdapter;
 
 vi.mock("../use-runtime", () => ({
@@ -84,6 +86,7 @@ describe("initializeRuntimeStorage", () => {
     mocks.providerRows = [provider];
     mocks.read.mockResolvedValue(undefined);
     mocks.readAll.mockResolvedValue([]);
+    mocks.keychainGet.mockResolvedValue(null);
   });
 
   it("does nothing outside the native desktop runtime", async () => {
@@ -94,6 +97,7 @@ describe("initializeRuntimeStorage", () => {
   });
 
   it("moves provider secrets to Keychain and migrates structured records", async () => {
+    mocks.keychainGet.mockResolvedValue("secret-key");
     await initializeRuntimeStorage();
 
     expect(mocks.keychainSet).toHaveBeenCalledWith("provider:p1:api-key", "secret-key");

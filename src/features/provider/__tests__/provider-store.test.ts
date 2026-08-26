@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { logger } from "../../../core/logging/logger";
 import type { ProviderRecord } from "../../../core/storage/db";
 import type { SharedProviderProfile } from "../../../runtime/desktop-storage-adapter";
 
@@ -72,9 +73,15 @@ describe("desktop provider persistence", () => {
     mocks.sharedProviderProfilesRead.mockResolvedValue([]);
     mocks.sharedProviderProfilesWrite.mockResolvedValue(undefined);
     useProviderStore.setState({ providers: [] });
+    logger.clear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("stores API keys only in Keychain", async () => {
+    mocks.keychainGet.mockResolvedValue("desktop-secret");
     const provider = await useProviderStore.getState().addProvider(config);
 
     expect(mocks.keychainSet).toHaveBeenCalledWith(
@@ -96,6 +103,23 @@ describe("desktop provider persistence", () => {
       [expect.objectContaining({ id: provider.id, name: "Local model" })],
       [],
     );
+  });
+
+  it("does not report a provider as saved when Keychain readback fails", async () => {
+    mocks.keychainGet.mockResolvedValue(null);
+
+    await expect(useProviderStore.getState().addProvider(config)).rejects.toThrow(
+      "Provider credential could not be verified in secure storage",
+    );
+
+    expect(mocks.write).not.toHaveBeenCalled();
+    expect(useProviderStore.getState().providers).toEqual([]);
+    expect(logger.getEntries().at(-1)).toMatchObject({
+      level: "error",
+      channel: "security",
+      event: "provider.credential-persist-failed",
+    });
+    expect(logger.exportLogs()).not.toContain("desktop-secret");
   });
 
   it("hydrates the API key from Keychain when loading", async () => {
@@ -147,5 +171,45 @@ describe("desktop provider persistence", () => {
     expect(mocks.keychainDelete).toHaveBeenCalledWith("provider:provider-1:api-key");
     expect(mocks.sharedProviderProfilesWrite).toHaveBeenCalledWith([], ["provider-1"]);
     expect(useProviderStore.getState().providers).toEqual([]);
+  });
+
+  it("logs a redacted structured provider response when a connection test fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              error: {
+                code: "quota_exhausted",
+                message: "No balance available for sk-provider-secret-123456",
+              },
+            }),
+            { status: 429 },
+          ),
+        ),
+      ),
+    );
+
+    const result = await useProviderStore.getState().testConnection(config);
+    const entry = logger.getEntries().at(-1);
+
+    expect(result.ok).toBe(false);
+    expect(entry).toMatchObject({
+      level: "error",
+      channel: "provider",
+      data: {
+        protocolId: "openai-compatible-chat",
+        modelId: "local-model",
+        endpoint: "http://localhost:11434/v1",
+        errorType: "RATE_LIMITED",
+        providerResponse: {
+          status: 429,
+          code: "quota_exhausted",
+          responseFormat: "json",
+        },
+      },
+    });
+    expect(logger.exportLogs()).not.toContain("sk-provider-secret-123456");
   });
 });

@@ -11,10 +11,14 @@ import {
   type ChatStoreSet,
   type ChatStoreGet,
 } from "./tool-approval-helpers";
-import { resolveCurrentApprovalNode } from "../orchestration/orchestration-session";
+import {
+  cancelCurrentRun,
+  resolveCurrentApprovalNode,
+} from "../orchestration/orchestration-session";
 import { useOrchestrationStore } from "../orchestration/orchestration-store";
 import { getStructuredStorage } from "../../runtime/structured-storage";
 import { createActiveTaskController } from "./chat-stream";
+import { finishConversationStream, updateConversationStream } from "./stream-ownership";
 import type {
   RiskLevel,
   ToolApprovalDetails,
@@ -232,6 +236,13 @@ function continuedApproval(
   };
 }
 
+export function approvalContinuationStopped(
+  signal: AbortSignal,
+  turn: AgentLoopTurn | undefined,
+): boolean {
+  return signal.aborted || turn?.stream.status === "stopped";
+}
+
 async function continueOrchestrationAfterApproval(
   pending: PendingToolApproval,
   runtime: EvirRuntime,
@@ -269,12 +280,15 @@ export async function approveTool(
   set: ChatStoreSet,
   get: ChatStoreGet,
 ): Promise<void> {
-  const ctx = getApprovalContext(pending, set);
+  const ctx = getApprovalContext(pending, set, get);
   if (!ctx) return;
-  const { provider, runtime: baseRuntime } = ctx;
+  const { provider, runtime: baseRuntime, streamStartedAt } = ctx;
   const runtime = approvalRuntime(baseRuntime, pending);
   if (!runtime.toolExecutor) {
-    set({ isStreaming: false, error: "tools.notAvailable" });
+    finishConversationStream(set, get, pending.conversationId, streamStartedAt);
+    if (get().currentConversationId === pending.conversationId) {
+      set({ error: "tools.notAvailable" });
+    }
     return;
   }
   const task = createActiveTaskController();
@@ -284,7 +298,8 @@ export async function approveTool(
       msg: resolvedMsg,
       resolvedTurn,
     } = await executeApproved(pending, runtime, !get().privateSession, task.signal);
-    const onDelta = (streamingContent: string) => set({ streamingContent });
+    const onDelta = (streamingContent: string) =>
+      updateConversationStream(set, get, pending.conversationId, streamingContent);
     const loopResult = await continueAgentLoop({
       provider,
       conversationId: pending.conversationId,
@@ -303,14 +318,23 @@ export async function approveTool(
       pending.toolCallId,
       resolvedTurn,
       runtime,
+      pending.orchestration?.runId,
     );
+    finishConversationStream(set, get, pending.conversationId, streamStartedAt);
     const finalTurn = loopResult.turns.at(-1);
+    if (approvalContinuationStopped(task.signal, finalTurn)) {
+      await persistApprovalStatus(pending, "cancelled", get().privateSession);
+      await cancelCurrentRun(runtime, get().privateSession);
+      return;
+    }
     if (finalTurn) {
       const next = continuedApproval(pending, finalTurn, loopResult.messages, loopResult.agentRun);
       if (next) {
         await persistApprovalStatus(pending, "approved", get().privateSession);
         await persistApprovalStatus(next, "pending", get().privateSession);
-        set({ pendingToolApproval: next, isStreaming: false });
+        if (get().currentConversationId === pending.conversationId) {
+          set({ pendingToolApproval: next });
+        }
         return;
       }
     }
@@ -324,6 +348,9 @@ export async function approveTool(
       set,
       get,
     );
+  } catch (error) {
+    finishConversationStream(set, get, pending.conversationId, streamStartedAt);
+    throw error;
   } finally {
     task.dispose();
   }
@@ -334,9 +361,9 @@ export async function denyTool(
   set: ChatStoreSet,
   get: ChatStoreGet,
 ): Promise<void> {
-  const ctx = getApprovalContext(pending, set);
+  const ctx = getApprovalContext(pending, set, get);
   if (!ctx) return;
-  const { provider, runtime: baseRuntime } = ctx;
+  const { provider, runtime: baseRuntime, streamStartedAt } = ctx;
   const runtime = approvalRuntime(baseRuntime, pending);
   const task = createActiveTaskController();
   try {
@@ -347,7 +374,8 @@ export async function denyTool(
       pending.turn.stream.content,
       !get().privateSession,
     );
-    const onDelta = (streamingContent: string) => set({ streamingContent });
+    const onDelta = (streamingContent: string) =>
+      updateConversationStream(set, get, pending.conversationId, streamingContent);
     const loopResult = await continueAgentLoop({
       provider,
       conversationId: pending.conversationId,
@@ -366,14 +394,23 @@ export async function denyTool(
       pending.toolCallId,
       resolvedTurn,
       runtime,
+      pending.orchestration?.runId,
     );
+    finishConversationStream(set, get, pending.conversationId, streamStartedAt);
     const finalTurn = loopResult.turns.at(-1);
+    if (approvalContinuationStopped(task.signal, finalTurn)) {
+      await persistApprovalStatus(pending, "denied", get().privateSession);
+      await cancelCurrentRun(runtime, get().privateSession);
+      return;
+    }
     if (finalTurn) {
       const next = continuedApproval(pending, finalTurn, loopResult.messages, loopResult.agentRun);
       if (next) {
         await persistApprovalStatus(pending, "denied", get().privateSession);
         await persistApprovalStatus(next, "pending", get().privateSession);
-        set({ pendingToolApproval: next, isStreaming: false });
+        if (get().currentConversationId === pending.conversationId) {
+          set({ pendingToolApproval: next });
+        }
         return;
       }
     }
@@ -386,6 +423,9 @@ export async function denyTool(
       set,
       get,
     );
+  } catch (error) {
+    finishConversationStream(set, get, pending.conversationId, streamStartedAt);
+    throw error;
   } finally {
     task.dispose();
   }

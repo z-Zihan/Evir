@@ -17,9 +17,7 @@ export function asNumber(value: unknown): number | undefined {
 export function chatEndpoint(baseUrl: string): string {
   const clean = baseUrl.replace(/\/+$/, "");
   if (clean.endsWith("/chat/completions")) return clean;
-  if (clean.endsWith("/v1")) return `${clean}/chat/completions`;
-  // Try /v1/chat/completions first (most common), fallback to /chat/completions
-  return `${clean}/v1/chat/completions`;
+  return `${clean}/chat/completions`;
 }
 
 function classifyMessage(message: string): ProviderErrorType | undefined {
@@ -39,24 +37,46 @@ function classifyMessage(message: string): ProviderErrorType | undefined {
   return undefined;
 }
 
-export function mapHttpError(status: number, message: string): ProviderError {
+export function mapHttpError(
+  status: number,
+  message: string,
+  providerDetails: Record<string, unknown> = {},
+): ProviderError {
   const messageType = classifyMessage(message);
-  if (messageType) return { type: messageType, message, retryable: false };
+  const details = { status, ...providerDetails };
+  if (messageType) {
+    return { type: messageType, message, retryable: false, providerDetails: details };
+  }
   if (status === 401 || status === 403) {
-    return { type: ProviderErrorType.AUTH_FAILED, message, retryable: false };
+    return {
+      type: ProviderErrorType.AUTH_FAILED,
+      message,
+      retryable: false,
+      providerDetails: details,
+    };
   }
   if (status === 404) {
-    return { type: ProviderErrorType.MODEL_NOT_FOUND, message, retryable: false };
+    return {
+      type: ProviderErrorType.MODEL_NOT_FOUND,
+      message,
+      retryable: false,
+      providerDetails: details,
+    };
   }
   if (status === 429) {
-    return { type: ProviderErrorType.RATE_LIMITED, message, retryable: true };
+    return {
+      type: ProviderErrorType.RATE_LIMITED,
+      message,
+      retryable: true,
+      providerDetails: details,
+    };
   }
   return {
     type:
       status >= 500 ? ProviderErrorType.PROVIDER_ERROR : ProviderErrorType.PROTOCOL_INCOMPATIBLE,
     message,
     retryable: status >= 500,
-    providerDetails: { status },
+    providerDetails: details,
   };
 }
 
@@ -75,9 +95,10 @@ export function mapThrownError(error: unknown, signal?: AbortSignal): ProviderEr
 }
 
 export async function responseError(response: Response): Promise<ProviderError> {
+  const responseText = await response.text();
   let payload: unknown;
   try {
-    payload = JSON.parse(await response.text()) as unknown;
+    payload = JSON.parse(responseText) as unknown;
   } catch {
     payload = undefined;
   }
@@ -87,7 +108,18 @@ export async function responseError(response: Response): Promise<ProviderError> 
     asString(nested?.message) ??
     asString(root?.message) ??
     `Provider returned HTTP ${response.status}`;
-  return mapHttpError(response.status, message);
+  const code = asString(nested?.code) ?? asString(root?.code);
+  const errorType = asString(nested?.type) ?? asString(root?.type);
+  const param = asString(nested?.param) ?? asString(root?.param);
+  const requestId =
+    response.headers.get("x-request-id") ?? response.headers.get("x-requestid") ?? undefined;
+  return mapHttpError(response.status, message, {
+    ...(code ? { code } : {}),
+    ...(errorType ? { errorType } : {}),
+    ...(param ? { param } : {}),
+    ...(requestId ? { requestId } : {}),
+    responseFormat: payload === undefined ? "non-json" : "json",
+  });
 }
 
 export async function* dataLines(body: ReadableStream<Uint8Array>): AsyncGenerator<string> {

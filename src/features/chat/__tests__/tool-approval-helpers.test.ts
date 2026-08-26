@@ -4,6 +4,7 @@ import type { EvirRuntime } from "../../../runtime/types";
 import { executeApproved } from "../tool-approval-helpers";
 import {
   fromApprovalRecord,
+  approvalContinuationStopped,
   toApprovalRecord,
   type ApprovalRecord,
   type PendingToolApproval,
@@ -34,6 +35,28 @@ function pendingApproval(): PendingToolApproval {
 }
 
 describe("tool approval continuation", () => {
+  it("does not advance orchestration after the approval follow-up is stopped", () => {
+    const active = new AbortController();
+    const aborted = new AbortController();
+    aborted.abort();
+
+    expect(
+      approvalContinuationStopped(active.signal, {
+        stream: { content: "partial", status: "stopped" },
+      }),
+    ).toBe(true);
+    expect(
+      approvalContinuationStopped(aborted.signal, {
+        stream: { content: "done", status: "complete" },
+      }),
+    ).toBe(true);
+    expect(
+      approvalContinuationStopped(active.signal, {
+        stream: { content: "done", status: "complete" },
+      }),
+    ).toBe(false);
+  });
+
   it("uses the approval flow signal for the approved tool execution", async () => {
     const execute = vi.fn(() => Promise.resolve({ success: true, output: "approved" }));
     const runtime = {

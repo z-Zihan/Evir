@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { ToolDefinition, ToolResult } from "../../providers/tool-registry";
 import type { EvirRuntime } from "../../../runtime/types";
+import { redactLogValue } from "../../logging/redaction";
 import { TOOL_NOT_AVAILABLE } from "../tool-executor";
 
 export const PATH_BLOCKED = "path_blocked";
@@ -13,7 +14,7 @@ function homeDir(): string {
 
 function validatePath(path: string): string | undefined {
   if (!path) return undefined;
-  if (!path.startsWith("/") && !/^[A-Za-z]:\\/.test(path)) return undefined;
+  if (!path.startsWith("/") && !/^[A-Za-z]:[\\/]/.test(path)) return undefined;
   const resolved = path.replace(/\/+$/, "").replace(/\\/g, "/");
   if (resolved.split("/").some((segment) => segment === "..")) return undefined;
   const home = homeDir();
@@ -36,9 +37,36 @@ function validatePath(path: string): string | undefined {
 }
 
 export function validateWorkspacePath(path: string, runtime: EvirRuntime): string | undefined {
-  const safePath = validatePath(path);
   const safeRoot = validatePath(runtime.getWorkspaceRoot?.() ?? "");
-  if (!safePath || !safeRoot) return undefined;
+  if (!safeRoot || !path) return undefined;
+
+  const normalizedInput = path.replace(/\\/g, "/");
+  const isAbsolute = normalizedInput.startsWith("/") || /^[A-Za-z]:\//.test(normalizedInput);
+  let safePath: string | undefined;
+  if (isAbsolute) {
+    safePath = validatePath(normalizedInput);
+  } else {
+    if (/^[A-Za-z]:/.test(normalizedInput)) return undefined;
+    const segments = normalizedInput.split("/");
+    if (segments.some((segment) => segment === "..")) return undefined;
+    const relativeSegments = segments.filter((segment) => segment !== "" && segment !== ".");
+    const rootSegments = safeRoot.split("/").filter(Boolean);
+    const workspaceName = rootSegments.at(-1);
+    const isWindowsRoot = /^[A-Za-z]:\//.test(safeRoot);
+    if (
+      workspaceName &&
+      relativeSegments[0] &&
+      (isWindowsRoot
+        ? relativeSegments[0].toLowerCase() === workspaceName.toLowerCase()
+        : relativeSegments[0] === workspaceName)
+    ) {
+      relativeSegments.shift();
+    }
+    safePath = validatePath(
+      relativeSegments.length > 0 ? `${safeRoot}/${relativeSegments.join("/")}` : safeRoot,
+    );
+  }
+  if (!safePath) return undefined;
   const pathForComparison = /^[A-Za-z]:\//.test(safePath) ? safePath.toLowerCase() : safePath;
   const rootForComparison = /^[A-Za-z]:\//.test(safeRoot) ? safeRoot.toLowerCase() : safeRoot;
   return pathForComparison === rootForComparison ||
@@ -72,7 +100,12 @@ const gitDiffArgsSchema = z
 
 const pathJsonSchema = {
   type: "object",
-  properties: { path: { type: "string", description: "Absolute filesystem path" } },
+  properties: {
+    path: {
+      type: "string",
+      description: "Path inside the selected workspace; relative paths resolve from its root",
+    },
+  },
   required: ["path"],
   additionalProperties: false,
 };
@@ -86,9 +119,19 @@ function unavailable(): ToolResult {
 }
 
 function toolError(error: unknown): ToolResult {
+  const rawMessage =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "Local file operation failed";
+  const redactedMessage = redactLogValue(rawMessage);
   return {
     success: false,
-    output: error instanceof Error ? error.message : "Local file operation failed",
+    output:
+      typeof redactedMessage === "string"
+        ? redactedMessage.slice(0, 1_000)
+        : "Local file operation failed",
     error: "tool_error",
   };
 }
@@ -394,7 +437,7 @@ export const LOCAL_FILE_TOOLS: readonly ToolDefinition[] = [
   {
     id: "read_file",
     name: "read_file",
-    description: "Read text from an absolute local filesystem path.",
+    description: "Read text from a path inside the selected workspace.",
     source: "evir-local",
     riskLevel: "L1",
     requiredCapability: "filesystem",
@@ -404,7 +447,7 @@ export const LOCAL_FILE_TOOLS: readonly ToolDefinition[] = [
   {
     id: "list_directory",
     name: "list_directory",
-    description: "List files and directories at an absolute local filesystem path.",
+    description: "List files and directories at a path inside the selected workspace.",
     source: "evir-local",
     riskLevel: "L1",
     requiredCapability: "filesystem",
@@ -414,7 +457,7 @@ export const LOCAL_FILE_TOOLS: readonly ToolDefinition[] = [
   {
     id: "write_file",
     name: "write_file",
-    description: "Write text content to an absolute local filesystem path.",
+    description: "Write text content to a path inside the selected workspace.",
     source: "evir-local",
     riskLevel: "L3",
     requiredCapability: "filesystem",
@@ -439,7 +482,10 @@ export const LOCAL_FILE_TOOLS: readonly ToolDefinition[] = [
     schema: {
       type: "object",
       properties: {
-        path: { type: "string", description: "Absolute filesystem path" },
+        path: {
+          type: "string",
+          description: "Path inside the selected workspace; relative paths are supported",
+        },
         old_content: { type: "string", description: "Exact text to find in the file" },
         new_content: { type: "string", description: "Text to replace it with" },
       },
@@ -458,7 +504,7 @@ export const LOCAL_FILE_TOOLS: readonly ToolDefinition[] = [
     schema: {
       type: "object",
       properties: {
-        path: { type: "string", description: "Absolute directory path to search in" },
+        path: { type: "string", description: "Directory path inside the selected workspace" },
         pattern: { type: "string", description: "File name pattern (case-insensitive substring)" },
       },
       required: ["path", "pattern"],
@@ -477,7 +523,7 @@ export const LOCAL_FILE_TOOLS: readonly ToolDefinition[] = [
     schema: {
       type: "object",
       properties: {
-        cwd: { type: "string", description: "Working directory (absolute path)" },
+        cwd: { type: "string", description: "Working directory inside the selected workspace" },
         program: { type: "string", description: "Program to execute (e.g. 'npm', 'git', 'cargo')" },
         args: { type: "array", items: { type: "string" }, description: "Arguments array" },
         timeout_ms: { type: "number", description: "Timeout in milliseconds (default 30000)" },
@@ -507,7 +553,7 @@ export const LOCAL_FILE_TOOLS: readonly ToolDefinition[] = [
     schema: {
       type: "object",
       properties: {
-        path: { type: "string", description: "Absolute directory path" },
+        path: { type: "string", description: "Directory path inside the selected workspace" },
         staged: { type: "boolean", description: "Show staged changes (default false)" },
       },
       required: ["path"],
@@ -546,7 +592,7 @@ export const LOCAL_FILE_TOOLS: readonly ToolDefinition[] = [
     schema: {
       type: "object",
       properties: {
-        file_path: { type: "string", description: "Absolute file path" },
+        file_path: { type: "string", description: "File path inside the selected workspace" },
         run_id: { type: "string", description: "Agent run ID" },
       },
       required: ["file_path", "run_id"],
@@ -566,7 +612,7 @@ export const LOCAL_FILE_TOOLS: readonly ToolDefinition[] = [
       properties: {
         snapshot_id: { type: "string" },
         run_id: { type: "string" },
-        file_path: { type: "string", description: "Absolute file path" },
+        file_path: { type: "string", description: "File path inside the selected workspace" },
       },
       required: ["snapshot_id", "run_id", "file_path"],
       additionalProperties: false,

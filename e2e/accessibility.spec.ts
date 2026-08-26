@@ -113,6 +113,17 @@ test("provider Tool Calling capability uses a compact accessible switch", async 
     .click();
 
   const formDialog = page.getByRole("dialog", { name: "Edit model provider" });
+  const chatCompletions = formDialog.getByRole("button", {
+    name: "OpenAI Chat Completions",
+  });
+  const compatible = formDialog.getByRole("button", { name: "OpenAI Compatible" });
+  await expect(chatCompletions).toHaveAttribute("aria-pressed", "true");
+  await expect(formDialog.getByRole("combobox", { name: /Protocol/ })).toHaveCount(0);
+  await chatCompletions.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(compatible).toHaveAttribute("aria-pressed", "true");
+  await expect(compatible).toBeFocused();
+
   const capability = formDialog.getByRole("checkbox", { name: /Supports Tool Calling/ });
   const switchTrack = formDialog.locator(".provider-capability-switch");
   await expect(capability).toBeChecked();

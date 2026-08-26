@@ -70,6 +70,42 @@ describe("file tools — web mode returns unavailable", () => {
 });
 
 describe("agent mutation snapshots", () => {
+  it("passes workspace-relative paths to the desktop storage adapter as absolute paths", async () => {
+    const readFile = vi.fn(() => Promise.resolve("relative content"));
+    const runtime = {
+      target: "desktop" as const,
+      capabilities: new Set(["filesystem"]),
+      has: () => true,
+      getWorkspaceRoot: () => "/tmp/project",
+      storage: { readFile },
+    } as unknown as EvirRuntime;
+    const read = LOCAL_FILE_TOOLS.find((tool) => tool.id === "read_file")!;
+
+    await expect(read.execute({ path: "input.txt" }, runtime)).resolves.toMatchObject({
+      success: true,
+    });
+    expect(readFile).toHaveBeenCalledWith("/tmp/project/input.txt");
+  });
+
+  it("preserves bounded native string errors for diagnosis", async () => {
+    const readFile = vi.fn();
+    readFile.mockRejectedValue("native read failed");
+    const runtime = {
+      target: "desktop" as const,
+      capabilities: new Set(["filesystem"]),
+      has: () => true,
+      getWorkspaceRoot: () => "/tmp/project",
+      storage: { readFile },
+    } as unknown as EvirRuntime;
+    const read = LOCAL_FILE_TOOLS.find((tool) => tool.id === "read_file")!;
+
+    await expect(read.execute({ path: "input.txt" }, runtime)).resolves.toEqual({
+      success: false,
+      output: "native read failed",
+      error: "tool_error",
+    });
+  });
+
   it("tracks a content hash and marks the reference stale after mutation", async () => {
     const runtime = {
       target: "desktop" as const,

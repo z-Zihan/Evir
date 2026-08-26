@@ -38,6 +38,23 @@ import { TaskWorkbench } from "./TaskWorkbench";
 
 const modelSwitchCoordinator = new ModelSwitchCoordinatorImpl();
 
+function useElapsedSeconds(startedAt: number | null): number {
+  const [seconds, setSeconds] = useState(0);
+
+  useEffect(() => {
+    if (!startedAt) {
+      setSeconds(0);
+      return;
+    }
+    const update = () => setSeconds(Math.max(0, Math.floor((Date.now() - startedAt) / 1_000)));
+    update();
+    const interval = window.setInterval(update, 1_000);
+    return () => window.clearInterval(interval);
+  }, [startedAt]);
+
+  return seconds;
+}
+
 interface ChatViewProps {
   input: string;
   onInputChange: (input: string) => void;
@@ -97,6 +114,8 @@ export function ChatView({
     messages,
     mode,
     isStreaming,
+    activeStreamConversationId,
+    activeStreamStartedAt,
     streamingContent,
     error,
     sendMessage,
@@ -131,6 +150,11 @@ export function ChatView({
   const conversationTitle =
     conversations.find((conversation) => conversation.id === currentConversationId)?.title ||
     t("chat.title");
+  const isCurrentConversationStreaming =
+    isStreaming && activeStreamConversationId === currentConversationId;
+  const streamElapsedSeconds = useElapsedSeconds(
+    isCurrentConversationStreaming ? activeStreamStartedAt : null,
+  );
   const rememberMessage = useCallback(
     async (message: MessageRecord) => {
       const content = message.content.trim().slice(0, 4_000);
@@ -346,7 +370,7 @@ export function ChatView({
     <main className="workspace">
       {header}
       <div className="messages-area" ref={scrollRef}>
-        {messages.length === 0 && !isStreaming ? (
+        {messages.length === 0 && !isCurrentConversationStreaming ? (
           <ChatEmptyState onSendMessage={(content) => void sendMessage(content)} />
         ) : (
           <div className="message-list">
@@ -363,7 +387,7 @@ export function ChatView({
             {latestAgentRun?.conversationId === currentConversationId && (
               <AgentRunSummary record={latestAgentRun} onLayoutChange={scrollToBottom} />
             )}
-            {isStreaming && (
+            {isCurrentConversationStreaming && (
               <article
                 className="message-row message-assistant message-streaming"
                 aria-live="polite"
@@ -379,16 +403,20 @@ export function ChatView({
                     <span className="stream-status">
                       <span className="signal-dot" aria-hidden="true" />
                       {streamingContent ? t("chat.responding") : t("chat.preparingResponse")}
+                      <time>{t("chat.elapsed", { seconds: streamElapsedSeconds })}</time>
                     </span>
                   </header>
                   <div className="message-content stream-surface">
                     {streamingContent ? (
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamingContent}</ReactMarkdown>
                     ) : (
-                      <div className="stream-placeholder" aria-hidden="true">
-                        <span />
-                        <span />
-                        <span />
+                      <div className="stream-waiting">
+                        <div className="stream-placeholder" aria-hidden="true">
+                          <span />
+                          <span />
+                          <span />
+                        </div>
+                        {streamElapsedSeconds >= 15 && <p>{t("chat.slowResponse")}</p>}
                       </div>
                     )}
                   </div>
@@ -502,7 +530,7 @@ export function ChatView({
                 {tokenCount > 0 && t("chat.tokenCount", { count: tokenCount })}
               </span>
             </div>
-            {isStreaming ? (
+            {isCurrentConversationStreaming ? (
               <button type="button" className="send-button stop-button" onClick={stopGeneration}>
                 <Square size={14} />
                 {t("chat.stop")}
@@ -511,7 +539,7 @@ export function ChatView({
               <button
                 type="button"
                 className="send-button"
-                disabled={!input.trim() && pendingAttachments.length === 0}
+                disabled={isStreaming || (!input.trim() && pendingAttachments.length === 0)}
                 onClick={onSendMessage}
               >
                 {t("chat.send")}

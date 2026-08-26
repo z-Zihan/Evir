@@ -16,7 +16,12 @@ import type { ChatState } from "./chat-store";
 import { toMessage, sorted } from "./chat-helpers";
 import type { PendingToolApproval } from "./tool-approval";
 import { getStructuredStorage } from "../../runtime/structured-storage";
-import { buildAgentRunRecord, persistAgentRun } from "./agent-run-record";
+import { buildAgentRunRecord, persistAgentRun, type AgentRunRecord } from "./agent-run-record";
+import {
+  beginConversationStream,
+  finishConversationStream,
+  visibleForConversation,
+} from "./stream-ownership";
 
 export type ChatStoreSet = StoreApi<ChatState>["setState"];
 export type ChatStoreGet = StoreApi<ChatState>["getState"];
@@ -24,16 +29,19 @@ export type ChatStoreGet = StoreApi<ChatState>["getState"];
 export function getApprovalContext(
   pending: PendingToolApproval,
   set: ChatStoreSet,
-): { provider: ProviderRecord; runtime: EvirRuntime } | null {
-  set({ pendingToolApproval: null, isStreaming: true, streamingContent: "", error: null });
+  get: ChatStoreGet,
+): { provider: ProviderRecord; runtime: EvirRuntime; streamStartedAt: number } | null {
+  const streamStartedAt = beginConversationStream(set, pending.conversationId);
+  if (visibleForConversation(get, pending.conversationId)) set({ pendingToolApproval: null });
   const provider =
     useProviderStore.getState().providers.find((p) => p.id === pending.providerId) ??
     useProviderStore.getState().getDefaultProvider();
   if (!provider) {
-    set({ isStreaming: false, error: "chat.noProvider" });
+    finishConversationStream(set, get, pending.conversationId, streamStartedAt);
+    if (visibleForConversation(get, pending.conversationId)) set({ error: "chat.noProvider" });
     return null;
   }
-  return { provider, runtime: getRuntime() };
+  return { provider, runtime: getRuntime(), streamStartedAt };
 }
 
 export async function persistTurn(
@@ -168,6 +176,7 @@ export async function finalizeApprovalFlow(
   pendingToolCallId: string,
   priorTurn: AgentLoopTurn,
   runtime: EvirRuntime,
+  orchestrationRunId?: string,
 ): Promise<void> {
   const persist = !get().privateSession;
   const newTurns = loopResult.turns;
@@ -182,7 +191,17 @@ export async function finalizeApprovalFlow(
     ...loopResult,
     turns: [priorTurn, ...loopResult.turns],
   };
-  const agentRunRecord = await buildAgentRunRecord(fullResult, conversationId, runtime);
+  const runId = orchestrationRunId ?? fullResult.agentRun.id;
+  const previous =
+    get().latestAgentRun?.id === runId
+      ? get().latestAgentRun
+      : persist
+        ? await getStructuredStorage().read<AgentRunRecord>("agent_runs", runId)
+        : null;
+  const agentRunRecord = await buildAgentRunRecord(fullResult, conversationId, runtime, {
+    previous,
+    runId,
+  });
   if (persist) await persistAgentRun(agentRunRecord);
   const isNotBlockedMessage = (m: MessageRecord) =>
     !(m.toolCalls?.some((tc) => tc.id === pendingToolCallId) && !m.toolResults?.length);
@@ -194,9 +213,12 @@ export async function finalizeApprovalFlow(
     ...(currentConversationId === conversationId
       ? { messages: [...currentMessages.filter(isNotBlockedMessage), resolvedMsg, ...newMessages] }
       : {}),
-    isStreaming: false,
-    streamingContent: "",
-    error: error ?? null,
-    latestAgentRun: agentRunRecord,
+    ...(currentConversationId === conversationId
+      ? {
+          streamingContent: "",
+          error: error ?? null,
+          latestAgentRun: agentRunRecord,
+        }
+      : {}),
   }));
 }

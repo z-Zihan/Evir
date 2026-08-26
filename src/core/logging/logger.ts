@@ -82,4 +82,10 @@ export class Logger {
   }
 }
 
-export const logger = new Logger();
+type LoggerGlobal = typeof globalThis & {
+  __evirLogger?: Logger;
+};
+
+const loggerGlobal = globalThis as LoggerGlobal;
+
+export const logger = (loggerGlobal.__evirLogger ??= new Logger());

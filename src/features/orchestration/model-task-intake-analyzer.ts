@@ -2,6 +2,8 @@ import type { ProviderRecord } from "../../core/storage/db";
 import type { TaskIntakeAnalyzerPort, TaskIntakeInput } from "../../core/orchestration/task-intake";
 import { streamAssistant } from "../chat/chat-stream";
 
+const STRUCTURED_RESPONSE_TIMEOUT_MS = 45_000;
+
 const taskBriefTool = {
   type: "function",
   function: {
@@ -85,6 +87,8 @@ export class ModelTaskIntakeAnalyzer implements TaskIntakeAnalyzerPort {
       ],
       () => undefined,
       [taskBriefTool],
+      undefined,
+      STRUCTURED_RESPONSE_TIMEOUT_MS,
     );
     const call = stream.toolCalls?.find(({ toolName }) => toolName === "submit_task_brief");
     if (!call) throw new Error("Task intake model did not return a structured brief");

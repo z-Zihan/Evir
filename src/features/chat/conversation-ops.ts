@@ -8,6 +8,7 @@ import { OrchestrationRepository } from "../../core/orchestration/repository";
 import type { AgentAssignment, RunEventV1, TaskBrief } from "../../core/orchestration/types";
 import { useOrchestrationStore } from "../orchestration/orchestration-store";
 import { fromApprovalRecord, type ApprovalRecord } from "./tool-approval";
+import { logger } from "../../core/logging/logger";
 
 type ChatStoreSet = StoreApi<ChatState>["setState"];
 type ChatStoreGet = StoreApi<ChatState>["getState"];
@@ -59,7 +60,22 @@ export async function createOrReuseConversation(
   return createConversation(set, providerId, modelId, get().privateSession);
 }
 
-export async function selectConversation(set: ChatStoreSet, id: string): Promise<void> {
+export async function selectConversation(
+  set: ChatStoreSet,
+  get: ChatStoreGet,
+  id: string,
+): Promise<void> {
+  set({
+    currentConversationId: id,
+    messages: [],
+    streamingContent: "",
+    error: null,
+    pendingAttachments: [],
+    pendingToolApproval: null,
+    latestAgentRun: null,
+  });
+  useOrchestrationStore.getState().setCurrent(null);
+  logger.debug("ui", "chat.conversation-selected", { conversationId: id });
   const storage = getStructuredStorage();
   const [messages, agentRuns, orchestration, approvalRecords] = await Promise.all([
     storage.query<MessageRecord>("messages", { conversationId: id }),
@@ -72,12 +88,12 @@ export async function selectConversation(set: ChatStoreSet, id: string): Promise
   approvalRecords.sort((a, b) => a.createdAt - b.createdAt);
   const approvals = approvalRecords.map(fromApprovalRecord);
   const [pendingToolApproval, ...remainingApprovals] = approvals;
+  if (get().currentConversationId !== id) {
+    logger.debug("ui", "chat.conversation-load-discarded", { conversationId: id });
+    return;
+  }
   set({
-    currentConversationId: id,
     messages,
-    streamingContent: "",
-    error: null,
-    pendingAttachments: [],
     pendingToolApproval: pendingToolApproval
       ? { ...pendingToolApproval, remainingApprovals }
       : null,

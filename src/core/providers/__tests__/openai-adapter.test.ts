@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createConfiguredAdapter, getAdapter, listModelsForProtocol } from "../adapter-registry";
 import { OpenAIChatCompletionsAdapter } from "../adapters/openai-chat-completions";
+import { chatEndpoint } from "../adapters/openai-chat-utils";
 import {
   ProviderErrorType,
   type ProtocolAdapter,
@@ -31,11 +32,24 @@ async function collect(adapter: ProtocolAdapter): Promise<ProviderStreamEvent[]>
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   stopActiveStream();
   vi.unstubAllGlobals();
 });
 
 describe("OpenAIChatCompletionsAdapter", () => {
+  it.each([
+    ["https://api.openai.com/v1", "https://api.openai.com/v1/chat/completions"],
+    [
+      "https://open.bigmodel.cn/api/paas/v4/",
+      "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+    ],
+    ["https://api.deepseek.com", "https://api.deepseek.com/chat/completions"],
+    ["https://example.com/custom/chat/completions", "https://example.com/custom/chat/completions"],
+  ])("resolves the chat endpoint from API base %s", (baseUrl, expected) => {
+    expect(chatEndpoint(baseUrl)).toBe(expected);
+  });
+
   it("lists model ids using the configured OpenAI endpoint and authorization", async () => {
     const fetchMock = vi.fn(() =>
       Promise.resolve(
@@ -100,6 +114,43 @@ describe("OpenAIChatCompletionsAdapter", () => {
     const error = events.find((event) => event.type === "error");
 
     expect(error?.type === "error" ? error.error.type : undefined).toBe(expectedType);
+  });
+
+  it("preserves safe provider error fields for diagnostics", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              error: {
+                code: "quota_exhausted",
+                message: "No balance available",
+                type: "billing_error",
+                authorization: "Bearer sk-provider-secret-123456",
+              },
+            }),
+            { status: 429, headers: { "x-request-id": "request-123" } },
+          ),
+        ),
+      ),
+    );
+
+    const adapter = new OpenAIChatCompletionsAdapter({ apiKey: "test-key" });
+    const result = await adapter.testConnection({
+      providerId: "provider-1",
+      modelId: "glm-5",
+      authConfig: { baseUrl: "https://example.com/v1", apiKey: "test-key" },
+    });
+
+    expect(result.error?.providerDetails).toEqual({
+      status: 429,
+      code: "quota_exhausted",
+      errorType: "billing_error",
+      requestId: "request-123",
+      responseFormat: "json",
+    });
+    expect(JSON.stringify(result.error?.providerDetails)).not.toContain("sk-provider-secret");
   });
 
   it("extracts final usage", async () => {
@@ -244,5 +295,48 @@ describe("streamAssistant", () => {
     stopActiveStream();
     await expect(first).resolves.toMatchObject({ status: "stopped" });
     await expect(second).resolves.toMatchObject({ status: "stopped" });
+  });
+
+  it("stops a structured request when its deadline expires", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_input: RequestInfo | URL, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => {
+              reject(new DOMException("Aborted", "AbortError"));
+            });
+          }),
+      ),
+    );
+    const provider: ProviderRecord = {
+      id: "provider-timeout",
+      name: "Provider",
+      protocolId: "openai-compatible-chat",
+      baseUrl: "https://example.com/v1",
+      apiKey: "test-key",
+      modelId: "model-1",
+      enabled: true,
+      isDefault: true,
+      createdAt: 1,
+      updatedAt: 1,
+    };
+
+    const request = streamAssistant(
+      provider,
+      "conversation-timeout",
+      [],
+      () => undefined,
+      undefined,
+      undefined,
+      100,
+    );
+    await vi.advanceTimersByTimeAsync(100);
+
+    await expect(request).resolves.toMatchObject({
+      status: "error",
+      errorMessage: "chat.requestTimedOut",
+    });
   });
 });
