@@ -180,7 +180,8 @@ test("maps provider errors without crashing and offers retry", async ({ page }) 
   await page.locator("textarea").fill("[auth-error] fail safely");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.getByText(/Authentication failed/i)).toBeVisible();
-  await expect(page.getByRole("button", { name: /Retry/i })).toBeVisible();
+  // 消息级重试按钮（区别于任务工作台的“重试任务”）
+  await expect(page.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
   await expect(page.locator("main.workspace")).toBeVisible();
 });
 

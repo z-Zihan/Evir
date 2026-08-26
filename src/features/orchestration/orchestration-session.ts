@@ -446,6 +446,55 @@ export async function resumeCurrentRun(
   return true;
 }
 
+/**
+ * 失败/取消后的重试：保留已完成节点，把其余节点按依赖重置为 ready/pending，
+ * 计划回到 ready 并继续执行。高风险节点仍会逐次触发审批。
+ */
+export async function retryCurrentRun(
+  runtime: EvirRuntime,
+  privateSession: boolean,
+): Promise<boolean> {
+  const current = useOrchestrationStore.getState().current;
+  if (!current?.plan || current.phase !== "finished") return false;
+  if (current.plan.status === "completed") return false;
+  const completedIds = new Set(
+    current.plan.nodes.filter(({ status }) => status === "completed").map(({ id }) => id),
+  );
+  const nodes = current.plan.nodes.map((node) =>
+    completedIds.has(node.id)
+      ? node
+      : {
+          ...node,
+          status: node.dependencies.every((dependency) => completedIds.has(dependency))
+            ? ("ready" as const)
+            : ("pending" as const),
+        },
+  );
+  const event = createRunEvent(
+    "node.ready",
+    current.runId,
+    current.conversationId,
+    "Run retried from unfinished nodes",
+  );
+  const plan: PlanGraph = {
+    ...current.plan,
+    nodes,
+    status: "ready",
+    updatedAt: Date.now(),
+  };
+  if (!privateSession) {
+    const repository = new OrchestrationRepository(runtime.structuredStorage!);
+    await repository.persistPlanWithEvents(plan, [event]);
+  }
+  useOrchestrationStore.getState().setCurrent({
+    ...current,
+    phase: "execution",
+    plan,
+    events: [...current.events, event],
+  });
+  return true;
+}
+
 export async function resolveCurrentApprovalNode(
   runtime: EvirRuntime,
   privateSession: boolean,

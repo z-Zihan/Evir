@@ -23,6 +23,7 @@ const loopConfigSchema = z
     warnRepeatedToolCalls: z.number().int().min(1).max(100).default(6),
     stopRepeatedToolCalls: z.number().int().min(2).max(100).default(12),
     stopUnchangedErrors: z.number().int().min(2).max(100).default(12),
+    stopFailedRetries: z.number().int().min(1).max(20).default(2),
   })
   .strict()
   .optional()
@@ -30,6 +31,7 @@ const loopConfigSchema = z
     warnRepeatedToolCalls: value?.warnRepeatedToolCalls ?? 6,
     stopRepeatedToolCalls: value?.stopRepeatedToolCalls ?? 12,
     stopUnchangedErrors: value?.stopUnchangedErrors ?? 12,
+    stopFailedRetries: value?.stopFailedRetries ?? 2,
   }))
   .refine((value) => value.warnRepeatedToolCalls < value.stopRepeatedToolCalls, {
     message: "Loop warning threshold must be lower than stop threshold",
@@ -153,12 +155,14 @@ export function createLoopDetectionMiddleware(
 ): HarnessMiddleware {
   const callsByRun = new Map<string, Map<string, number>>();
   const errorsByRun = new Map<string, Map<string, number>>();
+  const consecutiveFailuresByRun = new Map<string, Map<string, number>>();
   return passthrough("loop-detection", (event, next) => {
     if (event.type !== "tool-call") return next(event);
     const runId = event.runId ?? event.conversationId;
     if (event.phase === "run-end") {
       callsByRun.delete(runId);
       errorsByRun.delete(runId);
+      consecutiveFailuresByRun.delete(runId);
       return next(event);
     }
     if (event.phase === "before-execute" && event.toolName) {
@@ -167,6 +171,19 @@ export function createLoopDetectionMiddleware(
       const key = `${event.toolName}:${JSON.stringify(event.arguments ?? {})}`;
       const occurrences = (calls.get(key) ?? 0) + 1;
       calls.set(key, occurrences);
+      // 相同调用已连续失败足够多次：再试只会刷屏，直接停止并交给用户决策
+      const consecutiveFailures = consecutiveFailuresByRun.get(runId)?.get(key) ?? 0;
+      if (consecutiveFailures >= config.stopFailedRetries) {
+        return next(
+          withLoopSignal(
+            event,
+            "stop",
+            consecutiveFailures,
+            `Repeated failed ${event.toolName} call`,
+            "repeated-failed-call",
+          ),
+        );
+      }
       if (occurrences >= config.stopRepeatedToolCalls) {
         return next(withLoopSignal(event, "stop", occurrences, `Repeated ${event.toolName} call`));
       }
@@ -176,15 +193,24 @@ export function createLoopDetectionMiddleware(
         );
       }
     }
-    if (event.phase === "after-execute" && event.result?.error) {
-      const errors = errorsByRun.get(runId) ?? new Map<string, number>();
-      errorsByRun.set(runId, errors);
-      const occurrences = (errors.get(event.result.error) ?? 0) + 1;
-      errors.set(event.result.error, occurrences);
-      if (occurrences >= config.stopUnchangedErrors) {
-        return next(
-          withLoopSignal(event, "stop", occurrences, `Unchanged error: ${event.result.error}`),
-        );
+    if (event.phase === "after-execute" && event.result) {
+      const failed = Boolean(event.result.error) || event.result.success === false;
+      if (event.toolName) {
+        const key = `${event.toolName}:${JSON.stringify(event.arguments ?? {})}`;
+        const failures = consecutiveFailuresByRun.get(runId) ?? new Map<string, number>();
+        consecutiveFailuresByRun.set(runId, failures);
+        failures.set(key, failed ? (failures.get(key) ?? 0) + 1 : 0);
+      }
+      if (event.result.error) {
+        const errors = errorsByRun.get(runId) ?? new Map<string, number>();
+        errorsByRun.set(runId, errors);
+        const occurrences = (errors.get(event.result.error) ?? 0) + 1;
+        errors.set(event.result.error, occurrences);
+        if (occurrences >= config.stopUnchangedErrors) {
+          return next(
+            withLoopSignal(event, "stop", occurrences, `Unchanged error: ${event.result.error}`),
+          );
+        }
       }
     }
     return next(event);
@@ -196,12 +222,13 @@ function withLoopSignal(
   severity: "warning" | "stop",
   occurrences: number,
   summary: string,
+  type: "repeated-tool-call" | "repeated-failed-call" = "repeated-tool-call",
 ): HarnessToolCallEvent {
   return {
     ...event,
     blocked: severity === "stop" || event.blocked,
     ...(severity === "stop" ? { blockReason: "loop-detected" } : {}),
-    loopSignal: { type: "repeated-tool-call", severity, occurrences, summary },
+    loopSignal: { type, severity, occurrences, summary },
   };
 }
 

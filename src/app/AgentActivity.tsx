@@ -23,6 +23,8 @@ interface AgentActivityProps {
   toolCalls: ToolCallRecord[];
   toolResults: ToolResultRecord[];
   messageStatus: MessageRecord["status"];
+  /** 连续相同失败重试被渲染层折叠时，附加到首条卡片的次数 */
+  failedRetryCount?: number | undefined;
 }
 
 function getArgumentSummary(call: ToolCallRecord): string {
@@ -40,7 +42,12 @@ function getArgumentSummary(call: ToolCallRecord): string {
   return "";
 }
 
-export function AgentActivity({ toolCalls, toolResults, messageStatus }: AgentActivityProps) {
+export function AgentActivity({
+  toolCalls,
+  toolResults,
+  messageStatus,
+  failedRetryCount,
+}: AgentActivityProps) {
   const { t, i18n } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const isStreaming = useChatStore((state) => state.isStreaming);
@@ -107,7 +114,10 @@ export function AgentActivity({ toolCalls, toolResults, messageStatus }: AgentAc
         </span>
         <span className="activity-heading-copy">
           <strong>{statusLabel}</strong>
-          <span>{t("tools.progress", { completed, total: toolCalls.length })}</span>
+          <span>
+            {t("tools.progress", { completed, total: toolCalls.length })}
+            {failedRetryCount ? ` · ${t("tools.retriedTimes", { count: failedRetryCount })}` : ""}
+          </span>
         </span>
         {expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
       </button>

@@ -264,11 +264,13 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
       if (policy.blocked) {
         const summary = policy.loopSignal?.summary ?? `Tool not allowed: ${rawCall.toolName}`;
         const errorMessageKey =
-          policy.blockReason === "loop-detected"
-            ? "tools.maxIterations"
-            : policy.blockReason === "tool-not-allowed"
-              ? "tools.notAllowedByStep"
-              : "tools.notAvailable";
+          policy.loopSignal?.type === "repeated-failed-call"
+            ? "tools.repeatedFailures"
+            : policy.blockReason === "loop-detected"
+              ? "tools.maxIterations"
+              : policy.blockReason === "tool-not-allowed"
+                ? "tools.notAllowedByStep"
+                : "tools.notAvailable";
         logger.warn("tool", "agent.tool-call-blocked", {
           conversationId: options.conversationId,
           runId: agentRun.id,

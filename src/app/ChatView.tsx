@@ -74,6 +74,26 @@ interface MessageListProps {
   onRemember?: (message: MessageRecord) => Promise<void>;
 }
 
+/**
+ * 连续相同失败重试的判定：无正文 + 单个工具调用 + 失败结果 + 与前一条完全相同的工具和参数。
+ * 这些消息在渲染层折叠到第一条卡片上（failedRetryCount），避免聊天流被重复失败刷屏。
+ */
+function isDuplicateFailedRetry(previous: MessageRecord, message: MessageRecord): boolean {
+  if (message.role !== "assistant" || previous.role !== "assistant") return false;
+  if (message.content.trim() || previous.content.trim()) return false;
+  const call = message.toolCalls?.[0];
+  const previousCall = previous.toolCalls?.[0];
+  if (!call || !previousCall) return false;
+  if ((message.toolCalls?.length ?? 0) !== 1 || (previous.toolCalls?.length ?? 0) !== 1)
+    return false;
+  const failed = message.toolResults?.some(({ success }) => !success);
+  if (!failed) return false;
+  return (
+    call.toolName === previousCall.toolName &&
+    JSON.stringify(call.arguments) === JSON.stringify(previousCall.arguments)
+  );
+}
+
 const MessageList = memo(function MessageList({
   messages,
   disabled,
@@ -83,20 +103,37 @@ const MessageList = memo(function MessageList({
   onRegenerate,
   onRemember,
 }: MessageListProps) {
+  const hiddenIds = new Set<string>();
+  const retryCountById = new Map<string, number>();
+  for (let index = 1; index < messages.length; index += 1) {
+    const message = messages[index];
+    if (!message) continue;
+    const previous = messages[index - 1];
+    if (!previous) continue;
+    if (!isDuplicateFailedRetry(previous, message)) continue;
+    hiddenIds.add(message.id);
+    const anchor = previous.id;
+    const anchorCount = retryCountById.get(anchor);
+    if (anchorCount !== undefined) retryCountById.set(anchor, anchorCount + 1);
+    else if (!hiddenIds.has(anchor)) retryCountById.set(anchor, 1);
+  }
   return (
     <>
-      {messages.map((msg) => (
-        <ChatMessage
-          key={msg.id}
-          message={msg}
-          disabled={disabled}
-          localUserName={localUserName}
-          localUserAvatar={localUserAvatar}
-          onEdit={onEdit}
-          onRegenerate={onRegenerate}
-          {...(onRemember ? { onRemember } : {})}
-        />
-      ))}
+      {messages.map((msg) =>
+        hiddenIds.has(msg.id) ? null : (
+          <ChatMessage
+            key={msg.id}
+            message={msg}
+            disabled={disabled}
+            localUserName={localUserName}
+            localUserAvatar={localUserAvatar}
+            failedRetryCount={retryCountById.get(msg.id)}
+            onEdit={onEdit}
+            onRegenerate={onRegenerate}
+            {...(onRemember ? { onRemember } : {})}
+          />
+        ),
+      )}
     </>
   );
 });
@@ -225,7 +262,13 @@ export function ChatView({
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // 输入法组词中的 Enter 是确认候选词，不是发送
-    if (e.key === "Enter" && !e.nativeEvent.isComposing && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+    if (
+      e.key === "Enter" &&
+      !e.nativeEvent.isComposing &&
+      !e.shiftKey &&
+      !e.metaKey &&
+      !e.ctrlKey
+    ) {
       e.preventDefault();
       onSendMessage();
     }

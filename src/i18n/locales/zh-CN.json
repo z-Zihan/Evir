@@ -131,6 +131,8 @@
     "approve": "允许",
     "deny": "拒绝",
     "notAvailable": "浏览器模式下无法使用此工具。",
+    "retriedTimes_other": "已重试 {{count}} 次",
+    "repeatedFailures": "同一操作连续失败，Evir 已停止重试。请查看上方错误或调整方式。",
     "notAllowedByStep": "当前步骤未授予此工具权限。写入等高风险操作只会在对应步骤并经你批准后执行。",
     "maxIterations": "已达到工具调用最大迭代次数。",
     "read_file": "读取文件",
@@ -749,6 +751,7 @@
     "hideDetails": "收起执行详情",
     "pause": "在检查点暂停",
     "resume": "继续任务",
+    "retryTask": "重试任务",
     "preparationFailed": "任务理解或计划保存失败，请重试。",
     "preparing": {
       "intakeTitle": "正在整理任务",

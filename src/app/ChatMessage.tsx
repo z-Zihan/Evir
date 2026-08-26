@@ -12,6 +12,7 @@ interface ChatMessageProps {
   disabled: boolean;
   localUserName: string;
   localUserAvatar: string;
+  failedRetryCount?: number | undefined;
   onEdit: (messageId: string, content: string) => Promise<void>;
   onRegenerate: () => Promise<void>;
   onRemember?: (message: MessageRecord) => Promise<void>;
@@ -49,6 +50,7 @@ export function ChatMessage({
   disabled,
   localUserName,
   localUserAvatar,
+  failedRetryCount,
   onEdit,
   onRegenerate,
   onRemember,
@@ -169,6 +171,7 @@ export function ChatMessage({
               toolCalls={message.toolCalls}
               toolResults={message.toolResults ?? []}
               messageStatus={message.status}
+              failedRetryCount={failedRetryCount}
             />
           )}
           {message.status === "stopped" && (

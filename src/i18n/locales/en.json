@@ -131,6 +131,8 @@
     "approve": "Approve",
     "deny": "Deny",
     "notAvailable": "This tool is not available in browser mode.",
+    "retriedTimes": "retried {{count}} time",
+    "repeatedFailures": "The same operation kept failing, so Evir stopped retrying. Review the error above or adjust the approach.",
     "notAllowedByStep": "This tool is not granted for the current step. High-risk tools such as writes run only in their own step and after your approval.",
     "maxIterations": "Maximum tool call iterations reached.",
     "read_file": "Read file",
@@ -752,6 +754,7 @@
     "hideDetails": "Hide execution details",
     "pause": "Pause at checkpoint",
     "resume": "Resume task",
+    "retryTask": "Retry task",
     "preparationFailed": "Task analysis or plan storage failed. Please try again.",
     "preparing": {
       "intakeTitle": "Structuring the task",

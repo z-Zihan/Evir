@@ -159,7 +159,12 @@ export interface HarnessMiddlewareRegistryPort {
 }
 
 export interface LoopDetectionSignal {
-  type: "repeated-tool-call" | "repeated-file-edit" | "unchanged-error-retry" | "no-progress";
+  type:
+    | "repeated-tool-call"
+    | "repeated-failed-call"
+    | "repeated-file-edit"
+    | "unchanged-error-retry"
+    | "no-progress";
   severity: "warning" | "stop";
   occurrences: number;
   summary: string;

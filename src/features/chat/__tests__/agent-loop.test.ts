@@ -120,6 +120,7 @@ describe("runAgentLoop", () => {
         warnRepeatedToolCalls: 1,
         stopRepeatedToolCalls: 2,
         stopUnchangedErrors: 2,
+        stopFailedRetries: 2,
       }),
       "evir.harness.loop-detection",
     );

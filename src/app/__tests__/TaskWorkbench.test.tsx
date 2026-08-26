@@ -236,4 +236,38 @@ describe("TaskWorkbench", () => {
 
     expect(screen.getByText("orchestration.finishedStatus.completed")).toBeTruthy();
   });
+
+  it("offers a retry action when a run failed", () => {
+    useOrchestrationStore.setState({
+      current: {
+        runId: brief.runId,
+        conversationId: brief.conversationId,
+        phase: "finished",
+        brief,
+        plan: { ...plan, status: "failed" },
+        assignments: [],
+        events: [],
+      },
+    });
+    render(<TaskWorkbench />);
+
+    expect(screen.getByRole("button", { name: "orchestration.retryTask" })).toBeTruthy();
+  });
+
+  it("does not offer retry for a completed run", () => {
+    useOrchestrationStore.setState({
+      current: {
+        runId: brief.runId,
+        conversationId: brief.conversationId,
+        phase: "finished",
+        brief,
+        plan: { ...plan, status: "completed" },
+        assignments: [],
+        events: [],
+      },
+    });
+    render(<TaskWorkbench />);
+
+    expect(screen.queryByRole("button", { name: "orchestration.retryTask" })).toBeNull();
+  });
 });

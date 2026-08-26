@@ -42,6 +42,38 @@ describe("plan validation", () => {
     expect(createPlan(brief({ risk: "high" }), "/workspace").status).toBe("awaiting_confirmation");
   });
 
+  it("runs low-risk read-only tasks without plan confirmation", () => {
+    const readOnly = brief({
+      goalKind: "inspect",
+      objective: "Explain what changed and why the task failed",
+      requiredCapabilities: ["filesystem"],
+      risk: "low",
+    });
+    const plan = createPlan(readOnly, "/workspace");
+    expect(
+      plan.nodes.every((node) => !node.resourceScopes.some(({ access }) => access === "write")),
+    ).toBe(true);
+    expect(plan.nodes.length).toBeLessThanOrEqual(3);
+    expect(plan.requiresConfirmation).toBe(false);
+    expect(plan.status).toBe("ready");
+  });
+
+  it("still confirms read-only plans when questions are unanswered", () => {
+    const withQuestions = brief({
+      goalKind: "inspect",
+      risk: "low",
+      unknowns: [
+        {
+          id: "u1",
+          question: "Which scope?",
+          impact: "scope",
+          suggestedAnswers: [],
+        },
+      ],
+    });
+    expect(createPlan(withQuestions, "/workspace").requiresConfirmation).toBe(true);
+  });
+
   it("rejects cycles and missing approval boundaries", () => {
     const plan = createPlan(brief(), "/workspace");
     plan.nodes[0]!.dependencies = ["verify"];

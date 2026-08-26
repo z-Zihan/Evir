@@ -26,6 +26,7 @@ import {
   cancelTaskPreparation,
   pauseCurrentRun,
   resumeCurrentRun,
+  retryCurrentRun,
   reviseCurrentPlan,
 } from "../features/orchestration/orchestration-session";
 import { continueCurrentExecution } from "../features/orchestration/continue-orchestration";
@@ -196,6 +197,10 @@ export function TaskWorkbench() {
   const resume = async () => {
     if (await resumeCurrentRun(getRuntime(), privateSession)) await continueCurrentExecution();
   };
+  const retry = async () => {
+    if (await retryCurrentRun(getRuntime(), privateSession)) await continueCurrentExecution();
+  };
+  const retryable = finished && (plan?.status === "failed" || plan?.status === "cancelled");
 
   return (
     <section
@@ -236,6 +241,11 @@ export function TaskWorkbench() {
           {snapshot.phase !== "finished" && (
             <button type="button" className="secondary-button" onClick={stop}>
               {t("orchestration.stop")}
+            </button>
+          )}
+          {retryable && (
+            <button type="button" className="primary-button" onClick={() => void retry()}>
+              {t("orchestration.retryTask")}
             </button>
           )}
           {finished && (
