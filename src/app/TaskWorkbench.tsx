@@ -200,7 +200,9 @@ export function TaskWorkbench() {
   const retry = async () => {
     if (await retryCurrentRun(getRuntime(), privateSession)) await continueCurrentExecution();
   };
-  const retryable = finished && (plan?.status === "failed" || plan?.status === "cancelled");
+  const retryable =
+    finished &&
+    (plan?.status === "failed" || plan?.status === "cancelled" || plan?.status === "partial");
 
   return (
     <section

@@ -254,6 +254,23 @@ describe("TaskWorkbench", () => {
     expect(screen.getByRole("button", { name: "orchestration.retryTask" })).toBeTruthy();
   });
 
+  it("offers a retry action when a run finished partially", () => {
+    useOrchestrationStore.setState({
+      current: {
+        runId: brief.runId,
+        conversationId: brief.conversationId,
+        phase: "finished",
+        brief,
+        plan: { ...plan, status: "partial" },
+        assignments: [],
+        events: [],
+      },
+    });
+    render(<TaskWorkbench />);
+
+    expect(screen.getByRole("button", { name: "orchestration.retryTask" })).toBeTruthy();
+  });
+
   it("does not offer retry for a completed run", () => {
     useOrchestrationStore.setState({
       current: {
