@@ -162,7 +162,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - 共享 helpers（chat-helpers.ts）
 - MCP Server 配置（Store + Settings UI）；页面明确不代表已连接
 - Context Budget Manager + Tool Output 压缩
-- Sidebar 搜索 + Cmd+Shift+F 快捷键
+- Sidebar 会话列表（新建/删除/选择/置顶/重命名；会话搜索已在 R4-T3 重构中移除）
 - Shortcuts 设置面板（平台感知格式化）
 - Privacy 设置面板（清除本地数据 + 事务保护）
 - 共享 platform.ts（isMac + currentPlatform）
@@ -229,7 +229,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 ## 19. Verified User Capabilities
 
-用户当前可以：添加 Provider（5 种协议）→ 测试连接 → 获取模型列表 → 新建会话 → 发送消息/附件 → 看到流式回复 → 停止生成 → 刷新恢复 → 快捷键操作 → 会话搜索 → 查看 Usage 统计 → 分类错误展示 → 拖拽上传图片/文本附件 → 历史附件参与多轮对话 → 会话导出/导入 → Web Ask / Desktop Ask 与 Agent → 个性化设置 → 切换中英文/主题 → 重新生成/编辑消息 → 会话分支 → 模型切换 → Agent 模式工具审批 → Skill 启用/禁用。Plan 是 Agent 内部阶段，不是常驻一级入口。
+用户当前可以：添加 Provider（5 种协议）→ 测试连接 → 获取模型列表 → 新建会话 → 发送消息/附件 → 看到流式回复 → 停止生成 → 刷新恢复 → 快捷键操作 → 查看 Usage 统计 → 分类错误展示 → 拖拽上传图片/文本附件 → 历史附件参与多轮对话 → 会话导出/导入 → Web Ask / Desktop 与 Agent → 个性化设置 → 切换中英文/主题 → 重新生成/编辑消息 → 会话分支 → 模型切换 → Agent 模式工具审批 → Skill 启用/禁用。Plan 是 Agent 内部阶段，不是常驻一级入口。
 
 2026-08-07 自动化证据：338 TypeScript tests、7 Rust tests、24 E2E pass + 6 Web capability skips、358 UI screenshots、6 visual baselines、16 accessibility tests。macOS debug 原生应用已启动；本轮 Mac 锁屏，未声明原生窗口交互通过。
 
@@ -282,6 +282,8 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - [docs/reviews/vscode-cli-product-ui-review.md](../reviews/vscode-cli-product-ui-review.md)
 
 ## 24. Update Log
+
+- 2026-08-26 | working tree | 全功能 GUI 点击审查后收口：移除未接线的 `command-palette`（⌘K）与 `open-workspace`（⌘⇧O）死快捷键及其文案/分组（展示层与实际能力一致，均为 6 个已接线快捷键）；清理 sidebar 搜索与 shortcuts 残留 i18n 死键；项目记忆更正"侧栏搜索"过时声明（该功能已在 R4-T3 移除）
 
 - 2026-08-13 | working tree | 新增智能任务理解与多 Agent 编排：结构化 Brief/Plan、关键澄清、事件优先存储、DAG/资源锁、检查点暂停恢复、同模型受限 Worker、内置子图和聊天内任务工作台；真实 Provider/原生 Desktop 闭环仍待外部验收
 - 2026-08-12 | working tree | Harness Middleware 接入 Component Runtime：新增固定顺序 Registry；Input/Mode/Capability/Context/Skill/Memory/Loop/Checkpoint/Verification/Observability 均以可卸载组件运行；Tool Policy 为宿主 protected 项；执行路径、独立禁用和失败回滚有回归测试

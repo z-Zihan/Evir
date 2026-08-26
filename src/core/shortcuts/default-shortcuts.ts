@@ -2,15 +2,6 @@ import type { ShortcutDefinition } from "./types";
 
 export const DEFAULT_SHORTCUTS = [
   {
-    id: "command-palette",
-    labelKey: "shortcuts.commandPalette",
-    defaultAccelerator: "CmdOrCtrl+K",
-    scope: "app",
-    platforms: ["all"],
-    editable: true,
-    enabledByDefault: true,
-  },
-  {
     id: "new-conversation",
     labelKey: "shortcuts.newConversation",
     defaultAccelerator: "CmdOrCtrl+N",
@@ -34,15 +25,6 @@ export const DEFAULT_SHORTCUTS = [
     defaultAccelerator: "CmdOrCtrl+B",
     scope: "app",
     platforms: ["all"],
-    editable: true,
-    enabledByDefault: true,
-  },
-  {
-    id: "open-workspace",
-    labelKey: "shortcuts.openWorkspace",
-    defaultAccelerator: "CmdOrCtrl+Shift+O",
-    scope: "app",
-    platforms: ["macos", "windows"],
     editable: true,
     enabledByDefault: true,
   },

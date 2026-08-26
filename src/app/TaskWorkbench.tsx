@@ -215,7 +215,11 @@ export function TaskWorkbench() {
           )}
         </span>
         <div>
-          <strong id="task-workbench-title">{t(`orchestration.phase.${snapshot.phase}`)}</strong>
+          <strong id="task-workbench-title">
+            {finished
+              ? t(`orchestration.finishedStatus.${plan?.status ?? "completed"}`)
+              : t(`orchestration.phase.${snapshot.phase}`)}
+          </strong>
           <span>{active?.title ?? snapshot.brief.objective}</span>
         </div>
         <div className="task-status-actions">

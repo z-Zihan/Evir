@@ -201,4 +201,39 @@ describe("TaskWorkbench", () => {
     expect(screen.getAllByText("Change files")).toHaveLength(2);
     expect(screen.getByText("orchestration.summary.noEvidence")).toBeTruthy();
   });
+
+  it("labels a finished run by its actual plan status instead of always saying finished", () => {
+    useOrchestrationStore.setState({
+      current: {
+        runId: brief.runId,
+        conversationId: brief.conversationId,
+        phase: "finished",
+        brief,
+        plan: { ...plan, status: "failed" },
+        assignments: [],
+        events: [],
+      },
+    });
+    render(<TaskWorkbench />);
+
+    expect(screen.getByText("orchestration.finishedStatus.failed")).toBeTruthy();
+    expect(screen.queryByText("orchestration.phase.finished")).toBeNull();
+  });
+
+  it("keeps the completed label for a successfully finished run", () => {
+    useOrchestrationStore.setState({
+      current: {
+        runId: brief.runId,
+        conversationId: brief.conversationId,
+        phase: "finished",
+        brief,
+        plan: { ...plan, status: "completed" },
+        assignments: [],
+        events: [],
+      },
+    });
+    render(<TaskWorkbench />);
+
+    expect(screen.getByText("orchestration.finishedStatus.completed")).toBeTruthy();
+  });
 });

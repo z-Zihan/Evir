@@ -166,11 +166,21 @@ async function getLoopResult(
   }
   const stream = await streamAssistant(provider, conversationId, messages, onDelta);
   return {
-    turns: [{ stream }],
+    turns: [{ stream: explainToolCallWithoutAccess(stream) }],
     maxIterationsReached: false,
     messages: [],
     agentRun: { id: crypto.randomUUID(), snapshots: [], fileReferences: [] },
   };
+}
+
+/**
+ * Ask 模式没有工具：模型仍返回 tool_calls 时内容为空，给出可理解的解释而不是空白回复。
+ */
+export function explainToolCallWithoutAccess(stream: StreamResult): StreamResult {
+  const unusableToolCalls = stream.toolCalls ?? [];
+  if (unusableToolCalls.length === 0 || stream.content.trim()) return stream;
+  const toolNames = [...new Set(unusableToolCalls.map(({ toolName }) => toolName))].join(", ");
+  return { ...stream, content: i18n.t("chat.toolCallWithoutToolAccess", { toolNames }) };
 }
 
 function titleFor(history: MessageRecord[], hasTitle: boolean): string | undefined {

@@ -11,8 +11,6 @@
     "localAi": "Local AI",
     "recent": "Recent",
     "noConversations": "No conversations yet",
-    "searchPlaceholder": "Search conversations…",
-    "noResults": "No matches",
     "pin": "Pin",
     "unpin": "Unpin",
     "rename": "Rename",
@@ -79,6 +77,7 @@
     "noProviderDescription": "Add an API and choose a model to begin. Keys and conversation data stay local by default.",
     "addProviderFirst": "Add Provider",
     "streamEnded": "Stream ended unexpectedly",
+    "toolCallWithoutToolAccess": "The model tried to call tools ({{toolNames}}), but this mode has no tool access. Switch to Agent mode for local tools.",
     "copyCode": "Copy code",
     "copied": "Copied!",
     "attachFile": "Attach file",
@@ -424,26 +423,18 @@
     },
     "groups": {
       "navigation": "Navigation",
-      "conversation": "Conversation",
-      "workspace": "Workspace"
+      "conversation": "Conversation"
     },
     "groupDescriptions": {
       "navigation": "Move between the interface and conversations",
-      "conversation": "Create, send, and stop without leaving the keyboard",
-      "workspace": "Enter the context of a local project"
+      "conversation": "Create, send, and stop without leaving the keyboard"
     },
-    "commandPalette": "Open command palette",
-    "commandPaletteDescription": "Find and run available actions in Evir",
     "newConversation": "New conversation",
     "newConversationDescription": "Start a blank conversation immediately",
     "openSettings": "Open settings",
     "openSettingsDescription": "Enter settings from anywhere in the app",
     "toggleSidebar": "Toggle sidebar",
     "toggleSidebarDescription": "Make more room for the current content",
-    "openWorkspace": "Open workspace",
-    "openWorkspaceDescription": "Choose a local folder the Agent can access",
-    "searchConversations": "Search conversations",
-    "searchConversationsDescription": "Find past conversations by title or content",
     "sendMessage": "Send message",
     "sendMessageDescription": "Submit the current composer content",
     "stopCurrentRun": "Stop current generation",
@@ -744,6 +735,12 @@
       "paused": "Task paused",
       "blocked": "More direction needed",
       "finished": "Task finished"
+    },
+    "finishedStatus": {
+      "completed": "Task finished",
+      "partial": "Task partially completed",
+      "failed": "Task failed",
+      "cancelled": "Task stopped"
     },
     "stop": "Stop task",
     "showDetails": "Show execution details",

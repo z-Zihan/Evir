@@ -11,8 +11,6 @@
     "localAi": "本地 AI",
     "recent": "最近",
     "noConversations": "暂无会话",
-    "searchPlaceholder": "搜索对话…",
-    "noResults": "无匹配结果",
     "pin": "置顶",
     "unpin": "取消置顶",
     "rename": "重命名",
@@ -79,6 +77,7 @@
     "noProviderDescription": "添加 API、选择模型，即可开始对话。密钥和会话数据默认保存在本地。",
     "addProviderFirst": "添加供应商",
     "streamEnded": "流式响应意外结束",
+    "toolCallWithoutToolAccess": "模型尝试调用工具（{{toolNames}}），但当前模式没有工具访问权限。如需本地工具请切换到 Agent 模式。",
     "copyCode": "复制代码",
     "copied": "已复制！",
     "attachFile": "添加附件",
@@ -421,26 +420,18 @@
     },
     "groups": {
       "navigation": "导航",
-      "conversation": "对话",
-      "workspace": "工作区"
+      "conversation": "对话"
     },
     "groupDescriptions": {
       "navigation": "在界面与会话之间快速移动",
-      "conversation": "控制新建、发送与停止",
-      "workspace": "进入本地项目上下文"
+      "conversation": "控制新建、发送与停止"
     },
-    "commandPalette": "打开命令面板",
-    "commandPaletteDescription": "搜索并执行 Evir 中的可用操作",
     "newConversation": "新建会话",
     "newConversationDescription": "立即开始一段空白对话",
     "openSettings": "打开设置",
     "openSettingsDescription": "从任意页面进入设置中心",
     "toggleSidebar": "显示或隐藏侧边栏",
     "toggleSidebarDescription": "为当前内容腾出更多空间",
-    "openWorkspace": "打开工作区",
-    "openWorkspaceDescription": "选择 Agent 可以访问的本地目录",
-    "searchConversations": "搜索会话",
-    "searchConversationsDescription": "定位标题或内容相关的历史会话",
     "sendMessage": "发送消息",
     "sendMessageDescription": "提交当前输入内容",
     "stopCurrentRun": "停止当前生成",
@@ -741,6 +732,12 @@
       "paused": "任务已暂停",
       "blocked": "需要更多指引",
       "finished": "任务已结束"
+    },
+    "finishedStatus": {
+      "completed": "任务已完成",
+      "partial": "任务部分完成",
+      "failed": "任务失败",
+      "cancelled": "任务已停止"
     },
     "stop": "停止任务",
     "showDetails": "展开执行详情",

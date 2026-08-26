@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Command,
-  FolderOpen,
   Keyboard,
   MessageSquarePlus,
   PanelLeft,
@@ -15,7 +14,7 @@ import { DEFAULT_SHORTCUTS } from "../core/shortcuts/default-shortcuts";
 import type { ShortcutDefinition } from "../core/shortcuts/types";
 import { currentPlatform, isMac } from "../core/shortcuts/platform";
 
-type ShortcutGroupId = "navigation" | "conversation" | "workspace";
+type ShortcutGroupId = "navigation" | "conversation";
 
 interface ShortcutPresentation {
   group: ShortcutGroupId;
@@ -24,11 +23,6 @@ interface ShortcutPresentation {
 }
 
 const SHORTCUT_PRESENTATION: Record<string, ShortcutPresentation> = {
-  "command-palette": {
-    group: "navigation",
-    icon: Command,
-    descriptionKey: "shortcuts.commandPaletteDescription",
-  },
   "open-settings": {
     group: "navigation",
     icon: Settings2,
@@ -59,14 +53,9 @@ const SHORTCUT_PRESENTATION: Record<string, ShortcutPresentation> = {
     icon: Square,
     descriptionKey: "shortcuts.stopCurrentRunDescription",
   },
-  "open-workspace": {
-    group: "workspace",
-    icon: FolderOpen,
-    descriptionKey: "shortcuts.openWorkspaceDescription",
-  },
 };
 
-const GROUP_ORDER: ShortcutGroupId[] = ["navigation", "conversation", "workspace"];
+const GROUP_ORDER: ShortcutGroupId[] = ["navigation", "conversation"];
 
 function acceleratorTokens(accelerator: string): string[] {
   const mac = isMac();
