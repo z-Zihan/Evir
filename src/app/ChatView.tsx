@@ -224,7 +224,8 @@ export function ChatView({
   const localUserName = localDisplayName || t("chat.localUser");
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+    // 输入法组词中的 Enter 是确认候选词，不是发送
+    if (e.key === "Enter" && !e.nativeEvent.isComposing && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
       e.preventDefault();
       onSendMessage();
     }
