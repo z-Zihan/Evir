@@ -1,4 +1,13 @@
-import { memo, useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import {
+  memo,
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import { useTranslation } from "react-i18next";
 import {
   ArrowUp,
@@ -35,7 +44,12 @@ import { SkillPicker } from "./SkillPicker";
 import { useSkillStore } from "../features/skills/skill-store";
 import { useMemoryStore } from "../features/memory/memory-store";
 import { useOrchestrationStore } from "../features/orchestration/orchestration-store";
-import { TaskWorkbench } from "./TaskWorkbench";
+// The orchestration workbench (plan DAG, node timeline, clarifications) only
+// appears in desktop Agent runs; keep it and its store graph out of the entry
+// chunk.
+const TaskWorkbench = lazy(() =>
+  import("./TaskWorkbench").then((m) => ({ default: m.TaskWorkbench })),
+);
 
 const modelSwitchCoordinator = new ModelSwitchCoordinatorImpl();
 
@@ -441,7 +455,11 @@ export function ChatView({
               onRegenerate={regenerate}
               {...(!privateSession ? { onRemember: rememberMessage } : {})}
             />
-            {mode === "agent" && <TaskWorkbench agentRun={currentAgentRun} />}
+            {mode === "agent" && (
+              <Suspense fallback={null}>
+                <TaskWorkbench agentRun={currentAgentRun} />
+              </Suspense>
+            )}
             {currentAgentRun && !hasCurrentTaskWorkbench && (
               <AgentRunSummary record={currentAgentRun} onLayoutChange={scrollToBottom} />
             )}

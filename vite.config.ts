@@ -42,6 +42,19 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       outDir: `dist/${target}`,
+      rollupOptions: {
+        output: {
+          // Split large third-party libraries out of the entry chunk so app
+          // code changes don't re-download vendor code. Lazy-loaded feature
+          // chunks (settings panels, workbench, KaTeX, skills) are produced by
+          // dynamic imports and are unaffected.
+          manualChunks: {
+            "vendor-react": ["react", "react-dom"],
+            "vendor-markdown": ["react-markdown", "remark-gfm"],
+            "vendor-data": ["dexie", "zustand", "i18next", "react-i18next"],
+          },
+        },
+      },
     },
     server: {
       port: 1420,

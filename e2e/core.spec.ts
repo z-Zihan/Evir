@@ -371,6 +371,10 @@ test("provider edits persist after closing settings and refreshing", async ({ pa
   await seedFixture(page);
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const settings = page.getByRole("dialog", { name: "Settings", exact: true });
+  // Settings panels load lazily; wait for the providers panel to render.
+  await expect(
+    settings.locator(".provider-connection-row", { hasText: "Local Fixture" }),
+  ).toBeVisible();
   const providerRow = settings.locator(".provider-connection-row", { hasText: "Local Fixture" });
   await providerRow.getByRole("button", { name: "Edit", exact: true }).click();
   const form = page.getByRole("dialog", { name: "Edit model provider" });

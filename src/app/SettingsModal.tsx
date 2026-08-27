@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   BarChart3,
@@ -17,19 +17,45 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { PersonalizationPanel } from "./PersonalizationSettings";
-import { LocalIdentityPanel } from "./LocalIdentitySettings";
-import { ShortcutsSettings } from "./ShortcutsSettings";
-import { SkillSettings } from "./SkillSettings";
-import { McpSettings } from "./McpSettings";
-import { PrivacySettings } from "./PrivacySettings";
-import { AboutSettings } from "./AboutSettings";
-import { DiagnosticsSettings } from "./DiagnosticsSettings";
-import { MemorySettings } from "./MemorySettings";
-import { ThemeSettings } from "./ThemeSettings";
-import { LanguageSettings } from "./LanguageSettings";
-import { ProviderSettings } from "./ProviderSettings";
-import { UsagePanel } from "./UsagePanel";
+// Settings panels are lazy-loaded: the modal shell (nav + focus handling)
+// stays in the entry chunk while all 13 panels — including heavy deps like
+// react-easy-crop, dexie-backed stores, and usage analytics — load on first
+// open of the settings dialog.
+const PersonalizationPanel = lazy(() =>
+  import("./PersonalizationSettings").then((m) => ({ default: m.PersonalizationPanel })),
+);
+const LocalIdentityPanel = lazy(() =>
+  import("./LocalIdentitySettings").then((m) => ({ default: m.LocalIdentityPanel })),
+);
+const ShortcutsSettings = lazy(() =>
+  import("./ShortcutsSettings").then((m) => ({ default: m.ShortcutsSettings })),
+);
+const SkillSettings = lazy(() =>
+  import("./SkillSettings").then((m) => ({ default: m.SkillSettings })),
+);
+const McpSettings = lazy(() => import("./McpSettings").then((m) => ({ default: m.McpSettings })));
+const PrivacySettings = lazy(() =>
+  import("./PrivacySettings").then((m) => ({ default: m.PrivacySettings })),
+);
+const AboutSettings = lazy(() =>
+  import("./AboutSettings").then((m) => ({ default: m.AboutSettings })),
+);
+const DiagnosticsSettings = lazy(() =>
+  import("./DiagnosticsSettings").then((m) => ({ default: m.DiagnosticsSettings })),
+);
+const MemorySettings = lazy(() =>
+  import("./MemorySettings").then((m) => ({ default: m.MemorySettings })),
+);
+const ThemeSettings = lazy(() =>
+  import("./ThemeSettings").then((m) => ({ default: m.ThemeSettings })),
+);
+const LanguageSettings = lazy(() =>
+  import("./LanguageSettings").then((m) => ({ default: m.LanguageSettings })),
+);
+const ProviderSettings = lazy(() =>
+  import("./ProviderSettings").then((m) => ({ default: m.ProviderSettings })),
+);
+const UsagePanel = lazy(() => import("./UsagePanel").then((m) => ({ default: m.UsagePanel })));
 import { downloadBlob, exportConversations } from "../features/chat/conversation-export";
 import { importConversations } from "../features/chat/conversation-import";
 import { getRuntime } from "../runtime/use-runtime";
@@ -91,6 +117,15 @@ const SETTINGS_GROUPS: Array<{ labelKey: string; items: SettingsNavItem[] }> = [
     ],
   },
 ];
+
+function SettingsPanelFallback() {
+  const { t } = useTranslation();
+  return (
+    <p className="text-sm text-muted p-4" role="status">
+      {t("common.loading")}
+    </p>
+  );
+}
 
 interface SettingsModalProps {
   open: boolean;
@@ -273,66 +308,68 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
               tabIndex={0}
               aria-labelledby="settings-section-title"
             >
-              {activeTab === "providers" && <ProviderSettings />}
-              {activeTab === "identity" && <LocalIdentityPanel />}
-              {activeTab === "personalization" && <PersonalizationPanel />}
-              {activeTab === "shortcuts" && <ShortcutsSettings />}
-              {activeTab === "skills" && <SkillSettings />}
-              {activeTab === "mcp" && <McpSettings />}
-              {activeTab === "usage" && <UsagePanel />}
-              {activeTab === "privacy" && (
-                <div className="data-privacy-settings">
-                  <section className="settings-data-actions">
-                    <div>
-                      <h4>{t("settings.portability")}</h4>
-                      <p>{t("settings.portabilityDescription")}</p>
-                    </div>
-                    <div className="settings-data-buttons">
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        onClick={() => void handleExport()}
-                      >
-                        {t("settings.exportAll")}
-                      </button>
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        {t("settings.importAll")}
-                      </button>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="application/json,.json"
-                        className="hidden"
-                        onChange={(event) => {
-                          const file = event.target.files?.[0];
-                          if (file) void handleImport(file);
-                          if (fileInputRef.current) fileInputRef.current.value = "";
-                        }}
-                      />
-                    </div>
-                    {importResult && (
-                      <div className="form-message" role="alert">
-                        {importResult}
+              <Suspense fallback={<SettingsPanelFallback />}>
+                {activeTab === "providers" && <ProviderSettings />}
+                {activeTab === "identity" && <LocalIdentityPanel />}
+                {activeTab === "personalization" && <PersonalizationPanel />}
+                {activeTab === "shortcuts" && <ShortcutsSettings />}
+                {activeTab === "skills" && <SkillSettings />}
+                {activeTab === "mcp" && <McpSettings />}
+                {activeTab === "usage" && <UsagePanel />}
+                {activeTab === "privacy" && (
+                  <div className="data-privacy-settings">
+                    <section className="settings-data-actions">
+                      <div>
+                        <h4>{t("settings.portability")}</h4>
+                        <p>{t("settings.portabilityDescription")}</p>
                       </div>
-                    )}
-                  </section>
-                  <PrivacySettings />
-                </div>
-              )}
-              {activeTab === "about" && <AboutSettings />}
-              {activeTab === "theme" && <ThemeSettings />}
-              {activeTab === "language" && <LanguageSettings />}
-              {activeTab === "memory" && (
-                <MemorySettings
-                  conversationId={currentConversationId}
-                  workspacePath={currentWorkspace}
-                />
-              )}
-              {activeTab === "diagnostics" && <DiagnosticsSettings />}
+                      <div className="settings-data-buttons">
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => void handleExport()}
+                        >
+                          {t("settings.exportAll")}
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          {t("settings.importAll")}
+                        </button>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="application/json,.json"
+                          className="hidden"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (file) void handleImport(file);
+                            if (fileInputRef.current) fileInputRef.current.value = "";
+                          }}
+                        />
+                      </div>
+                      {importResult && (
+                        <div className="form-message" role="alert">
+                          {importResult}
+                        </div>
+                      )}
+                    </section>
+                    <PrivacySettings />
+                  </div>
+                )}
+                {activeTab === "about" && <AboutSettings />}
+                {activeTab === "theme" && <ThemeSettings />}
+                {activeTab === "language" && <LanguageSettings />}
+                {activeTab === "memory" && (
+                  <MemorySettings
+                    conversationId={currentConversationId}
+                    workspacePath={currentWorkspace}
+                  />
+                )}
+                {activeTab === "diagnostics" && <DiagnosticsSettings />}
+              </Suspense>
             </div>
           </main>
         </div>
