@@ -18,6 +18,7 @@ import {
   Settings2,
   Sparkles,
   Square,
+  Play,
   X,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -30,7 +31,6 @@ import { ModeSwitcher } from "./ModeSwitcher";
 import { ModelSwitcher } from "./ModelSwitcher";
 import type { MessageRecord, ProviderRecord } from "../core/storage/db";
 import { useDragDrop } from "./use-drag-drop";
-import { WorkspaceSelector } from "./WorkspaceSelector";
 import { getRuntime } from "../runtime/use-runtime";
 import { handleExportMarkdown } from "./export-helpers";
 import { useConversationTokenCount } from "./use-token-count";
@@ -44,6 +44,7 @@ import { SkillPicker } from "./SkillPicker";
 import { useSkillStore } from "../features/skills/skill-store";
 import { useMemoryStore } from "../features/memory/memory-store";
 import { useOrchestrationStore } from "../features/orchestration/orchestration-store";
+import { allowsProjectModes } from "../features/projects/conversation-mode";
 // The orchestration workbench (plan DAG, node timeline, clarifications) only
 // appears in desktop Agent runs; keep it and its store graph out of the entry
 // chunk.
@@ -208,15 +209,19 @@ export function ChatView({
 
   const provider = getDefaultProvider();
   const runtime = getRuntime();
-  const conversationTitle =
-    conversations.find((conversation) => conversation.id === currentConversationId)?.title ||
-    t("chat.title");
+  const currentConversation = conversations.find(
+    (conversation) => conversation.id === currentConversationId,
+  );
+  const conversationTitle = currentConversation?.title || t("chat.title");
+  const projectScoped = allowsProjectModes(currentConversation);
+  const effectiveConversationMode = projectScoped ? mode : "ask";
   const isCurrentConversationStreaming =
     isStreaming && activeStreamConversationId === currentConversationId;
   const currentAgentRun =
     latestAgentRun?.conversationId === currentConversationId ? latestAgentRun : undefined;
   const hasCurrentTaskWorkbench =
-    mode === "agent" && orchestrationSnapshot?.conversationId === currentConversationId;
+    (mode === "agent" || mode === "goal") &&
+    orchestrationSnapshot?.conversationId === currentConversationId;
   const streamElapsedSeconds = useElapsedSeconds(
     isCurrentConversationStreaming ? activeStreamStartedAt : null,
   );
@@ -410,7 +415,6 @@ export function ChatView({
         </div>
       </div>
       <div className="workspace-controls">
-        <ModeSwitcher mode={mode} onModeChange={setMode} />
         <ModelSwitcher onSwitch={handleModelSwitch} />
       </div>
     </header>
@@ -463,6 +467,26 @@ export function ChatView({
             {currentAgentRun && !hasCurrentTaskWorkbench && (
               <AgentRunSummary record={currentAgentRun} onLayoutChange={scrollToBottom} />
             )}
+            {currentAgentRun?.mode === "plan" &&
+              projectScoped &&
+              (currentAgentRun.status === "completed" ||
+                currentAgentRun.status === "needs_verification") &&
+              !isCurrentConversationStreaming && (
+                <div className="plan-execute-row">
+                  <button
+                    type="button"
+                    className="primary-button"
+                    onClick={() => {
+                      setMode("agent");
+                      void sendMessage(t("plan.executePrompt"));
+                    }}
+                  >
+                    <Play size={14} aria-hidden="true" />
+                    {t("plan.executePlan")}
+                  </button>
+                  <span className="plan-execute-hint">{t("plan.executeHint")}</span>
+                </div>
+              )}
             {isCurrentConversationStreaming && (
               <article
                 className="message-row message-assistant message-streaming"
@@ -586,7 +610,10 @@ export function ChatView({
                 <Paperclip size={16} />
               </button>
 
-              <SkillPicker mode={runtime.target === "web" ? "ask" : mode} disabled={isStreaming} />
+              <SkillPicker
+                mode={runtime.target === "web" ? "ask" : effectiveConversationMode}
+                disabled={isStreaming}
+              />
 
               <button
                 type="button"
@@ -600,7 +627,13 @@ export function ChatView({
               </button>
             </div>
             <div className="composer-context">
-              {runtime.target === "desktop" && <WorkspaceSelector />}
+              <ModeSwitcher
+                mode={mode}
+                onModeChange={setMode}
+                projectScoped={projectScoped}
+                toolCalling={provider?.modelCapabilities?.toolCalling === true}
+                onConfigureModel={onOpenSettings}
+              />
               <span className="composer-info">
                 {input.length > 0 && <span className="char-count">{input.length}</span>}
                 {tokenCount > 0 && t("chat.tokenCount", { count: tokenCount })}

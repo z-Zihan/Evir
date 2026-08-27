@@ -85,6 +85,7 @@ export async function prepareTask(input: {
   privateSession: boolean;
   analyzer?: TaskIntakeAnalyzerPort;
   planner?: PlanGeneratorPort;
+  doneWhen?: string[];
 }): Promise<PreparationResult> {
   if (input.runtime.target !== "desktop") return "not-applicable";
   const startedAt = Date.now();
@@ -109,6 +110,8 @@ export async function prepareTask(input: {
       objective: input.objective,
       workspacePath: input.runtime.getWorkspaceRoot?.() ?? null,
     });
+    const briefWithDoneWhen =
+      input.doneWhen && input.doneWhen.length > 0 ? { ...brief, doneWhen: input.doneWhen } : brief;
     logger.info("agent", "orchestration.intake-completed", {
       runId,
       conversationId: input.conversationId,
@@ -134,7 +137,7 @@ export async function prepareTask(input: {
         runId,
         conversationId: input.conversationId,
         phase: "finished",
-        brief,
+        brief: briefWithDoneWhen,
         assignments: [],
         events: [start, intake, cancelled],
       };
@@ -162,7 +165,7 @@ export async function prepareTask(input: {
         runId,
         conversationId: input.conversationId,
         phase: "clarification",
-        brief,
+        brief: briefWithDoneWhen,
         assignments: [],
         events: [start, intake, clarification],
       };
@@ -196,7 +199,7 @@ export async function prepareTask(input: {
       runId,
       conversationId: input.conversationId,
       phase,
-      brief,
+      brief: briefWithDoneWhen,
       plan,
       assignments: [],
       events: [start, intake, planEvent],

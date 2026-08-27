@@ -6,6 +6,7 @@ import {
   Circle,
   CircleDashed,
   CircleSlash2,
+  Crosshair,
   GitFork,
   LoaderCircle,
   PauseCircle,
@@ -237,6 +238,30 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
       className={`task-workbench${finished ? " task-workbench-finished" : ""}`}
       aria-labelledby="task-workbench-title"
     >
+      {snapshot.brief.doneWhen && snapshot.brief.doneWhen.length > 0 && (
+        <div className="goal-banner" aria-label={t("goal.bannerLabel")}>
+          <div className="goal-banner-objective">
+            <Crosshair size={13} aria-hidden="true" />
+            <span>{snapshot.brief.objective}</span>
+          </div>
+          <ul className="goal-done-when">
+            {(finishedStatus === "completed" || snapshot.phase === "finished") &&
+            finishedStatus === "completed"
+              ? snapshot.brief.doneWhen.map((condition) => (
+                  <li key={condition} className="met">
+                    <CheckCircle2 size={12} aria-hidden="true" />
+                    {condition}
+                  </li>
+                ))
+              : snapshot.brief.doneWhen.map((condition) => (
+                  <li key={condition}>
+                    <Circle size={12} aria-hidden="true" />
+                    {condition}
+                  </li>
+                ))}
+          </ul>
+        </div>
+      )}
       <header className="task-status-bar" aria-live="polite">
         <span className="task-status-icon" aria-hidden="true">
           {snapshot.phase === "finished" ? (

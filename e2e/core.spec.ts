@@ -12,9 +12,11 @@ test("first run and runtime capability boundaries", async ({ page }, testInfo) =
   if (isDesktop(testInfo)) {
     await expect(page.getByText("Local desktop mode", { exact: true })).toBeVisible();
     await expect(page.getByText("Browser chat mode", { exact: true })).toHaveCount(0);
-    await expect(page.getByText("Agent", { exact: true })).toBeVisible();
-    await expect(page.getByText("Ask", { exact: true })).toBeVisible();
+    // Standalone chat with no project: no mode group until a project context exists.
+    await expect(page.getByText("Agent", { exact: true })).toHaveCount(0);
     await expect(page.getByText("Plan", { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Add project/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: "New chat", exact: true })).toBeVisible();
   } else {
     await expect(page.getByText("Browser chat mode", { exact: true })).toBeVisible();
     await expect(page.getByText("Local desktop mode", { exact: true })).toHaveCount(0);
@@ -74,7 +76,6 @@ test("prevents Ask mode from selecting local-capability Skills", async ({ page }
   await configurePage(page);
   await seedFixture(page);
 
-  await page.getByRole("button", { name: "Ask", exact: true }).click();
   await page.getByRole("button", { name: "Choose Skills for this message" }).click();
   const localSkill = page
     .getByRole("dialog", { name: "Choose Skills for this message" })
@@ -83,12 +84,10 @@ test("prevents Ask mode from selecting local-capability Skills", async ({ page }
   await expect(localSkill).toHaveAttribute("title", "This Skill requires Agent mode");
 });
 
-test("streams a deterministic response through the production adapter", async ({
-  page,
-}, testInfo) => {
+test("streams a deterministic response through the production adapter", async ({ page }) => {
   await configurePage(page);
   await seedFixture(page);
-  if (isDesktop(testInfo)) await page.getByRole("button", { name: "Ask", exact: true }).click();
+  // Standalone chats are ask-mode implicitly; no mode toggle to click.
   const composer = page.locator("textarea");
   await composer.fill("Explain this fixture");
   await page.getByRole("button", { name: "Send", exact: true }).click();
@@ -98,10 +97,10 @@ test("streams a deterministic response through the production adapter", async ({
   await expect(composer).toBeEnabled();
 });
 
-test("stops an active stream and remains usable", async ({ page }, testInfo) => {
+test("stops an active stream and remains usable", async ({ page }) => {
   await configurePage(page);
   await seedFixture(page);
-  if (isDesktop(testInfo)) await page.getByRole("button", { name: "Ask", exact: true }).click();
+  // Standalone chats are ask-mode implicitly; no mode toggle to click.
   const composer = page.locator("textarea");
   await composer.fill("[slow] verify cancellation");
   await page.getByRole("button", { name: "Send", exact: true }).click();
@@ -113,10 +112,10 @@ test("stops an active stream and remains usable", async ({ page }, testInfo) => 
   await expect(composer).toBeEnabled();
 });
 
-test("keeps an active response inside its originating conversation", async ({ page }, testInfo) => {
+test("keeps an active response inside its originating conversation", async ({ page }) => {
   await configurePage(page);
   await seedFixture(page, { withConversation: true });
-  if (isDesktop(testInfo)) await page.getByRole("button", { name: "Ask", exact: true }).click();
+  // Standalone chats are ask-mode implicitly; no mode toggle to click.
 
   await page.locator("textarea").fill("[slow] conversation A isolation");
   await page.getByRole("button", { name: "Send", exact: true }).click();
@@ -142,6 +141,12 @@ test("keeps an active response inside its originating conversation", async ({ pa
 test("Desktop Agent renders the event-driven task workbench", async ({ page }, testInfo) => {
   test.skip(!isDesktop(testInfo), "Task orchestration is a Desktop capability");
   await configurePage(page);
+  // Orchestration needs a project-scoped thread; the legacy workspace provides
+  // that scope until real projects are created in this profile.
+  await page.evaluate(() => {
+    localStorage.setItem("evir-workspace", JSON.stringify(["/tmp/evir-fixture"]));
+    localStorage.setItem("evir-workspace-current", "/tmp/evir-fixture");
+  });
   await seedFixture(page);
   const composer = page.locator("textarea");
   await composer.fill("Explain this fixture");
@@ -569,7 +574,7 @@ test("interrupted Desktop run can be dismissed without replaying tools", async (
   await expect(page.getByRole("status")).toHaveCount(0);
 });
 
-test("Desktop workspace selection state can be cleared safely and stays cleared", async ({
+test("legacy workspace keeps project modes available without the removed selector", async ({
   page,
 }, testInfo) => {
   test.skip(!isDesktop(testInfo), "Desktop workspace UI only");
@@ -579,24 +584,14 @@ test("Desktop workspace selection state can be cleared safely and stays cleared"
     localStorage.setItem("evir-workspace-current", "/tmp/evir-fixture");
   });
   await seedFixture(page);
-  const workspace = page.locator(".workspace-selector");
-  await expect(workspace).toContainText("tmp/evir-fixture");
-  await workspace.getByRole("button", { name: "Clear workspace" }).click();
-  const confirmation = page.getByRole("alertdialog", { name: "Clear this data?" });
-  await expect(confirmation).toContainText("No files in the folder will be deleted");
-  await confirmation.getByRole("button", { name: "Cancel" }).click();
-  await expect(workspace).toContainText("tmp/evir-fixture");
-
-  await workspace.getByRole("button", { name: "Clear workspace" }).click();
-  await page
-    .getByRole("alertdialog", { name: "Clear this data?" })
-    .getByRole("button", { name: "Clear workspace" })
-    .click();
-  await expect(workspace.getByRole("button", { name: "Select Workspace" })).toBeVisible();
+  // The composer no longer selects folders; the legacy workspace still scopes modes.
+  await expect(page.locator(".workspace-selector")).toHaveCount(0);
+  const composer = page.locator(".composer");
+  await expect(composer.getByRole("button", { name: "Agent", exact: true })).toBeVisible();
+  await expect(composer.getByRole("button", { name: "Plan", exact: true })).toBeVisible();
+  await expect(composer.getByRole("button", { name: "Goal", exact: true })).toBeVisible();
   await page.reload();
-  await expect(
-    page.locator(".workspace-selector").getByRole("button", { name: "Select Workspace" }),
-  ).toBeVisible();
+  await expect(composer.getByRole("button", { name: "Agent", exact: true })).toBeVisible();
 });
 
 test("persisted Agent completion evidence returns after reloading a conversation", async ({

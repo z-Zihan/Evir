@@ -1,39 +1,62 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { RuntimeTarget } from "../../runtime/types";
-
-let runtimeTarget: RuntimeTarget = "web";
-
-vi.mock("../../runtime/use-runtime", () => ({
-  getRuntime: () => ({ target: runtimeTarget }),
-}));
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
-afterEach(() => {
-  cleanup();
-  runtimeTarget = "web";
-});
+afterEach(cleanup);
 
 describe("ModeSwitcher", () => {
-  it("does not expose desktop modes in the web runtime", async () => {
+  it("renders nothing for standalone chats (ask-only)", async () => {
     const { ModeSwitcher } = await import("../ModeSwitcher");
-    render(<ModeSwitcher mode="ask" onModeChange={vi.fn()} />);
-
+    render(
+      <ModeSwitcher
+        mode="ask"
+        onModeChange={vi.fn()}
+        projectScoped={false}
+        toolCalling
+        onConfigureModel={vi.fn()}
+      />,
+    );
     expect(screen.queryByRole("button")).toBeNull();
   });
 
-  it("shows Ask and Agent in the desktop runtime", async () => {
-    runtimeTarget = "desktop";
+  it("offers Agent, Plan, and Goal for project threads", async () => {
     const onModeChange = vi.fn();
     const { ModeSwitcher } = await import("../ModeSwitcher");
-    render(<ModeSwitcher mode="ask" onModeChange={onModeChange} />);
+    render(
+      <ModeSwitcher
+        mode="agent"
+        onModeChange={onModeChange}
+        projectScoped
+        toolCalling
+        onConfigureModel={vi.fn()}
+      />,
+    );
 
-    expect(screen.getByRole("button", { name: "chat.modes.ask" })).toBeDefined();
-    fireEvent.click(screen.getByRole("button", { name: "chat.modes.agent" }));
-    expect(onModeChange).toHaveBeenCalledWith("agent");
+    expect(screen.getByRole("button", { name: /chat\.modes\.plan/ })).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: /chat\.modes\.goal/ }));
+    expect(onModeChange).toHaveBeenCalledWith("goal");
+  });
+
+  it("disables the group with an actionable reason when the model lacks tool calling", async () => {
+    const onConfigureModel = vi.fn();
+    const { ModeSwitcher } = await import("../ModeSwitcher");
+    render(
+      <ModeSwitcher
+        mode="agent"
+        onModeChange={vi.fn()}
+        projectScoped
+        toolCalling={false}
+        onConfigureModel={onConfigureModel}
+      />,
+    );
+
+    expect(screen.getByText("chat.noToolCalling")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "chat.changeModel" }));
+    expect(onConfigureModel).toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: /chat\.modes\.agent/ })).toBeNull();
   });
 });

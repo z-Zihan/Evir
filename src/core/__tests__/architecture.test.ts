@@ -103,13 +103,14 @@ describe("architecture dependency direction", () => {
   });
 
   it("defines tool risk limits for every interaction mode", () => {
-    expect(Object.keys(MODE_TOOL_RISK_LIMITS).sort()).toEqual(["agent", "ask", "plan"]);
+    expect(Object.keys(MODE_TOOL_RISK_LIMITS).sort()).toEqual(["agent", "ask", "goal", "plan"]);
   });
 
   it("provides mode and personalization translations in every locale", () => {
     const requiredKeys = [
       "chat.modes.ask",
       "chat.modes.plan",
+      "chat.modes.goal",
       "chat.modes.agent",
       "chat.modes.askDesc",
       "chat.modes.planDesc",

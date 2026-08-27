@@ -1,17 +1,49 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronRight, MessageSquarePlus, Pencil, Pin, Settings2, Trash2, X } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  FolderPlus,
+  MessageSquarePlus,
+  Search,
+  Settings2,
+  X,
+} from "lucide-react";
 import type { PersonalizationPreferences } from "../core/personalization/types";
 import { isMac } from "../core/shortcuts/platform";
+import type { ProjectRecord } from "../core/storage/db";
 import { useChatStore } from "../features/chat/chat-store";
+import { useProjectStore } from "../features/projects/project-store";
+import { useProviderStore } from "../features/provider/provider-store";
 import { loadPersonalizationPreferences } from "../features/settings/personalization-settings";
+import { getRuntime } from "../runtime/use-runtime";
 import type { SettingsTab } from "./SettingsModal";
+import { ProjectPermissionPanel } from "./ProjectPermissionPanel";
+import { SidebarConversationItem } from "./SidebarConversationItem";
+import { SidebarProjectItem } from "./SidebarProjectItem";
 import { useConfirmationDialog } from "./useConfirmationDialog";
 
 interface SidebarProps {
   onOpenSettings: (tab?: SettingsTab) => void;
   onNewConversation: () => void;
   onClose: () => void;
+}
+
+type SortOrder = "recent" | "name";
+
+const SORT_KEY = "evir-sidebar-sort";
+const EXPANDED_KEY = "evir-sidebar-expanded-projects";
+
+function readSortOrder(): SortOrder {
+  return localStorage.getItem(SORT_KEY) === "name" ? "name" : "recent";
+}
+
+function readExpanded(): Set<string> {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(EXPANDED_KEY) ?? "[]") as string[]);
+  } catch {
+    return new Set();
+  }
 }
 
 export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarProps) {
@@ -23,14 +55,34 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
     deleteConversation,
     renameConversation,
     togglePin,
+    createConversation,
   } = useChatStore();
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState("");
+  const {
+    projects,
+    currentProjectId,
+    folderMissing,
+    load: loadProjects,
+    addProject,
+    selectProject,
+    renameProject,
+    togglePinProject,
+    rebindProject,
+    removeProject,
+  } = useProjectStore();
+  const [search, setSearch] = useState("");
+  const [sortOrder, setSortOrder] = useState<SortOrder>(readSortOrder);
+  const [expanded, setExpanded] = useState<Set<string>>(readExpanded);
+  const [permissionProjectId, setPermissionProjectId] = useState<string | null>(null);
   const [identity, setIdentity] = useState<
     Pick<PersonalizationPreferences, "displayName" | "avatarColor" | "avatarImage">
   >({ displayName: "", avatarColor: "sage", avatarImage: "" });
-  const committingRef = useRef(false);
   const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
+  const expandedRef = useRef(expanded);
+  expandedRef.current = expanded;
+
+  useEffect(() => {
+    void loadProjects();
+  }, [loadProjects]);
 
   useEffect(() => {
     let mounted = true;
@@ -47,112 +99,138 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
     };
   }, []);
 
+  useEffect(() => {
+    localStorage.setItem(SORT_KEY, sortOrder);
+  }, [sortOrder]);
+
+  const persistExpanded = (next: Set<string>) => {
+    setExpanded(next);
+    localStorage.setItem(EXPANDED_KEY, JSON.stringify([...next]));
+  };
+
   const shortcutModifier = isMac() ? "⌘" : "Ctrl+";
   const localName = identity.displayName.trim() || t("chat.localUser");
   const localInitial = Array.from(localName)[0] ?? "•";
-  const pinned = conversations
-    .filter((item) => item.pinned)
-    .sort((a, b) => b.updatedAt - a.updatedAt);
-  const unpinned = conversations
-    .filter((item) => !item.pinned)
-    .sort((a, b) => b.updatedAt - a.updatedAt);
 
-  const handleCommitRename = () => {
-    if (committingRef.current) return;
-    committingRef.current = true;
-    if (renamingId) void renameConversation(renamingId, renameValue);
-    setRenamingId(null);
-    setRenameValue("");
-    committingRef.current = false;
+  const query = search.trim().toLowerCase();
+  const matches = (...values: Array<string | undefined>) =>
+    query.length === 0 || values.some((value) => value?.toLowerCase().includes(query));
+
+  const sortProjects = (items: ProjectRecord[]) =>
+    [...items].sort((a, b) => {
+      if (sortOrder === "name") {
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+        return a.displayName.localeCompare(b.displayName);
+      }
+      return (b.pinned ?? 0) - (a.pinned ?? 0) || b.lastOpenedAt - a.lastOpenedAt;
+    });
+
+  const sortConversations = <T extends { pinned?: number; updatedAt: number; title: string }>(
+    items: T[],
+  ) =>
+    [...items].sort((a, b) => {
+      if (sortOrder === "name") {
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+        return (a.title || "").localeCompare(b.title || "");
+      }
+      return (b.pinned ?? 0) - (a.pinned ?? 0) || b.updatedAt - a.updatedAt;
+    });
+
+  const visibleProjects = useMemo(
+    () =>
+      sortProjects(
+        projects.filter(
+          (project) =>
+            query.length === 0 ||
+            matches(project.displayName, project.rootPath) ||
+            conversations.some((c) => c.projectId === project.id && matches(c.title)),
+        ),
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [projects, conversations, query, sortOrder],
+  );
+
+  const standaloneChats = useMemo(
+    () => sortConversations(conversations.filter((c) => !c.projectId && matches(c.title))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [conversations, query, sortOrder],
+  );
+
+  const threadsOf = (projectId: string) =>
+    sortConversations(conversations.filter((c) => c.projectId === projectId && matches(c.title)));
+
+  const handleAddProject = async () => {
+    const runtime = getRuntime();
+    const selected = await runtime.selectWorkspaceDirectory?.();
+    if (!selected) return;
+    const result = await addProject(selected);
+    if (result.error === "folder-missing") {
+      requestConfirmation(
+        {
+          title: t("project.folderInvalidTitle"),
+          description: t("project.folderInvalidDescription"),
+          confirmLabel: t("common.ok"),
+        },
+        () => undefined,
+      );
+    }
   };
 
-  const renderConversation = (conversation: (typeof conversations)[number]) => {
-    const isActive = conversation.id === currentConversationId;
-    const isRenaming = renamingId === conversation.id;
-    return (
-      <div
-        key={conversation.id}
-        className={`conversation-item group${isActive ? " active" : ""}${conversation.pinned ? " pinned" : ""}`}
-        onClick={() => {
-          if (!isRenaming) void selectConversation(conversation.id);
-        }}
-        onDoubleClick={() => {
-          setRenamingId(conversation.id);
-          setRenameValue(conversation.title);
-        }}
-      >
-        {conversation.pinned ? (
-          <Pin size={12} className="pin-indicator" aria-hidden="true" />
-        ) : null}
-        {isRenaming ? (
-          <input
-            className="rename-input"
-            type="text"
-            value={renameValue}
-            autoFocus
-            maxLength={100}
-            onChange={(event) => setRenameValue(event.target.value)}
-            onBlur={handleCommitRename}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") handleCommitRename();
-              if (event.key === "Escape") {
-                setRenamingId(null);
-                setRenameValue("");
-              }
-            }}
-            onClick={(event) => event.stopPropagation()}
-          />
-        ) : (
-          <span className="conversation-title">{conversation.title || t("chat.title")}</span>
-        )}
-        {!isRenaming && (
-          <div className="conversation-actions" onClick={(event) => event.stopPropagation()}>
-            <button
-              className="conversation-action-btn"
-              type="button"
-              aria-label={conversation.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
-              title={conversation.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
-              onClick={() => void togglePin(conversation.id)}
-            >
-              <Pin size={13} />
-            </button>
-            <button
-              className="conversation-action-btn"
-              type="button"
-              aria-label={t("sidebar.rename")}
-              title={t("sidebar.rename")}
-              onClick={() => {
-                setRenamingId(conversation.id);
-                setRenameValue(conversation.title);
-              }}
-            >
-              <Pencil size={13} />
-            </button>
-            <button
-              className="conversation-action-btn conversation-delete"
-              type="button"
-              aria-label={t("provider.delete")}
-              title={t("provider.delete")}
-              onClick={() => {
-                requestConfirmation(
-                  {
-                    title: t("confirmation.deleteTitle"),
-                    description: t("confirmation.deleteDescription", {
-                      item: conversation.title || t("chat.title"),
-                    }),
-                    confirmLabel: t("provider.delete"),
-                  },
-                  () => deleteConversation(conversation.id),
-                );
-              }}
-            >
-              <Trash2 size={14} />
-            </button>
-          </div>
-        )}
-      </div>
+  const handleNewTask = (project: ProjectRecord) => {
+    selectProject(project.id);
+    if (!expandedRef.current.has(project.id))
+      persistExpanded(new Set([...expandedRef.current, project.id]));
+    const provider = useProviderStore.getState().getDefaultProvider();
+    if (!provider) {
+      onOpenSettings("providers");
+      return;
+    }
+    void createConversation(provider.id, provider.modelId, project.id);
+    window.dispatchEvent(new CustomEvent("evir:focus-composer"));
+  };
+
+  const handleNewChat = () => {
+    // Standalone chats are never bound to a project, even while a project is open.
+    selectProject(null);
+    onNewConversation();
+  };
+
+  const handleSelectConversation = (projectId: string | null) => (conversationId: string) => {
+    selectProject(projectId);
+    void selectConversation(conversationId);
+  };
+
+  const handleLocate = (project: ProjectRecord) => {
+    requestConfirmation(
+      {
+        title: t("project.locateTitle"),
+        description: t("project.locateDescription", { name: project.displayName }),
+        confirmLabel: t("sidebar.locateFolder"),
+      },
+      async () => {
+        const runtime = getRuntime();
+        const selected = await runtime.selectWorkspaceDirectory?.();
+        if (!selected) return;
+        await rebindProject(project.id, selected);
+      },
     );
   };
+
+  const handleRemoveProject = (project: ProjectRecord) => {
+    requestConfirmation(
+      {
+        title: t("project.removeTitle"),
+        description: t("project.removeDescription", { name: project.displayName }),
+        confirmLabel: t("sidebar.removeProject"),
+        tone: "warning",
+      },
+      () => void removeProject(project.id),
+    );
+  };
+
+  const permissionProject = projects.find(({ id }) => id === permissionProjectId) ?? null;
 
   return (
     <>
@@ -175,24 +253,152 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
             <X size={17} />
           </button>
         </div>
-        <button className="new-chat-button" type="button" onClick={onNewConversation}>
-          <MessageSquarePlus size={16} /> {t("sidebar.newChat")}
-          <span className="new-chat-shortcut" aria-hidden="true">
-            {shortcutModifier}N
-          </span>
+
+        <div className="sidebar-search">
+          <Search size={13} aria-hidden="true" />
+          <input
+            type="search"
+            value={search}
+            placeholder={t("sidebar.searchPlaceholder")}
+            aria-label={t("sidebar.searchPlaceholder")}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+          {search.length > 0 && (
+            <button type="button" aria-label={t("common.close")} onClick={() => setSearch("")}>
+              <X size={12} />
+            </button>
+          )}
+        </div>
+
+        <button
+          className="sidebar-sort-toggle"
+          type="button"
+          onClick={() => setSortOrder(sortOrder === "recent" ? "name" : "recent")}
+          aria-label={t("sidebar.sortToggle")}
+          title={t("sidebar.sortToggle")}
+        >
+          {sortOrder === "recent" ? t("sidebar.sortRecent") : t("sidebar.sortName")}
+          <ChevronDown size={12} aria-hidden="true" />
         </button>
-        {pinned.length > 0 && (
-          <>
-            <div className="section-label">{t("sidebar.pinned")}</div>
-            <div className="conversation-list pinned-list">{pinned.map(renderConversation)}</div>
-          </>
+
+        {getRuntime().target === "desktop" && (
+          <section className="sidebar-section" aria-label={t("sidebar.projects")}>
+            <div className="section-label-row">
+              <div className="section-label">{t("sidebar.projects")}</div>
+              <button
+                className="section-add"
+                type="button"
+                onClick={() => void handleAddProject()}
+                aria-label={t("sidebar.addProject")}
+                title={t("sidebar.addProject")}
+              >
+                <FolderPlus size={13} />
+              </button>
+            </div>
+            {visibleProjects.length === 0 ? (
+              <div className="empty-list">{t("sidebar.noProjects")}</div>
+            ) : (
+              visibleProjects.map((project) => {
+                const isOpen = expanded.has(project.id);
+                const threads = threadsOf(project.id);
+                return (
+                  <div key={project.id} className="project-group">
+                    <SidebarProjectItem
+                      project={project}
+                      expanded={isOpen}
+                      active={currentProjectId === project.id}
+                      folderMissing={folderMissing[project.id] ?? false}
+                      onToggleExpand={() => {
+                        const next = new Set(expandedRef.current);
+                        if (next.has(project.id)) next.delete(project.id);
+                        else next.add(project.id);
+                        persistExpanded(next);
+                      }}
+                      onSelect={() => selectProject(project.id)}
+                      onNewTask={() => handleNewTask(project)}
+                      onTogglePin={() => void togglePinProject(project.id)}
+                      onRename={(name) => void renameProject(project.id, name)}
+                      onLocate={() => handleLocate(project)}
+                      onPermission={() => setPermissionProjectId(project.id)}
+                      onRemove={() => handleRemoveProject(project)}
+                    />
+                    {isOpen &&
+                      (threads.length > 0 ? (
+                        <div className="project-thread-list">
+                          {threads.map((conversation) => (
+                            <SidebarConversationItem
+                              key={conversation.id}
+                              conversation={conversation}
+                              variant="thread"
+                              isActive={conversation.id === currentConversationId}
+                              onSelect={() => handleSelectConversation(project.id)(conversation.id)}
+                              onRename={(title) => void renameConversation(conversation.id, title)}
+                              onTogglePin={() => void togglePin(conversation.id)}
+                              onDelete={() =>
+                                requestConfirmation(
+                                  {
+                                    title: t("confirmation.deleteTitle"),
+                                    description: t("confirmation.deleteDescription", {
+                                      item: conversation.title || t("chat.title"),
+                                    }),
+                                    confirmLabel: t("provider.delete"),
+                                  },
+                                  () => deleteConversation(conversation.id),
+                                )
+                              }
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="empty-list project-empty">{t("sidebar.emptyProject")}</div>
+                      ))}
+                  </div>
+                );
+              })
+            )}
+          </section>
         )}
-        <div className="section-label">{t("sidebar.recent")}</div>
-        {conversations.length === 0 ? (
-          <div className="empty-list">{t("sidebar.noConversations")}</div>
-        ) : (
-          <div className="conversation-list">{unpinned.map(renderConversation)}</div>
-        )}
+
+        <section className="sidebar-section" aria-label={t("sidebar.chats")}>
+          <div className="section-label-row">
+            <div className="section-label">{t("sidebar.chats")}</div>
+          </div>
+          <button className="new-chat-button" type="button" onClick={handleNewChat}>
+            <MessageSquarePlus size={16} /> {t("sidebar.newChat")}
+            <span className="new-chat-shortcut" aria-hidden="true">
+              {shortcutModifier}N
+            </span>
+          </button>
+          {standaloneChats.length === 0 ? (
+            <div className="empty-list">{t("sidebar.noConversations")}</div>
+          ) : (
+            <div className="conversation-list">
+              {standaloneChats.map((conversation) => (
+                <SidebarConversationItem
+                  key={conversation.id}
+                  conversation={conversation}
+                  isActive={conversation.id === currentConversationId}
+                  onSelect={() => handleSelectConversation(null)(conversation.id)}
+                  onRename={(title) => void renameConversation(conversation.id, title)}
+                  onTogglePin={() => void togglePin(conversation.id)}
+                  onDelete={() =>
+                    requestConfirmation(
+                      {
+                        title: t("confirmation.deleteTitle"),
+                        description: t("confirmation.deleteDescription", {
+                          item: conversation.title || t("chat.title"),
+                        }),
+                        confirmLabel: t("provider.delete"),
+                      },
+                      () => deleteConversation(conversation.id),
+                    )
+                  }
+                />
+              ))}
+            </div>
+          )}
+        </section>
+
         <div className="sidebar-footer">
           <button
             className="sidebar-identity"
@@ -223,6 +429,12 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
           </button>
         </div>
       </aside>
+      {permissionProject && (
+        <ProjectPermissionPanel
+          project={permissionProject}
+          onClose={() => setPermissionProjectId(null)}
+        />
+      )}
       {confirmationDialog}
     </>
   );

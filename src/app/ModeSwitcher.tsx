@@ -1,49 +1,66 @@
-import { Bot, MessageCircle, type LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Bot, Crosshair, ListChecks } from "lucide-react";
 import type { InteractionMode } from "../core/providers/tool-registry";
-import { getRuntime } from "../runtime/use-runtime";
-import { useProviderStore } from "../features/provider/provider-store";
 
 interface ModeSwitcherProps {
   mode: InteractionMode;
   onModeChange: (mode: InteractionMode) => void;
+  /** Project threads (or the legacy workspace) can run agent/plan/goal. */
+  projectScoped: boolean;
+  toolCalling: boolean;
+  onConfigureModel: () => void;
 }
 
-const DESKTOP_MODES: ReadonlyArray<{ mode: InteractionMode; icon: LucideIcon }> = [
-  { mode: "ask", icon: MessageCircle },
-  { mode: "agent", icon: Bot },
+const PROJECT_MODES: ReadonlyArray<{
+  mode: Exclude<InteractionMode, "ask">;
+  labelKey: string;
+  icon: typeof Bot;
+}> = [
+  { mode: "agent", labelKey: "chat.modes.agent", icon: Bot },
+  { mode: "plan", labelKey: "chat.modes.plan", icon: ListChecks },
+  { mode: "goal", labelKey: "chat.modes.goal", icon: Crosshair },
 ];
 
-export function ModeSwitcher({ mode, onModeChange }: ModeSwitcherProps) {
+/**
+ * Compact mode control inside the composer for project threads. Standalone
+ * chats are always ask-mode and render nothing. Without tool calling the
+ * whole group is disabled with an actionable reason instead of failing after
+ * the run starts.
+ */
+export function ModeSwitcher({
+  mode,
+  onModeChange,
+  projectScoped,
+  toolCalling,
+  onConfigureModel,
+}: ModeSwitcherProps) {
   const { t } = useTranslation();
-  const runtime = getRuntime();
-  const provider = useProviderStore((state) => state.getDefaultProvider());
-  const agentAvailable = provider === undefined || provider.modelCapabilities?.toolCalling === true;
+  if (!projectScoped) return null;
 
-  // Web only gets "ask" — no agent/plan modes
-  const modes =
-    runtime.target === "desktop"
-      ? DESKTOP_MODES.filter(({ mode }) => mode !== "agent" || agentAvailable)
-      : [{ mode: "ask" as InteractionMode, icon: MessageCircle }];
-
-  // If current mode not available, fall back to ask
-  const effectiveMode = modes.some((m) => m.mode === mode) ? mode : "ask";
-
-  if (runtime.target !== "desktop") return null;
+  if (!toolCalling) {
+    return (
+      <div className="mode-switcher mode-unavailable" role="group" aria-label={t("chat.modeLabel")}>
+        <span className="mode-unavailable-copy">{t("chat.noToolCalling")}</span>
+        <button type="button" className="mode-unavailable-action" onClick={onConfigureModel}>
+          {t("chat.changeModel")}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="mode-switcher" aria-label={t("chat.modeLabel")}>
-      {modes.map(({ mode: option, icon: Icon }) => (
+      {PROJECT_MODES.map(({ mode: candidate, labelKey, icon: Icon }) => (
         <button
-          key={option}
+          key={candidate}
           type="button"
-          className={effectiveMode === option ? "active" : ""}
-          title={t(`chat.modes.${option}Desc`)}
-          aria-pressed={effectiveMode === option}
-          onClick={() => onModeChange(option)}
+          aria-pressed={mode === candidate}
+          className={mode === candidate ? "active" : ""}
+          onClick={() => onModeChange(candidate)}
+          title={t(`chat.modes.${candidate}Desc`)}
         >
           <Icon size={13} aria-hidden="true" />
-          <span>{t(`chat.modes.${option}`)}</span>
+          <span>{t(labelKey)}</span>
         </button>
       ))}
     </div>

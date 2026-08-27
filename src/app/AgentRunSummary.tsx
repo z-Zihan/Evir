@@ -13,7 +13,6 @@ import {
   TerminalSquare,
   XCircle,
 } from "lucide-react";
-import { useWorkspaceStore } from "../features/workspace/workspace-store";
 import { getRuntime } from "../runtime/use-runtime";
 import {
   runVerification,
@@ -21,13 +20,9 @@ import {
   getGitStatus,
   type VerificationResult,
 } from "../core/tools/verification";
-import {
-  applyAutomaticVerification,
-  persistAgentRun,
-  rollbackAgentRun,
-  type AgentRunRecord,
-} from "../features/chat/agent-run-record";
+import { rollbackAgentRun, type AgentRunRecord } from "../features/chat/agent-run-record";
 import { useChatStore } from "../features/chat/chat-store";
+import { useActiveWorkspaceRoot } from "../features/workspace/workspace-bridge";
 import { useConfirmationDialog } from "./useConfirmationDialog";
 
 interface AgentRunSummaryProps {
@@ -49,7 +44,7 @@ export function AgentRunSummary({
 }: AgentRunSummaryProps) {
   const { t } = useTranslation();
   const { id: runId, toolCalls, toolResults, maxIterationsReached, snapshots } = record;
-  const workspace = useWorkspaceStore((s) => s.currentWorkspace);
+  const workspace = useActiveWorkspaceRoot();
   const privateSession = useChatStore((state) => state.privateSession);
   const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
   const [verification, setVerification] = useState<VerificationResult | null>(null);
@@ -73,20 +68,15 @@ export function AgentRunSummary({
       runVerification(workspace, runtime),
       getGitDiff(workspace, runtime),
       getGitStatus(workspace, runtime),
-    ]).then(async ([v, d, g]) => {
+    ]).then(([v, d, g]) => {
       setVerification(v);
       setDiff(d);
       setGitInfo(g);
       setLoading(false);
-      const updated = applyAutomaticVerification(record, v);
-      if (updated !== record) {
-        useChatStore.setState((state) =>
-          state.latestAgentRun?.id === updated.id ? { latestAgentRun: updated } : {},
-        );
-        if (!privateSession) await persistAgentRun(updated);
-      }
     });
-  }, [workspace, runId, record, privateSession, onLayoutChange]);
+    // Record-promoting automatic verification is owned by the data layer
+    // (finalizeAutomaticVerification); this component only renders evidence.
+  }, [workspace, runId, record, onLayoutChange]);
 
   const requestRollback = () => {
     requestConfirmation(

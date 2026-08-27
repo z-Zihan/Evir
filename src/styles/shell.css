@@ -6841,3 +6841,377 @@
     padding: 0 5px;
   }
 }
+
+/* ===== Projects / Chats sidebar ===== */
+
+.sidebar-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 10px 14px 6px;
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  color: var(--muted-foreground);
+}
+
+.sidebar-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 12px;
+  outline: none;
+}
+
+.sidebar-search button {
+  display: grid;
+  place-items: center;
+  padding: 2px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.sidebar-sort-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 14px 4px;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  font-size: 10.5px;
+}
+
+.sidebar-sort-toggle:hover {
+  background: var(--surface-hover);
+  color: var(--foreground);
+}
+
+.section-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 8px;
+}
+
+.section-add {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.section-add:hover {
+  background: var(--surface-hover);
+  color: var(--foreground);
+}
+
+.project-group {
+  margin-bottom: 2px;
+}
+
+.project-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 2px 8px 2px 4px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.project-row:hover {
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+}
+
+.project-item.active .project-row {
+  background: var(--surface);
+  box-shadow: 0 1px 3px color-mix(in srgb, black 6%, transparent);
+}
+
+.project-chevron {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.project-chevron:hover {
+  background: var(--surface-hover);
+  color: var(--foreground);
+}
+
+.project-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--foreground);
+  font-size: 12.5px;
+  font-weight: 620;
+}
+
+.project-folder-missing {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border: 1px solid color-mix(in srgb, #b45309 45%, var(--border));
+  border-radius: 999px;
+  color: #b45309;
+  font-size: 9.5px;
+  white-space: nowrap;
+}
+
+.project-thread-list {
+  margin: 1px 0 4px 14px;
+  border-left: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  padding-left: 6px;
+}
+
+.conversation-item.project-thread .conversation-title {
+  font-size: 12px;
+  font-weight: 480;
+}
+
+.project-empty {
+  margin-left: 20px;
+  font-size: 11px;
+}
+
+/* ===== Composer mode control ===== */
+
+.mode-switcher.mode-unavailable {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+
+.mode-unavailable-copy {
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+
+.mode-unavailable-action {
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.mode-unavailable-action:hover {
+  background: var(--surface-hover);
+}
+
+/* ===== Goal banner & plan execution ===== */
+
+.goal-banner {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--signal) 30%, var(--border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface) 88%, var(--background));
+}
+
+.goal-banner-objective {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--foreground);
+  font-size: 12.5px;
+  font-weight: 640;
+}
+
+.goal-done-when {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.goal-done-when li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted-foreground);
+  font-size: 11.5px;
+}
+
+.goal-done-when li.met {
+  color: var(--foreground);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--foreground) 40%, transparent);
+}
+
+.plan-execute-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 10px;
+}
+
+.plan-execute-hint {
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+
+/* ===== Project permission panel ===== */
+
+.project-permission-backdrop {
+  z-index: var(--z-modal);
+}
+
+.project-permission-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(460px, calc(100vw - 40px));
+  max-height: min(560px, 84dvh);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg, 0 18px 50px rgba(0, 0, 0, 0.24));
+  overflow: hidden;
+}
+
+.project-permission-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.project-permission-header > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--foreground);
+}
+
+.project-permission-header h3 {
+  margin: 0;
+  font-size: 13.5px;
+}
+
+.project-permission-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px 18px;
+  overflow-y: auto;
+}
+
+.project-permission-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.project-permission-option.selected {
+  border-color: color-mix(in srgb, var(--signal) 45%, var(--border));
+  background: color-mix(in srgb, var(--surface-hover) 55%, transparent);
+}
+
+.project-permission-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.project-permission-copy strong {
+  font-size: 12.5px;
+}
+
+.project-permission-copy small {
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+
+.project-access-roots {
+  margin-top: 6px;
+}
+
+.project-access-roots-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.project-access-roots-hint {
+  margin: 4px 0 8px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+
+.project-access-root-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.project-access-root-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 11px;
+}
+
+.project-access-root-list code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-access-root-list button {
+  display: grid;
+  place-items: center;
+  padding: 2px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.project-access-root-list button:hover {
+  color: var(--foreground);
+  background: var(--surface-hover);
+}

@@ -19,7 +19,23 @@
     "show": "Show sidebar",
     "confirmDelete": "Delete this conversation? This cannot be undone.",
     "localIdentity": "Local identity",
-    "editIdentity": "Edit avatar and nickname"
+    "editIdentity": "Edit avatar and nickname",
+    "projects": "Projects",
+    "addProject": "Add project",
+    "chats": "Chats",
+    "newTask": "New task",
+    "folderMissing": "Folder not found",
+    "locateFolder": "Locate folder",
+    "permission": "Permission",
+    "removeProject": "Remove from Evir",
+    "noProjects": "No projects yet",
+    "emptyProject": "No threads yet",
+    "searchPlaceholder": "Search projects and chats",
+    "sortRecent": "Recent",
+    "sortName": "Name",
+    "sortToggle": "Sort order",
+    "expandProject": "Expand project",
+    "collapseProject": "Collapse project"
   },
   "confirmation": {
     "deleteTitle": "Delete this item?",
@@ -55,11 +71,13 @@
       "agent": "Agent",
       "askDesc": "Chat with the model without local tools",
       "planDesc": "Read-only tools for analysis and planning",
-      "agentDesc": "Full tool access with permission controls"
+      "agentDesc": "Full tool access with permission controls",
+      "goal": "Goal"
     },
     "modeHints": {
       "agent": "You are in Agent mode. You have access to local file system tools, terminal commands, and git operations. When the user asks you to read, modify, or analyze files, you MUST use the available tools rather than saying you cannot. Available tools include: read_file, list_directory, search_files, write_file, apply_patch, run_command, git_status, git_diff. Always use tools to accomplish tasks — never say you cannot access the file system.",
-      "plan": "You are in Plan mode. You can use read-only tools (read_file, list_directory, search_files, git_status, git_diff) to analyze the project. Do not modify any files."
+      "plan": "You are in Plan mode. You can use read-only tools (read_file, list_directory, search_files, git_status, git_diff) to analyze the project. Do not modify any files.",
+      "goal": "You are in Goal mode: drive the stated objective step by step until every completion condition is verifiably met, using the available tools to verify."
     },
     "placeholder": "Message Evir…",
     "modelPlaceholder": "No model configured",
@@ -117,7 +135,9 @@
     "agentRequiresToolCalling": "This model is not marked as supporting Tool Calling. Switch to Ask or update the model capability in Provider settings.",
     "skillContextTooLarge": "The selected Skills do not fit in this model's remaining context. Select fewer Skills, shorten the conversation, or choose a model with a larger context window.",
     "tableRegion": "Table",
-    "previewImage": "Preview image"
+    "previewImage": "Preview image",
+    "noToolCalling": "Current model does not support tool calling.",
+    "changeModel": "Change model"
   },
   "runtime": {
     "agentReady": "Local agent runtime",
@@ -855,5 +875,40 @@
     "logDirectoryLabel": "Log directory",
     "copyLogDirectory": "Copy path",
     "logDirectoryCopied": "Copied"
+  },
+  "project": {
+    "permissionTitle": "Permission — {{name}}",
+    "permission": {
+      "ask": "Ask for approval",
+      "askHint": "Writes and commands always require your approval.",
+      "workspace": "Workspace access",
+      "workspaceHint": "Normal development inside the project runs automatically; anything outside still asks.",
+      "full": "Full access",
+      "fullHint": "No per-tool confirmations, including outside the project. Use with care."
+    },
+    "accessRoots": "Additional access",
+    "addAccessRoot": "Add folder",
+    "accessRootsHint": "Folders the agent may access in addition to the project root.",
+    "noAccessRoots": "No additional folders granted.",
+    "removeAccessRoot": "Remove folder",
+    "accessRootAdded": "Folder added to project access.",
+    "accessRootInvalid": "Folder could not be added.",
+    "fullAccessTitle": "Enable Full Access?",
+    "fullAccessDescription": "The agent can read and write anywhere on this machine without further per-tool confirmations. System folders stay blocked. This is never default.",
+    "fullAccessConfirm": "Enable Full Access",
+    "locateTitle": "Relocate project folder",
+    "locateDescription": "Choose the current location of “{{name}}”. History and settings are kept.",
+    "folderInvalidTitle": "Folder unavailable",
+    "folderInvalidDescription": "The selected folder could not be opened. Pick an existing folder.",
+    "removeTitle": "Remove project from Evir?",
+    "removeDescription": "“{{name}}” stays on disk. Its threads move to Chats and keep their history."
+  },
+  "plan": {
+    "executePlan": "Execute plan",
+    "executePrompt": "Execute the plan above in this project.",
+    "executeHint": "Switches to Agent mode in the same thread."
+  },
+  "goal": {
+    "bannerLabel": "Goal progress"
   }
 }

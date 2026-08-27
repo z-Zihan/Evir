@@ -19,7 +19,23 @@
     "show": "显示侧边栏",
     "confirmDelete": "删除此对话？此操作不可撤销。",
     "localIdentity": "本地身份",
-    "editIdentity": "编辑头像和昵称"
+    "editIdentity": "编辑头像和昵称",
+    "projects": "项目",
+    "addProject": "添加项目",
+    "chats": "对话",
+    "newTask": "新任务",
+    "folderMissing": "文件夹未找到",
+    "locateFolder": "重新定位文件夹",
+    "permission": "权限",
+    "removeProject": "从 Evir 移除",
+    "noProjects": "还没有项目",
+    "emptyProject": "还没有任务",
+    "searchPlaceholder": "搜索项目与对话",
+    "sortRecent": "最近",
+    "sortName": "名称",
+    "sortToggle": "排序方式",
+    "expandProject": "展开项目",
+    "collapseProject": "折叠项目"
   },
   "confirmation": {
     "deleteTitle": "确认删除？",
@@ -51,15 +67,17 @@
     },
     "modes": {
       "ask": "提问",
-      "plan": "规划",
+      "plan": "计划",
       "agent": "Agent",
       "askDesc": "仅与模型对话，不使用本地工具",
       "planDesc": "使用只读工具进行分析和规划",
-      "agentDesc": "在权限控制下使用完整工具"
+      "agentDesc": "在权限控制下使用完整工具",
+      "goal": "目标"
     },
     "modeHints": {
       "agent": "你处于 Agent 模式。你可以使用本地文件系统工具、终端命令和 Git 操作。当用户要求你读取、修改或分析文件时，你必须使用可用工具，而不是说你做不到。可用工具包括：read_file、list_directory、search_files、write_file、apply_patch、run_command、git_status、git_diff。始终使用工具完成任务——绝不要说你无法访问文件系统。",
-      "plan": "你处于规划模式。你可以使用只读工具（read_file、list_directory、search_files、git_status、git_diff）来分析项目。不要修改任何文件。"
+      "plan": "你处于规划模式。你可以使用只读工具（read_file、list_directory、search_files、git_status、git_diff）来分析项目。不要修改任何文件。",
+      "goal": "你处于目标模式：围绕声明的目标逐步推进，直到每一条完成条件都通过工具验证达成。"
     },
     "placeholder": "输入消息…",
     "modelPlaceholder": "尚未配置模型",
@@ -117,7 +135,9 @@
     "agentRequiresToolCalling": "当前模型未标记为支持 Tool Calling。请切换到提问模式，或在供应商设置中更新模型能力。",
     "skillContextTooLarge": "所选 Skill 无法放入当前模型的剩余上下文。请减少 Skill、缩短会话，或选择上下文窗口更大的模型。",
     "tableRegion": "表格",
-    "previewImage": "预览图片"
+    "previewImage": "预览图片",
+    "noToolCalling": "当前模型不支持工具调用。",
+    "changeModel": "更换模型"
   },
   "runtime": {
     "agentReady": "本地 Agent Runtime",
@@ -855,5 +875,40 @@
     "logDirectoryLabel": "日志目录",
     "copyLogDirectory": "复制路径",
     "logDirectoryCopied": "已复制"
+  },
+  "project": {
+    "permissionTitle": "权限 — {{name}}",
+    "permission": {
+      "ask": "逐次审批",
+      "askHint": "写入和命令始终需要你批准。",
+      "workspace": "工作区自动执行",
+      "workspaceHint": "项目内的常规开发操作自动执行；项目外仍需审批。",
+      "full": "完全访问",
+      "fullHint": "不再逐项确认，包括项目之外。谨慎使用。"
+    },
+    "accessRoots": "额外访问目录",
+    "addAccessRoot": "添加文件夹",
+    "accessRootsHint": "允许 Agent 在项目根目录之外访问的目录。",
+    "noAccessRoots": "尚未授予额外目录。",
+    "removeAccessRoot": "移除文件夹",
+    "accessRootAdded": "已加入项目访问范围。",
+    "accessRootInvalid": "文件夹添加失败。",
+    "fullAccessTitle": "开启完全访问？",
+    "fullAccessDescription": "Agent 将可以在本机任意位置读写，且不再逐项确认（系统目录仍被阻止）。该权限绝不会默认开启。",
+    "fullAccessConfirm": "开启完全访问",
+    "locateTitle": "重新定位项目文件夹",
+    "locateDescription": "选择「{{name}}」当前所在位置。历史与设置都会保留。",
+    "folderInvalidTitle": "文件夹不可用",
+    "folderInvalidDescription": "所选文件夹无法打开，请选择一个存在的文件夹。",
+    "removeTitle": "从 Evir 移除该项目？",
+    "removeDescription": "「{{name}}」仍保留在磁盘上；其任务会移到对话区并保留全部历史。"
+  },
+  "plan": {
+    "executePlan": "执行计划",
+    "executePrompt": "在本项目中执行上面的计划。",
+    "executeHint": "在同一线程切换到 Agent 模式。"
+  },
+  "goal": {
+    "bannerLabel": "目标进度"
   }
 }

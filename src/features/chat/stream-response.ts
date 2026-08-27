@@ -48,6 +48,7 @@ import {
   loadPersonalizationPreferences,
 } from "../settings/personalization-settings";
 import { runOrchestratedAgent } from "../orchestration/run-orchestrated-agent";
+import { effectiveMode } from "../projects/conversation-mode";
 import { useOrchestrationStore } from "../orchestration/orchestration-store";
 import {
   beginConversationStream,
@@ -122,6 +123,7 @@ function normalizeLatestUserMessage(
 function modeHint(mode: ChatState["mode"]): string {
   if (mode === "agent") return i18n.t("chat.modeHints.agent");
   if (mode === "plan") return i18n.t("chat.modeHints.plan");
+  if (mode === "goal") return i18n.t("chat.modeHints.goal");
   return "";
 }
 
@@ -365,7 +367,11 @@ export async function streamResponse(
   const streamStartedAt = beginConversationStream(set, conversationId);
   const lastUserMessage = [...history].reverse().find((message) => message.role === "user");
   const requestedMode = get().mode;
-  let mode = runtime.target === "web" ? "ask" : requestedMode;
+  const conversation = get().conversations.find(({ id }) => id === conversationId);
+  // Project modes (agent/plan/goal) only run inside a project thread; legacy
+  // global-workspace behavior covers standalone conversations until the first
+  // project exists.
+  let mode = runtime.target === "web" ? "ask" : effectiveMode(conversation, requestedMode);
   let normalizedUserInput = lastUserMessage?.content ?? "";
   if (runtime.harnessMiddlewareRegistry) {
     const request = await runtime.harnessMiddlewareRegistry.dispatch({
@@ -721,12 +727,13 @@ export async function streamResponse(
         ...(blocked.riskLevel ? { riskLevel: blocked.riskLevel } : {}),
         ...(blocked.source ? { source: blocked.source } : {}),
         ...(blocked.approval ? { approval: blocked.approval } : {}),
+        ...(blocked.workspaceRoot !== undefined ? { workspaceRoot: blocked.workspaceRoot } : {}),
         conversationId,
         messages: context.messages,
         providerId: provider.id,
         turn: context.turn,
         agentRun: context.agentRun,
-        mode: context.mode,
+        ...(context.mode !== "ask" ? { mode: context.mode } : {}),
         allowedToolIds: context.allowedToolIds,
         ...(context.runId && context.nodeId
           ? { orchestration: { runId: context.runId, nodeId: context.nodeId } }
@@ -799,7 +806,6 @@ export async function streamResponse(
   const assistants = result.turns.map((turn, index) =>
     toMessage(turn, conversationId, undefined, messageTimestamp + index),
   );
-  const conversation = get().conversations.find(({ id }) => id === conversationId);
   const title = titleFor(history, Boolean(conversation?.title));
   const updatedAt = get().privateSession
     ? Date.now()

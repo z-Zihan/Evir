@@ -9,6 +9,26 @@ import { getStructuredStorage } from "../../runtime/structured-storage";
 import { prepareTask } from "../orchestration/orchestration-session";
 import { ModelTaskIntakeAnalyzer } from "../orchestration/model-task-intake-analyzer";
 import { ModelPlanGenerator } from "../orchestration/model-plan-generator";
+import { effectiveMode } from "../projects/conversation-mode";
+
+const DONE_WHEN_MARKER = /^(?:done\s+when|完成条件|验收条件)\s*[:：]?\s*$/i;
+
+/** Goal mode: lines after a "Done when" marker become checklist conditions. */
+export function parseDoneWhen(text: string): string[] {
+  const lines = text.split("\n").map((line) => line.trim());
+  const markerIndex = lines.findIndex((line) => DONE_WHEN_MARKER.test(line));
+  if (markerIndex === -1) return [];
+  const afterMarker = lines.slice(markerIndex + 1);
+  const conditions: string[] = [];
+  for (const line of afterMarker) {
+    if (line.length === 0 && conditions.length > 0) break;
+    const condition = line.replace(/^[-*•\d.)\s]+/, "").trim();
+    if (condition.length > 0) conditions.push(condition);
+    if (conditions.length >= 10) break;
+  }
+  return conditions;
+}
+import { useProjectStore } from "../projects/project-store";
 
 type ChatStoreSet = StoreApi<ChatState>["setState"];
 type ChatStoreGet = StoreApi<ChatState>["getState"];
@@ -39,8 +59,11 @@ export async function sendChatMessage(
   const attachments = get().pendingAttachments;
   const selectedSkillIds = new Set(get().selectedSkillIds);
   let conversationId = get().currentConversationId;
-  if (!conversationId)
-    conversationId = await get().createConversation(provider.id, provider.modelId);
+  if (!conversationId) {
+    // New threads inherit the active project context; standalone chats pass null.
+    const projectId = useProjectStore.getState().currentProjectId;
+    conversationId = await get().createConversation(provider.id, provider.modelId, projectId);
+  }
   const history = get().messages;
   const now = Date.now();
   const userMessage: MessageRecord = {
@@ -108,13 +131,16 @@ export async function sendChatMessage(
   });
   const nextHistory = [...history, userMessage];
   let preparation: Awaited<ReturnType<typeof prepareTask>> = "not-applicable";
-  if (get().mode === "agent") {
+  const conversationRecord = get().conversations.find((c) => c.id === conversationId);
+  const runMode = effectiveMode(conversationRecord, get().mode);
+  if (runMode === "agent" || runMode === "goal") {
     try {
       preparation = await prepareTask({
         objective: text,
         conversationId,
         runtime: getRuntime(),
         privateSession: get().privateSession,
+        ...(runMode === "goal" ? { doneWhen: parseDoneWhen(text) } : {}),
         analyzer: new ModelTaskIntakeAnalyzer(
           provider,
           history

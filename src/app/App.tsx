@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import { useProviderStore } from "../features/provider/provider-store";
-import { useChatStore } from "../features/chat/chat-store";
 import { useUsageStore } from "../features/usage/usage-store";
 import { Sidebar } from "./Sidebar";
 import { ChatView } from "./ChatView";
@@ -9,6 +8,9 @@ import { useShortcuts } from "./useShortcuts";
 import { ShortcutHelpOverlay } from "./ShortcutHelpOverlay";
 import { useTranslation } from "react-i18next";
 import { initializeRuntimeStorage } from "../runtime/initialize-storage";
+import { installWorkspaceResolver } from "../features/workspace/workspace-bridge";
+import { useProjectStore } from "../features/projects/project-store";
+import { useChatStore } from "../features/chat/chat-store";
 import {
   clearCheckpoint,
   findUnfinishedRuns,
@@ -36,6 +38,7 @@ export function App() {
     isStreaming,
   } = useChatStore();
   const loadUsageRecords = useUsageStore((state) => state.loadRecords);
+  const loadProjects = useProjectStore((state) => state.load);
 
   const handleNewConversation = useCallback(() => {
     const provider = getDefaultProvider();
@@ -74,12 +77,13 @@ export function App() {
     setInitializationError(null);
     try {
       await initializeRuntimeStorage();
-      await Promise.all([loadProviders(), loadConversations(), loadUsageRecords()]);
+      installWorkspaceResolver();
+      await Promise.all([loadProviders(), loadConversations(), loadUsageRecords(), loadProjects()]);
       setUnfinishedRuns(await findUnfinishedRuns());
     } catch (error) {
       setInitializationError(error instanceof Error ? error.message : String(error));
     }
-  }, [loadProviders, loadConversations, loadUsageRecords]);
+  }, [loadProviders, loadConversations, loadUsageRecords, loadProjects]);
 
   useEffect(() => {
     void initializeApplication();

@@ -34,6 +34,8 @@ export interface TaskBrief {
   risk: TaskRisk;
   clarificationRound: number;
   version: number;
+  /** Goal mode: user-stated completion conditions shown as a checklist. */
+  doneWhen?: string[];
   createdAt: number;
   updatedAt: number;
 }
