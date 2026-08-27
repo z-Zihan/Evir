@@ -912,5 +912,15 @@
     "bannerLabel": "目标进度",
     "manualCondition": "需要你确认",
     "conditionFailed": "验证未通过"
+  },
+  "preference": {
+    "title": "检测到可能的偏好",
+    "description": "本次任务的约束可能值得记住。在你选择之前不会保存任何内容。",
+    "rememberGlobal": "全局记住",
+    "rememberProject": "记住到本项目",
+    "ignore": "忽略",
+    "savedGlobal": "已保存为全局偏好。",
+    "savedProject": "已保存为项目偏好。",
+    "noProject": "当前没有打开的项目"
   }
 }

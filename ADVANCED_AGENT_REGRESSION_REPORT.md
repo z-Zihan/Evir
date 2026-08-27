@@ -19,5 +19,7 @@
 
 ## NOT RUN（如实声明）
 
-- Goal doneWhen 验证、预算阻断、子代理天花板在**原生 Tauri 实机 + 真实 Provider** 下的端到端（本轮为单测/集成 + 浏览器 desktop-mode e2e；fixture provider 无法产生真实命令执行差异——fixture 工作区的命令由 mocked storage 验证）。
+- **Goal→DoneWhen 完整链路 e2e**：尝试了两版（真实发送 + 确认点击；种子快照）。真实发送版本因 fixture 规划的非确定性（是否需要确认、审批节奏）不稳定；种子快照版本暴露了快照重建对 seeded 数据的校验路径问题未及在本轮修复。DoneWhen 的执行语义、失败判定、持久化与 UI 状态由 17 个单测/集成测试覆盖；该 e2e 列入下阶段。
+
+- Goal doneWhen 验证、预算阻断、子代理天花板、偏好候选在**原生 Tauri 实机 + 真实 Provider** 下的端到端（本轮为单测/集成 + 浏览器 desktop-mode e2e；fixture provider 无法产生真实命令执行差异——fixture 工作区的命令由 mocked storage 验证）。
 - `pnpm test:visual`：本轮 UI 仅 goal 横幅条件行内样式微调，fixtures 无 doneWhen 场景，基线不受影响，未重跑（上轮全绿）。

@@ -16,6 +16,13 @@
 - TaskBrief schema：`doneWhen`（修复持久化剥离）、`doneWhenResults`。
 - 安全测试固化：子代理继承父 permissionContext（无提权）且只读节点工具集不含写工具；并行写互斥由既有 `scopesConflict` 保证（同 workspace/git 写冲突、read+read 不冲突）。
 
+## 追加（同日第二批）
+
+- **Token 精确预算**：`goalBudgetExceeded` 增加 `maxTokens`（默认 2M），编排每批次间从 usage_records 汇总本会话自 run 开始以来的 provider/估算 token，超限 → blocked（读取失败时安全跳过，绝不因预算检查中断执行）。
+- **偏好记忆候选**：任务完成（completed）且 brief 含约束时，TaskWorkbench 展示候选卡片：列出约束 + [全局记住]/[记住到本项目]/[忽略]；**任何保存都必须用户显式点击**，保存为 long-term 记忆（global 或项目根 scope，confidence 0.6）；无项目时项目按钮禁用；已含 3 个组件测试（不自动保存/双 scope/忽略）。
+- **Goal 模式管线修复**：stream-response 的循环入口/编排分支/审批分支/run 记录此前只认 agent，Goal 会掉入 ask 分支——已全部路由（agent-loop 内部 goal→agent 工具档翻译不变）。
+- **验收补齐**：`cargo fmt --check` 与 `cargo clippy -D warnings` 实际执行并通过。
+
 ## Not Done（按优先级明确不做）
 
 - 偏好记忆候选 UI（Phase 4）、并行写/Git Worktree（Phase 3，写互斥已安全）、RAG（不引入 Vector DB）、LangChain/LangGraph（禁止且未引入）。

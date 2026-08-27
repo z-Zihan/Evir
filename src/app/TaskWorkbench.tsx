@@ -35,6 +35,9 @@ import { useOrchestrationStore } from "../features/orchestration/orchestration-s
 import type { NodeStatus, PlanGraph, PlanNode } from "../core/orchestration/types";
 import type { AgentRunRecord, AgentRunStatus } from "../features/chat/agent-run-record";
 import { AgentRunSummary } from "./AgentRunSummary";
+import { useMemoryStore } from "../features/memory/memory-store";
+import { getActiveWorkspaceRoot } from "../core/workspace/active-root";
+import { Sparkles } from "lucide-react";
 import { TaskRunSummary } from "./TaskRunSummary";
 
 type FinishedStatus = "completed" | "partial" | "failed" | "cancelled";
@@ -148,6 +151,10 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
   const privateSession = useChatStore((state) => state.privateSession);
   const stopGeneration = useChatStore((state) => state.stopGeneration);
   const snapshot = useOrchestrationStore((state) => state.current);
+  const addMemory = useMemoryStore((state) => state.addMemory);
+  const [preferenceChoice, setPreferenceChoice] = useState<
+    Record<string, "saved-global" | "saved-project" | "dismissed">
+  >({});
   const preparing = useOrchestrationStore((state) => state.preparing);
   const elapsedSeconds = useElapsedSeconds(preparing?.startedAt);
   const questions = useMemo(
@@ -219,6 +226,26 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
     snapshot.brief.goalKind === "answer",
   );
   const active = plan?.nodes.find(({ status }) => status === "running" || status === "ready");
+  const preferenceCandidate =
+    finished && finishedStatus === "completed" && (snapshot.brief.constraints?.length ?? 0) > 0
+      ? snapshot.brief.constraints
+      : null;
+  const projectRootForPreference = getActiveWorkspaceRoot();
+  const savePreference = async (scope: "global" | "project") => {
+    if (!preferenceCandidate) return;
+    const objective = snapshot.brief.objective.slice(0, 60);
+    await addMemory({
+      type: "long-term",
+      scope: scope === "global" ? "global" : (projectRootForPreference ?? ""),
+      key: `preference:${snapshot.runId}`,
+      content: `任务「${objective}」中用户设定的约束，或为长期偏好：${preferenceCandidate.join("；")}`,
+      confidence: 0.6,
+    });
+    setPreferenceChoice((choices) => ({
+      ...choices,
+      [snapshot.runId]: scope === "global" ? "saved-global" : "saved-project",
+    }));
+  };
   const stop = () => {
     stopGeneration();
     void cancelCurrentRun(getRuntime(), privateSession);
@@ -279,6 +306,56 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
                 ))}
           </ul>
         </div>
+      )}
+      {preferenceCandidate && preferenceChoice[snapshot.runId] === undefined && (
+        <div className="preference-candidate" role="region" aria-label={t("preference.title")}>
+          <div className="preference-candidate-header">
+            <Sparkles size={13} aria-hidden="true" />
+            <strong>{t("preference.title")}</strong>
+          </div>
+          <p>{t("preference.description")}</p>
+          <ul>
+            {preferenceCandidate.map((constraint) => (
+              <li key={constraint}>{constraint}</li>
+            ))}
+          </ul>
+          <div className="preference-candidate-actions">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => void savePreference("global")}
+            >
+              {t("preference.rememberGlobal")}
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={!projectRootForPreference}
+              title={!projectRootForPreference ? t("preference.noProject") : undefined}
+              onClick={() => void savePreference("project")}
+            >
+              {t("preference.rememberProject")}
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                setPreferenceChoice((choices) => ({ ...choices, [snapshot.runId]: "dismissed" }))
+              }
+            >
+              {t("preference.ignore")}
+            </button>
+          </div>
+        </div>
+      )}
+      {preferenceChoice[snapshot.runId]?.startsWith("saved") && (
+        <p className="preference-saved" role="status">
+          {t(
+            preferenceChoice[snapshot.runId] === "saved-global"
+              ? "preference.savedGlobal"
+              : "preference.savedProject",
+          )}
+        </p>
       )}
       <header className="task-status-bar" aria-live="polite">
         <span className="task-status-icon" aria-hidden="true">

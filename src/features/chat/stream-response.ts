@@ -139,12 +139,12 @@ async function getLoopResult(
 ): Promise<AgentLoopResult> {
   const onDelta = (streamingContent: string) =>
     updateConversationStream(set, get, conversationId, streamingContent);
-  if (mode === "agent" || mode === "plan") {
+  if (mode === "agent" || mode === "goal" || mode === "plan") {
     const task = createActiveTaskController();
     try {
       const orchestration = useOrchestrationStore.getState().current;
       if (
-        mode === "agent" &&
+        (mode === "agent" || mode === "goal") &&
         orchestration?.conversationId === conversationId &&
         orchestration.phase === "execution"
       ) {
@@ -400,7 +400,7 @@ export async function streamResponse(
       return;
     }
   }
-  if (mode === "agent" && provider.modelCapabilities?.toolCalling !== true) {
+  if ((mode === "agent" || mode === "goal") && provider.modelCapabilities?.toolCalling !== true) {
     finishConversationStream(set, get, conversationId, streamStartedAt);
     if (visibleForConversation(get, conversationId)) {
       set({ error: "chat.agentRequiresToolCalling" });
@@ -672,7 +672,7 @@ export async function streamResponse(
     : buildPersonalizationPrompt(await loadPersonalizationPreferences());
   const { systemPrompt } = contextBuilder.buildSystemPrompt({
     modeRules: hint,
-    ...(mode === "agent" || mode === "plan"
+    ...(mode === "agent" || mode === "goal" || mode === "plan"
       ? { runCapsule: serializeCapsule(buildRunCapsule(effectiveHistory)) }
       : {}),
     activeSkills,
@@ -742,7 +742,7 @@ export async function streamResponse(
     ];
   });
 
-  if (pendingApprovals.length > 0 && mode === "agent") {
+  if (pendingApprovals.length > 0 && (mode === "agent" || mode === "goal")) {
     logger.info("approval", "approval.requested", {
       conversationId,
       count: pendingApprovals.length,
@@ -813,7 +813,7 @@ export async function streamResponse(
   const lastStream: StreamResult | undefined = result.turns.at(-1)?.stream;
   const error = result.maxIterationsReached ? "tools.maxIterations" : lastStream?.errorMessage;
   let agentRunRecord =
-    mode === "agent"
+    mode === "agent" || mode === "goal"
       ? await buildAgentRunRecord(result, conversationId, runtime, {
           previous:
             get().latestAgentRun?.id === result.agentRun.id

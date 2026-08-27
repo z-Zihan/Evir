@@ -912,5 +912,15 @@
     "bannerLabel": "Goal progress",
     "manualCondition": "Needs your confirmation",
     "conditionFailed": "Failed verification"
+  },
+  "preference": {
+    "title": "Possible preferences detected",
+    "description": "Constraints from this finished task might be worth remembering. Nothing is saved until you choose.",
+    "rememberGlobal": "Remember globally",
+    "rememberProject": "Remember for this project",
+    "ignore": "Ignore",
+    "savedGlobal": "Saved as a global preference.",
+    "savedProject": "Saved as a project preference.",
+    "noProject": "No project is open"
   }
 }

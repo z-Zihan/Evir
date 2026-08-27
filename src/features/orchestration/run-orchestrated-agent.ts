@@ -5,7 +5,7 @@ import { logger } from "../../core/logging/logger";
 import { getActiveWorkspaceRoot, popRunRoot, pushRunRoot } from "../../core/workspace/active-root";
 import { permissionContextForRoot } from "../projects/run-permission";
 import { doneWhenSatisfied, evaluateDoneWhen } from "../../core/orchestration/done-when";
-import { goalBudgetExceeded } from "../../core/orchestration/goal-budget";
+import { goalBudgetExceeded, tokensSpentSince } from "../../core/orchestration/goal-budget";
 import type {
   AgentAssignment,
   PlanGraph,
@@ -254,7 +254,21 @@ async function runOrchestratedAgentBound(input: OrchestratedRunInput): Promise<A
   };
 
   const budgetBlocked = async (): Promise<string | null> => {
-    const reason = goalBudgetExceeded(nodeExecutions, Date.now() - runStartedAt);
+    let tokensSpent = 0;
+    try {
+      const usage = await input.runtime.structuredStorage?.query<Record<string, unknown>>(
+        "usage_records",
+        { conversationId: input.conversationId },
+      );
+      tokensSpent = tokensSpentSince(
+        (usage ?? []) as unknown as Parameters<typeof tokensSpentSince>[0],
+        input.conversationId,
+        runStartedAt,
+      );
+    } catch {
+      // Budget checks never break execution when usage is unreadable.
+    }
+    const reason = goalBudgetExceeded(nodeExecutions, Date.now() - runStartedAt, tokensSpent);
     if (reason) {
       await appendEvent(createRunEvent("run.blocked", initial.runId, input.conversationId, reason));
       return reason;

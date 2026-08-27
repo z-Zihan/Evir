@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { OrchestrationSnapshot, PlanGraph } from "../../core/orchestration/types";
 import type { AgentRunRecord } from "../../features/chat/agent-run-record";
@@ -20,6 +20,17 @@ vi.mock("../../features/chat/chat-store", () => ({
 }));
 
 vi.mock("../../runtime/use-runtime", () => ({ getRuntime: () => ({ target: "desktop" }) }));
+
+const addMemory = vi.fn<(input: Record<string, unknown>) => Promise<string>>();
+
+vi.mock("../../features/memory/memory-store", () => ({
+  useMemoryStore: (selector: (state: Record<string, unknown>) => unknown) =>
+    selector({ addMemory }),
+}));
+
+vi.mock("../../core/workspace/active-root", () => ({
+  getActiveWorkspaceRoot: () => "/projects/evir",
+}));
 
 vi.mock("../../features/orchestration/continue-orchestration", () => ({
   answerCurrentClarifications: vi.fn(),
@@ -347,5 +358,73 @@ describe("TaskWorkbench", () => {
     render(<TaskWorkbench />);
 
     expect(screen.queryByRole("button", { name: "orchestration.retryTask" })).toBeNull();
+  });
+});
+
+describe("preference candidates", () => {
+  beforeEach(() => {
+    addMemory.mockClear();
+    addMemory.mockResolvedValue("memory-1");
+  });
+
+  it("offers task constraints as a preference only after completion and never auto-saves", () => {
+    useOrchestrationStore.setState({
+      current: {
+        runId: "run-pref",
+        conversationId: brief.conversationId,
+        phase: "finished",
+        brief: { ...brief, constraints: ["Do not add new dependencies"] },
+        plan: { ...plan, status: "completed" },
+        assignments: [],
+        events: [],
+      },
+    });
+    render(<TaskWorkbench />);
+
+    expect(screen.getByText("preference.title")).toBeTruthy();
+    expect(screen.getByText("Do not add new dependencies")).toBeTruthy();
+    expect(addMemory).not.toHaveBeenCalled();
+  });
+
+  it("saves with the chosen scope and confirms", async () => {
+    useOrchestrationStore.setState({
+      current: {
+        runId: "run-pref-2",
+        conversationId: brief.conversationId,
+        phase: "finished",
+        brief: { ...brief, constraints: ["统一使用 pnpm"] },
+        plan: { ...plan, status: "completed" },
+        assignments: [],
+        events: [],
+      },
+    });
+    render(<TaskWorkbench />);
+
+    fireEvent.click(screen.getByRole("button", { name: "preference.rememberProject" }));
+    await waitFor(() => expect(addMemory).toHaveBeenCalledTimes(1));
+    expect(addMemory.mock.calls[0]?.[0]).toMatchObject({
+      type: "long-term",
+      scope: "/projects/evir",
+    });
+    expect(screen.getByText("preference.savedProject")).toBeTruthy();
+  });
+
+  it("dismiss hides the candidate without saving", () => {
+    useOrchestrationStore.setState({
+      current: {
+        runId: "run-pref-3",
+        conversationId: brief.conversationId,
+        phase: "finished",
+        brief: { ...brief, constraints: ["Keep behavior unchanged"] },
+        plan: { ...plan, status: "completed" },
+        assignments: [],
+        events: [],
+      },
+    });
+    render(<TaskWorkbench />);
+
+    fireEvent.click(screen.getByRole("button", { name: "preference.ignore" }));
+    expect(screen.queryByText("preference.title")).toBeNull();
+    expect(addMemory).not.toHaveBeenCalled();
   });
 });
