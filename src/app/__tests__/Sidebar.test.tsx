@@ -24,6 +24,55 @@ vi.mock("../../features/chat/chat-store", () => ({
   }),
 }));
 
+vi.mock("../../features/projects/project-store", () => ({
+  useProjectStore: (selector?: (state: Record<string, unknown>) => unknown) =>
+    selector
+      ? selector({
+          projects: [],
+          currentProjectId: null,
+          loaded: true,
+          folderMissing: {},
+          load: vi.fn().mockResolvedValue(undefined),
+          addProject: vi.fn(),
+          selectProject: vi.fn(),
+          renameProject: vi.fn(),
+          togglePinProject: vi.fn(),
+          rebindProject: vi.fn(),
+          removeProject: vi.fn(),
+          setPermissionProfile: vi.fn(),
+          addAccessRoot: vi.fn(),
+          removeAccessRoot: vi.fn(),
+          refreshFolderStatus: vi.fn(),
+          currentProject: () => null,
+        })
+      : {
+          projects: [],
+          currentProjectId: null,
+          loaded: true,
+          folderMissing: {},
+          load: vi.fn().mockResolvedValue(undefined),
+          addProject: vi.fn(),
+          selectProject: vi.fn(),
+          renameProject: vi.fn(),
+          togglePinProject: vi.fn(),
+          rebindProject: vi.fn(),
+          removeProject: vi.fn(),
+          setPermissionProfile: vi.fn(),
+          addAccessRoot: vi.fn(),
+          removeAccessRoot: vi.fn(),
+          refreshFolderStatus: vi.fn(),
+          currentProject: () => null,
+        },
+}));
+
+vi.mock("../../runtime/use-runtime", () => ({
+  getRuntime: () => ({ target: "web" as const, capabilities: new Set(), has: () => false }),
+}));
+
+vi.mock("../../features/provider/provider-store", () => ({
+  useProviderStore: { getState: () => ({ getDefaultProvider: () => null }) },
+}));
+
 vi.mock("../../features/settings/personalization-settings", () => ({
   loadPersonalizationPreferences: vi.fn().mockResolvedValue({
     displayName: "",
