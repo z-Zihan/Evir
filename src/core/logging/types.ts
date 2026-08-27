@@ -49,6 +49,13 @@ export interface LoggerPort {
   flush(): Promise<void>;
 }
 
+export type LogCategory = "app" | "audit" | "performance";
+
+export interface LogSink {
+  append(category: LogCategory, line: string): Promise<void>;
+  readonly directory?: string;
+}
+
 export interface DiagnosticExportOptions {
   includeDays: number;
   includeCrashReports: boolean;

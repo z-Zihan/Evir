@@ -35,6 +35,7 @@ vi.mock("../../core/logging/logger", () => ({
     exportLogs: vi.fn(() => "[]"),
     clear: clearLogs,
     subscribe: vi.fn(() => () => undefined),
+    persistenceStatus: vi.fn(() => ({ active: false, directory: null })),
   },
 }));
 
@@ -80,6 +81,9 @@ describe("data clearing confirmations", () => {
     const { DiagnosticsSettings } = await import("../DiagnosticsSettings");
     render(<DiagnosticsSettings />);
 
+    // Memory-only persistence status renders before any sink is attached.
+    expect(screen.getByText("diagnostics.persistenceMemoryOnly")).toBeTruthy();
+
     fireEvent.click(screen.getByRole("button", { name: "diagnostics.clear" }));
     expect(clearLogs).not.toHaveBeenCalled();
     fireEvent.click(
@@ -88,6 +92,22 @@ describe("data clearing confirmations", () => {
       }),
     );
     await waitFor(() => expect(clearLogs).toHaveBeenCalledOnce());
+  });
+
+  it("shows the active persistence status with the log directory", async () => {
+    const { logger: loggerMock } = await import("../../core/logging/logger");
+    vi.spyOn(loggerMock, "persistenceStatus").mockReturnValue({
+      active: true,
+      directory: "/Users/example/Library/Application Support/com.zihan.evir/logs",
+    });
+    const { DiagnosticsSettings } = await import("../DiagnosticsSettings");
+    render(<DiagnosticsSettings />);
+
+    expect(screen.getByText("diagnostics.persistenceActive")).toBeTruthy();
+    expect(
+      screen.getByText("/Users/example/Library/Application Support/com.zihan.evir/logs"),
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "diagnostics.copyLogDirectory" })).toBeTruthy();
   });
 
   it("guards workspace unlinking", async () => {

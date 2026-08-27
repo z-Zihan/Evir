@@ -33,6 +33,7 @@ export interface EvirRuntime {
   has(capability: Capability): boolean;
   getWorkspaceRoot?: () => string | null;
   selectWorkspaceDirectory?: () => Promise<string | null>;
+  saveTextFile?: (contents: string, suggestedName: string) => Promise<string | null>;
   mode?: InteractionMode;
   storage?: DesktopStorageAdapter;
   structuredStorage?: StoragePort;

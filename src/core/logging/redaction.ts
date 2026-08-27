@@ -1,5 +1,22 @@
 const SENSITIVE_KEY_PATTERN =
   /(authorization|api[-_]?key|token|password|secret|cookie|private[-_]?key)/i;
+// Numeric counters/timings whose names merely contain "token" must survive redaction.
+const SAFE_KEYS = new Set([
+  "inputtokens",
+  "outputtokens",
+  "totaltokens",
+  "maxcontexttokens",
+  "estimatedinputtokens",
+  "reservedoutputtokens",
+  "reservedtooltokens",
+  "firsttokenms",
+  "lasttokenms",
+  "tokenspersecond",
+]);
+
+function isSensitiveKey(key: string): boolean {
+  return !SAFE_KEYS.has(key.toLowerCase()) && SENSITIVE_KEY_PATTERN.test(key);
+}
 
 const SECRET_VALUE_PATTERNS: RegExp[] = [
   /\bsk-[A-Za-z0-9_-]{12,}\b/g,
@@ -26,7 +43,7 @@ export function redactLogValue(value: unknown, seen: WeakSet<object> = new WeakS
     return Object.fromEntries(
       Object.entries(value).map(([key, entryValue]) => [
         key,
-        SENSITIVE_KEY_PATTERN.test(key) ? "[REDACTED]" : redactLogValue(entryValue, seen),
+        isSensitiveKey(key) ? "[REDACTED]" : redactLogValue(entryValue, seen),
       ]),
     );
   }

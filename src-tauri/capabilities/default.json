@@ -7,9 +7,18 @@
     "core:default",
     "dialog:default",
     "dialog:allow-open",
+    "dialog:allow-save",
     "fs:default",
     "fs:allow-read-text-file",
     "fs:allow-write-text-file",
+    "fs:allow-mkdir",
+    "fs:allow-read-dir",
+    "fs:allow-remove",
+    "fs:allow-stat",
+    {
+      "identifier": "fs:scope",
+      "allow": [{ "path": "$APPDATA/logs" }, { "path": "$APPDATA/logs/**" }]
+    },
     "shell:default",
     "store:default"
   ]

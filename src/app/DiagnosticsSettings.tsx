@@ -22,6 +22,9 @@ export function DiagnosticsSettings() {
   const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
   const [filter, setFilter] = useState<DiagnosticsFilter>("all");
   const [entries, setEntries] = useState(() => logger.getEntries());
+  const [exportResult, setExportResult] = useState<string | null>(null);
+  const [copiedDirectory, setCopiedDirectory] = useState(false);
+  const persistence = logger.persistenceStatus();
 
   useEffect(() => {
     return logger.subscribe(() => setEntries(logger.getEntries()));
@@ -32,9 +35,26 @@ export function DiagnosticsSettings() {
     return matched.slice(-MAX_SHOWN).reverse();
   }, [entries, filter]);
 
-  const handleExport = () => {
-    const blob = new Blob([logger.exportLogs()], { type: "application/json" });
-    downloadBlob(blob, `evir-diagnostics-${Date.now()}.json`);
+  const handleExport = async () => {
+    setExportResult(null);
+    try {
+      const exportedEntries = logger.getEntries();
+      const blob = new Blob([logger.exportLogs()], { type: "application/json" });
+      const saved = await downloadBlob(blob, `evir-diagnostics-${Date.now()}.json`);
+      logger.info(
+        "artifact",
+        saved ? "diagnostics.export-completed" : "diagnostics.export-cancelled",
+        {
+          entryCount: exportedEntries.length,
+        },
+      );
+      setExportResult(t(saved ? "diagnostics.exported" : "diagnostics.exportCancelled"));
+    } catch (error) {
+      logger.error("artifact", "diagnostics.export-failed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      setExportResult(t("diagnostics.exportFailed"));
+    }
   };
 
   const handleClear = () => {
@@ -52,7 +72,7 @@ export function DiagnosticsSettings() {
           <p>{t("settingsDescriptions.diagnostics")}</p>
         </div>
         <div className="flex gap-2">
-          <button type="button" className="secondary-button" onClick={handleExport}>
+          <button type="button" className="secondary-button" onClick={() => void handleExport()}>
             {t("diagnostics.export")}
           </button>
           <button
@@ -75,6 +95,38 @@ export function DiagnosticsSettings() {
           </button>
         </div>
       </div>
+      {exportResult && (
+        <p className="text-sm text-muted" role="status">
+          {exportResult}
+        </p>
+      )}
+      <div className="flex flex-col gap-1">
+        <p className="text-sm text-muted">
+          {persistence.active
+            ? t("diagnostics.persistenceActive")
+            : t("diagnostics.persistenceMemoryOnly")}
+        </p>
+        {persistence.active && persistence.directory && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-muted">{t("diagnostics.logDirectoryLabel")}</span>
+            <code className="text-xs">{persistence.directory}</code>
+            <button
+              type="button"
+              className="px-2 py-1 text-xs border border-border rounded-lg cursor-pointer hover:bg-surface-hover transition"
+              onClick={() => {
+                void navigator.clipboard.writeText(persistence.directory ?? "").then(() => {
+                  setCopiedDirectory(true);
+                  setTimeout(() => setCopiedDirectory(false), 1500);
+                });
+              }}
+            >
+              {copiedDirectory
+                ? t("diagnostics.logDirectoryCopied")
+                : t("diagnostics.copyLogDirectory")}
+            </button>
+          </div>
+        )}
+      </div>
       <div className="flex gap-2 flex-wrap" role="group" aria-label={t("diagnostics.filter")}>
         {FILTERS.map((f) => (
           <button
@@ -95,7 +147,11 @@ export function DiagnosticsSettings() {
       {visibleEntries.length === 0 ? (
         <p className="text-sm text-muted p-4">{t("diagnostics.empty")}</p>
       ) : (
-        <ul className="flex flex-col gap-1 border border-border rounded-lg max-h-96 overflow-y-auto">
+        <ul
+          className="flex flex-col gap-1 border border-border rounded-lg max-h-96 overflow-y-auto"
+          tabIndex={0}
+          aria-label={t("diagnostics.data")}
+        >
           {visibleEntries.map((entry, index) => (
             <li
               key={`${entry.sessionId}-${entry.timestamp}-${index}`}

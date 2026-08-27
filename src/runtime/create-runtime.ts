@@ -16,6 +16,8 @@ import {
 import type { Capability, EvirRuntime, RuntimeTarget } from "./types";
 import { WorkflowRegistry } from "../core/orchestration/workflow-registry";
 import { builtinWorkflowComponent } from "./components/builtin-workflow-components";
+import { logger } from "../core/logging/logger";
+import { createDesktopFileLogSink } from "./file-log-sink";
 
 function buildRuntime(target: RuntimeTarget, capabilities: Capability[]): EvirRuntime {
   const capabilitySet = new Set(capabilities);
@@ -36,6 +38,17 @@ async function selectWorkspaceDirectory(): Promise<string | null> {
   const { open } = await import("@tauri-apps/plugin-dialog");
   const selected = await open({ directory: true, multiple: false });
   return typeof selected === "string" ? selected : null;
+}
+
+async function saveTextFile(contents: string, suggestedName: string): Promise<string | null> {
+  const [{ save }, { writeTextFile }] = await Promise.all([
+    import("@tauri-apps/plugin-dialog"),
+    import("@tauri-apps/plugin-fs"),
+  ]);
+  const selected = await save({ defaultPath: suggestedName });
+  if (!selected) return null;
+  await writeTextFile(selected, contents);
+  return selected;
 }
 
 export interface CreateRuntimeOptions {
@@ -94,6 +107,17 @@ export function createRuntime(options: CreateRuntimeOptions = {}): EvirRuntime {
   };
 
   if (target === "desktop") {
+    if ("__TAURI_INTERNALS__" in globalThis) {
+      void createDesktopFileLogSink().then(
+        (sink) => logger.attachSink(sink),
+        (error: unknown) => {
+          logger.warn("app", "app.log-persistence-unavailable", {
+            errorType: error instanceof Error ? error.name : "Error",
+          });
+        },
+      );
+    }
+    logger.info("app", "app.session-started", { target, capabilities: [...runtime.capabilities] });
     return {
       ...runtime,
       storage: desktopStorage,
@@ -108,6 +132,7 @@ export function createRuntime(options: CreateRuntimeOptions = {}): EvirRuntime {
       mode: "agent" as const,
       getWorkspaceRoot,
       selectWorkspaceDirectory,
+      saveTextFile,
     };
   }
 
