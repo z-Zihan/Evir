@@ -167,6 +167,9 @@ function measureTests() {
     // tests instead of a bare exit-code error.
     try {
       const failed = JSON.parse(readFileSync(jsonOutFile, "utf8"));
+      console.error(
+        `VITEST REPORT: success=${failed.success} total=${failed.numTotalTests} passed=${failed.numPassedTests} failed=${failed.numFailedTests} pending=${failed.numPendingTests}`,
+      );
       for (const suite of failed.testResults ?? []) {
         if (suite.status === "failed") {
           console.error(`FAILED SUITE: ${suite.name ?? "(unnamed)"}`);
