@@ -159,7 +159,8 @@ function measureTests() {
     : ["exec", "vitest", "run", "src", "--reporter=json", `--outputFile=${jsonOutFile}`];
 
   const start = performance.now();
-  execFileSync(executable, args, { cwd: rootDir, stdio: "ignore" });
+  // Surface the runner's stderr so CI failures are diagnosable.
+  execFileSync(executable, args, { cwd: rootDir, stdio: ["ignore", "ignore", "inherit"] });
   const durationMs = performance.now() - start;
   const report = JSON.parse(readFileSync(jsonOutFile, "utf8"));
   rmSync(jsonOutFile, { force: true });
