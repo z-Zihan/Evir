@@ -1,4 +1,5 @@
 import type { DesktopStorageAdapter, SnapshotResult } from "./desktop-storage-adapter";
+import type { PermissionContext } from "../core/security/permission-profiles";
 import type { InteractionMode, ToolRegistry } from "../core/providers/tool-registry";
 import type { ToolExecutor } from "../core/tools/tool-executor";
 import type { StoragePort } from "../core/storage/storage-port";
@@ -25,6 +26,8 @@ export interface AgentRunContext {
   id: string;
   snapshots: SnapshotResult[];
   fileReferences: FileContextReference[];
+  /** UI mode that started the run (plan runs offer Execute Plan). */
+  startedMode?: InteractionMode;
 }
 
 export interface EvirRuntime {
@@ -35,6 +38,8 @@ export interface EvirRuntime {
   selectWorkspaceDirectory?: () => Promise<string | null>;
   saveTextFile?: (contents: string, suggestedName: string) => Promise<string | null>;
   mode?: InteractionMode;
+  /** Captured per-run; drives workspace/auto-approve policy for this run. */
+  permissionContext?: PermissionContext | null;
   storage?: DesktopStorageAdapter;
   structuredStorage?: StoragePort;
   toolRegistry?: ToolRegistry;

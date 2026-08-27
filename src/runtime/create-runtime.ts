@@ -17,6 +17,7 @@ import type { Capability, EvirRuntime, RuntimeTarget } from "./types";
 import { WorkflowRegistry } from "../core/orchestration/workflow-registry";
 import { builtinWorkflowComponent } from "./components/builtin-workflow-components";
 import { logger } from "../core/logging/logger";
+import { getActiveWorkspaceRoot } from "../core/workspace/active-root";
 import { createDesktopFileLogSink } from "./file-log-sink";
 
 function buildRuntime(target: RuntimeTarget, capabilities: Capability[]): EvirRuntime {
@@ -30,8 +31,7 @@ function buildRuntime(target: RuntimeTarget, capabilities: Capability[]): EvirRu
 }
 
 function getWorkspaceRoot(): string | null {
-  const stored = localStorage.getItem("evir-workspace-current");
-  return stored && stored.trim() ? stored : null;
+  return getActiveWorkspaceRoot();
 }
 
 async function selectWorkspaceDirectory(): Promise<string | null> {

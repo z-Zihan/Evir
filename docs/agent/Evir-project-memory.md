@@ -218,6 +218,8 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - VS Code 已有配置、Ask、停止、Workspace Agent、审批、Diff/最后写入回滚与真实 Host/Light/Dark 证据；Agent step/tool/verification/completion Activity、High Contrast 和完整本地化未完成
 - CLI 已有 configure/doctor/ask/agent、stdin、SIGINT、工作区边界、逐次审批、共享 Profile/Keyring、smoke/tarball；友好配置错误、中英文、JSON/JSONL、稳定退出码和 Agent 运行证据未完成
 
+**2026-08-27 重构新增：** Project 实体与 Sidebar Projects/Chats、Permission Profiles（ask/workspace/full + Additional Access Roots）、Plan/Goal 一等模式、active-root 运行隔离。详见 docs/project-chat-agent-redesign.md。
+
 **未实现：**
 
 - MCP Server 实际连接（当前仅配置管理，无 stdio/HTTP 通信）
@@ -289,6 +291,8 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - [docs/reviews/vscode-cli-product-ui-review.md](../reviews/vscode-cli-product-ui-review.md)
 
 ## 24. Update Log
+
+- 2026-08-27 | working tree | Project/Chat/Agent 信息架构重构（设计文档 docs/project-chat-agent-redesign.md；变更 PROJECT_CHAT_AGENT_CHANGELOG.md；回归 PROJECT_CHAT_AGENT_REGRESSION_REPORT.md）：Project 成为稳定实体（UUID+realpath 去重+重绑保 ID/threads；projects 实体入 Dexie v8/SQLite/Rust allowlist，新增 fs_real_path 命令）；Conversation 显式 projectId（Standalone=ask-only，首个 Project 出现后 legacy workspace 永久退出解析）；Sidebar 重构为 PROJECTS/CHATS（Pin/Rename/Sort/Search/Locate/Remove+Folder-not-found）；Composer 移除 WorkspaceSelector，Mode（Agent/Plan/Goal）入 Composer 紧凑区且无 tool-calling 时禁用引导换模型；workspace 单一真相 core/workspace/active-root（run 期压栈，agent-loop/编排整跑/审批续跑均绑定 originating root，切项目不污染活动 Run）；Permission Profiles（ask/workspace/full，full 首开确认绝不默认；executor 层接入+词法 .. 防穿越+多根路径校验+Rust root==file 放宽+permission.auto-approved 审计）；Plan 一等模式（L1 只读 Registry 强制+Execute Plan 同线程转 Agent+run 记录持久化 mode）；Goal 模式（doneWhen 解析入 TaskBrief+TaskWorkbench 目标横幅，复用编排 pause/resume）；修复：answer-only run 被自动验证误标 failed（仅真实写变更触发）、AgentRunSummary 旧 workspace-store 依赖。回归：600 TS+19 cargo+35 e2e+UI 矩阵+视觉基线（侧栏有意更新）+a11y 18+web 277.5KiB/桌面前端 2691KiB 预算内；NOT RUN：新 Sidebar/Picker/重绑/Goal 的原生实机走查与真实 Provider 验证
 
 - 2026-08-27 | working tree | 签名降级为可选增强：`signingIdentity: "-"` 使 ad-hoc 非签名包可正常构建（Evir.app + DMG 6.2MiB 实测），全部文档把签名/公证从发布必要项改为 P2 可选；Web 主包拆分：manualChunks 分离 react/markdown/data vendor，13 个设置面板与 TaskWorkbench 改为懒加载，初始 JS gzip 320→277.5 KiB，基线已随仓库更新；needs_verification 根因治理：自动验证从 UI 层（AgentRunSummary useEffect）迁移到数据层 `finalizeAutomaticVerification`（run 持久化后立即触发，编排任务不再依赖摘要组件渲染），带 DI 注入与结构化日志 agent.auto-verification-*；MCP 项目记忆修正（Runtime 已实现，剩 Agent 会话审批取证与 CORS 决策两个缺口）
 
