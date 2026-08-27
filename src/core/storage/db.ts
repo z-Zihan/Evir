@@ -35,6 +35,8 @@ export interface ConversationRecord {
   // pinned is a non-indexed field — no Dexie schema upgrade needed.
   // Sorting by pinned is done in-memory (Sidebar.tsx).
   pinned?: number;
+  /** Owning project; null/undefined = standalone chat. Never guessed from the legacy global workspace. */
+  projectId?: string | null;
 }
 
 export interface AttachmentRecord {
@@ -112,6 +114,23 @@ export interface SettingRecord {
   value: unknown;
 }
 
+export type PermissionProfile = "ask" | "workspace" | "full";
+
+export interface ProjectRecord {
+  id: string;
+  displayName: string;
+  /** True once the user renamed the project; rebinding must not overwrite a custom name. */
+  nameIsCustom: boolean;
+  rootPath: string;
+  canonicalRootPath: string;
+  pinned?: number;
+  permissionProfile: PermissionProfile;
+  additionalAccessRoots: string[];
+  createdAt: number;
+  updatedAt: number;
+  lastOpenedAt: number;
+}
+
 export interface McpServerRecord {
   id: string;
   name: string;
@@ -128,6 +147,7 @@ export interface GenericEntityRecord {
 }
 
 export class EvirDB extends Dexie {
+  projects!: Table<ProjectRecord, string>;
   providers!: Table<ProviderRecord, string>;
   conversations!: Table<ConversationRecord, string>;
   messages!: Table<MessageRecord, string>;
@@ -209,6 +229,26 @@ export class EvirDB extends Dexie {
       memories: "id, scope, type, updatedAt, enabled, pinned",
     });
     this.version(7).stores({
+      providers: "id",
+      conversations: "id, updatedAt",
+      messages: "id, conversationId, createdAt",
+      attachments: "id, messageId",
+      usage_records: "id, conversationId, createdAt",
+      mcpServers: "id",
+      settings: "name",
+      agentRuns: "id, conversationId, updatedAt",
+      taskBriefs: "id, runId, conversationId, version, updatedAt",
+      plans: "id, runId, conversationId, revision, updatedAt",
+      runSteps: "id, runId, planId, status",
+      runEvents: "id, runId, conversationId, timestamp, type",
+      agentAssignments: "id, parentRunId, nodeId, status",
+      approvals: "id, runId, nodeId, status",
+      toolExecutions: "id, runId, createdAt",
+      artifacts: "id, relatedEntityId, createdAt",
+      memories: "id, scope, type, updatedAt, enabled, pinned",
+    });
+    this.version(8).stores({
+      projects: "id",
       providers: "id",
       conversations: "id, updatedAt",
       messages: "id, conversationId, createdAt",

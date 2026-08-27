@@ -5,6 +5,7 @@ import type { EntityName, StorageMutation, StoragePort } from "./storage-port";
 type StoredRecord = Record<string, unknown>;
 
 const SUPPORTED_ENTITIES = [
+  "projects",
   "providers",
   "conversations",
   "messages",

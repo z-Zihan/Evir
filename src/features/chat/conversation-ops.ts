@@ -24,6 +24,7 @@ export async function createConversation(
   providerId: string,
   modelId: string,
   privateSession = false,
+  projectId: string | null = null,
 ): Promise<string> {
   const now = Date.now();
   const conversation: ConversationRecord = {
@@ -33,6 +34,7 @@ export async function createConversation(
     modelId,
     createdAt: now,
     updatedAt: now,
+    ...(projectId ? { projectId } : { projectId: null }),
   };
   if (!privateSession) {
     await getStructuredStorage().write("conversations", conversation.id, conversation);
@@ -54,10 +56,16 @@ export async function createOrReuseConversation(
   get: ChatStoreGet,
   providerId: string,
   modelId: string,
+  projectId: string | null = null,
 ): Promise<string> {
   const { currentConversationId, messages } = get();
-  if (currentConversationId && messages.length === 0) return currentConversationId;
-  return createConversation(set, providerId, modelId, get().privateSession);
+  if (currentConversationId && messages.length === 0) {
+    // Reuse only within the same project context; switching context starts a
+    // new thread instead of silently re-assigning the existing one.
+    const existing = get().conversations.find(({ id }) => id === currentConversationId);
+    if ((existing?.projectId ?? null) === projectId) return currentConversationId;
+  }
+  return createConversation(set, providerId, modelId, get().privateSession, projectId);
 }
 
 export async function selectConversation(

@@ -19,6 +19,7 @@ use tauri::{AppHandle, Manager};
 use crate::storage::{self, DatabaseState};
 
 const STRUCTURED_ENTITIES: &[&str] = &[
+    "projects",
     "providers",
     "conversations",
     "messages",
@@ -652,10 +653,15 @@ fn validate_path_in_workspace(path: &str, workspace_root: &str) -> Result<PathBu
         return Err("no workspace is selected".to_owned());
     }
     let root = validate_path(workspace_root)?;
+    let validated = validate_path(path)?;
     if !root.is_dir() {
+        // Full Access passes the target path itself as its root; allow only the
+        // exact file, never a directory of unrelated paths.
+        if validated == root {
+            return Ok(validated);
+        }
         return Err("workspace root is not an accessible directory".to_owned());
     }
-    let validated = validate_path(path)?;
     if validated != root && !validated.starts_with(&root) {
         return Err(format!(
             "path '{}' is outside selected workspace '{}'",
@@ -724,6 +730,17 @@ pub(crate) fn fs_list_dir(path: String, workspace_root: String) -> Result<Vec<Fi
 #[tauri::command]
 pub(crate) fn fs_file_info(path: String, workspace_root: String) -> Result<FileInfo, String> {
     file_info_from_path(&validate_path_in_workspace(&path, &workspace_root)?)
+}
+
+/// Resolve the canonical real path of a folder chosen by the user (project
+/// binding and duplicate detection). No workspace containment: the input is
+/// expected to come from the native folder picker.
+#[tauri::command]
+pub(crate) fn fs_real_path(path: String) -> Result<String, String> {
+    let validated = validate_path(&path)?;
+    std::fs::canonicalize(&validated)
+        .map(|canonical| canonical.to_string_lossy().into_owned())
+        .map_err(|error| error.to_string())
 }
 
 /// Apply a unified diff patch to a file. Supports simple search-and-replace style patches.

@@ -49,8 +49,16 @@ export interface ChatState {
   latestAgentRun: AgentRunRecord | null;
   selectedSkillIds: Set<string>;
   loadConversations: () => Promise<void>;
-  createConversation: (providerId: string, modelId: string) => Promise<string>;
-  createOrReuseConversation: (providerId: string, modelId: string) => Promise<string>;
+  createConversation: (
+    providerId: string,
+    modelId: string,
+    projectId?: string | null,
+  ) => Promise<string>;
+  createOrReuseConversation: (
+    providerId: string,
+    modelId: string,
+    projectId?: string | null,
+  ) => Promise<string>;
   selectConversation: (id: string) => Promise<void>;
   deleteConversation: (id: string) => Promise<void>;
   renameConversation: (id: string, title: string) => Promise<void>;
@@ -88,10 +96,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
   latestAgentRun: null,
   selectedSkillIds: new Set<string>(),
   loadConversations: async () => doLoadConversations(set),
-  createConversation: async (providerId, modelId) =>
-    doCreateConversation(set, providerId, modelId, get().privateSession),
-  createOrReuseConversation: async (providerId, modelId) =>
-    doCreateOrReuseConversation(set, get, providerId, modelId),
+  createConversation: async (providerId, modelId, projectId = null) =>
+    doCreateConversation(set, providerId, modelId, get().privateSession, projectId),
+  createOrReuseConversation: async (providerId, modelId, projectId = null) =>
+    doCreateOrReuseConversation(set, get, providerId, modelId, projectId),
   selectConversation: async (id) => doSelectConversation(set, get, id),
   deleteConversation: async (id) => doDeleteConversation(set, id),
   renameConversation: async (id, title) => doRenameConversation(set, id, title),

@@ -1,6 +1,7 @@
 export type StorageLayer = "keychain" | "config" | "structured" | "artifact" | "temporary";
 
 export type EntityName =
+  | "projects"
   | "providers"
   | "conversations"
   | "messages"

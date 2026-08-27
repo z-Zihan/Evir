@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { getActivePermissionContext, getActiveWorkspaceRoot } from "../core/workspace/active-root";
 import type { EntityName, StorageMutation, StoragePort } from "../core/storage/storage-port";
 
 export interface DesktopStorageAdapter {
@@ -13,6 +14,7 @@ export interface DesktopStorageAdapter {
     deletedIds?: string[],
   ): Promise<void>;
   readFile(path: string): Promise<string>;
+  realPath(path: string): Promise<string>;
   writeFile(path: string, content: string): Promise<void>;
   listDir(path: string): Promise<FileInfo[]>;
   fileInfo(path: string): Promise<FileInfo>;
@@ -94,7 +96,23 @@ export interface GitStatusResult {
 }
 
 function selectedWorkspace(): string {
-  return globalThis.localStorage?.getItem("evir-workspace-current") ?? "";
+  return getActiveWorkspaceRoot() ?? "";
+}
+
+/**
+ * The Rust boundary validates each path against a single workspace root, so
+ * with multiple granted roots (additional access) or Full Access the root that
+ * actually contains the path is passed per command.
+ */
+function rootForPath(path: string): string {
+  const context = getActivePermissionContext();
+  if (context?.profile === "full") return path;
+  if (context && context.roots.length > 0) {
+    const active = selectedWorkspace();
+    const containing = context.roots.find((root) => root === path || path.startsWith(`${root}/`));
+    return containing ?? (active || context.roots[0] || "");
+  }
+  return selectedWorkspace();
 }
 
 const activeCommandIds = new Set<string>();
@@ -108,20 +126,21 @@ export const desktopStorage: DesktopStorageAdapter = {
   sharedProviderProfilesRead: () => invoke("shared_provider_profiles_read"),
   sharedProviderProfilesWrite: (profiles, deletedIds = []) =>
     invoke("shared_provider_profiles_write", { profiles, deletedIds }),
-  readFile: (path) => invoke("fs_read_file", { path, workspaceRoot: selectedWorkspace() }),
+  readFile: (path) => invoke("fs_read_file", { path, workspaceRoot: rootForPath(path) }),
+  realPath: (path) => invoke("fs_real_path", { path }),
   writeFile: (path, content) =>
-    invoke("fs_write_file", { path, content, workspaceRoot: selectedWorkspace() }),
-  listDir: (path) => invoke("fs_list_dir", { path, workspaceRoot: selectedWorkspace() }),
-  fileInfo: (path) => invoke("fs_file_info", { path, workspaceRoot: selectedWorkspace() }),
+    invoke("fs_write_file", { path, content, workspaceRoot: rootForPath(path) }),
+  listDir: (path) => invoke("fs_list_dir", { path, workspaceRoot: rootForPath(path) }),
+  fileInfo: (path) => invoke("fs_file_info", { path, workspaceRoot: rootForPath(path) }),
   applyPatch: (path, oldContent, newContent) =>
     invoke("fs_apply_patch", {
       path,
       oldContent,
       newContent,
-      workspaceRoot: selectedWorkspace(),
+      workspaceRoot: rootForPath(path),
     }),
   searchFiles: (path, pattern) =>
-    invoke("fs_search_files", { path, pattern, workspaceRoot: selectedWorkspace() }),
+    invoke("fs_search_files", { path, pattern, workspaceRoot: rootForPath(path) }),
   runCommand: async (cwd, program, args, timeoutMs, env) => {
     const commandId = crypto.randomUUID();
     activeCommandIds.add(commandId);
@@ -133,7 +152,7 @@ export const desktopStorage: DesktopStorageAdapter = {
         args,
         timeoutMs,
         env: env ?? null,
-        workspaceRoot: selectedWorkspace(),
+        workspaceRoot: rootForPath(cwd),
       });
     } finally {
       activeCommandIds.delete(commandId);
@@ -144,27 +163,26 @@ export const desktopStorage: DesktopStorageAdapter = {
       [...activeCommandIds].map((commandId) => invoke("cancel_command", { commandId })),
     );
   },
-  gitStatus: (path) => invoke("git_status", { path, workspaceRoot: selectedWorkspace() }),
-  gitDiff: (path, staged) =>
-    invoke("git_diff", { path, staged, workspaceRoot: selectedWorkspace() }),
+  gitStatus: (path) => invoke("git_status", { path, workspaceRoot: rootForPath(path) }),
+  gitDiff: (path, staged) => invoke("git_diff", { path, staged, workspaceRoot: rootForPath(path) }),
   createDirectory: (path) =>
-    invoke("fs_create_directory", { path, workspaceRoot: selectedWorkspace() }),
-  fileStat: (path) => invoke("fs_file_stat", { path, workspaceRoot: selectedWorkspace() }),
+    invoke("fs_create_directory", { path, workspaceRoot: rootForPath(path) }),
+  fileStat: (path) => invoke("fs_file_stat", { path, workspaceRoot: rootForPath(path) }),
   createSnapshot: (filePath, runId) =>
-    invoke("fs_create_snapshot", { filePath, runId, workspaceRoot: selectedWorkspace() }),
+    invoke("fs_create_snapshot", { filePath, runId, workspaceRoot: rootForPath(filePath) }),
   sealSnapshot: (snapshotId, runId, filePath) =>
     invoke("fs_seal_snapshot", {
       snapshotId,
       runId,
       filePath,
-      workspaceRoot: selectedWorkspace(),
+      workspaceRoot: rootForPath(filePath),
     }),
   restoreSnapshot: (snapshotId, runId, filePath) =>
     invoke("fs_restore_snapshot", {
       snapshotId,
       runId,
       filePath,
-      workspaceRoot: selectedWorkspace(),
+      workspaceRoot: rootForPath(filePath),
     }),
 };
 

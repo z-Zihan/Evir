@@ -55,6 +55,7 @@ pub fn run() {
             commands::fs_write_file,
             commands::fs_list_dir,
             commands::fs_file_info,
+            commands::fs_real_path,
             commands::fs_apply_patch,
             commands::fs_search_files,
             commands::run_command,
