@@ -212,8 +212,18 @@ describe("finalizeAutomaticVerification", () => {
       id: "run-auto-1",
       conversationId: "conversation-1",
       status: "needs_verification",
-      toolCalls: [],
-      toolResults: [],
+      // Auto-verification only applies after real workspace changes.
+      toolCalls: [
+        { id: "call-w", toolName: "write_file", arguments: { path: "/tmp/workspace/a.ts" } },
+      ],
+      toolResults: [
+        {
+          toolCallId: "call-w",
+          toolName: "write_file",
+          success: true,
+          output: "written",
+        },
+      ],
       snapshots: [],
       fileReferences: [],
       verificationEvidence: [],

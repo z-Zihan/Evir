@@ -9,6 +9,8 @@ import type {
 import type { EvirRuntime } from "../../runtime/types";
 import { getRuntime } from "../../runtime/use-runtime";
 import { TOOL_DENIED } from "../../core/tools/tool-executor";
+import { popRunRoot, pushRunRoot } from "../../core/workspace/active-root";
+import { permissionContextForRoot } from "../projects/run-permission";
 import { useProviderStore } from "../provider/provider-store";
 import { type AgentLoopTurn, type AgentMessage, type AgentLoopResult } from "./agent-loop";
 import type { StreamResult } from "./chat-stream";
@@ -111,6 +113,24 @@ export function appendResolvedMessages(
 }
 
 export async function executeApproved(
+  pending: PendingToolApproval,
+  runtime: EvirRuntime,
+  persist = true,
+  signal?: AbortSignal,
+): Promise<{ messages: AgentMessage[]; msg: MessageRecord; resolvedTurn: AgentLoopTurn }> {
+  // Rebind the originating run's workspace root so approving later — possibly
+  // after the user switched projects — still executes in the original project.
+  if (pending.workspaceRoot !== undefined) {
+    pushRunRoot(pending.workspaceRoot, permissionContextForRoot(pending.workspaceRoot));
+  }
+  try {
+    return await executeApprovedBound(pending, runtime, persist, signal);
+  } finally {
+    if (pending.workspaceRoot !== undefined) popRunRoot();
+  }
+}
+
+async function executeApprovedBound(
   pending: PendingToolApproval,
   runtime: EvirRuntime,
   persist = true,

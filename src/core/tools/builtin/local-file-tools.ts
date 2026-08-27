@@ -36,6 +36,14 @@ function validatePath(path: string): string | undefined {
   return resolved;
 }
 
+function pathWithinRoot(path: string, root: string): boolean {
+  const toComparable = (value: string) =>
+    /^[A-Za-z]:\//.test(value) ? value.toLowerCase() : value;
+  const pathValue = toComparable(path);
+  const rootValue = toComparable(root);
+  return pathValue === rootValue || pathValue.startsWith(`${rootValue}/`);
+}
+
 export function validateWorkspacePath(path: string, runtime: EvirRuntime): string | undefined {
   const safeRoot = validatePath(runtime.getWorkspaceRoot?.() ?? "");
   if (!safeRoot || !path) return undefined;
@@ -67,12 +75,11 @@ export function validateWorkspacePath(path: string, runtime: EvirRuntime): strin
     );
   }
   if (!safePath) return undefined;
-  const pathForComparison = /^[A-Za-z]:\//.test(safePath) ? safePath.toLowerCase() : safePath;
-  const rootForComparison = /^[A-Za-z]:\//.test(safeRoot) ? safeRoot.toLowerCase() : safeRoot;
-  return pathForComparison === rootForComparison ||
-    pathForComparison.startsWith(`${rootForComparison}/`)
-    ? safePath
-    : undefined;
+  // Full Access lifts the path boundary the user granted explicitly; blocked
+  // system prefixes still apply via validatePath above.
+  if (runtime.permissionContext?.profile === "full") return safePath;
+  const grantedRoots = runtime.permissionContext?.roots ?? [safeRoot];
+  return grantedRoots.some((root) => pathWithinRoot(safePath, root)) ? safePath : undefined;
 }
 
 function pathBlocked(): ToolResult {

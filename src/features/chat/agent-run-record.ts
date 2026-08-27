@@ -23,6 +23,7 @@ export interface AgentRunRecord {
   verificationEvidence: VerificationEvidence[];
   resolution: { complete: boolean; reason: string };
   maxIterationsReached: boolean;
+  mode?: import("../../core/providers/tool-registry").InteractionMode;
   startedAt?: number;
   completedAt?: number;
   durationMs?: number;
@@ -141,6 +142,7 @@ export async function buildAgentRunRecord(
     verificationEvidence,
     resolution,
     maxIterationsReached: result.maxIterationsReached,
+    ...(result.agentRun.startedMode ? { mode: result.agentRun.startedMode } : {}),
     startedAt,
     completedAt: result.completedAt ?? now,
     durationMs: (result.completedAt ?? now) - startedAt,
@@ -186,6 +188,18 @@ export async function finalizeAutomaticVerification(
 ): Promise<AgentRunRecord> {
   if (record.status !== "needs_verification") return record;
   if (runtime.target !== "desktop" || !runtime.storage) return record;
+  // Answer-only and read-only runs changed nothing; a workspace checker result
+  // would be meaningless evidence for them.
+  const mutatingTools = new Set([
+    "write_file",
+    "apply_patch",
+    "run_command",
+    "create_directory",
+    "restore_snapshot",
+  ]);
+  if (!record.toolResults.some(({ toolName, success }) => success && mutatingTools.has(toolName))) {
+    return record;
+  }
   const workspace = runtime.getWorkspaceRoot?.();
   if (!workspace) return record;
   const startedAt = Date.now();

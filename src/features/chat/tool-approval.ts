@@ -20,6 +20,8 @@ import { useOrchestrationStore } from "../orchestration/orchestration-store";
 import { getStructuredStorage } from "../../runtime/structured-storage";
 import { createActiveTaskController } from "./chat-stream";
 import { finishConversationStream, updateConversationStream } from "./stream-ownership";
+import { permissionContextForRoot } from "../projects/run-permission";
+import type { PermissionContext } from "../../core/security/permission-profiles";
 import type {
   RiskLevel,
   ToolApprovalDetails,
@@ -39,10 +41,12 @@ export interface PendingToolApproval {
   providerId: string;
   turn: AgentLoopTurn;
   agentRun: AgentRunContext;
-  mode?: "plan" | "agent";
+  mode?: "plan" | "goal" | "agent";
   allowedToolIds?: string[];
   orchestration?: { runId: string; nodeId: string };
   remainingApprovals?: PendingToolApproval[];
+  /** Workspace root captured by the originating run; continuations rebind to it. */
+  workspaceRoot?: string | null;
 }
 
 export interface ApprovalRecord {
@@ -61,7 +65,7 @@ export interface ApprovalRecord {
   providerId: string;
   turn: AgentLoopTurn;
   agentRun: AgentRunContext;
-  mode: "plan" | "agent";
+  mode: "plan" | "goal" | "agent";
   allowedToolIds: string[];
   createdAt: number;
   updatedAt: number;
@@ -193,8 +197,20 @@ export async function cancelPendingToolApprovals(
 }
 
 function approvalRuntime(baseRuntime: EvirRuntime, pending: PendingToolApproval): EvirRuntime {
+  // Continuations keep the originating run's permission policy even when the
+  // user switched projects between the block and the approval click.
+  const permissionContext: PermissionContext | null | undefined =
+    pending.workspaceRoot !== undefined
+      ? permissionContextForRoot(pending.workspaceRoot)
+      : baseRuntime.permissionContext;
+  const permissionPatch = permissionContext === undefined ? {} : { permissionContext };
   if (!pending.allowedToolIds) {
-    return { ...baseRuntime, agentRun: pending.agentRun, mode: pending.mode ?? "agent" };
+    return {
+      ...baseRuntime,
+      agentRun: pending.agentRun,
+      mode: pending.mode ?? "agent",
+      ...permissionPatch,
+    };
   }
   const allowed = new Set(pending.allowedToolIds);
   const registry = new ToolRegistryImpl();
@@ -207,6 +223,7 @@ function approvalRuntime(baseRuntime: EvirRuntime, pending: PendingToolApproval)
     toolRegistry: registry,
     toolExecutor: new ToolExecutor(registry),
     agentRun: pending.agentRun,
+    ...permissionPatch,
   };
 }
 

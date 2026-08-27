@@ -45,10 +45,11 @@ export interface ToolRegistry {
   listForMode(mode: InteractionMode): readonly ToolDefinition[];
 }
 
-export type InteractionMode = "ask" | "plan" | "agent";
+export type InteractionMode = "ask" | "plan" | "goal" | "agent";
 
 export const MODE_TOOL_RISK_LIMITS: Record<InteractionMode, RiskLevel> = {
   ask: "L0",
   plan: "L1",
+  goal: "L4",
   agent: "L4",
 };

@@ -7,6 +7,8 @@ import {
 } from "../providers/tool-registry";
 import type { EvirRuntime } from "../../runtime/types";
 import { riskLevelExceeds } from "./tool-registry-impl";
+import { candidatePathFromArgs, resolveExecutionPermission } from "../security/permission-profiles";
+import { logger } from "../logging/logger";
 
 export const TOOL_PERMISSION_REQUIRED = "permission_required";
 export const TOOL_NOT_AVAILABLE = "not_available_in_browser";
@@ -15,14 +17,17 @@ export const TOOL_NOT_ALLOWED = "tool_not_allowed";
 export const TOOL_CAPABILITY_MISSING = "capability_not_available";
 
 /**
- * Checks a tool against mode risk limits, runtime capabilities, and L3+ approval
- * before it is allowed to run. Returns an error code, or null if the tool may execute.
+ * Checks a tool against mode risk limits, runtime capabilities, L3+ approval,
+ * and the run's permission profile before it is allowed to run. Mode limits
+ * run first and cannot be upgraded by any permission profile. Returns an
+ * error code, or null if the tool may execute.
  */
 export function validateToolForExecution(
   tool: ToolDefinition,
   mode: InteractionMode,
   runtime: EvirRuntime,
   approved: boolean,
+  args: Record<string, unknown> = {},
 ): string | null {
   if (riskLevelExceeds(tool.riskLevel, MODE_TOOL_RISK_LIMITS[mode])) {
     return TOOL_NOT_ALLOWED;
@@ -31,6 +36,19 @@ export function validateToolForExecution(
     return TOOL_CAPABILITY_MISSING;
   }
   if ((tool.riskLevel === "L3" || tool.riskLevel === "L4") && !approved) {
+    const decision = resolveExecutionPermission(
+      runtime.permissionContext,
+      tool.riskLevel,
+      candidatePathFromArgs(args),
+    );
+    if (decision.autoApproved) {
+      logger.info("security", "permission.auto-approved", {
+        toolName: tool.name,
+        profile: runtime.permissionContext?.profile ?? null,
+        reason: decision.reason,
+      });
+      return null;
+    }
     return TOOL_PERMISSION_REQUIRED;
   }
   return null;
@@ -64,7 +82,7 @@ export class ToolExecutor {
     if (!tool) return failure(`Unknown tool: ${toolName}`, "tool_not_found");
 
     const mode = runtime.mode ?? "ask";
-    const validationError = validateToolForExecution(tool, mode, runtime, approved);
+    const validationError = validateToolForExecution(tool, mode, runtime, approved, args);
     if (validationError) {
       return failure(messageFor(validationError, tool, mode), validationError);
     }

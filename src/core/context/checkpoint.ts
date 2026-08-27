@@ -21,7 +21,7 @@ export interface Checkpoint {
   verificationEvidence: string[];
   relevantMemoryIds: string[];
   contextSummaryVersion: string;
-  mode: "ask" | "plan" | "agent";
+  mode: "ask" | "plan" | "goal" | "agent";
 }
 
 export interface CheckpointOptions {

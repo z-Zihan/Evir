@@ -2,6 +2,8 @@ import { AgentDispatcher, restrictTools } from "../../core/orchestration/agent-d
 import { createRunEvent, OrchestrationRepository } from "../../core/orchestration/repository";
 import { GraphScheduler, type NodeExecutionResult } from "../../core/orchestration/scheduler";
 import { logger } from "../../core/logging/logger";
+import { getActiveWorkspaceRoot, popRunRoot, pushRunRoot } from "../../core/workspace/active-root";
+import { permissionContextForRoot } from "../projects/run-permission";
 import type {
   AgentAssignment,
   PlanGraph,
@@ -178,6 +180,19 @@ function eventForResult(result: NodeExecutionResult): RunEventV1["type"] {
 }
 
 export async function runOrchestratedAgent(input: OrchestratedRunInput): Promise<AgentLoopResult> {
+  // Bind the workspace root for the whole orchestrated run so node loops all
+  // execute in the originating project even if the user switches projects
+  // mid-run in the sidebar.
+  const runRoot = getActiveWorkspaceRoot();
+  pushRunRoot(runRoot, permissionContextForRoot(runRoot));
+  try {
+    return await runOrchestratedAgentBound(input);
+  } finally {
+    popRunRoot();
+  }
+}
+
+async function runOrchestratedAgentBound(input: OrchestratedRunInput): Promise<AgentLoopResult> {
   const initial = useOrchestrationStore.getState().current;
   if (!initial?.plan || initial.conversationId !== input.conversationId) {
     return runAgentLoop({ ...input, mode: "agent" });

@@ -163,6 +163,7 @@ describe("agent-loop end-to-end workflows", () => {
       args: { path: "/tmp/a" },
       riskLevel: "L3",
       source: "evir-local",
+      workspaceRoot: null,
     });
     expect(vi.mocked(streamAssistant)).toHaveBeenCalledTimes(1);
   });

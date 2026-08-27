@@ -233,6 +233,7 @@ describe("runAgentLoop permission handling", () => {
       args: { path: "/tmp/a", content: "hi" },
       riskLevel: "L3",
       source: "evir-local",
+      workspaceRoot: null,
     });
     expect(execute).not.toHaveBeenCalled();
   });

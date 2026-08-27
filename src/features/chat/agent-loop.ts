@@ -5,9 +5,13 @@ import type {
   ToolSource,
 } from "../../core/providers/tool-registry";
 import type { ProviderRecord, ToolCallRecord, ToolResultRecord } from "../../core/storage/db";
+import { getActiveWorkspaceRoot, popRunRoot, pushRunRoot } from "../../core/workspace/active-root";
 import { TOOL_PERMISSION_REQUIRED } from "../../core/tools/tool-executor";
 import { logger } from "../../core/logging/logger";
+import type { PermissionContext } from "../../core/security/permission-profiles";
+import { permissionContextForRoot } from "../projects/run-permission";
 import type { AgentRunContext, EvirRuntime } from "../../runtime/types";
+import type { InteractionMode } from "../../core/providers/tool-registry";
 import { streamAssistant, type StreamResult } from "./chat-stream";
 
 export const MAX_AGENT_ITERATIONS = 12;
@@ -24,6 +28,8 @@ export interface AgentLoopTurn {
     riskLevel?: RiskLevel;
     source?: ToolSource;
     approval?: ToolApprovalDetails;
+    /** Workspace root captured when the run started; approval continuations rebind to it. */
+    workspaceRoot?: string | null;
   };
 }
 
@@ -34,7 +40,7 @@ export interface AgentLoopOptions {
   runtime: EvirRuntime;
   onDelta: (content: string) => void;
   maxIterations?: number;
-  mode?: "plan" | "agent";
+  mode?: InteractionMode;
   signal?: AbortSignal;
 }
 
@@ -66,7 +72,7 @@ export interface AgentLoopResult {
 export interface AgentApprovalContext {
   runId: string;
   nodeId: string;
-  mode: "plan" | "agent";
+  mode: InteractionMode;
   allowedToolIds: string[];
   messages: AgentMessage[];
   turn: AgentLoopTurn;
@@ -201,10 +207,29 @@ function findBlockedCall(
 }
 
 export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoopResult> {
+  // Bind the workspace root and permission context for the whole run: sidebar
+  // project switches change the live resolver but must never affect an active
+  // run.
+  const runRoot = getActiveWorkspaceRoot();
+  const permissionContext = permissionContextForRoot(runRoot);
+  pushRunRoot(runRoot, permissionContext);
+  try {
+    return await runAgentLoopBound(options, permissionContext);
+  } finally {
+    popRunRoot();
+  }
+}
+
+async function runAgentLoopBound(
+  options: AgentLoopOptions,
+  permissionContext: PermissionContext | null,
+): Promise<AgentLoopResult> {
+  const runRoot = getActiveWorkspaceRoot();
   const startedAt = Date.now();
   const turns: AgentLoopTurn[] = [];
   const messages = [...options.messages];
-  const mode = options.mode ?? "agent";
+  // Goal runs share the agent tool profile; the distinction lives above the loop.
+  const mode: Exclude<InteractionMode, "goal"> = options.mode === "plan" ? "plan" : "agent";
   if (mode === "agent" && options.runtime.getMcpRuntime) {
     await (await options.runtime.getMcpRuntime()).activatePersisted();
   }
@@ -216,8 +241,9 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
     id: crypto.randomUUID(),
     snapshots: [],
     fileReferences: [],
+    startedMode: options.mode ?? "agent",
   };
-  const runtime = { ...options.runtime, mode, agentRun };
+  const runtime = { ...options.runtime, mode, agentRun, permissionContext };
   const harness = runtime.harnessMiddlewareRegistry;
   if (harness) {
     await harness.dispatch({
@@ -373,6 +399,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
                 ...(definition.approval ? { approval: definition.approval } : {}),
               }
             : {}),
+          workspaceRoot: runRoot,
         };
       }
       turns.push(turn);
