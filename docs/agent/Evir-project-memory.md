@@ -74,7 +74,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 - Skill 定义方法，MCP 提供工具
 - Web 第一版仅支持指令型 Skill，不支持 MCP
-- Desktop 的 stdio + Streamable HTTP MCP 是目标能力；当前只有配置管理，没有连接/发现/调用 Runtime
+- Desktop 的 stdio + Streamable HTTP MCP Runtime 已实现（配置、发现、调用、审批、重连）；Web 无 MCP
 - 新增 MCP 默认禁用，工具逐项授权
 
 ## 11. Personalization Boundaries
@@ -242,16 +242,16 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 ## 20. Known Gaps and Risks
 
-1. MCP Server 仅配置管理，无实际连接
+1. MCP Runtime 已实现（stdio 持久子进程 + Streamable HTTP、发现、调用、重连、审批，见 docs/22 原生物证）；剩余缺口：模型发起的 Agent 会话内 MCP 审批事实待取证、HTTP 传输依赖端点 CORS 策略（浏览器 WebView fetch 限制）
 2. Desktop Agent 原生真实端到端验收待完成（工作区修改、验证、Diff、回滚和系统权限）
-3. macOS 签名身份缺失，`.app` 在 codesign 阶段失败；Windows 未验证；现有 arm64/x64 DMG 早于本轮源码，只能作为 stale 包体参考
-4. Web 主 chunk 仍较大，虽在 gzip 总预算内但需后续拆分
+3. macOS Developer ID 签名未配置（可选增强，非发布门禁）；`signingIdentity: "-"` 已使 ad-hoc 非签名包可正常产出（Evir.app + DMG 实测通过，DMG 6.2 MiB）；Windows 未验证
+4. Web 主包已完成拆分（入口 + vendor 分包 + 13 个设置面板/TaskWorkbench 懒加载），初始 JS gzip 277.5 KiB；懒加载首开在高负载下需显式等待（e2e 已修）
 5. 真实付费 Provider、跨 Provider 网络和超时条件未在本轮自动化执行
 6. Desktop 冷启动分位、空闲 CPU/内存和大输出性能未正式测量
 7. 手工 VoiceOver/屏幕阅读器验收未完成
 8. VS Code Marketplace/Open VSX 的 Publisher、许可证、隐私、安装升级与 High Contrast 尚未验收
 9. CLI macOS/Windows/Linux Keyring 与安装升级未验收；当前缺参数 configure 会输出原始 Zod JSON
-10. Release workflow 已显式拆分 macOS Apple Silicon `aarch64-apple-darwin` 与 Intel `x86_64-apple-darwin`；真实 Tag 构建、签名、公证和两类实体机安装仍需验收
+10. Release workflow 已显式拆分 macOS Apple Silicon `aarch64-apple-darwin` 与 Intel `x86_64-apple-darwin`；真实 Tag 构建、非签名包两类实体机安装仍需验收（签名/公证为可选增强）
 
 ## 21. Active Decisions
 
@@ -266,8 +266,8 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 1. 使用测试工作区完成原生 Desktop 多工具任务和回滚验收
 2. 使用真实 Provider 验证聊天、错误、超时与跨 Provider 数据去向
 3. 补测 Desktop 冷启动、空闲 CPU/内存、长会话和大输出
-4. 在具备签名身份与 Windows Runner 的环境完成安装包验收
-5. 实现并验证 MCP Runtime 后再把配置状态升级为连接状态
+4. 在 Windows Runner 环境完成非签名包安装包验收（macOS ad-hoc 包已可本地产出）
+5. 在 Agent 会话内取证模型发起的 MCP 工具审批闭环（设置页工具测试已验证），并决定 HTTP CORS 兼容策略
 
 ## 23. Relevant Source Documents
 
@@ -289,6 +289,8 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - [docs/reviews/vscode-cli-product-ui-review.md](../reviews/vscode-cli-product-ui-review.md)
 
 ## 24. Update Log
+
+- 2026-08-27 | working tree | 签名降级为可选增强：`signingIdentity: "-"` 使 ad-hoc 非签名包可正常构建（Evir.app + DMG 6.2MiB 实测），全部文档把签名/公证从发布必要项改为 P2 可选；Web 主包拆分：manualChunks 分离 react/markdown/data vendor，13 个设置面板与 TaskWorkbench 改为懒加载，初始 JS gzip 320→277.5 KiB，基线已随仓库更新；needs_verification 根因治理：自动验证从 UI 层（AgentRunSummary useEffect）迁移到数据层 `finalizeAutomaticVerification`（run 持久化后立即触发，编排任务不再依赖摘要组件渲染），带 DI 注入与结构化日志 agent.auto-verification-*；MCP 项目记忆修正（Runtime 已实现，剩 Agent 会话审批取证与 CORS 决策两个缺口）
 
 - 2026-08-27 | working tree | 原生日志持久化落地并实测（com.zihan.evir/logs/app-YYYY-MM-DD.jsonl 真实事件落盘）；四端回归全绿（569 TS 测试、35 e2e、CLI/VSCode check、Web gzip 320.38KiB、桌面前端 2.94MiB）；原生 GUI 抽查通过：用户气泡自适应宽度、无横向滚动条、Skill 使用标记（本轮使用 + Architecture Decision Record）与连续 assistant 消息分组；修复 firstTokenMs 误脱敏、无语言代码块丢失复制按钮；新增 MarkdownContent（Lightbox/视频/KaTeX 懒加载）、HttpClient 网络库与压缩/Skill 路由日志触发测试；dev 构建无 bundle 身份导致 computer-use 坐标/键盘路径不可用（仅 AXPress 可用），系统 VPN 悬浮窗会拦截像素点击
 

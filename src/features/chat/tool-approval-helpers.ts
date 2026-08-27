@@ -17,7 +17,12 @@ import { toMessage, sorted } from "./chat-helpers";
 import type { PendingToolApproval } from "./tool-approval";
 import { getStructuredStorage } from "../../runtime/structured-storage";
 import { logger } from "../../core/logging/logger";
-import { buildAgentRunRecord, persistAgentRun, type AgentRunRecord } from "./agent-run-record";
+import {
+  buildAgentRunRecord,
+  finalizeAutomaticVerification,
+  persistAgentRun,
+  type AgentRunRecord,
+} from "./agent-run-record";
 import {
   beginConversationStream,
   finishConversationStream,
@@ -226,7 +231,11 @@ export async function finalizeApprovalFlow(
     previous,
     runId,
   });
-  if (persist) await persistAgentRun(agentRunRecord);
+  let finalAgentRun = agentRunRecord;
+  if (persist) {
+    await persistAgentRun(agentRunRecord);
+    finalAgentRun = await finalizeAutomaticVerification(agentRunRecord, runtime);
+  }
   const isNotBlockedMessage = (m: MessageRecord) =>
     !(m.toolCalls?.some((tc) => tc.id === pendingToolCallId) && !m.toolResults?.length);
 
@@ -241,7 +250,7 @@ export async function finalizeApprovalFlow(
       ? {
           streamingContent: "",
           error: error ?? null,
-          latestAgentRun: agentRunRecord,
+          latestAgentRun: finalAgentRun,
         }
       : {}),
   }));

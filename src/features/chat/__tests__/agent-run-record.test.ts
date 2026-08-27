@@ -7,6 +7,7 @@ import type { AgentLoopResult } from "../agent-loop";
 import {
   applyAutomaticVerification,
   buildAgentRunRecord,
+  finalizeAutomaticVerification,
   rollbackAgentRun,
 } from "../agent-run-record";
 
@@ -202,5 +203,108 @@ describe("Agent run rollback", () => {
     expect(restoreSnapshot).toHaveBeenNthCalledWith(2, "one", "run-1", "/tmp/one");
     expect(rolledBack.status).toBe("rolled_back");
     expect(await db.agentRuns.get("run-1")).toMatchObject({ status: "rolled_back" });
+  });
+});
+
+describe("finalizeAutomaticVerification", () => {
+  function needsVerificationRecord(): Awaited<ReturnType<typeof buildAgentRunRecord>> {
+    return {
+      id: "run-auto-1",
+      conversationId: "conversation-1",
+      status: "needs_verification",
+      toolCalls: [],
+      toolResults: [],
+      snapshots: [],
+      fileReferences: [],
+      verificationEvidence: [],
+      resolution: { complete: false, reason: "no verification evidence" },
+      maxIterationsReached: false,
+      createdAt: 1,
+      updatedAt: 1,
+    };
+  }
+
+  function desktopRuntime(): EvirRuntime {
+    return {
+      target: "desktop",
+      capabilities: new Set(["filesystem"]),
+      has: () => true,
+      storage: {} as EvirRuntime["storage"],
+      getWorkspaceRoot: () => "/tmp/workspace",
+    } as unknown as EvirRuntime;
+  }
+
+  it("runs the workspace checker, promotes needs_verification to completed, and persists", async () => {
+    const runVerificationImpl = vi.fn().mockResolvedValue({
+      command: "pnpm check",
+      exitCode: 0,
+      status: "passed",
+      durationMs: 120,
+      stdoutPreview: "ok",
+      stderrPreview: "",
+    });
+    const record = needsVerificationRecord();
+
+    const updated = await finalizeAutomaticVerification(
+      record,
+      desktopRuntime(),
+      runVerificationImpl,
+    );
+
+    expect(runVerificationImpl).toHaveBeenCalledWith("/tmp/workspace", expect.anything());
+    expect(updated.status).toBe("completed");
+    expect(updated.resolution.complete).toBe(true);
+    expect(updated.verificationEvidence.at(-1)?.summary).toContain("automatic: pnpm check: passed");
+    const persisted = await db.agentRuns.get("run-auto-1");
+    expect(persisted?.status).toBe("completed");
+  });
+
+  it("keeps failed verification as failed with evidence recorded", async () => {
+    const runVerificationImpl = vi.fn().mockResolvedValue({
+      command: "pnpm check",
+      exitCode: 1,
+      status: "failed",
+      durationMs: 200,
+      stdoutPreview: "",
+      stderrPreview: "error",
+    });
+
+    const updated = await finalizeAutomaticVerification(
+      needsVerificationRecord(),
+      desktopRuntime(),
+      runVerificationImpl,
+    );
+
+    expect(updated.status).toBe("failed");
+    expect(updated.resolution.complete).toBe(false);
+    const persisted = await db.agentRuns.get("run-auto-1");
+    expect(persisted?.status).toBe("failed");
+  });
+
+  it("leaves skipped verification and other statuses untouched without persisting", async () => {
+    const skippedImpl = vi.fn().mockResolvedValue({
+      command: "skipped (no project config found)",
+      exitCode: null,
+      status: "skipped",
+      durationMs: 0,
+      stdoutPreview: "",
+      stderrPreview: "",
+    });
+    const skippedRecord = needsVerificationRecord();
+    const skippedUpdated = await finalizeAutomaticVerification(
+      skippedRecord,
+      desktopRuntime(),
+      skippedImpl,
+    );
+    expect(skippedUpdated).toBe(skippedRecord);
+    expect(skippedImpl).toHaveBeenCalledTimes(1);
+    expect(await db.agentRuns.get("run-auto-1")).toBeUndefined();
+
+    const untouchedImpl = vi.fn();
+    const failedRecord = { ...needsVerificationRecord(), status: "failed" as const };
+    expect(await finalizeAutomaticVerification(failedRecord, desktopRuntime(), untouchedImpl)).toBe(
+      failedRecord,
+    );
+    expect(untouchedImpl).not.toHaveBeenCalled();
   });
 });

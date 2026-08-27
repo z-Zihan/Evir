@@ -33,7 +33,12 @@ import { retrieveMemoryContext } from "../../core/memory/memory-retrieval";
 import { createCheckpoint } from "../../core/context/checkpoint";
 import { estimateMessagesTokens, estimateTokens } from "../../core/context/token-estimate";
 import { getStructuredStorage } from "../../runtime/structured-storage";
-import { buildAgentRunRecord, persistAgentRun, type AgentRunRecord } from "./agent-run-record";
+import {
+  buildAgentRunRecord,
+  finalizeAutomaticVerification,
+  persistAgentRun,
+  type AgentRunRecord,
+} from "./agent-run-record";
 import { buildRunCapsule, serializeCapsule } from "../../core/context/run-capsule";
 import { contextBuilder } from "../../core/context/context-builder";
 import type { FileContextReference } from "../../core/context/types";
@@ -801,7 +806,7 @@ export async function streamResponse(
     : await persistResponse(assistants, conversationId, title);
   const lastStream: StreamResult | undefined = result.turns.at(-1)?.stream;
   const error = result.maxIterationsReached ? "tools.maxIterations" : lastStream?.errorMessage;
-  const agentRunRecord =
+  let agentRunRecord =
     mode === "agent"
       ? await buildAgentRunRecord(result, conversationId, runtime, {
           previous:
@@ -815,7 +820,10 @@ export async function streamResponse(
                   ),
         })
       : null;
-  if (agentRunRecord && !get().privateSession) await persistAgentRun(agentRunRecord);
+  if (agentRunRecord && !get().privateSession) {
+    await persistAgentRun(agentRunRecord);
+    agentRunRecord = await finalizeAutomaticVerification(agentRunRecord, runtime);
+  }
 
   set(({ conversations, currentConversationId, messages: currentMessages }) => ({
     conversations: sorted(

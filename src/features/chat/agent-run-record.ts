@@ -2,8 +2,10 @@ import type { ToolCallRecord, ToolResultRecord } from "../../core/storage/db";
 import { taskResolver, type VerificationEvidence } from "../../core/tools/verification-evidence";
 import type { SnapshotResult } from "../../runtime/desktop-storage-adapter";
 import type { EvirRuntime } from "../../runtime/types";
+import { runVerification } from "../../core/tools/verification";
 import type { VerificationResult } from "../../core/tools/verification";
 import type { FileContextReference } from "../../core/context/types";
+import { logger } from "../../core/logging/logger";
 import { getStructuredStorage } from "../../runtime/structured-storage";
 import type { AgentLoopResult } from "./agent-loop";
 
@@ -165,6 +167,50 @@ export async function persistAgentRun(record: AgentRunRecord): Promise<void> {
       },
     })),
   ]);
+}
+
+/**
+ * Runs the workspace checker after an agent run that ended needs_verification
+ * so a finished run does not wait for a rendered summary component to trigger
+ * automatic verification (orchestrated workbench runs never render that
+ * component). Only desktop runs with a workspace are eligible; any other
+ * status is returned untouched.
+ */
+export async function finalizeAutomaticVerification(
+  record: AgentRunRecord,
+  runtime: EvirRuntime,
+  runVerificationImpl: (
+    workspacePath: string,
+    runtime: EvirRuntime,
+  ) => Promise<VerificationResult> = runVerification,
+): Promise<AgentRunRecord> {
+  if (record.status !== "needs_verification") return record;
+  if (runtime.target !== "desktop" || !runtime.storage) return record;
+  const workspace = runtime.getWorkspaceRoot?.();
+  if (!workspace) return record;
+  const startedAt = Date.now();
+  logger.info("agent", "agent.auto-verification-started", {
+    conversationId: record.conversationId,
+    runId: record.id,
+  });
+  const verification = await runVerificationImpl(workspace, runtime);
+  const updated = applyAutomaticVerification(record, verification);
+  logger.info(
+    "agent",
+    verification.status === "passed"
+      ? "agent.auto-verification-passed"
+      : "agent.auto-verification-failed",
+    {
+      conversationId: record.conversationId,
+      runId: record.id,
+      command: verification.command,
+      exitCode: verification.exitCode ?? null,
+      durationMs: Date.now() - startedAt,
+    },
+  );
+  if (updated === record) return record;
+  await persistAgentRun(updated);
+  return updated;
 }
 
 export async function rollbackAgentRun(
