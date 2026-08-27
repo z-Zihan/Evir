@@ -96,7 +96,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - 统一 LoggerPort + correlation ID（session/run/step/tool/request）
 - 默认脱敏、本地、异步有界队列
 - 禁止记录 API Key/Authorization/Cookie/完整会话/文件正文
-- 无远程日志后门；当前只查看脱敏会话内存事件并导出 JSON，文件日志和诊断 ZIP 尚未实现
+- 无远程日志后门；桌面端已实现分类文件持久化（app/audit/performance JSONL、按日命名、15MB 轮转、14 天保留、100MB 总预算、audit/error 立即落盘、连续 3 次写失败自动停用且不影响聊天），诊断页显示持久化状态与目录；诊断 ZIP 尚未实现；Web 仍为内存日志
 
 ## 14. Design and Interaction Rules
 
@@ -115,7 +115,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 | ---------------------- | -------------------------- |
 | Web 初始 JS gzip       | ≤ 350 KiB                  |
 | Web 内置 Skill         | 10 个共享项，正文按需加载  |
-| Desktop 前端资源       | ≤ 3 MiB                    |
+| Desktop 前端资源       | ≤ 15 MiB                   |
 | Desktop 内置 Skill     | 共享 10 + 桌面专属 26      |
 | 流式首 Token 显示      | ≤ 100ms                    |
 | Desktop 冷启动 P50     | < 2s                       |
@@ -123,8 +123,8 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 | 空闲 CPU               | < 1%                       |
 | Desktop 安装产物目标   | ≤ 120 MiB                  |
 | 安装产物回归警戒线     | 180 MiB                    |
-| 当前实际 Web 初始 gzip | 267.56 KiB（2026-08-12）✅ |
-| 当前 Desktop 前端资源  | 1.06 MiB（2026-08-12）✅   |
+| 当前实际 Web 初始 gzip | 320.38 KiB（2026-08-27）✅ |
+| 当前 Desktop 前端资源  | 2.94 MiB（2026-08-27）✅   |
 
 ## 16. Engineering Standards
 
@@ -202,6 +202,13 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - 删除对话确认弹窗
 - 消息复制按钮（clipboard + 1.5s 反馈）
 - 会话列表按 updatedAt 降序排序
+
+**2026-08-27 新增：**
+
+- 日志文件持久化（Logger LogSink 批量异步队列 + FileLogSink，桌面 appData/logs 分类分文件；误脱敏白名单修复 firstTokenMs/tokensPerSecond；工具执行与 Agent Run durationMs 全链路补齐并在 UI 展示）
+- Markdown 渲染升级（MarkdownContent.tsx：无语言代码块也带复制按钮、表格滚动容器、图片点击 Lightbox、视频链接内联播放、KaTeX 数学公式按需懒加载）
+- 聊天 UI 收敛（用户气泡 fit-content 自适应宽度、消息区去横向滚动条、AgentActivity 卡片 640px 上限 + 每步耗时展示）
+- 底层网络库 src/core/net/http-client.ts（超时/重试/错误归一/认证头注入/路径级日志，为将来后端接口预留，未接业务）
 
 **部分实现：**
 
@@ -282,6 +289,8 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - [docs/reviews/vscode-cli-product-ui-review.md](../reviews/vscode-cli-product-ui-review.md)
 
 ## 24. Update Log
+
+- 2026-08-27 | working tree | 原生日志持久化落地并实测（com.zihan.evir/logs/app-YYYY-MM-DD.jsonl 真实事件落盘）；四端回归全绿（569 TS 测试、35 e2e、CLI/VSCode check、Web gzip 320.38KiB、桌面前端 2.94MiB）；原生 GUI 抽查通过：用户气泡自适应宽度、无横向滚动条、Skill 使用标记（本轮使用 + Architecture Decision Record）与连续 assistant 消息分组；修复 firstTokenMs 误脱敏、无语言代码块丢失复制按钮；新增 MarkdownContent（Lightbox/视频/KaTeX 懒加载）、HttpClient 网络库与压缩/Skill 路由日志触发测试；dev 构建无 bundle 身份导致 computer-use 坐标/键盘路径不可用（仅 AXPress 可用），系统 VPN 悬浮窗会拦截像素点击
 
 - 2026-08-26 | working tree | 原生桌面实测全链路（配置→计划确认→节点隔离→L3 审批→真实磁盘写入→验证器拒信模型文字→部分完成）；随后修复：工具被步骤权限拦截时改用"当前步骤未授权"文案（不再误称浏览器模式）；脏表单 Esc/背景点击先确认丢弃；Provider 输入关闭系统自动纠正；获取模型始终显示成功/失败反馈；新增结构化日志（tool-call-blocked / approval.requested|granted|denied / orchestration.node-started|node-finished|model-plan-rejected / provider.fetch-models-*）；任务步骤列表升级为时间线样式（连接线/完成态划线/运行态高亮），澄清卡片改为对话式轻样式
 - 2026-08-26 | working tree | 全功能 GUI 点击审查后收口：移除未接线的 `command-palette`（⌘K）与 `open-workspace`（⌘⇧O）死快捷键及其文案/分组（展示层与实际能力一致，均为 6 个已接线快捷键）；清理 sidebar 搜索与 shortcuts 残留 i18n 死键；项目记忆更正"侧栏搜索"过时声明（该功能已在 R4-T3 移除）

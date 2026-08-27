@@ -353,7 +353,7 @@ Provider 自带搜索、代码执行、远程 MCP 等服务端工具默认关闭
 - 空闲内存目标 <= 150MB，回归警戒线 200MB。
 - 空闲 CPU 长时平均 < 1%。
 - Web 初始 JS gzip 目标 <= 350KiB，且只包含 10 个共享 Skill。
-- Desktop 前端资源目标 <= 3MiB，包含共享 10 个与额外 26 个 Desktop-only Skill。
+- Desktop 前端资源目标 <= 15MiB，包含共享 10 个与额外 26 个 Desktop-only Skill。
 - 不含可选 Sidecar 的安装产物目标 <= 120MiB；180MiB 为阻断性回归警戒线。
 - Sidecar、Shiki、文档解析器、Skill 正文和 MCP Schema 按需加载。
 - 启动时不扫描全盘、不加载全部 Skill、不启动全部 MCP。

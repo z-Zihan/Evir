@@ -19,7 +19,7 @@ UI 采用局部 Buffer，每 16-50ms 或每帧批量提交，不为每个 Token 
 - Desktop 空闲内存目标不高于 150MB，回归警戒线 200MB。
 - Desktop 空闲 CPU 长时间平均低于 1%，不允许无意义轮询。
 - Web 初始 JavaScript gzip 目标不高于 350KB；重型功能拆分为异步 Chunk，Web 只打包 10 个共享 Skill 正文。
-- Desktop 前端资源（minified，含按需 Chunk 和法务资产）目标不高于 3MiB；它与 Web 首屏预算独立，不套用 350KB 门槛。
+- Desktop 前端资源（minified，含按需 Chunk 和法务资产）目标不高于 15MiB；它与 Web 首屏预算独立，不套用 350KB 门槛。
 - 不含可选 Sidecar 的 Desktop 安装产物目标不高于 120MiB，超过 120MiB 必须分析；180MiB 是阻断性回归警戒线，不是可消耗配额。
 - 本地 1 万条消息/记录的常用搜索目标小于 150ms。
 - VS Code 扩展激活不阻塞 Workbench；打开视图到可输入 P95 目标 < 500ms（已缓存 Extension Host），流式事件批量提交且不重绘全部历史消息。
@@ -64,7 +64,7 @@ UI 采用局部 Buffer，每 16-50ms 或每帧批量提交，不为每个 Token 
 
 - `pnpm build:web` 输出到 `dist/web`，只包含 10 个共享 Skill 正文 Chunk。
 - `pnpm build:desktop:frontend` 输出到 `dist/desktop`，包含 10 个共享 + 26 个 Desktop-only Skill 正文 Chunk。
-- `pnpm benchmark` 同时读取两份产物；Web 检查 350KiB 初始 JS gzip，Desktop 检查 3MiB 前端资源，并在存在安装包时报告 120/180MiB 状态。
+- `pnpm benchmark` 同时读取两份产物；Web 检查 350KiB 初始 JS gzip，Desktop 检查 15MiB 前端资源，并在存在安装包时报告 120/180MiB 状态。
 - 增大 Desktop 包体预算不允许引入完整 Chromium、启动时加载全部 Skill、空闲 Sidecar 或轮询；冷启动、内存和 CPU 门禁保持不变。
 
 ## 8. 编排性能门禁

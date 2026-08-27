@@ -194,7 +194,7 @@ Desktop 默认使用 SQLite 作为嵌入式本地 Adapter。它只是用户电�
 - 空闲内存目标：不高于 150 MB；回归警戒线 200 MB。
 - 空闲 CPU 长时平均目标：低于 1%。
 - Web 初始 JavaScript gzip 目标：不高于 350 KiB；只打包 10 个共享 Skill。
-- Desktop 前端资源目标：不高于 3 MiB；包含共享 10 个与额外 26 个 Desktop-only Skill。
+- Desktop 前端资源目标：不高于 15 MiB；包含共享 10 个与额外 26 个 Desktop-only Skill。
 - 不含可选 Sidecar 的桌面安装产物目标：不高于 120 MiB；180 MiB 为回归警戒线。
 - 流式增量到达后目标 100 ms 内呈现。
 - 不在启动时加载全部 Skill、启动全部 MCP 或扫描整台电脑。

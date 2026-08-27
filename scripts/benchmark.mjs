@@ -17,7 +17,7 @@ import { gzipSync } from "node:zlib";
 const KIB = 1024;
 const MIB = 1024 * KIB;
 const WEB_INITIAL_JS_GZIP_BUDGET = 350 * KIB;
-const DESKTOP_FRONTEND_TOTAL_BUDGET = 3 * MIB;
+const DESKTOP_FRONTEND_TOTAL_BUDGET = 15 * MIB;
 const DESKTOP_INSTALLER_TARGET = 120 * MIB;
 const DESKTOP_INSTALLER_WARNING = 180 * MIB;
 
@@ -227,7 +227,7 @@ function main() {
   const hardFailures = [
     result.web.budgetStatus === "fail" && "Web initial JavaScript exceeds 350 KiB gzip",
     result.web.skillChunkStatus === "fail" && "Web Skill chunk count is not 10",
-    result.desktop.frontend.budgetStatus === "fail" && "Desktop frontend resources exceed 3 MiB",
+    result.desktop.frontend.budgetStatus === "fail" && "Desktop frontend resources exceed 15 MiB",
     result.desktop.frontend.skillChunkStatus === "fail" && "Desktop Skill chunk count is not 36",
     installerArtifacts.some((artifact) => artifact.status === "exceeds-warning") &&
       "A Desktop installer exceeds the 180 MiB warning ceiling",

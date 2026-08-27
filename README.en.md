@@ -169,7 +169,7 @@ Desktop uses SQLite as the default embedded adapter. It is a local file, not a s
 - Idle memory target: <= 150 MB; regression threshold 200 MB.
 - Idle CPU target: < 1% long-running average.
 - Initial Web JavaScript gzip: <= 350 KiB, with only the 10 shared Skills bundled.
-- Desktop frontend resources: <= 3 MiB, including 10 shared and 26 additional Desktop-only Skills.
+- Desktop frontend resources: <= 15 MiB, including 10 shared and 26 additional Desktop-only Skills.
 - Desktop installer excluding optional sidecars: <= 120 MiB, with a 180 MiB regression ceiling.
 - Display provider stream deltas within 100 ms of arrival.
 

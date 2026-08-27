@@ -418,7 +418,7 @@
 | ID       | P   | 证据 | 执行                      | 预期结果                                                             |
 | -------- | --- | ---- | ------------------------- | -------------------------------------------------------------------- |
 | PERF-001 | P0  | A    | Web production build      | 初始 JS gzip ≤350KiB；仅 10 个共享 Skill Chunk                       |
-| PERF-002 | P0  | A    | Desktop frontend build    | 全部资源 ≤3MiB；36 个 Skill Chunk；MCP/重模块按需分包                |
+| PERF-002 | P0  | A    | Desktop frontend build    | 全部资源 ≤15MiB；36 个 Skill Chunk；MCP/重模块按需分包               |
 | PERF-003 | P1  | N    | Desktop 冷启动 30 次      | P50 <2s、P95 <4s，记录设备和采样方法                                 |
 | PERF-004 | P1  | N    | Desktop 空闲 10 分钟      | 平均 CPU <1%；内存目标 ≤150MB、警戒 200MB                            |
 | PERF-005 | P1  | B+N  | Provider 首增量到 UI      | 到达后 ≤100ms；输入 P95 <50ms；无全局 Store 每 Token 更新            |
