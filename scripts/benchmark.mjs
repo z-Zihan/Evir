@@ -159,8 +159,27 @@ function measureTests() {
     : ["exec", "vitest", "run", "src", "--reporter=json", `--outputFile=${jsonOutFile}`];
 
   const start = performance.now();
-  // Surface the runner's stderr so CI failures are diagnosable.
-  execFileSync(executable, args, { cwd: rootDir, stdio: ["ignore", "ignore", "inherit"] });
+  try {
+    // Surface the runner's stderr so CI failures are diagnosable.
+    execFileSync(executable, args, { cwd: rootDir, stdio: ["ignore", "ignore", "inherit"] });
+  } catch (error) {
+    // The JSON reporter writes its report even on failure; print the failing
+    // tests instead of a bare exit-code error.
+    try {
+      const failed = JSON.parse(readFileSync(jsonOutFile, "utf8"));
+      for (const suite of failed.testResults ?? []) {
+        for (const assertion of suite.assertionResults ?? []) {
+          if (assertion.status === "failed") {
+            console.error(`FAILED TEST: ${assertion.fullName}`);
+            console.error((assertion.failureMessages ?? []).join("\n").slice(0, 1200));
+          }
+        }
+      }
+    } catch {
+      console.error("vitest failed before writing its JSON report");
+    }
+    throw error;
+  }
   const durationMs = performance.now() - start;
   const report = JSON.parse(readFileSync(jsonOutFile, "utf8"));
   rmSync(jsonOutFile, { force: true });
