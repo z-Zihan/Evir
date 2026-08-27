@@ -34,6 +34,36 @@ beforeEach(async () => {
 });
 
 describe("Agent run completion evidence", () => {
+  it("replaces an approval placeholder with the executed tool result", async () => {
+    const pending = await buildAgentRunRecord(resultWith("write_file", false), "conversation-1");
+    const approved = await buildAgentRunRecord(
+      {
+        ...resultWith("write_file"),
+        turns: [
+          {
+            stream: { content: "", status: "complete" },
+            toolCalls: [{ id: "call-1", toolName: "write_file", arguments: {} }],
+            toolResults: [
+              {
+                toolCallId: "call-1",
+                toolName: "write_file",
+                success: true,
+                output: "wrote file",
+              },
+            ],
+          },
+        ],
+      },
+      "conversation-1",
+      undefined,
+      { previous: pending },
+    );
+
+    expect(approved.toolResults).toEqual([
+      expect.objectContaining({ toolCallId: "call-1", success: true, output: "wrote file" }),
+    ]);
+  });
+
   it("does not mark model text alone as complete", async () => {
     const record = await buildAgentRunRecord(resultWith(), "conversation-1");
     expect(record.status).toBe("needs_verification");
@@ -136,6 +166,10 @@ describe("Agent run completion evidence", () => {
 
     expect(continued.id).toBe("run-1");
     expect(continued.toolCalls.map(({ toolName }) => toolName)).toEqual([
+      "write_file",
+      "git_status",
+    ]);
+    expect(continued.toolResults.map(({ toolName }) => toolName)).toEqual([
       "write_file",
       "git_status",
     ]);

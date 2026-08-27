@@ -1,3 +1,5 @@
+import { logger } from "../../core/logging/logger";
+
 const IMAGE_MAX_SIZE = 10 * 1024 * 1024;
 const TEXT_MAX_SIZE = 1024 * 1024;
 const MAX_ATTACHMENTS = 5;
@@ -99,10 +101,25 @@ function readFileAsText(file: File): Promise<string> {
 }
 
 export async function processFile(file: File): Promise<ProcessedAttachment> {
+  const startedAt = performance.now();
   const mimeType = file.type || "application/octet-stream";
   if (isImage(mimeType)) {
-    if (file.size > IMAGE_MAX_SIZE) throw new AttachmentError("chat.fileTooLarge");
+    if (file.size > IMAGE_MAX_SIZE) {
+      logger.warn("artifact", "attachment.rejected", {
+        type: "image",
+        mimeType,
+        size: file.size,
+        reason: "file-too-large",
+      });
+      throw new AttachmentError("chat.fileTooLarge");
+    }
     const data = await readFileAsDataURL(file);
+    logger.info("artifact", "attachment.processed", {
+      type: "image",
+      mimeType,
+      size: file.size,
+      durationMs: Math.round(performance.now() - startedAt),
+    });
     return {
       id: crypto.randomUUID(),
       fileName: file.name,
@@ -113,8 +130,22 @@ export async function processFile(file: File): Promise<ProcessedAttachment> {
     };
   }
   if (isText(mimeType, file.name)) {
-    if (file.size > TEXT_MAX_SIZE) throw new AttachmentError("chat.fileTooLarge");
+    if (file.size > TEXT_MAX_SIZE) {
+      logger.warn("artifact", "attachment.rejected", {
+        type: "text",
+        mimeType,
+        size: file.size,
+        reason: "file-too-large",
+      });
+      throw new AttachmentError("chat.fileTooLarge");
+    }
     const data = await readFileAsText(file);
+    logger.info("artifact", "attachment.processed", {
+      type: "text",
+      mimeType,
+      size: file.size,
+      durationMs: Math.round(performance.now() - startedAt),
+    });
     return {
       id: crypto.randomUUID(),
       fileName: file.name,
@@ -124,6 +155,12 @@ export async function processFile(file: File): Promise<ProcessedAttachment> {
       type: "text",
     };
   }
+  logger.warn("artifact", "attachment.rejected", {
+    type: "unsupported",
+    mimeType,
+    size: file.size,
+    reason: "unsupported-file-type",
+  });
   throw new AttachmentError("chat.unsupportedFileType");
 }
 

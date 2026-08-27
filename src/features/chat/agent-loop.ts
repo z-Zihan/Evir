@@ -58,6 +58,9 @@ export interface AgentLoopResult {
   messages: AgentMessage[];
   agentRun: AgentRunContext;
   approvalContexts?: AgentApprovalContext[];
+  startedAt?: number;
+  completedAt?: number;
+  durationMs?: number;
 }
 
 export interface AgentApprovalContext {
@@ -97,6 +100,7 @@ async function executeCalls(
   stream: StreamResult,
   runtime: EvirRuntime,
   allowedToolIds: ReadonlySet<string>,
+  conversationId: string,
   signal?: AbortSignal,
 ): Promise<{ calls: CallWithRaw[]; results: ToolResultRecord[] }> {
   const calls: CallWithRaw[] = [];
@@ -109,6 +113,13 @@ async function executeCalls(
       arguments: args ?? {},
     };
     calls.push({ record, rawArguments: rawCall.arguments });
+    const startedAt = Date.now();
+    logger.info("tool", "agent.tool-started", {
+      conversationId,
+      runId: runtime.agentRun?.id,
+      toolCallId: rawCall.id,
+      toolName: rawCall.toolName,
+    });
     const result = !allowedToolIds.has(rawCall.toolName)
       ? {
           success: false,
@@ -122,10 +133,24 @@ async function executeCalls(
             output: "Tool arguments must be a JSON object",
             error: "invalid_arguments",
           };
-    results.push({
+    const completedAt = Date.now();
+    const timedResult: ToolResultRecord = {
       toolCallId: rawCall.id,
       toolName: rawCall.toolName,
       ...(result ?? { success: false, output: "Tool executor unavailable", error: "unavailable" }),
+      startedAt,
+      completedAt,
+      durationMs: completedAt - startedAt,
+    };
+    results.push(timedResult);
+    logger.info("tool", "agent.tool-completed", {
+      conversationId,
+      runId: runtime.agentRun?.id,
+      toolCallId: rawCall.id,
+      toolName: rawCall.toolName,
+      success: timedResult.success,
+      durationMs: timedResult.durationMs,
+      error: timedResult.error ?? null,
     });
   }
   return { calls, results };
@@ -176,6 +201,7 @@ function findBlockedCall(
 }
 
 export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoopResult> {
+  const startedAt = Date.now();
   const turns: AgentLoopTurn[] = [];
   const messages = [...options.messages];
   const mode = options.mode ?? "agent";
@@ -223,7 +249,8 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
         status,
       });
     }
-    return result;
+    const completedAt = Date.now();
+    return { ...result, startedAt, completedAt, durationMs: completedAt - startedAt };
   };
 
   for (let iteration = 0; iteration < maximum; iteration += 1) {
@@ -298,7 +325,13 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
         );
       }
     }
-    const { calls, results } = await executeCalls(stream, runtime, allowedToolIds, options.signal);
+    const { calls, results } = await executeCalls(
+      stream,
+      runtime,
+      allowedToolIds,
+      options.conversationId,
+      options.signal,
+    );
     for (const result of results) {
       if (!harness) continue;
       const loop = await harness.dispatch({

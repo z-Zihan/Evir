@@ -16,6 +16,7 @@ import type { ChatState } from "./chat-store";
 import { toMessage, sorted } from "./chat-helpers";
 import type { PendingToolApproval } from "./tool-approval";
 import { getStructuredStorage } from "../../runtime/structured-storage";
+import { logger } from "../../core/logging/logger";
 import { buildAgentRunRecord, persistAgentRun, type AgentRunRecord } from "./agent-run-record";
 import {
   beginConversationStream,
@@ -110,6 +111,15 @@ export async function executeApproved(
   persist = true,
   signal?: AbortSignal,
 ): Promise<{ messages: AgentMessage[]; msg: MessageRecord; resolvedTurn: AgentLoopTurn }> {
+  const startedAt = Date.now();
+  const runId = pending.orchestration?.runId ?? pending.agentRun.id;
+  logger.info("tool", "agent.tool-started", {
+    conversationId: pending.conversationId,
+    runId,
+    toolCallId: pending.toolCallId,
+    toolName: pending.toolName,
+    approved: true,
+  });
   const approvedResult = await runtime.toolExecutor?.execute(
     pending.toolName,
     pending.args,
@@ -117,6 +127,7 @@ export async function executeApproved(
     true,
     signal,
   );
+  const completedAt = Date.now();
   const replacement: ToolResultRecord = {
     toolCallId: pending.toolCallId,
     toolName: pending.toolName,
@@ -125,7 +136,20 @@ export async function executeApproved(
       output: "Tool executor unavailable",
       error: "unavailable",
     }),
+    startedAt,
+    completedAt,
+    durationMs: completedAt - startedAt,
   };
+  logger.info("tool", "agent.tool-completed", {
+    conversationId: pending.conversationId,
+    runId,
+    toolCallId: pending.toolCallId,
+    toolName: pending.toolName,
+    approved: true,
+    success: replacement.success,
+    durationMs: replacement.durationMs,
+    error: replacement.error ?? null,
+  });
   const results = resolveResults(pending.turn, pending.toolCallId, replacement);
   const messages = [...pending.messages];
   appendResolvedMessages(messages, pending.turn, results);

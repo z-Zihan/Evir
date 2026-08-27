@@ -1,10 +1,12 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { db } from "../../../core/storage/db";
+import { logger } from "../../../core/logging/logger";
 import { useMemoryStore } from "../memory-store";
 
 beforeEach(async () => {
   await Promise.all([db.memories.clear(), db.settings.clear()]);
+  logger.clear();
   useMemoryStore.setState({ memories: [], enabled: true, loading: false, error: null });
 });
 
@@ -32,5 +34,12 @@ describe("memory store", () => {
     expect(secondId).toBe(firstId);
     expect(useMemoryStore.getState().memories.map(({ id }) => id)).toEqual([firstId]);
     expect(await db.memories.count()).toBe(1);
+    expect(logger.getEntries().at(-1)).toMatchObject({
+      channel: "memory",
+      event: "memory.created",
+      data: { memoryId: firstId, scope: "conversation-1", type: "conversation" },
+    });
+    expect(logger.exportLogs()).not.toContain("Keep answers concise");
+    expect(logger.exportLogs()).not.toContain("User preference");
   });
 });

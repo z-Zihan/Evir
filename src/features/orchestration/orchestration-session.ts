@@ -16,6 +16,7 @@ import type { EvirRuntime } from "../../runtime/types";
 import { useOrchestrationStore } from "./orchestration-store";
 import type { TaskIntakeAnalyzerPort } from "../../core/orchestration/task-intake";
 import { cancelOrchestration, pauseOrchestration } from "./run-orchestrated-agent";
+import { logger } from "../../core/logging/logger";
 
 export type PreparationResult =
   "not-applicable" | "cancelled" | "blocked" | "clarification" | "confirmation" | "ready";
@@ -86,6 +87,12 @@ export async function prepareTask(input: {
   planner?: PlanGeneratorPort;
 }): Promise<PreparationResult> {
   if (input.runtime.target !== "desktop") return "not-applicable";
+  const startedAt = Date.now();
+  const runId = crypto.randomUUID();
+  logger.info("agent", "orchestration.intake-started", {
+    runId,
+    conversationId: input.conversationId,
+  });
   useOrchestrationStore.getState().setPreparing({
     conversationId: input.conversationId,
     objective: input.objective,
@@ -94,7 +101,6 @@ export async function prepareTask(input: {
   });
   try {
     cancelledPreparations.delete(input.conversationId);
-    const runId = crypto.randomUUID();
     const repository = new OrchestrationRepository(input.runtime.structuredStorage!);
     const start = createRunEvent("run.started", runId, input.conversationId, "Task intake started");
     const brief = await new TaskIntakeService(input.analyzer).createBrief({
@@ -102,6 +108,14 @@ export async function prepareTask(input: {
       conversationId: input.conversationId,
       objective: input.objective,
       workspacePath: input.runtime.getWorkspaceRoot?.() ?? null,
+    });
+    logger.info("agent", "orchestration.intake-completed", {
+      runId,
+      conversationId: input.conversationId,
+      goalKind: brief.goalKind,
+      unknownCount: brief.unknowns.length,
+      blockingQuestionCount: blockingUnknowns(brief).length,
+      durationMs: Date.now() - startedAt,
     });
     const intake = createRunEvent(
       "intake.completed",
@@ -131,6 +145,13 @@ export async function prepareTask(input: {
     }
     const blocking = blockingUnknowns(brief);
     if (blocking.length > 0) {
+      logger.info("agent", "orchestration.clarification-requested", {
+        runId,
+        conversationId: input.conversationId,
+        questionCount: blocking.length,
+        clarificationRound: brief.clarificationRound,
+        durationMs: Date.now() - startedAt,
+      });
       const clarification = createRunEvent(
         "clarification.requested",
         runId,
@@ -164,6 +185,13 @@ export async function prepareTask(input: {
       "Execution plan created",
     );
     const phase = plan.requiresConfirmation ? "confirmation" : "execution";
+    logger.info("agent", "orchestration.plan-created", {
+      runId,
+      conversationId: input.conversationId,
+      nodeCount: plan.nodes.length,
+      requiresConfirmation: plan.requiresConfirmation,
+      durationMs: Date.now() - startedAt,
+    });
     const snapshot: OrchestrationSnapshot = {
       runId,
       conversationId: input.conversationId,
@@ -177,6 +205,14 @@ export async function prepareTask(input: {
     useOrchestrationStore.getState().setCurrent(snapshot);
     useOrchestrationStore.getState().setPreparing(null);
     return plan.requiresConfirmation ? "confirmation" : "ready";
+  } catch (error) {
+    logger.error("agent", "orchestration.preparation-failed", {
+      runId,
+      conversationId: input.conversationId,
+      errorType: error instanceof Error ? error.name : "unknown",
+      durationMs: Date.now() - startedAt,
+    });
+    throw error;
   } finally {
     const preparing = useOrchestrationStore.getState().preparing;
     if (preparing?.conversationId === input.conversationId) {
@@ -193,6 +229,7 @@ export async function submitClarifications(
 ): Promise<PreparationResult> {
   const current = useOrchestrationStore.getState().current;
   if (!current || current.phase !== "clarification") return "not-applicable";
+  const startedAt = Date.now();
   let brief = answerClarifications(current.brief, answers);
   const workspace = runtime.getWorkspaceRoot?.() ?? null;
   if (workspace) {
@@ -212,9 +249,23 @@ export async function submitClarifications(
     "Clarification answers recorded",
   );
   const unresolved = blockingUnknowns(brief);
+  logger.info("agent", "orchestration.clarification-answered", {
+    runId: current.runId,
+    conversationId: current.conversationId,
+    answerCount: Object.keys(answers).length,
+    unresolvedCount: unresolved.length,
+    clarificationRound: brief.clarificationRound,
+  });
   const repository = new OrchestrationRepository(runtime.structuredStorage!);
   if (unresolved.length > 0) {
     if (brief.clarificationRound >= 2) {
+      logger.warn("agent", "orchestration.clarification-exhausted", {
+        runId: current.runId,
+        conversationId: current.conversationId,
+        unresolvedCount: unresolved.length,
+        clarificationRound: brief.clarificationRound,
+        durationMs: Date.now() - startedAt,
+      });
       const blocked = createRunEvent(
         "run.paused",
         current.runId,
@@ -238,6 +289,13 @@ export async function submitClarifications(
       current.conversationId,
       "Further clarification required",
     );
+    logger.info("agent", "orchestration.clarification-requested", {
+      runId: current.runId,
+      conversationId: current.conversationId,
+      questionCount: unresolved.length,
+      clarificationRound: brief.clarificationRound,
+      durationMs: Date.now() - startedAt,
+    });
     const next = { ...current, brief, events: [...current.events, answered, requested] };
     await persist(repository, next, privateSession, [answered, requested]);
     useOrchestrationStore.getState().setCurrent(next);
@@ -250,6 +308,13 @@ export async function submitClarifications(
     current.conversationId,
     "Execution plan created",
   );
+  logger.info("agent", "orchestration.plan-created", {
+    runId: current.runId,
+    conversationId: current.conversationId,
+    nodeCount: plan.nodes.length,
+    requiresConfirmation: plan.requiresConfirmation,
+    durationMs: Date.now() - startedAt,
+  });
   const next: OrchestrationSnapshot = {
     ...current,
     phase: plan.requiresConfirmation ? "confirmation" : "execution",
@@ -286,6 +351,11 @@ export async function approveCurrentPlan(
     await repository.persistPlanWithEvents(plan, [event]);
   }
   useOrchestrationStore.getState().setCurrent(next);
+  logger.info("agent", "orchestration.plan-confirmed", {
+    runId: current.runId,
+    conversationId: current.conversationId,
+    nodeCount: plan.nodes.length,
+  });
   return true;
 }
 

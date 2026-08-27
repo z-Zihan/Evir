@@ -157,7 +157,7 @@ describe("runOrchestratedAgent", () => {
       has: (capability) => capability === "chat",
       toolRegistry: createToolRegistry(),
     } satisfies EvirRuntime;
-    await runOrchestratedAgent({
+    const result = await runOrchestratedAgent({
       provider,
       conversationId: "conversation-1",
       messages: [{ role: "user", content: brief.objective }],
@@ -172,6 +172,39 @@ describe("runOrchestratedAgent", () => {
     expect(current?.assignments.every(({ status }) => status === "completed")).toBe(true);
     expect(current?.events.filter(({ type }) => type === "agent.spawned")).toHaveLength(2);
     expect(vi.mocked(runAgentLoop)).toHaveBeenCalledTimes(3);
+    expect(result.turns.filter(({ stream }) => stream.content.trim())).toHaveLength(1);
+    expect(result.turns.at(-1)?.stream.content).toContain("Verify");
+  });
+
+  it("keeps recent dialogue context when a follow-up task references the previous result", async () => {
+    const runtime = {
+      target: "desktop",
+      capabilities: new Set(["chat"]),
+      has: (capability) => capability === "chat",
+      toolRegistry: createToolRegistry(),
+    } satisfies EvirRuntime;
+
+    await runOrchestratedAgent({
+      provider,
+      conversationId: "conversation-1",
+      messages: [
+        { role: "user", content: "Read verify.sh" },
+        { role: "assistant", content: "The script expects alpha, beta, gamma." },
+        { role: "user", content: "Does input.txt satisfy it?" },
+      ],
+      runtime,
+      privateSession: true,
+      onDelta: vi.fn(),
+    });
+
+    expect(vi.mocked(runAgentLoop).mock.calls[0]?.[0].messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: "assistant",
+          content: "The script expects alpha, beta, gamma.",
+        }),
+      ]),
+    );
   });
 
   it("preserves a worker approval even when another parallel worker finishes later", async () => {

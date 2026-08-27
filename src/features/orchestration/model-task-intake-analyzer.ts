@@ -2,6 +2,11 @@ import type { ProviderRecord } from "../../core/storage/db";
 import type { TaskIntakeAnalyzerPort, TaskIntakeInput } from "../../core/orchestration/task-intake";
 import { streamAssistant } from "../chat/chat-stream";
 
+interface PriorDialogueMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 const STRUCTURED_RESPONSE_TIMEOUT_MS = 45_000;
 
 const taskBriefTool = {
@@ -71,7 +76,10 @@ const taskBriefTool = {
 };
 
 export class ModelTaskIntakeAnalyzer implements TaskIntakeAnalyzerPort {
-  constructor(private readonly provider: ProviderRecord) {}
+  constructor(
+    private readonly provider: ProviderRecord,
+    private readonly priorDialogue: PriorDialogueMessage[] = [],
+  ) {}
 
   async analyze(input: TaskIntakeInput): Promise<unknown> {
     const stream = await streamAssistant(
@@ -81,8 +89,12 @@ export class ModelTaskIntakeAnalyzer implements TaskIntakeAnalyzerPort {
         {
           role: "system",
           content:
-            "Analyze the task using submit_task_brief. Ask only about unknowns that materially change scope, permission, data destination, cost, or acceptance. Safe assumptions should be recorded instead of turned into questions.",
+            "Analyze the current user task using submit_task_brief. The current instruction is authoritative; quoted or prior mutation requests are context, not new requested actions. A request to answer only from existing context without tools is goalKind=answer with only the chat capability. Ask only about unknowns that materially change scope, permission, data destination, cost, or acceptance. Safe assumptions should be recorded instead of turned into questions.",
         },
+        ...this.priorDialogue.slice(-8).map(({ role, content }) => ({
+          role,
+          content: content.slice(0, 4_000),
+        })),
         { role: "user", content: input.objective },
       ],
       () => undefined,

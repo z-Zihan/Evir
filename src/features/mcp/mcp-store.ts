@@ -7,6 +7,7 @@ import { getRuntime } from "../../runtime/use-runtime";
 import type { McpServerRuntimeSnapshot } from "../../core/mcp/runtime-service";
 import { publicMcpToolId } from "../../core/mcp/tool-adapter";
 import type { ToolResult } from "../../core/providers/tool-registry";
+import { logger } from "../../core/logging/logger";
 
 export type McpServerEntry = (StdioMcpServer | HttpMcpServer) & {
   createdAt: number;
@@ -51,6 +52,15 @@ async function getMcpRuntime() {
   if (!runtimeSubscribed) {
     runtimeSubscribed = true;
     runtime.subscribe((snapshot) => {
+      const previous = useMcpStore.getState().runtimeSnapshots[snapshot.serverId];
+      if (previous?.state !== snapshot.state || previous.tools.length !== snapshot.tools.length) {
+        logger.info("mcp", "mcp.runtime-state-changed", {
+          serverId: snapshot.serverId,
+          previousState: previous?.state ?? "uninitialized",
+          state: snapshot.state,
+          toolCount: snapshot.tools.length,
+        });
+      }
       useMcpStore.setState((state) => ({
         runtimeSnapshots: { ...state.runtimeSnapshots, [snapshot.serverId]: snapshot },
       }));
@@ -71,6 +81,10 @@ function recordRuntimeError(serverId: string, error: unknown): void {
       },
     },
   }));
+}
+
+function errorType(error: unknown): string {
+  return error instanceof Error ? error.name : "unknown";
 }
 
 function toRecord(entry: McpServerEntry): McpServerRecord {
@@ -110,10 +124,16 @@ export const useMcpStore = create<McpState>((set) => ({
   connectionTests: {},
 
   loadServers: async () => {
+    const startedAt = Date.now();
     await getMcpRuntime();
     const records = await getStructuredStorage().readAll<McpServerRecord>("mcp_servers");
     records.sort((a, b) => b.createdAt - a.createdAt);
     set({ servers: records.map(toEntry) });
+    logger.debug("mcp", "mcp.catalog-loaded", {
+      serverCount: records.length,
+      enabledCount: records.filter(({ enabled }) => enabled === 1).length,
+      durationMs: Date.now() - startedAt,
+    });
   },
 
   addServer: async (config) => {
@@ -128,10 +148,16 @@ export const useMcpStore = create<McpState>((set) => ({
 
     await getStructuredStorage().write("mcp_servers", entry.id, toRecord(entry));
     set(({ servers }) => ({ servers: [entry, ...servers] }));
+    logger.info("mcp", "mcp.server-added", {
+      serverId: entry.id,
+      transport: entry.transport,
+    });
     return entry.id;
   },
 
   removeServer: async (id) => {
+    const startedAt = Date.now();
+    const server = useMcpStore.getState().servers.find((entry) => entry.id === id);
     await (await getMcpRuntime())?.disable(id);
     await getStructuredStorage().delete("mcp_servers", id);
     set(({ servers, runtimeSnapshots, connectionTests }) => {
@@ -145,13 +171,25 @@ export const useMcpStore = create<McpState>((set) => ({
         connectionTests: nextTests,
       };
     });
+    logger.info("mcp", "mcp.server-removed", {
+      serverId: id,
+      transport: server?.transport ?? "unknown",
+      durationMs: Date.now() - startedAt,
+    });
   },
 
   toggleServer: async (id) => {
     const { servers } = useMcpStore.getState();
     const server = servers.find((s) => s.id === id);
     if (!server) return;
+    const startedAt = Date.now();
     const updated = { ...server, enabled: !server.enabled };
+    const action = updated.enabled ? "enable" : "disable";
+    logger.info("mcp", "mcp.server-toggle-started", {
+      serverId: id,
+      transport: server.transport,
+      action,
+    });
     await getStructuredStorage().write("mcp_servers", id, toRecord(updated));
     set(({ connectionTests }) => {
       const nextTests = { ...connectionTests };
@@ -165,24 +203,64 @@ export const useMcpStore = create<McpState>((set) => ({
       const runtime = await getMcpRuntime();
       if (updated.enabled) await runtime?.enable(updated);
       else await runtime?.disable(id);
+      const snapshot = runtime?.getSnapshot(id);
+      logger.info("mcp", "mcp.server-toggle-completed", {
+        serverId: id,
+        transport: server.transport,
+        action,
+        runtimeAvailable: Boolean(runtime),
+        state: snapshot?.state ?? (updated.enabled ? "unavailable" : "disabled"),
+        toolCount: snapshot?.tools.length ?? 0,
+        durationMs: Date.now() - startedAt,
+      });
     } catch (error) {
       recordRuntimeError(id, error);
+      logger.error("mcp", "mcp.server-toggle-failed", {
+        serverId: id,
+        transport: server.transport,
+        action,
+        errorType: errorType(error),
+        durationMs: Date.now() - startedAt,
+      });
     }
   },
 
   restartServer: async (id) => {
     const server = useMcpStore.getState().servers.find((entry) => entry.id === id);
     if (!server?.enabled) return;
+    const startedAt = Date.now();
+    logger.info("mcp", "mcp.server-restart-started", {
+      serverId: id,
+      transport: server.transport,
+    });
     try {
-      await (await getMcpRuntime())?.restart(server);
+      const snapshot = await (await getMcpRuntime())?.restart(server);
+      logger.info("mcp", "mcp.server-restart-completed", {
+        serverId: id,
+        transport: server.transport,
+        state: snapshot?.state ?? "unavailable",
+        toolCount: snapshot?.tools.length ?? 0,
+        durationMs: Date.now() - startedAt,
+      });
     } catch (error) {
       recordRuntimeError(id, error);
+      logger.error("mcp", "mcp.server-restart-failed", {
+        serverId: id,
+        transport: server.transport,
+        errorType: errorType(error),
+        durationMs: Date.now() - startedAt,
+      });
     }
   },
 
   testServer: async (id) => {
     const server = useMcpStore.getState().servers.find((entry) => entry.id === id);
     if (!server) return;
+    const startedAt = Date.now();
+    logger.info("mcp", "mcp.connection-test-started", {
+      serverId: id,
+      transport: server.transport,
+    });
     try {
       const snapshot = await (await getMcpRuntime())?.test(server);
       if (!snapshot) throw new Error("MCP runtime unavailable");
@@ -198,6 +276,13 @@ export const useMcpStore = create<McpState>((set) => ({
           },
         },
       }));
+      logger.info("mcp", "mcp.connection-test-completed", {
+        serverId: id,
+        transport: server.transport,
+        state: snapshot.state,
+        toolCount: snapshot.tools.length,
+        durationMs: Date.now() - startedAt,
+      });
     } catch (error) {
       set(({ connectionTests }) => ({
         connectionTests: {
@@ -209,6 +294,12 @@ export const useMcpStore = create<McpState>((set) => ({
           },
         },
       }));
+      logger.error("mcp", "mcp.connection-test-failed", {
+        serverId: id,
+        transport: server.transport,
+        errorType: errorType(error),
+        durationMs: Date.now() - startedAt,
+      });
     }
   },
 
@@ -239,6 +330,11 @@ export const useMcpStore = create<McpState>((set) => ({
     await getStructuredStorage().write("mcp_servers", id, {
       ...toRecord(updated),
       updatedAt: now,
+    });
+    logger.info("mcp", "mcp.server-updated", {
+      serverId: id,
+      transport: updated.transport,
+      enabled: updated.enabled,
     });
     set(({ connectionTests }) => {
       const nextTests = { ...connectionTests };

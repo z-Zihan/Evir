@@ -70,6 +70,31 @@ describe("TaskIntakeService", () => {
     expect(blockingUnknowns(brief)).toEqual([]);
   });
 
+  it("honors an explicit context-only answer even when model analysis infers a change", async () => {
+    const brief = await new TaskIntakeService({
+      analyze: () =>
+        Promise.resolve({
+          goalKind: "change",
+          objective: "Answer from context",
+          constraints: [],
+          deliverables: ["answer"],
+          acceptanceCriteria: [],
+          requiredCapabilities: ["chat", "filesystem"],
+          assumptions: [],
+          unknowns: [],
+          risk: "medium",
+        }),
+    }).createBrief({
+      ...input,
+      objective: "只用已有上下文回答，不要调用任何工具，也不要修改文件。",
+    });
+
+    expect(brief.goalKind).toBe("answer");
+    expect(brief.requiredCapabilities).toEqual(["chat"]);
+    expect(brief.risk).toBe("low");
+    expect(brief.unknowns).toEqual([]);
+  });
+
   it("rejects unknown fields from model task analysis", async () => {
     const brief = await new TaskIntakeService({
       analyze: () =>

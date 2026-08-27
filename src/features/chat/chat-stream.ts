@@ -4,6 +4,8 @@ import { ProviderErrorType } from "../../core/providers/stream-events";
 import type { ProviderRecord, UsageRecord } from "../../core/storage/db";
 import i18n from "../../i18n/config";
 import { useUsageStore } from "../usage/usage-store";
+import { logger } from "../../core/logging/logger";
+import type { TokenBreakdown } from "../../core/usage/types";
 
 const activeControllers = new Set<AbortController>();
 
@@ -107,10 +109,27 @@ export async function streamAssistant(
   let content = "";
   let status: StreamResult["status"] = "complete";
   let errorMessage: string | undefined;
+  let errorType: ProviderErrorType | "TIMEOUT" | "INCOMPLETE_STREAM" | undefined;
   let completed = false;
   const toolCalls = new Map<string, { id: string; toolName: string; arguments: string }>();
   const startTime = Date.now();
+  const requestId =
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  let firstTokenMs: number | undefined;
+  let reportedUsage: TokenBreakdown | undefined;
   const batched = batchDeltas(onDelta);
+
+  logger.info("provider", "provider.request-started", {
+    requestId,
+    conversationId,
+    providerId: provider.id,
+    protocolId: provider.protocolId,
+    modelId: provider.modelId,
+    messageCount: messages.length,
+    toolCount: tools?.length ?? 0,
+  });
 
   try {
     for await (const event of configuredAdapter.stream({
@@ -120,6 +139,7 @@ export async function streamAssistant(
       signal: controller.signal,
     })) {
       if (event.type === "text-delta") {
+        firstTokenMs ??= Date.now() - startTime;
         content += event.text;
         batched.schedule(content);
       } else if (event.type === "tool-call-start") {
@@ -132,30 +152,7 @@ export async function streamAssistant(
         const call = toolCalls.get(event.toolCallId);
         if (call) call.arguments += event.argumentsDelta;
       } else if (event.type === "usage") {
-        const usageRecord: UsageRecord = {
-          id:
-            typeof crypto !== "undefined" && crypto.randomUUID
-              ? crypto.randomUUID()
-              : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-          conversationId,
-          providerId: provider.id,
-          modelId: provider.modelId,
-          ...(event.usage.inputTokens !== undefined
-            ? { inputTokens: event.usage.inputTokens }
-            : {}),
-          ...(event.usage.outputTokens !== undefined
-            ? { outputTokens: event.usage.outputTokens }
-            : {}),
-          ...(event.usage.totalTokens !== undefined
-            ? { totalTokens: event.usage.totalTokens }
-            : {}),
-          evidence: "provider",
-          success: true,
-          durationMs: Date.now() - startTime,
-          ...(content ? { firstTokenMs: Date.now() - startTime } : {}),
-          createdAt: Date.now(),
-        };
-        void useUsageStore.getState().addRecord(usageRecord);
+        reportedUsage = event.usage;
       } else if (event.type === "error") {
         status = timedOut
           ? "error"
@@ -167,6 +164,11 @@ export async function streamAssistant(
           : status === "error"
             ? formatProviderError(event.error.type, event.error.message)
             : undefined;
+        errorType = timedOut
+          ? "TIMEOUT"
+          : status === "stopped"
+            ? ProviderErrorType.CANCELLED
+            : event.error.type;
         break;
       } else if (event.type === "response-complete") {
         completed = true;
@@ -182,6 +184,11 @@ export async function streamAssistant(
             error instanceof Error ? error.message : "",
           )
         : undefined;
+    errorType = timedOut
+      ? "TIMEOUT"
+      : status === "stopped"
+        ? ProviderErrorType.CANCELLED
+        : ProviderErrorType.PROVIDER_ERROR;
   } finally {
     if (timeout !== undefined) globalThis.clearTimeout(timeout);
     activeControllers.delete(controller);
@@ -189,7 +196,55 @@ export async function streamAssistant(
     batched.flush(content);
   }
 
-  if (!completed && status === "complete") status = "stopped";
+  if (!completed && status === "complete") {
+    status = "stopped";
+    errorType = "INCOMPLETE_STREAM";
+  }
+  const completedAt = Date.now();
+  const durationMs = completedAt - startTime;
+  const usageRecord: UsageRecord = {
+    id: requestId,
+    conversationId,
+    providerId: provider.id,
+    modelId: provider.modelId,
+    ...(reportedUsage?.inputTokens !== undefined ? { inputTokens: reportedUsage.inputTokens } : {}),
+    ...(reportedUsage?.outputTokens !== undefined
+      ? { outputTokens: reportedUsage.outputTokens }
+      : {}),
+    ...(reportedUsage?.totalTokens !== undefined ? { totalTokens: reportedUsage.totalTokens } : {}),
+    evidence: reportedUsage ? "provider" : "unavailable",
+    success: status === "complete" && completed,
+    ...(errorType ? { errorType } : {}),
+    durationMs,
+    ...(firstTokenMs !== undefined ? { firstTokenMs } : {}),
+    createdAt: completedAt,
+  };
+  try {
+    await useUsageStore.getState().addRecord(usageRecord);
+  } catch (error) {
+    logger.error("usage", "usage.record-failed", {
+      requestId,
+      conversationId,
+      errorType: error instanceof Error ? error.name : "Error",
+    });
+  }
+  logger.info("provider", "provider.request-completed", {
+    requestId,
+    conversationId,
+    providerId: provider.id,
+    modelId: provider.modelId,
+    status,
+    errorType: errorType ?? null,
+    completed,
+    durationMs,
+    ...(firstTokenMs !== undefined ? { firstTokenMs } : {}),
+    usageEvidence: usageRecord.evidence,
+    inputTokens: usageRecord.inputTokens ?? null,
+    outputTokens: usageRecord.outputTokens ?? null,
+    totalTokens: usageRecord.totalTokens ?? null,
+    responseCharacters: content.length,
+    toolCallCount: toolCalls.size,
+  });
   return {
     content,
     status,

@@ -120,6 +120,16 @@ const VAGUE_MARKERS = [
   "make it better",
   "handle this",
 ];
+const CONTEXT_ONLY_ANSWER_MARKERS = [
+  "只用已有上下文",
+  "仅用已有上下文",
+  "不要调用任何工具",
+  "无需调用工具",
+  "use only the existing context",
+  "use only existing context",
+  "do not call any tools",
+  "without calling tools",
+];
 
 function includesAny(value: string, markers: string[]): boolean {
   const normalized = value.toLowerCase();
@@ -132,6 +142,7 @@ function includesAny(value: string, markers: string[]): boolean {
 }
 
 function goalKindOf(objective: string): GoalKind {
+  if (includesAny(objective, CONTEXT_ONLY_ANSWER_MARKERS)) return "answer";
   const change = includesAny(objective, CHANGE_MARKERS);
   const execute = includesAny(objective, EXECUTE_MARKERS);
   if (change && execute) return "mixed";
@@ -225,11 +236,21 @@ export class TaskIntakeService {
     try {
       const fallback = fallbackBrief(input);
       const analyzed = taskAnalysisSchema.parse(await this.analyzer.analyze(input));
+      const contextOnlyAnswer = includesAny(input.objective, CONTEXT_ONLY_ANSWER_MARKERS);
       return taskBriefSchema.parse({
         ...fallback,
         ...analyzed,
-        requiredCapabilities:
-          analyzed.requiredCapabilities.length > 0
+        ...(contextOnlyAnswer
+          ? {
+              goalKind: "answer" as const,
+              requiredCapabilities: ["chat" as const],
+              unknowns: [],
+              risk: "low" as const,
+            }
+          : {}),
+        requiredCapabilities: contextOnlyAnswer
+          ? ["chat"]
+          : analyzed.requiredCapabilities.length > 0
             ? analyzed.requiredCapabilities
             : fallback.requiredCapabilities,
         assumptions: analyzed.assumptions.map((statement) => ({
@@ -237,7 +258,9 @@ export class TaskIntakeService {
           statement,
           source: "inferred" as const,
         })),
-        unknowns: analyzed.unknowns.map((unknown) => ({ id: crypto.randomUUID(), ...unknown })),
+        unknowns: contextOnlyAnswer
+          ? []
+          : analyzed.unknowns.map((unknown) => ({ id: crypto.randomUUID(), ...unknown })),
       });
     } catch {
       return fallbackBrief(input);

@@ -6,6 +6,7 @@ import {
 } from "../../core/memory/memory-preferences";
 import type { CreateMemoryInput, MemoryRecord, UpdateMemoryInput } from "../../core/memory/types";
 import { getStructuredStorage } from "../../runtime/structured-storage";
+import { logger } from "../../core/logging/logger";
 
 export type { MemoryRecord } from "../../core/memory/types";
 
@@ -47,8 +48,12 @@ export const useMemoryStore = create<MemoryState>((set, get) => ({
         isMemoryEnabled(storage),
       ]);
       set({ memories, enabled, loading: false });
+      logger.debug("memory", "memory.loaded", { count: memories.length, enabled });
     } catch (error) {
       set({ loading: false, error: messageOf(error) });
+      logger.error("memory", "memory.load-failed", {
+        errorType: error instanceof Error ? error.name : "unknown",
+      });
     }
   },
 
@@ -59,6 +64,11 @@ export const useMemoryStore = create<MemoryState>((set, get) => ({
         memories: [memory, ...memories.filter(({ id }) => id !== memory.id)],
         error: null,
       }));
+      logger.info("memory", "memory.created", {
+        memoryId: memory.id,
+        scope: memory.scope,
+        type: memory.type,
+      });
       return memory.id;
     } catch (error) {
       set({ error: messageOf(error) });
@@ -73,6 +83,13 @@ export const useMemoryStore = create<MemoryState>((set, get) => ({
         memories: memories.map((candidate) => (candidate.id === id ? memory : candidate)),
         error: null,
       }));
+      logger.info("memory", "memory.updated", {
+        memoryId: memory.id,
+        scope: memory.scope,
+        type: memory.type,
+        enabled: memory.enabled,
+        pinned: memory.pinned,
+      });
     } catch (error) {
       set({ error: messageOf(error) });
       throw error;
@@ -86,6 +103,7 @@ export const useMemoryStore = create<MemoryState>((set, get) => ({
         memories: memories.filter((memory) => memory.id !== id),
         error: null,
       }));
+      logger.info("memory", "memory.deleted", { memoryId: id });
     } catch (error) {
       set({ error: messageOf(error) });
       throw error;
@@ -106,6 +124,7 @@ export const useMemoryStore = create<MemoryState>((set, get) => ({
     try {
       await persistMemoryEnabled(getStructuredStorage(), enabled);
       set({ enabled, error: null });
+      logger.info("memory", "memory.global-setting-changed", { enabled });
     } catch (error) {
       set({ error: messageOf(error) });
       throw error;
@@ -116,6 +135,7 @@ export const useMemoryStore = create<MemoryState>((set, get) => ({
     try {
       await repository().clear();
       set({ memories: [], error: null });
+      logger.info("memory", "memory.cleared");
     } catch (error) {
       set({ error: messageOf(error) });
       throw error;

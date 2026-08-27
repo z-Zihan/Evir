@@ -60,6 +60,9 @@ export interface ToolResultRecord {
   success: boolean;
   output: string;
   error?: string;
+  startedAt?: number;
+  completedAt?: number;
+  durationMs?: number;
 }
 
 export interface MessageRecord {
@@ -76,6 +79,7 @@ export interface MessageRecord {
     totalTokens?: number;
   };
   attachments?: AttachmentRecord[];
+  activeSkills?: Array<{ id: string; name: string }>;
   toolCalls?: ToolCallRecord[];
   toolResults?: ToolResultRecord[];
   summaryMetadata?: {
@@ -97,6 +101,7 @@ export interface UsageRecord {
   totalTokens?: number;
   evidence: "provider" | "estimated" | "unavailable";
   success: boolean;
+  errorType?: string;
   durationMs: number;
   firstTokenMs?: number;
   createdAt: number;

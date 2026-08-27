@@ -73,6 +73,9 @@ describe("runAgentLoop", () => {
       success: true,
       output: "file contents",
     });
+    expect(typeof result.turns[0]?.toolResults?.[0]?.startedAt).toBe("number");
+    expect(typeof result.turns[0]?.toolResults?.[0]?.completedAt).toBe("number");
+    expect(typeof result.turns[0]?.toolResults?.[0]?.durationMs).toBe("number");
     expect(execute).toHaveBeenCalledOnce();
     expect(vi.mocked(streamAssistant)).toHaveBeenCalledTimes(2);
     expect(vi.mocked(streamAssistant).mock.calls[1]?.[2]).toEqual(

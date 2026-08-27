@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import type { AttachmentRecord } from "../../../core/storage/db";
+import { logger } from "../../../core/logging/logger";
 import {
   processFile,
   formatAttachmentForProvider,
@@ -24,6 +25,7 @@ class MockFileReader {
 
 beforeEach(() => {
   vi.stubGlobal("FileReader", MockFileReader);
+  logger.clear();
 });
 
 afterEach(() => {
@@ -55,6 +57,13 @@ describe("processFile", () => {
     expect(result.type).toBe("text");
     expect(result.fileName).toBe("test.ts");
     expect(result.data).toBe("content-of-test.ts");
+    expect(logger.getEntries().at(-1)).toMatchObject({
+      channel: "artifact",
+      event: "attachment.processed",
+      data: { type: "text", mimeType: "text/typescript" },
+    });
+    expect(logger.exportLogs()).not.toContain("test.ts");
+    expect(logger.exportLogs()).not.toContain("content-of-test.ts");
   });
 
   it("processes markdown files by extension", async () => {
@@ -72,6 +81,11 @@ describe("processFile", () => {
   it("rejects unsupported file types", async () => {
     const file = makeFile("archive.zip", "application/zip", "binary");
     await expect(processFile(file)).rejects.toThrow(AttachmentError);
+    expect(logger.getEntries().at(-1)).toMatchObject({
+      event: "attachment.rejected",
+      data: { reason: "unsupported-file-type" },
+    });
+    expect(logger.exportLogs()).not.toContain("archive.zip");
   });
 
   it("rejects oversized images", async () => {

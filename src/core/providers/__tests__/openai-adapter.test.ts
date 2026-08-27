@@ -1,3 +1,4 @@
+import "fake-indexeddb/auto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createConfiguredAdapter, getAdapter, listModelsForProtocol } from "../adapter-registry";
 import { OpenAIChatCompletionsAdapter } from "../adapters/openai-chat-completions";
@@ -9,6 +10,8 @@ import {
 } from "../stream-events";
 import type { ProviderRecord } from "../../storage/db";
 import { stopActiveStream, streamAssistant } from "../../../features/chat/chat-stream";
+import { useUsageStore } from "../../../features/usage/usage-store";
+import { logger } from "../../logging/logger";
 
 function sseResponse(chunks: string[]): Response {
   const encoder = new TextEncoder();
@@ -35,6 +38,7 @@ afterEach(() => {
   vi.useRealTimers();
   stopActiveStream();
   vi.unstubAllGlobals();
+  logger.clear();
 });
 
 describe("OpenAIChatCompletionsAdapter", () => {
@@ -265,6 +269,60 @@ describe("adapter registry", () => {
 });
 
 describe("streamAssistant", () => {
+  it("persists one provider-backed usage record per completed model request", async () => {
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      queueMicrotask(() => callback(0));
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          sseResponse([
+            'data: {"id":"response-usage","choices":[{"delta":{"content":"Hi"}}]}\n\n',
+            'data: {"id":"response-usage","choices":[],"usage":{"prompt_tokens":4,"completion_tokens":3,"total_tokens":7}}\n\n',
+            'data: {"id":"response-usage","choices":[{"delta":{},"finish_reason":"stop"}]}\n\n',
+            "data: [DONE]\n\n",
+          ]),
+        ),
+      ),
+    );
+    const provider: ProviderRecord = {
+      id: "provider-usage",
+      name: "Provider",
+      protocolId: "openai-compatible-chat",
+      baseUrl: "https://example.com/v1",
+      apiKey: "test-key",
+      modelId: "model-usage",
+      enabled: true,
+      isDefault: true,
+      createdAt: 1,
+      updatedAt: 1,
+    };
+
+    const result = await streamAssistant(
+      provider,
+      "conversation-usage",
+      [{ role: "user", content: "hello" }],
+      () => undefined,
+    );
+    const records = useUsageStore
+      .getState()
+      .records.filter(({ conversationId }) => conversationId === "conversation-usage");
+
+    expect(result.status).toBe("complete");
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({
+      evidence: "provider",
+      success: true,
+      inputTokens: 4,
+      outputTokens: 3,
+      totalTokens: 7,
+    });
+    expect(records[0]?.firstTokenMs).toBeTypeOf("number");
+  });
+
   it("supports parallel worker streams and cancels all active streams", async () => {
     vi.stubGlobal(
       "fetch",
@@ -298,7 +356,6 @@ describe("streamAssistant", () => {
   });
 
   it("stops a structured request when its deadline expires", async () => {
-    vi.useFakeTimers();
     vi.stubGlobal(
       "fetch",
       vi.fn(
@@ -330,13 +387,25 @@ describe("streamAssistant", () => {
       () => undefined,
       undefined,
       undefined,
-      100,
+      10,
     );
-    await vi.advanceTimersByTimeAsync(100);
 
     await expect(request).resolves.toMatchObject({
       status: "error",
       errorMessage: "chat.requestTimedOut",
     });
+    expect(
+      useUsageStore
+        .getState()
+        .records.find(({ conversationId }) => conversationId === "conversation-timeout"),
+    ).toMatchObject({ evidence: "unavailable", success: false, errorType: "TIMEOUT" });
+    expect(
+      logger
+        .getEntries()
+        .find(
+          ({ event, conversationId }) =>
+            event === "provider.request-completed" && conversationId === "conversation-timeout",
+        ),
+    ).toMatchObject({ data: { status: "error", errorType: "TIMEOUT" } });
   });
 });

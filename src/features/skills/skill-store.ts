@@ -10,6 +10,7 @@ import {
   customCategoryLocalizations,
   normalizeCustomCategory,
 } from "../../core/skills/skill-categories";
+import { logger } from "../../core/logging/logger";
 
 const SKILL_ENABLED_SETTING = "skillEnabledIds";
 
@@ -96,6 +97,10 @@ export const useSkillStore = create<SkillState>((set, get) => ({
         }
 
         set({ skills, enabledSkillIds: enabledSet });
+        logger.debug("skill", "skill.catalog-loaded", {
+          skillCount: skills.length,
+          enabledSkillCount: enabledSet.size,
+        });
       } finally {
         loadPromise = null;
       }
@@ -116,6 +121,7 @@ export const useSkillStore = create<SkillState>((set, get) => ({
 
     await persistEnabledIds(newSet);
     set({ enabledSkillIds: newSet });
+    logger.info("skill", "skill.enabled-changed", { skillId: id, enabled: !currentlyEnabled });
   },
 
   isEnabled: (id: string) => get().enabledSkillIds.has(id),
@@ -152,6 +158,7 @@ export const useSkillStore = create<SkillState>((set, get) => ({
     });
     const skill: InstalledSkill = { manifest, rootPath: "", builtIn: false };
     set((state) => ({ skills: [...state.skills, skill] }));
+    logger.info("skill", "skill.created", { skillId: id, category: manifest.category });
     return id;
   },
 
@@ -173,6 +180,11 @@ export const useSkillStore = create<SkillState>((set, get) => ({
     });
     const skill: InstalledSkill = { manifest, rootPath: "", builtIn: false };
     set((state) => ({ skills: [...state.skills, skill] }));
+    logger.info("skill", "skill.installed", {
+      skillId: id,
+      source: manifest.source,
+      category: manifest.category,
+    });
     return id;
   },
 
@@ -192,6 +204,7 @@ export const useSkillStore = create<SkillState>((set, get) => ({
     } else {
       await persistEnabledIds(remaining);
     }
+    logger.info("skill", "skill.uninstalled", { skillId: id });
   },
 
   updateSkill: async (id, content, description) => {
@@ -212,6 +225,11 @@ export const useSkillStore = create<SkillState>((set, get) => ({
     set((state) => ({
       skills: state.skills.map((s) => (s.manifest.id === id ? { ...s, manifest } : s)),
     }));
+    logger.info("skill", "skill.updated", {
+      skillId: id,
+      descriptionChanged: description !== undefined,
+      contentLength: content.length,
+    });
   },
 
   listAll: () => get().skills,

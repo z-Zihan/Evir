@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { FolderOpen, X } from "lucide-react";
+import { logger } from "../core/logging/logger";
 import { useWorkspaceStore } from "../features/workspace/workspace-store";
 import { getRuntime } from "../runtime/use-runtime";
 import { useConfirmationDialog } from "./useConfirmationDialog";
@@ -19,8 +20,11 @@ export function WorkspaceSelector() {
     try {
       const selected = await getRuntime().selectWorkspaceDirectory?.();
       if (selected) setWorkspace(selected);
-    } catch {
-      // Not in desktop mode or dialog cancelled
+      else logger.info("runtime", "workspace.selection-cancelled");
+    } catch (error) {
+      logger.error("runtime", "workspace.selection-failed", {
+        errorType: error instanceof Error ? error.name : "unknown",
+      });
     }
   }
 

@@ -115,7 +115,17 @@ export async function sendChatMessage(
         conversationId,
         runtime: getRuntime(),
         privateSession: get().privateSession,
-        analyzer: new ModelTaskIntakeAnalyzer(provider),
+        analyzer: new ModelTaskIntakeAnalyzer(
+          provider,
+          history
+            .filter(
+              (message): message is MessageRecord & { role: "user" | "assistant" } =>
+                (message.role === "user" || message.role === "assistant") &&
+                message.content.trim().length > 0,
+            )
+            .slice(-8)
+            .map(({ role, content }) => ({ role, content })),
+        ),
         planner: new ModelPlanGenerator(provider),
       });
     } catch {

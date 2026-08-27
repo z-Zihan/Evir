@@ -1,5 +1,6 @@
 import type { ConversationRecord, MessageRecord, AttachmentRecord } from "../../core/storage/db";
 import { getStructuredStorage } from "../../runtime/structured-storage";
+import { getRuntime } from "../../runtime/use-runtime";
 
 interface ExportData {
   // API Key is never included in exports — only conversations, messages, and attachments are exported
@@ -115,11 +116,19 @@ export async function exportConversationMarkdown(id: string): Promise<Blob> {
   return new Blob([md], { type: "text/markdown" });
 }
 
-export function downloadBlob(blob: Blob, fileName: string): void {
+export async function downloadBlob(blob: Blob, fileName: string): Promise<boolean> {
+  const runtime = getRuntime();
+  if (runtime.target === "desktop" && "__TAURI_INTERNALS__" in globalThis) {
+    if (!runtime.saveTextFile) throw new Error("Desktop export adapter is unavailable");
+    const savedPath = await runtime.saveTextFile(await blob.text(), fileName);
+    return savedPath !== null;
+  }
+
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = fileName;
   a.click();
   URL.revokeObjectURL(url);
+  return true;
 }

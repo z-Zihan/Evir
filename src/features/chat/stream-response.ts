@@ -301,6 +301,9 @@ async function summarizeAndPersist(
     const { toSummarize, toKeep } = splitForSummarization(current, targetBudget);
     if (toSummarize.length < 3) break;
 
+    const roundStartedAt = Date.now();
+    const beforeMessageCount = current.length;
+    const beforeEstimatedTokens = estimateMessagesTokens(current);
     try {
       logger.debug("context", "context.summary-started", {
         conversationId,
@@ -315,12 +318,19 @@ async function summarizeAndPersist(
       logger.debug("context", "context.summary-completed", {
         conversationId,
         round: round + 1,
-        messageCount: current.length,
+        beforeMessageCount,
+        afterMessageCount: current.length,
+        beforeEstimatedTokens,
+        afterEstimatedTokens: estimateMessagesTokens(current),
+        summarizedMessageCount: toSummarize.length,
+        durationMs: Date.now() - roundStartedAt,
       });
     } catch (error) {
       logger.error("context", "context.summary-failed", {
         conversationId,
-        error: error instanceof Error ? error.message : String(error),
+        round: round + 1,
+        errorType: error instanceof Error ? error.name : "unknown",
+        durationMs: Date.now() - roundStartedAt,
       });
       break;
     }
@@ -408,6 +418,8 @@ export async function streamResponse(
 
   let effectiveHistory = history;
   if (budgetManager.shouldCompact(snapshot)) {
+    const compactionStartedAt = Date.now();
+    const beforeMessageCount = history.length;
     const maxToolChars = snapshot.reservedToolTokens * 4;
     effectiveHistory = compactToolOutputs(history, maxToolChars);
 
@@ -430,7 +442,11 @@ export async function streamResponse(
       conversationId,
       stage: snapshot.compressionStage,
       utilizationRatio: snapshot.utilizationRatio,
-      inputTokens,
+      beforeMessageCount,
+      afterMessageCount: effectiveHistory.length,
+      beforeEstimatedTokens: inputTokens,
+      afterEstimatedTokens: estimateMessagesTokens(effectiveHistory),
+      durationMs: Date.now() - compactionStartedAt,
     });
   }
 
@@ -481,6 +497,13 @@ export async function streamResponse(
     ...compatibleExplicitSkillIds,
     ...compatibleRoutedSkills.map((skill) => skill.manifest.id),
   ]);
+  logger.info("skill", "skill.routing-completed", {
+    conversationId,
+    mode,
+    explicitSkillCount: compatibleExplicitSkillIds.size,
+    routedSkillCount: compatibleRoutedSkills.length,
+    activeSkillIds: [...activeSkillIds],
+  });
   if (activeSkillIds.size > 0) {
     activeSkills = await skillStore.getSkillContent(activeSkillIds);
     const availableInputTokens =
@@ -494,6 +517,12 @@ export async function streamResponse(
     );
     const skillTokenBudget = Math.floor(remainingInputTokens * 0.4);
     if (estimateTokens(activeSkills) > skillTokenBudget) {
+      logger.warn("skill", "skill.context-rejected", {
+        conversationId,
+        activeSkillIds: [...activeSkillIds],
+        estimatedTokens: estimateTokens(activeSkills),
+        skillTokenBudget,
+      });
       finishConversationStream(set, get, conversationId, streamStartedAt);
       if (visibleForConversation(get, conversationId)) set({ error: "chat.skillContextTooLarge" });
       return;
@@ -509,12 +538,35 @@ export async function streamResponse(
     if (routingLines.length > 0) {
       skillRouting = `Active skills:\n${routingLines.join("\n")}`;
     }
+    if (lastUserMessage) {
+      const activeSkillSummaries = skillStore.skills
+        .filter((skill) => activeSkillIds.has(skill.manifest.id))
+        .map((skill) => ({ id: skill.manifest.id, name: skill.manifest.name }));
+      const messageWithSkills = { ...lastUserMessage, activeSkills: activeSkillSummaries };
+      if (!get().privateSession) {
+        await getStructuredStorage().write("messages", messageWithSkills.id, messageWithSkills);
+      }
+      if (visibleForConversation(get, conversationId)) {
+        set(({ messages: currentMessages }) => ({
+          messages: currentMessages.map((message) =>
+            message.id === messageWithSkills.id ? messageWithSkills : message,
+          ),
+        }));
+      }
+      logger.info("skill", "skill.context-loaded", {
+        conversationId,
+        activeSkillIds: [...activeSkillIds],
+        activeSkillCount: activeSkillIds.size,
+        estimatedTokens: estimateTokens(activeSkills),
+      });
+    }
   }
   // Resolve memory from storage for every request so startup and settings-page state
   // cannot affect whether global/workspace/conversation memories reach the model.
   let memoryContext = "";
   let relevantMemoryIds: string[] = [];
   if (!get().privateSession) {
+    const memoryStartedAt = Date.now();
     const availableInputTokens =
       snapshot.maxContextTokens -
       snapshot.reservedOutputTokens -
@@ -559,6 +611,13 @@ export async function streamResponse(
         });
       }
     }
+    logger.debug("memory", "memory.retrieval-completed", {
+      conversationId,
+      selectedCount: relevantMemoryIds.length,
+      contextCharacters: memoryContext.length,
+      maxCharacters,
+      durationMs: Date.now() - memoryStartedAt,
+    });
   }
   if (snapshot.compressionStage === "checkpoint-compaction" && !get().privateSession) {
     const objective =
@@ -679,14 +738,19 @@ export async function streamResponse(
     });
     const blockedTurns = new Set(approvalContexts.map(({ turn }) => turn));
     const earlierTurns = result.turns.filter((turn) => !blockedTurns.has(turn));
-    const earlierMessages = earlierTurns.map((turn) => toMessage(turn, conversationId));
+    const messageTimestamp = Date.now();
+    const earlierMessages = earlierTurns.map((turn, index) =>
+      toMessage(turn, conversationId, undefined, messageTimestamp + index),
+    );
     if (earlierMessages.length > 0) {
       const conversation = get().conversations.find(({ id }) => id === conversationId);
       const title = titleFor(history, Boolean(conversation?.title));
       if (!get().privateSession) await persistResponse(earlierMessages, conversationId, title);
     }
 
-    const blockedMessages = approvalContexts.map(({ turn }) => toMessage(turn, conversationId));
+    const blockedMessages = approvalContexts.map(({ turn }, index) =>
+      toMessage(turn, conversationId, undefined, messageTimestamp + earlierMessages.length + index),
+    );
     const [pendingApproval, ...remainingApprovals] = pendingApprovals;
     if (!pendingApproval) return;
     if (!get().privateSession) {
@@ -726,7 +790,10 @@ export async function streamResponse(
     return;
   }
 
-  const assistants = result.turns.map((turn) => toMessage(turn, conversationId));
+  const messageTimestamp = Date.now();
+  const assistants = result.turns.map((turn, index) =>
+    toMessage(turn, conversationId, undefined, messageTimestamp + index),
+  );
   const conversation = get().conversations.find(({ id }) => id === conversationId);
   const title = titleFor(history, Boolean(conversation?.title));
   const updatedAt = get().privateSession

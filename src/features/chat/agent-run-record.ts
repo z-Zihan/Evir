@@ -21,6 +21,9 @@ export interface AgentRunRecord {
   verificationEvidence: VerificationEvidence[];
   resolution: { complete: boolean; reason: string };
   maxIterationsReached: boolean;
+  startedAt?: number;
+  completedAt?: number;
+  durationMs?: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -46,13 +49,25 @@ export function mergeAgentRunRecords(
 ): AgentRunRecord {
   if (!previous || previous.id !== current.id || previous.conversationId !== current.conversationId)
     return current;
+  const toolCalls = uniqueBy([...previous.toolCalls, ...current.toolCalls], ({ id }) => id);
+  const toolResultsByCallId = new Map(
+    [...previous.toolResults, ...current.toolResults].map((result) => [result.toolCallId, result]),
+  );
+  const toolResults = toolCalls.flatMap(({ id }) => {
+    const result = toolResultsByCallId.get(id);
+    return result ? [result] : [];
+  });
+  const knownCallIds = new Set(toolCalls.map(({ id }) => id));
+  toolResults.push(
+    ...[...toolResultsByCallId.values()].filter(({ toolCallId }) => !knownCallIds.has(toolCallId)),
+  );
   return {
     ...current,
-    toolCalls: uniqueBy([...previous.toolCalls, ...current.toolCalls], ({ id }) => id),
-    toolResults: uniqueBy(
-      [...previous.toolResults, ...current.toolResults],
-      ({ toolCallId }) => toolCallId,
-    ),
+    toolCalls,
+    // Approval continuations reuse the original tool-call id. Map by id so
+    // the executed result replaces permission_required without changing the
+    // call/result ordering used by persisted tool-execution records.
+    toolResults,
     snapshots: uniqueBy(
       [...previous.snapshots, ...current.snapshots],
       ({ snapshot_id }) => snapshot_id,
@@ -112,6 +127,7 @@ export async function buildAgentRunRecord(
           ? "completed"
           : "needs_verification";
   const now = Date.now();
+  const startedAt = options.previous?.startedAt ?? result.startedAt ?? now;
   const current: AgentRunRecord = {
     id: options.runId ?? result.agentRun.id,
     conversationId,
@@ -123,6 +139,9 @@ export async function buildAgentRunRecord(
     verificationEvidence,
     resolution,
     maxIterationsReached: result.maxIterationsReached,
+    startedAt,
+    completedAt: result.completedAt ?? now,
+    durationMs: (result.completedAt ?? now) - startedAt,
     createdAt: now,
     updatedAt: now,
   };
@@ -132,7 +151,7 @@ export async function buildAgentRunRecord(
 export async function persistAgentRun(record: AgentRunRecord): Promise<void> {
   await getStructuredStorage().apply([
     { type: "write", entity: "agent_runs", id: record.id, data: record },
-    ...record.toolCalls.map((call, index) => ({
+    ...record.toolCalls.map((call) => ({
       type: "write" as const,
       entity: "tool_executions" as const,
       id: `${record.id}:${call.id}`,
@@ -141,7 +160,7 @@ export async function persistAgentRun(record: AgentRunRecord): Promise<void> {
         runId: record.id,
         conversationId: record.conversationId,
         toolCall: call,
-        result: record.toolResults[index] ?? null,
+        result: record.toolResults.find(({ toolCallId }) => toolCallId === call.id) ?? null,
         createdAt: record.updatedAt,
       },
     })),

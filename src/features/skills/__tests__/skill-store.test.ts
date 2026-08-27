@@ -1,5 +1,6 @@
 import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { logger } from "../../../core/logging/logger";
 
 vi.mock("../../../core/skills/skill-registry", () => {
   const baseSkills = [
@@ -79,6 +80,7 @@ describe("skill-store", () => {
   beforeEach(async () => {
     const { db } = await import("../../../core/storage/db");
     await Promise.all(db.tables.map((t) => t.clear()));
+    logger.clear();
     useSkillStore.setState({ skills: [], enabledSkillIds: new Set() });
     await useSkillStore.getState().loadSkills();
   });
@@ -100,6 +102,11 @@ describe("skill-store", () => {
     const { enabledSkillIds, isEnabled } = useSkillStore.getState();
     expect(enabledSkillIds.has("bug-fix")).toBe(true);
     expect(isEnabled("bug-fix")).toBe(true);
+    expect(logger.getEntries().at(-1)).toMatchObject({
+      channel: "skill",
+      event: "skill.enabled-changed",
+      data: { skillId: "bug-fix", enabled: true },
+    });
   });
 
   it("toggleSkill disables an enabled skill", async () => {

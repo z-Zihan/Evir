@@ -6,6 +6,7 @@ export function toMessage(
   turn: AgentLoopTurn,
   conversationId: string,
   content?: string,
+  createdAt = Date.now(),
 ): MessageRecord {
   return {
     id: crypto.randomUUID(),
@@ -16,7 +17,7 @@ export function toMessage(
     ...(turn.stream.errorMessage ? { errorMessage: turn.stream.errorMessage } : {}),
     ...(turn.toolCalls?.length ? { toolCalls: turn.toolCalls } : {}),
     ...(turn.toolResults?.length ? { toolResults: turn.toolResults } : {}),
-    createdAt: Date.now(),
+    createdAt,
   };
 }
 

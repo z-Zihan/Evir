@@ -76,13 +76,25 @@ function nodeMessages(
   completedSummaries: ReadonlyMap<string, string>,
 ): AgentMessage[] {
   const protectedMessages = messages.filter(({ role }) => role === "system");
-  const latestUser = [...messages].reverse().find(({ role }) => role === "user");
+  const recentDialogue = messages
+    .filter(
+      ({ role, content }) =>
+        (role === "user" || role === "assistant") &&
+        typeof content === "string" &&
+        content.trim().length > 0,
+    )
+    .slice(-8)
+    .map((message) => ({
+      ...message,
+      content:
+        typeof message.content === "string" ? message.content.slice(0, 4_000) : message.content,
+    }));
   const dependencies = node.dependencies
     .map((id) => completedSummaries.get(id))
     .filter((value): value is string => Boolean(value));
   return [
     ...protectedMessages,
-    ...(latestUser ? [latestUser] : []),
+    ...recentDialogue,
     {
       role: "system",
       content: [
@@ -137,6 +149,26 @@ function reportFromLoop(assignment: AgentAssignment, result: AgentLoopResult): W
     verificationEvidence: evidence,
     unresolvedErrors: errors,
   };
+}
+
+function collapseIntermediateTurns(turns: AgentLoopResult["turns"]): AgentLoopResult["turns"] {
+  let finalTextIndex = -1;
+  for (let index = turns.length - 1; index >= 0; index -= 1) {
+    if (turns[index]?.stream.content.trim()) {
+      finalTextIndex = index;
+      break;
+    }
+  }
+  if (finalTextIndex < 0) return turns;
+  return turns.flatMap((turn, index) => {
+    if (index === finalTextIndex || turn.stream.status !== "complete" || turn.pendingApproval) {
+      return [turn];
+    }
+    if ((turn.toolCalls?.length ?? 0) > 0 || (turn.toolResults?.length ?? 0) > 0) {
+      return [{ ...turn, stream: { ...turn.stream, content: "" } }];
+    }
+    return [];
+  });
 }
 
 function eventForResult(result: NodeExecutionResult): RunEventV1["type"] {
@@ -524,7 +556,7 @@ export async function runOrchestratedAgent(input: OrchestratedRunInput): Promise
     });
   }
   return {
-    turns,
+    turns: approvalContexts.length > 0 ? turns : collapseIntermediateTurns(turns),
     maxIterationsReached: turns.some(({ stream }) => stream.errorMessage === "tools.maxIterations"),
     messages: input.messages,
     agentRun: managerRun,

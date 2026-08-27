@@ -68,7 +68,7 @@ describe("tool approval continuation", () => {
     const pending = pendingApproval();
     const controller = new AbortController();
 
-    await executeApproved(pending, runtime, false, controller.signal);
+    const { resolvedTurn } = await executeApproved(pending, runtime, false, controller.signal);
 
     expect(execute).toHaveBeenCalledWith(
       "write_file",
@@ -77,6 +77,11 @@ describe("tool approval continuation", () => {
       true,
       controller.signal,
     );
+    const result = resolvedTurn.toolResults?.[0];
+    expect(result).toMatchObject({ toolCallId: "call-1", success: true });
+    expect(typeof result?.startedAt).toBe("number");
+    expect(typeof result?.completedAt).toBe("number");
+    expect(typeof result?.durationMs).toBe("number");
   });
 
   it("drops invalid persisted approval metadata at the storage boundary", () => {

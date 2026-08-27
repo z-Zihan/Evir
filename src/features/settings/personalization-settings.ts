@@ -9,6 +9,7 @@ import {
 } from "../../core/personalization/types";
 import type { EvirDB, SettingRecord } from "../../core/storage/db";
 import { getStructuredStorage } from "../../runtime/structured-storage";
+import { logger } from "../../core/logging/logger";
 
 const PERSONALIZATION_SETTING_NAME = "personalization";
 type SettingsDatabase = Pick<EvirDB, "settings">;
@@ -35,21 +36,36 @@ function defaults(): PersonalizationPreferences {
 export async function loadPersonalizationPreferences(
   database?: SettingsDatabase,
 ): Promise<PersonalizationPreferences> {
+  const startedAt = performance.now();
   const record = database
     ? await database.settings.get(PERSONALIZATION_SETTING_NAME)
     : await getStructuredStorage().read<SettingRecord>("settings", PERSONALIZATION_SETTING_NAME);
   const result = personalizationSchema.safeParse(record?.value);
-  if (!result.success) return defaults();
+  if (!result.success) {
+    logger.debug("runtime", "personalization.loaded-defaults", {
+      durationMs: Math.round(performance.now() - startedAt),
+    });
+    return defaults();
+  }
   // “子涵” was used by an early UI prototype as demo content, not as a user default.
-  return result.data.displayName.trim() === "子涵"
-    ? { ...result.data, displayName: "" }
-    : result.data;
+  const preferences =
+    result.data.displayName.trim() === "子涵" ? { ...result.data, displayName: "" } : result.data;
+  logger.debug("runtime", "personalization.loaded", {
+    enabled: preferences.enabled,
+    responseLanguage: preferences.responseLanguage,
+    detailLevel: preferences.detailLevel,
+    style: preferences.style,
+    hasCustomInstructions: preferences.customInstructions.trim().length > 0,
+    durationMs: Math.round(performance.now() - startedAt),
+  });
+  return preferences;
 }
 
 export async function savePersonalizationPreferences(
   preferences: PersonalizationPreferences,
   database?: SettingsDatabase,
 ): Promise<void> {
+  const startedAt = performance.now();
   const value = personalizationSchema.parse(preferences);
   if (database) {
     await database.settings.put({ name: PERSONALIZATION_SETTING_NAME, value });
@@ -59,6 +75,14 @@ export async function savePersonalizationPreferences(
       value,
     });
   }
+  logger.info("runtime", "personalization.saved", {
+    enabled: value.enabled,
+    responseLanguage: value.responseLanguage,
+    detailLevel: value.detailLevel,
+    style: value.style,
+    hasCustomInstructions: value.customInstructions.trim().length > 0,
+    durationMs: Math.round(performance.now() - startedAt),
+  });
 }
 
 export function buildPersonalizationPrompt(preferences: PersonalizationPreferences): string {
