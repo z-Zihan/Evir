@@ -895,6 +895,7 @@
 
 .messages-area {
   overflow-y: auto;
+  overflow-x: hidden;
   padding: var(--space-6) var(--space-4);
 }
 
@@ -1873,4 +1874,81 @@ textarea {
   min-height: 44px;
   max-height: 200px;
   overflow-y: auto;
+}
+
+/* ===== Markdown media, tables and math ===== */
+
+.table-scroll {
+  max-width: 100%;
+  margin: var(--space-3) 0;
+  overflow-x: auto;
+}
+
+.markdown-image-button {
+  display: block;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  cursor: zoom-in;
+  overflow: hidden;
+}
+
+.markdown-image-button img,
+.message-content img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.markdown-video {
+  display: block;
+  margin: var(--space-3) 0;
+}
+
+.markdown-video video {
+  width: 100%;
+  max-width: 560px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: black;
+}
+
+.image-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-modal) + 40);
+  display: grid;
+  place-items: center;
+  padding: var(--space-6);
+  background: color-mix(in srgb, black 78%, transparent);
+  cursor: zoom-out;
+}
+
+.image-lightbox img {
+  max-width: min(92vw, 1200px);
+  max-height: 88vh;
+  border-radius: var(--radius-md);
+  cursor: default;
+}
+
+.image-lightbox-close {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: var(--space-1) 0;
 }

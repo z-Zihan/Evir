@@ -82,6 +82,7 @@
     "copied": "Copied!",
     "attachFile": "Attach file",
     "attachments": "Attachments",
+    "skillsUsed": "Used for this message",
     "unsupportedFileType": "Unsupported file type. Images and text files are supported.",
     "fileTooLarge": "File too large. Images: max 10MB, text: max 1MB.",
     "removeAttachment": "Remove attachment",
@@ -114,7 +115,9 @@
     "retry": "Retry",
     "privateSession": "Private Session",
     "agentRequiresToolCalling": "This model is not marked as supporting Tool Calling. Switch to Ask or update the model capability in Provider settings.",
-    "skillContextTooLarge": "The selected Skills do not fit in this model's remaining context. Select fewer Skills, shorten the conversation, or choose a model with a larger context window."
+    "skillContextTooLarge": "The selected Skills do not fit in this model's remaining context. Select fewer Skills, shorten the conversation, or choose a model with a larger context window.",
+    "tableRegion": "Table",
+    "previewImage": "Preview image"
   },
   "runtime": {
     "agentReady": "Local agent runtime",
@@ -401,8 +404,14 @@
         "label": "Follow app",
         "description": "Match the current Evir interface language"
       },
-      "zh-CN": { "label": "简体中文", "description": "默认使用简体中文回复" },
-      "en": { "label": "English", "description": "Respond in English by default" }
+      "zh-CN": {
+        "label": "简体中文",
+        "description": "默认使用简体中文回复"
+      },
+      "en": {
+        "label": "English",
+        "description": "Respond in English by default"
+      }
     },
     "detailDescription": "Control how far responses expand",
     "detailOptions": {
@@ -653,6 +662,8 @@
     "maxIterations": "Max iterations reached",
     "filesModified": "Files Modified",
     "commandsRun": "Commands Run",
+    "duration": "Duration",
+    "toolExecutions": "Tool executions",
     "verification": "Verification",
     "gitChanges": "Git changes",
     "filesChanged": "{{count}} files changed",
@@ -726,9 +737,9 @@
     "yearActivityDescription": "Darker cells indicate higher token usage on that day.",
     "longestStreak": "Longest streak: {{count}} days",
     "byModel": "Usage by model",
-    "byModelDescription": "Compare messages, input tokens, and output tokens for each model.",
+    "byModelDescription": "Compare model requests, input tokens, and output tokens for each model.",
     "modelCount": "{{count}} models",
-    "requests": "{{count}} messages",
+    "requests": "{{count}} model requests",
     "noData": "Usage trends will appear here after you send messages."
   },
   "orchestration": {
@@ -818,6 +829,9 @@
   "diagnostics": {
     "title": "Diagnostics",
     "export": "Export logs",
+    "exported": "Logs exported.",
+    "exportCancelled": "Export cancelled.",
+    "exportFailed": "Export failed. Please try again.",
     "clear": "Clear logs",
     "data": "All local diagnostic logs",
     "filter": "Filter by level",
@@ -835,6 +849,11 @@
       "warn": "Warn",
       "error": "Error",
       "fatal": "Fatal"
-    }
+    },
+    "persistenceActive": "Persistent log files are enabled (app / audit / performance categories, 14-day retention).",
+    "persistenceMemoryOnly": "Logs are kept in memory for this session only. File persistence is available in the desktop app.",
+    "logDirectoryLabel": "Log directory",
+    "copyLogDirectory": "Copy path",
+    "logDirectoryCopied": "Copied"
   }
 }

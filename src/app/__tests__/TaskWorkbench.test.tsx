@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { OrchestrationSnapshot, PlanGraph } from "../../core/orchestration/types";
+import type { AgentRunRecord } from "../../features/chat/agent-run-record";
 import { useOrchestrationStore } from "../../features/orchestration/orchestration-store";
 import { TaskWorkbench } from "../TaskWorkbench";
 
@@ -76,6 +77,21 @@ const plan: PlanGraph = {
   edges: [],
   status: "awaiting_confirmation",
   requiresConfirmation: true,
+  createdAt: 1,
+  updatedAt: 1,
+};
+
+const failedAgentRun: AgentRunRecord = {
+  id: "run-1",
+  conversationId: "conversation-1",
+  status: "failed",
+  toolCalls: [],
+  toolResults: [],
+  snapshots: [],
+  fileReferences: [],
+  verificationEvidence: [],
+  resolution: { complete: false, reason: "Permission required" },
+  maxIterationsReached: false,
   createdAt: 1,
   updatedAt: 1,
 };
@@ -235,6 +251,51 @@ describe("TaskWorkbench", () => {
     render(<TaskWorkbench />);
 
     expect(screen.getByText("orchestration.finishedStatus.completed")).toBeTruthy();
+  });
+
+  it("uses failed Agent evidence instead of showing a conflicting completed task", () => {
+    useOrchestrationStore.setState({
+      current: {
+        runId: brief.runId,
+        conversationId: brief.conversationId,
+        phase: "finished",
+        brief,
+        plan: { ...plan, status: "completed" },
+        assignments: [],
+        events: [],
+      },
+    });
+    render(<TaskWorkbench agentRun={failedAgentRun} />);
+
+    expect(screen.getByText("orchestration.finishedStatus.failed")).toBeTruthy();
+    expect(screen.queryByText("orchestration.finishedStatus.completed")).toBeNull();
+    expect(screen.queryByText("agent.runSummary")).toBeNull();
+  });
+
+  it("does not downgrade an answer-only task when local verification is not required", () => {
+    useOrchestrationStore.setState({
+      current: {
+        runId: brief.runId,
+        conversationId: brief.conversationId,
+        phase: "finished",
+        brief: { ...brief, goalKind: "answer", requiredCapabilities: [] },
+        plan: { ...plan, status: "completed" },
+        assignments: [],
+        events: [],
+      },
+    });
+    render(
+      <TaskWorkbench
+        agentRun={{
+          ...failedAgentRun,
+          status: "needs_verification",
+          resolution: { complete: false, reason: "No local verification was required" },
+        }}
+      />,
+    );
+
+    expect(screen.getByText("orchestration.finishedStatus.completed")).toBeTruthy();
+    expect(screen.queryByText("orchestration.finishedStatus.partial")).toBeNull();
   });
 
   it("offers a retry action when a run failed", () => {

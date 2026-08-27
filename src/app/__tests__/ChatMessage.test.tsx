@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MessageRecord } from "../../core/storage/db";
 import { ChatMessage } from "../ChatMessage";
+import { MessageList } from "../ChatView";
 
 vi.mock("../../features/chat/chat-store", () => ({
   useChatStore: (selector: (state: Record<string, unknown>) => unknown) =>
@@ -15,6 +16,7 @@ vi.mock("../../features/chat/chat-store", () => ({
 }));
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: vi.fn() },
   useTranslation: () => ({
     t: (key: string) => key,
     i18n: { exists: () => false },
@@ -35,6 +37,29 @@ function message(role: MessageRecord["role"], content: string): MessageRecord {
 afterEach(cleanup);
 
 describe("ChatMessage actions", () => {
+  it("presents consecutive assistant records as one visual reply group", () => {
+    const assistantMessages = [
+      { ...message("assistant", "First tool step"), id: "assistant-1" },
+      { ...message("assistant", "Second tool step"), id: "assistant-2" },
+      { ...message("assistant", "Final answer"), id: "assistant-3" },
+    ];
+    const { container } = render(
+      <MessageList
+        messages={[message("user", "Run the task"), ...assistantMessages]}
+        disabled={false}
+        localUserName="Local user"
+        localUserAvatar=""
+        onEdit={vi.fn()}
+        onRegenerate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByText("Evir")).toHaveLength(1);
+    expect(container.querySelectorAll(".message-assistant .message-role-mark")).toHaveLength(1);
+    expect(container.querySelectorAll(".message-assistant.message-grouped")).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "chat.regenerate" })).toHaveLength(1);
+  });
+
   it("uses the local nickname and does not expose conversation branching", () => {
     render(
       <ChatMessage
@@ -49,6 +74,27 @@ describe("ChatMessage actions", () => {
 
     expect(screen.getByText("Zihan")).toBeDefined();
     expect(screen.queryByRole("button", { name: "chat.branchFromHere" })).toBeNull();
+  });
+
+  it("shows which skills were applied to a sent message", () => {
+    const userMessage = {
+      ...message("user", "Review this change"),
+      activeSkills: [{ id: "code-review", name: "Code Review" }],
+    };
+
+    render(
+      <ChatMessage
+        message={userMessage}
+        disabled={false}
+        localUserName="Local user"
+        localUserAvatar=""
+        onEdit={vi.fn()}
+        onRegenerate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText("chat.skillsUsed")).toBeDefined();
+    expect(screen.getByText("Code Review")).toBeDefined();
   });
 
   it("edits and saves a user message", () => {

@@ -171,6 +171,10 @@ test("Desktop Agent renders the event-driven task workbench", async ({ page }, t
     expect((bounds?.x ?? 0) + (bounds?.width ?? viewport.width + 1)).toBeLessThanOrEqual(
       viewport.width,
     );
+    const assistantContent = await page.locator(".message-assistant .message-main").boundingBox();
+    expect(assistantContent).not.toBeNull();
+    expect(Math.abs((bounds?.x ?? 0) - (assistantContent?.x ?? 0))).toBeLessThanOrEqual(1);
+    expect(bounds?.width ?? 821).toBeLessThanOrEqual(820);
   }
 });
 
@@ -206,6 +210,118 @@ test("keeps dense Agent activity compact and expandable", async ({ page }, testI
   await activity.getByRole("button", { name: /Show 9 more/i }).click();
   await expect(activity.locator(".execution-step")).toHaveCount(12);
   await expect(activity.locator("pre:visible")).toHaveCount(0);
+});
+
+test("groups consecutive Agent replies and keeps the narrow header inside the viewport", async ({
+  page,
+}, testInfo) => {
+  test.skip(!isDesktop(testInfo), "Desktop Agent UI only");
+  await page.setViewportSize({ width: 900, height: 640 });
+  await configurePage(page);
+  const firstMessage = agentMessages("complete")[0];
+  expect(firstMessage).toBeDefined();
+  await seedFixture(page, {
+    messages: [
+      firstMessage,
+      {
+        id: "agent-step-1",
+        conversationId: "fixture-conversation",
+        role: "assistant",
+        content: "I am checking the workspace and relevant configuration.",
+        status: "complete",
+        createdAt: Date.parse("2026-08-06T12:01:00+08:00"),
+      },
+      {
+        id: "agent-step-2",
+        conversationId: "fixture-conversation",
+        role: "assistant",
+        content: "I am running the verification command.",
+        status: "complete",
+        createdAt: Date.parse("2026-08-06T12:02:00+08:00"),
+      },
+      {
+        id: "agent-step-3",
+        conversationId: "fixture-conversation",
+        role: "assistant",
+        content: "Verification completed successfully.",
+        status: "complete",
+        createdAt: Date.parse("2026-08-06T12:03:00+08:00"),
+      },
+    ],
+  });
+  await page.evaluate(async () => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("evir");
+      request.onerror = () => reject(request.error ?? new Error("Unable to open Evir test DB"));
+      request.onsuccess = () => resolve(request.result);
+    });
+    const transaction = database.transaction(["providers", "conversations"], "readwrite");
+    transaction.objectStore("providers").put({
+      id: "fixture-provider-secondary",
+      name: "A second provider with a deliberately long display name",
+      protocolId: "openai-responses",
+      baseUrl: "http://127.0.0.1:1430/v1",
+      apiKey: "fixture-key-not-secret",
+      modelId: "a-deliberately-long-model-name-for-header-overflow-validation",
+      enabled: true,
+      isDefault: false,
+      createdAt: Date.parse("2026-08-06T12:00:00+08:00"),
+      updatedAt: Date.parse("2026-08-06T12:00:00+08:00"),
+    });
+    transaction.objectStore("conversations").put({
+      id: "fixture-conversation",
+      title: "A deliberately long conversation title that must truncate inside the header",
+      providerId: "fixture-provider",
+      modelId: "evir-fixture-model",
+      createdAt: Date.parse("2026-08-06T12:00:00+08:00"),
+      updatedAt: Date.parse("2026-08-06T12:03:00+08:00"),
+    });
+    await new Promise<void>((resolve, reject) => {
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () =>
+        reject(transaction.error ?? new Error("Unable to update responsive fixtures"));
+    });
+    database.close();
+  });
+  await page.reload();
+  await page
+    .locator(".conversation-item", { hasText: "A deliberately long conversation title" })
+    .click();
+
+  await expect(page.locator(".message-assistant")).toHaveCount(3);
+  await expect(page.locator(".message-assistant .message-role-mark")).toHaveCount(1);
+  await expect(page.locator(".message-assistant .message-author")).toHaveCount(1);
+  await expect(page.locator(".message-assistant.message-grouped")).toHaveCount(2);
+  await expect(page.getByRole("button", { name: "Regenerate" })).toHaveCount(1);
+
+  const headerFits = await page.locator(".workspace-header").evaluate((header) => {
+    const bounds = header.getBoundingClientRect();
+    const controls = header.querySelector(".workspace-controls")?.getBoundingClientRect();
+    const heading = header.querySelector(".workspace-heading")?.getBoundingClientRect();
+    return {
+      insideViewport: bounds.left >= 0 && bounds.right <= window.innerWidth,
+      controlsInsideHeader: Boolean(controls && controls.right <= bounds.right),
+      columnsDoNotOverlap: Boolean(controls && heading && heading.right <= controls.left),
+    };
+  });
+  expect(headerFits).toEqual({
+    insideViewport: true,
+    controlsInsideHeader: true,
+    columnsDoNotOverlap: true,
+  });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const narrowHeaderFits = await page.locator(".workspace-header").evaluate((header) => {
+    const bounds = header.getBoundingClientRect();
+    const controls = header.querySelector(".workspace-controls")?.getBoundingClientRect();
+    const heading = header.querySelector(".workspace-heading")?.getBoundingClientRect();
+    return {
+      insideViewport: bounds.left >= 0 && bounds.right <= window.innerWidth,
+      controlsInsideHeader: Boolean(controls && controls.right <= bounds.right),
+      columnsDoNotOverlap: Boolean(controls && heading && heading.right <= controls.left),
+    };
+  });
+  expect(narrowHeaderFits).toEqual(headerFits);
 });
 
 test("shows a stable cancelled Agent state without claiming completion", async ({
@@ -553,6 +669,13 @@ test("persisted Agent completion evidence returns after reloading a conversation
   await page.locator(".conversation-item", { hasText: "Quality verification" }).click();
   await expect(page.getByRole("heading", { name: "Agent Run Summary" })).toBeVisible();
   await expect(page.getByText("Execution evidence", { exact: true })).toBeVisible();
+  const assistantContent = await page.locator(".message-assistant .message-main").boundingBox();
+  const evidenceCard = await page.locator(".agent-run-summary").boundingBox();
+  expect(assistantContent).not.toBeNull();
+  expect(evidenceCard).not.toBeNull();
+  expect(Math.abs((evidenceCard?.x ?? 0) - (assistantContent?.x ?? 0))).toBeLessThanOrEqual(1);
+  expect(evidenceCard?.width ?? 821).toBeLessThanOrEqual(820);
+  expect(evidenceCard?.width ?? 0).toBeLessThan(assistantContent?.width ?? 0);
 
   const row = page.locator(".conversation-item", { hasText: "Quality verification" });
   await row.hover();

@@ -11,6 +11,10 @@
 
 /* Structured task orchestration */
 .task-workbench {
+  box-sizing: border-box;
+  min-width: 0;
+  width: min(820px, calc(100% - 42px));
+  max-width: 820px;
   margin: 4px 0 12px 42px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -617,8 +621,7 @@
 
 @media (max-width: 700px) {
   .task-workbench {
-    margin-left: 0;
-    max-width: calc(100vw - 28px);
+    max-width: calc(100% - 42px);
   }
   .task-status-bar {
     align-items: flex-start;
@@ -981,10 +984,13 @@
 }
 
 .workspace-heading {
+  flex: 1 1 auto;
+  overflow: hidden;
   gap: 11px;
 }
 
 .workspace-controls {
+  flex: 0 1 auto;
   gap: 9px;
 }
 
@@ -1007,6 +1013,7 @@
 }
 
 .workspace-title-block {
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -1094,10 +1101,31 @@
 
 .model-switcher {
   position: relative;
+  min-width: 0;
 }
 
 .model-switcher-button {
+  max-width: min(320px, 34vw);
+  overflow: hidden;
   cursor: pointer;
+}
+
+.model-switcher-button > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.model-switcher-button > span:first-child {
+  flex: 0 1 auto;
+}
+
+.model-switcher-model {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.model-switcher-chevron {
+  flex: 0 0 auto;
 }
 
 .model-switcher-model {
@@ -3580,6 +3608,18 @@
   gap: 13px;
 }
 
+.message-row.message-grouped {
+  margin-top: -26px;
+}
+
+.message-row.message-grouped .message-rail {
+  min-height: 0;
+}
+
+.message-row.message-group-continues .message-actions {
+  display: none;
+}
+
 .message-user {
   grid-template-columns: minmax(0, 1fr) 28px;
 }
@@ -3590,7 +3630,8 @@
 }
 
 .message-user .message-main {
-  width: min(72%, 620px);
+  width: fit-content;
+  max-width: min(72%, 620px);
   grid-column: 1;
   grid-row: 1;
   justify-self: end;
@@ -3692,6 +3733,24 @@
   flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 12px;
+}
+
+.message-active-skills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+
+.message-active-skill {
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-hover);
+  color: var(--foreground);
 }
 
 .message-attachment-image {
@@ -3896,6 +3955,7 @@
 .agent-activity {
   position: relative;
   overflow: hidden;
+  max-width: 640px;
   margin-top: 16px;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -4187,12 +4247,29 @@
 
 .agent-run-summary {
   overflow: hidden;
-  width: min(820px, 100%);
-  margin: 8px auto 12px;
+  box-sizing: border-box;
+  min-width: 0;
+  width: min(820px, calc(100% - 42px));
+  max-width: 820px;
+  margin: 8px 0 12px 42px;
   padding: 0;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface);
+}
+
+.agent-run-summary-embedded {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+}
+
+.agent-run-summary-embedded > .summary-header {
+  display: none;
 }
 
 .message-list > .agent-run-summary:last-child {
@@ -4422,6 +4499,23 @@
 }
 
 @media (max-width: 640px) {
+  .workspace-header h1 {
+    max-width: none;
+  }
+  .mode-switcher button {
+    width: 28px;
+    justify-content: center;
+    padding: 0;
+  }
+  .mode-switcher button span {
+    display: none;
+  }
+  .model-switcher-button {
+    max-width: 120px;
+  }
+  .model-switcher-button > span:first-child {
+    display: none;
+  }
   .message-list {
     gap: 26px;
   }
@@ -4429,11 +4523,18 @@
     grid-template-columns: 24px minmax(0, 1fr);
     gap: 9px;
   }
+  .task-workbench,
+  .message-list > .agent-run-summary {
+    width: calc(100vw - 61px);
+    max-width: calc(100vw - 61px);
+    margin-left: 33px;
+  }
   .message-user {
     grid-template-columns: minmax(0, 1fr) 24px;
   }
   .message-user .message-main {
-    width: min(88%, 520px);
+    width: fit-content;
+    max-width: min(88%, 520px);
   }
   .message-role-mark {
     width: 24px;

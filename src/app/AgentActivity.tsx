@@ -168,6 +168,7 @@ export function AgentActivity({
                         : result
                           ? t("tools.failed")
                           : t("tools.queued")}
+                {result?.durationMs !== undefined && ` · ${(result.durationMs / 1000).toFixed(1)}s`}
               </span>
             </div>
           );

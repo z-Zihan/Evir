@@ -2,7 +2,15 @@ import { AlertTriangle, CheckCircle2, CircleSlash2, ClipboardCheck } from "lucid
 import { useTranslation } from "react-i18next";
 import type { OrchestrationSnapshot } from "../core/orchestration/types";
 
-export function TaskRunSummary({ snapshot }: { snapshot: OrchestrationSnapshot }) {
+type FinishedStatus = "completed" | "partial" | "failed" | "cancelled";
+
+export function TaskRunSummary({
+  snapshot,
+  statusOverride,
+}: {
+  snapshot: OrchestrationSnapshot;
+  statusOverride?: FinishedStatus | undefined;
+}) {
   const { t } = useTranslation();
   const plan = snapshot.plan;
   if (!plan || snapshot.phase !== "finished") return null;
@@ -13,18 +21,19 @@ export function TaskRunSummary({ snapshot }: { snapshot: OrchestrationSnapshot }
   );
   const skipped = plan.nodes.filter(({ status }) => status === "skipped");
   const evidence = snapshot.events.filter(({ type }) => type === "verification.completed");
-  const successful = plan.status === "completed";
+  const status = statusOverride ?? plan.status;
+  const successful = status === "completed";
 
   return (
     <section
-      className={`task-run-summary task-run-summary-${plan.status}`}
+      className={`task-run-summary task-run-summary-${status}`}
       aria-labelledby="task-run-summary-title"
     >
       <div className="task-section-heading">
         {successful ? <CheckCircle2 size={15} /> : <AlertTriangle size={15} />}
         <div>
           <strong id="task-run-summary-title">{t("orchestration.summary.title")}</strong>
-          <span>{t(`orchestration.summary.status.${plan.status}`)}</span>
+          <span>{t(`orchestration.summary.status.${status}`)}</span>
         </div>
       </div>
 

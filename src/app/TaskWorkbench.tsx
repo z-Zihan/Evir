@@ -32,7 +32,28 @@ import {
 import { continueCurrentExecution } from "../features/orchestration/continue-orchestration";
 import { useOrchestrationStore } from "../features/orchestration/orchestration-store";
 import type { NodeStatus, PlanGraph, PlanNode } from "../core/orchestration/types";
+import type { AgentRunRecord, AgentRunStatus } from "../features/chat/agent-run-record";
+import { AgentRunSummary } from "./AgentRunSummary";
 import { TaskRunSummary } from "./TaskRunSummary";
+
+type FinishedStatus = "completed" | "partial" | "failed" | "cancelled";
+
+function reconcileFinishedStatus(
+  planStatus: PlanGraph["status"] | undefined,
+  agentStatus: AgentRunStatus | undefined,
+  answerOnly: boolean,
+): FinishedStatus {
+  if (agentStatus === "failed") return "failed";
+  if (agentStatus === "cancelled") return "cancelled";
+  if (answerOnly && agentStatus === "needs_verification") {
+    return planStatus === "completed" ? "completed" : "partial";
+  }
+  if (["awaiting_approval", "needs_verification", "rolled_back"].includes(agentStatus ?? ""))
+    return "partial";
+  if (["completed", "partial", "failed", "cancelled"].includes(planStatus ?? ""))
+    return planStatus as FinishedStatus;
+  return "partial";
+}
 
 function NodeIcon({ status }: { status: NodeStatus }) {
   if (status === "running") return <LoaderCircle size={14} className="spin" />;
@@ -120,7 +141,7 @@ function EditableStep({ node }: { node: PlanNode }) {
   );
 }
 
-export function TaskWorkbench() {
+export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefined }) {
   const { t } = useTranslation();
   const currentConversationId = useChatStore((state) => state.currentConversationId);
   const privateSession = useChatStore((state) => state.privateSession);
@@ -189,6 +210,13 @@ export function TaskWorkbench() {
   if (!snapshot || snapshot.conversationId !== currentConversationId) return null;
   const plan = snapshot.plan;
   const finished = snapshot.phase === "finished";
+  const matchingAgentRun =
+    agentRun?.conversationId === currentConversationId ? agentRun : undefined;
+  const finishedStatus = reconcileFinishedStatus(
+    plan?.status,
+    matchingAgentRun?.status,
+    snapshot.brief.goalKind === "answer",
+  );
   const active = plan?.nodes.find(({ status }) => status === "running" || status === "ready");
   const stop = () => {
     stopGeneration();
@@ -202,7 +230,7 @@ export function TaskWorkbench() {
   };
   const retryable =
     finished &&
-    (plan?.status === "failed" || plan?.status === "cancelled" || plan?.status === "partial");
+    (finishedStatus === "failed" || finishedStatus === "cancelled" || finishedStatus === "partial");
 
   return (
     <section
@@ -212,7 +240,7 @@ export function TaskWorkbench() {
       <header className="task-status-bar" aria-live="polite">
         <span className="task-status-icon" aria-hidden="true">
           {snapshot.phase === "finished" ? (
-            <RunIcon status={plan?.status} />
+            <RunIcon status={finishedStatus} />
           ) : snapshot.phase === "clarification" ||
             snapshot.phase === "confirmation" ||
             snapshot.phase === "blocked" ? (
@@ -224,7 +252,7 @@ export function TaskWorkbench() {
         <div>
           <strong id="task-workbench-title">
             {finished
-              ? t(`orchestration.finishedStatus.${plan?.status ?? "completed"}`)
+              ? t(`orchestration.finishedStatus.${finishedStatus}`)
               : t(`orchestration.phase.${snapshot.phase}`)}
           </strong>
           <span>{active?.title ?? snapshot.brief.objective}</span>
@@ -463,7 +491,17 @@ export function TaskWorkbench() {
         </div>
       )}
 
-      {(!finished || showFinishedDetails) && <TaskRunSummary snapshot={snapshot} />}
+      {(!finished || showFinishedDetails) && (
+        <TaskRunSummary
+          snapshot={snapshot}
+          statusOverride={finished ? finishedStatus : undefined}
+        />
+      )}
+      {finished && matchingAgentRun && (
+        <div hidden={!showFinishedDetails}>
+          <AgentRunSummary record={matchingAgentRun} embedded />
+        </div>
+      )}
     </section>
   );
 }

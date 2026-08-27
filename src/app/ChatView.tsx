@@ -34,6 +34,7 @@ import type { ModelSwitchAssessment } from "../core/providers/model-switching";
 import { SkillPicker } from "./SkillPicker";
 import { useSkillStore } from "../features/skills/skill-store";
 import { useMemoryStore } from "../features/memory/memory-store";
+import { useOrchestrationStore } from "../features/orchestration/orchestration-store";
 import { TaskWorkbench } from "./TaskWorkbench";
 
 const modelSwitchCoordinator = new ModelSwitchCoordinatorImpl();
@@ -94,7 +95,7 @@ function isDuplicateFailedRetry(previous: MessageRecord, message: MessageRecord)
   );
 }
 
-const MessageList = memo(function MessageList({
+export const MessageList = memo(function MessageList({
   messages,
   disabled,
   localUserName,
@@ -117,13 +118,21 @@ const MessageList = memo(function MessageList({
     if (anchorCount !== undefined) retryCountById.set(anchor, anchorCount + 1);
     else if (!hiddenIds.has(anchor)) retryCountById.set(anchor, 1);
   }
+  const visibleMessages = messages.filter((message) => !hiddenIds.has(message.id));
+
   return (
     <>
-      {messages.map((msg) =>
-        hiddenIds.has(msg.id) ? null : (
+      {visibleMessages.map((msg, index) => {
+        const previous = visibleMessages[index - 1];
+        const next = visibleMessages[index + 1];
+        const groupedWithPrevious = msg.role === "assistant" && previous?.role === "assistant";
+        const groupedWithNext = msg.role === "assistant" && next?.role === "assistant";
+        return (
           <ChatMessage
             key={msg.id}
             message={msg}
+            groupedWithPrevious={groupedWithPrevious}
+            groupedWithNext={groupedWithNext}
             disabled={disabled}
             localUserName={localUserName}
             localUserAvatar={localUserAvatar}
@@ -132,8 +141,8 @@ const MessageList = memo(function MessageList({
             onRegenerate={onRegenerate}
             {...(onRemember ? { onRemember } : {})}
           />
-        ),
-      )}
+        );
+      })}
     </>
   );
 });
@@ -174,6 +183,7 @@ export function ChatView({
   } = useChatStore();
   const installedSkills = useSkillStore((state) => state.skills);
   const addMemory = useMemoryStore((state) => state.addMemory);
+  const orchestrationSnapshot = useOrchestrationStore((state) => state.current);
   const { getDefaultProvider, switchProvider } = useProviderStore();
   const [localDisplayName, setLocalDisplayName] = useState("");
   const [localUserAvatar, setLocalUserAvatar] = useState("");
@@ -189,6 +199,10 @@ export function ChatView({
     t("chat.title");
   const isCurrentConversationStreaming =
     isStreaming && activeStreamConversationId === currentConversationId;
+  const currentAgentRun =
+    latestAgentRun?.conversationId === currentConversationId ? latestAgentRun : undefined;
+  const hasCurrentTaskWorkbench =
+    mode === "agent" && orchestrationSnapshot?.conversationId === currentConversationId;
   const streamElapsedSeconds = useElapsedSeconds(
     isCurrentConversationStreaming ? activeStreamStartedAt : null,
   );
@@ -427,9 +441,9 @@ export function ChatView({
               onRegenerate={regenerate}
               {...(!privateSession ? { onRemember: rememberMessage } : {})}
             />
-            {mode === "agent" && <TaskWorkbench />}
-            {latestAgentRun?.conversationId === currentConversationId && (
-              <AgentRunSummary record={latestAgentRun} onLayoutChange={scrollToBottom} />
+            {mode === "agent" && <TaskWorkbench agentRun={currentAgentRun} />}
+            {currentAgentRun && !hasCurrentTaskWorkbench && (
+              <AgentRunSummary record={currentAgentRun} onLayoutChange={scrollToBottom} />
             )}
             {isCurrentConversationStreaming && (
               <article

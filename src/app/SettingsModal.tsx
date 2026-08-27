@@ -182,7 +182,7 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
 
   const handleExport = async () => {
     const blob = await exportConversations();
-    downloadBlob(blob, `evir-export-${Date.now()}.json`);
+    await downloadBlob(blob, `evir-export-${Date.now()}.json`);
   };
 
   const handleImport = async (file: File) => {

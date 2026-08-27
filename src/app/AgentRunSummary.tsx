@@ -33,6 +33,7 @@ import { useConfirmationDialog } from "./useConfirmationDialog";
 interface AgentRunSummaryProps {
   record: AgentRunRecord;
   onLayoutChange?: () => void;
+  embedded?: boolean;
 }
 
 interface GitInfo {
@@ -41,7 +42,11 @@ interface GitInfo {
   branch: string | null;
 }
 
-export function AgentRunSummary({ record, onLayoutChange }: AgentRunSummaryProps) {
+export function AgentRunSummary({
+  record,
+  onLayoutChange,
+  embedded = false,
+}: AgentRunSummaryProps) {
   const { t } = useTranslation();
   const { id: runId, toolCalls, toolResults, maxIterationsReached, snapshots } = record;
   const workspace = useWorkspaceStore((s) => s.currentWorkspace);
@@ -115,7 +120,10 @@ export function AgentRunSummary({ record, onLayoutChange }: AgentRunSummaryProps
     );
 
   return (
-    <details className="agent-run-summary">
+    <details
+      className={`agent-run-summary${embedded ? " agent-run-summary-embedded" : ""}`}
+      open={embedded || undefined}
+    >
       <summary className="summary-header">
         <span className={`summary-state summary-state-${record.status}`} aria-hidden="true">
           {summaryIcon}
@@ -127,6 +135,8 @@ export function AgentRunSummary({ record, onLayoutChange }: AgentRunSummaryProps
         <span className="summary-metrics">
           {t("agent.filesModified")} {fileModifications.length}
           {commands.length > 0 && ` · ${t("agent.commandsRun")} ${commands.length}`}
+          {record.durationMs !== undefined &&
+            ` · ${t("agent.duration")} ${(record.durationMs / 1000).toFixed(1)}s`}
         </span>
         {maxIterationsReached && (
           <span className="summary-warning">
@@ -169,6 +179,25 @@ export function AgentRunSummary({ record, onLayoutChange }: AgentRunSummaryProps
             </ul>
           )}
         </div>
+
+        {toolResults.length > 0 && (
+          <div className="summary-section">
+            <h4>
+              <Clock3 size={15} />
+              {t("agent.toolExecutions")}
+              <span>{toolResults.length}</span>
+            </h4>
+            <ul>
+              {toolResults.map((result) => (
+                <li key={result.toolCallId}>
+                  <code>{result.toolName}</code>
+                  {` · ${result.success ? t("tools.success") : t("tools.failed")}`}
+                  {result.durationMs !== undefined && ` · ${result.durationMs}ms`}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {commands.length > 0 && (
           <div className="summary-section">

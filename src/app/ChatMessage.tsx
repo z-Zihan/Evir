@@ -1,14 +1,15 @@
-import { type ReactNode, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Brain, Copy, Pencil, RotateCcw } from "lucide-react";
+import { Brain, Pencil, RotateCcw, Sparkles, Copy } from "lucide-react";
 
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import type { MessageRecord } from "../core/storage/db";
 import { AgentActivity } from "./AgentActivity";
+import { MarkdownContent } from "./MarkdownContent";
 
 interface ChatMessageProps {
   message: MessageRecord;
+  groupedWithPrevious?: boolean;
+  groupedWithNext?: boolean;
   disabled: boolean;
   localUserName: string;
   localUserAvatar: string;
@@ -18,35 +19,10 @@ interface ChatMessageProps {
   onRemember?: (message: MessageRecord) => Promise<void>;
 }
 
-function CodeBlock({ className, children }: { className?: string; children: ReactNode }) {
-  const { t } = useTranslation();
-  const [copied, setCopied] = useState(false);
-  const code = typeof children === "string" ? children : JSON.stringify(children);
-  return (
-    <div className="code-block">
-      <button
-        type="button"
-        className="code-block-copy"
-        onClick={() => {
-          void navigator.clipboard.writeText(code).then(() => {
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
-          });
-        }}
-        aria-label={t("chat.copyCode")}
-      >
-        <Copy size={13} />
-        {copied ? t("chat.copied") : t("chat.copyCode")}
-      </button>
-      <pre>
-        <code className={className}>{children}</code>
-      </pre>
-    </div>
-  );
-}
-
 export function ChatMessage({
   message,
+  groupedWithPrevious = false,
+  groupedWithNext = false,
   disabled,
   localUserName,
   localUserAvatar,
@@ -86,29 +62,35 @@ export function ChatMessage({
   const localInitial = Array.from(localUserName.trim())[0]?.toLocaleUpperCase(i18n.language) ?? "•";
 
   return (
-    <article className={`message-row message-${message.role}`}>
+    <article
+      className={`message-row message-${message.role}${groupedWithPrevious ? " message-grouped" : ""}${groupedWithNext ? " message-group-continues" : ""}`}
+    >
       <div className="message-rail" aria-hidden="true">
-        <span className="message-role-mark">
-          {isAssistant ? (
-            <img src="/evir-mark.svg" alt="" />
-          ) : localUserAvatar ? (
-            <img src={localUserAvatar} alt="" />
-          ) : (
-            localInitial
-          )}
-        </span>
+        {!groupedWithPrevious && (
+          <span className="message-role-mark">
+            {isAssistant ? (
+              <img src="/evir-mark.svg" alt="" />
+            ) : localUserAvatar ? (
+              <img src={localUserAvatar} alt="" />
+            ) : (
+              localInitial
+            )}
+          </span>
+        )}
       </div>
       <div className="message-main">
-        <header className="message-header">
-          <span className="message-author">{roleLabel}</span>
-          <time dateTime={new Date(message.createdAt).toISOString()}>
-            {new Date(message.createdAt).toLocaleTimeString(i18n.language, {
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: false,
-            })}
-          </time>
-        </header>
+        {!groupedWithPrevious && (
+          <header className="message-header">
+            <span className="message-author">{roleLabel}</span>
+            <time dateTime={new Date(message.createdAt).toISOString()}>
+              {new Date(message.createdAt).toLocaleTimeString(i18n.language, {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+              })}
+            </time>
+          </header>
+        )}
         <div className="message-content">
           {message.attachments && message.attachments.length > 0 && (
             <div className="message-attachments">
@@ -126,6 +108,17 @@ export function ChatMessage({
                   </span>
                 ),
               )}
+            </div>
+          )}
+          {message.activeSkills && message.activeSkills.length > 0 && (
+            <div className="message-active-skills" aria-label={t("chat.skillsUsed")}>
+              <Sparkles size={13} aria-hidden="true" />
+              <span>{t("chat.skillsUsed")}</span>
+              {message.activeSkills.map((skill) => (
+                <span key={skill.id} className="message-active-skill">
+                  {skill.name}
+                </span>
+              ))}
             </div>
           )}
           {isEditing ? (
@@ -151,18 +144,7 @@ export function ChatMessage({
               </div>
             </div>
           ) : isAssistant ? (
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              components={{
-                code({ className: cn, children: ch, ...props }) {
-                  const isInline = !cn;
-                  if (isInline) return <code {...props}>{ch}</code>;
-                  return <CodeBlock className={cn}>{ch}</CodeBlock>;
-                },
-              }}
-            >
-              {message.content}
-            </ReactMarkdown>
+            <MarkdownContent content={message.content} />
           ) : (
             <p>{message.content}</p>
           )}
@@ -192,7 +174,7 @@ export function ChatMessage({
             </div>
           )}
         </div>
-        {!isEditing && message.role !== "system" && (
+        {!isEditing && message.role !== "system" && !groupedWithNext && (
           <div className="message-actions">
             <button
               type="button"
