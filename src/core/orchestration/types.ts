@@ -89,6 +89,8 @@ export interface PlanNode {
   subgraphId?: string | undefined;
   assignmentId?: string | undefined;
   requiresApproval?: boolean | undefined;
+  /** Parallel-write isolation: node executes in a dedicated git worktree. */
+  isolation?: "worktree" | undefined;
 }
 
 export interface PlanEdge {

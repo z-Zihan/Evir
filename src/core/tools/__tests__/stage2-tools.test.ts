@@ -242,7 +242,8 @@ describe("tool definitions", () => {
   });
 
   it("has 13 tools total", () => {
-    expect(LOCAL_FILE_TOOLS).toHaveLength(12);
+    expect(LOCAL_FILE_TOOLS).toHaveLength(13);
+    expect(LOCAL_FILE_TOOLS.find(({ id }) => id === "search_docs")?.riskLevel).toBe("L1");
   });
 });
 

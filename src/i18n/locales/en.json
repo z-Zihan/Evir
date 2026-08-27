@@ -911,7 +911,13 @@
   "goal": {
     "bannerLabel": "Goal progress",
     "manualCondition": "Needs your confirmation",
-    "conditionFailed": "Failed verification"
+    "conditionFailed": "Failed verification",
+    "usageLabel": "Goal resource usage",
+    "usageElapsed": "{{seconds}}s elapsed",
+    "usageAgents": "{{count}} agent runs",
+    "usageTools": "{{count}} tool calls",
+    "usageTokens": "~{{count}} tokens",
+    "usageEstimated": "Estimated — provider-reported where available"
   },
   "preference": {
     "title": "Possible preferences detected",

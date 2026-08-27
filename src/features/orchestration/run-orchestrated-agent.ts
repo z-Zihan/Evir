@@ -205,6 +205,8 @@ async function runOrchestratedAgentBound(input: OrchestratedRunInput): Promise<A
   // wall-clock budget pauses the run as blocked instead of silently continuing.
   const runStartedAt = Date.now();
   let nodeExecutions = 0;
+  // Re-planning is capped well below the hard node budget.
+  const MAX_REPLAN_NODE_EXECUTIONS = 18;
   const approvalContexts: AgentApprovalContext[] = [];
   const completedSummaries = new Map(
     initial.events.flatMap(({ type, nodeId, summary }) =>
@@ -428,9 +430,40 @@ async function runOrchestratedAgentBound(input: OrchestratedRunInput): Promise<A
     if (subagentBudgetReason) {
       return { status: "blocked", summary: subagentBudgetReason };
     }
+    const rootForWorktree = input.runtime.getWorkspaceRoot?.() ?? null;
+    const isolated =
+      node.isolation === "worktree" &&
+      Boolean(rootForWorktree) &&
+      typeof input.runtime.storage?.gitWorktreeCreate === "function";
+    let worktreePath: string | null = null;
+    if (isolated && rootForWorktree && input.runtime.storage?.gitWorktreeCreate) {
+      try {
+        worktreePath = await input.runtime.storage.gitWorktreeCreate(
+          rootForWorktree,
+          node.id.replace(/[^a-zA-Z0-9-]/g, "").slice(0, 24),
+        );
+        await appendEvent(
+          createRunEvent("node.started", initial.runId, input.conversationId, node.title, {
+            nodeId: node.id,
+            data: { isolatedWorktree: worktreePath },
+          }),
+        );
+      } catch (error) {
+        return {
+          status: "failed",
+          summary: `Worktree isolation unavailable: ${error instanceof Error ? error.message : "git worktree failed"}`,
+        };
+      }
+    }
     const dispatcher = new AgentDispatcher({
       execute: async (assignment, workerSignal) => {
-        const result = await executeLoop(node, workerSignal, true);
+        if (worktreePath) pushRunRoot(worktreePath, permissionContextForRoot(worktreePath));
+        let result;
+        try {
+          result = await executeLoop(node, workerSignal, true);
+        } finally {
+          if (worktreePath) popRunRoot();
+        }
         turns.push(...result.turns);
         return reportFromLoop(assignment, result);
       },
@@ -453,6 +486,29 @@ async function runOrchestratedAgentBound(input: OrchestratedRunInput): Promise<A
     );
     await updateAssignment({ ...assignment, status: "running", updatedAt: Date.now() });
     const report = await dispatcher.dispatch(assignment, signal);
+    if (worktreePath && rootForWorktree && input.runtime.storage) {
+      const worktreeId = node.id.replace(/[^a-zA-Z0-9-]/g, "").slice(0, 24);
+      try {
+        if (report.status !== "cancelled") {
+          await input.runtime.storage.gitWorktreeMerge(rootForWorktree, worktreeId);
+        }
+      } catch (error) {
+        await appendEvent(
+          createRunEvent("node.failed", initial.runId, input.conversationId, node.title, {
+            nodeId: node.id,
+            data: { mergeConflict: true },
+          }),
+        );
+        return {
+          status: "failed",
+          summary: `Worktree merge conflict: ${error instanceof Error ? error.message : "apply failed"}`,
+        };
+      } finally {
+        await input.runtime.storage
+          .gitWorktreeRemove(rootForWorktree, worktreeId)
+          .catch(() => undefined);
+      }
+    }
     if (approvalContexts.some(({ nodeId }) => nodeId === node.id)) {
       await updateAssignment({ ...assignment, status: "blocked", updatedAt: Date.now() });
       return { status: "blocked", summary: "Worker is waiting for tool approval" };
@@ -569,6 +625,43 @@ async function runOrchestratedAgentBound(input: OrchestratedRunInput): Promise<A
   let plan: PlanGraph;
   try {
     plan = await scheduler.run(initial.plan);
+    // Dynamic re-plan: a failed step gets one automatic retry revision so the
+    // supervisor can recover without losing completed work. The revision is
+    // persisted and visible in the execution trace; the goal never changes.
+    const failedNodes = plan.nodes.filter(({ status }) => status === "failed");
+    if (
+      plan.status === "failed" &&
+      failedNodes.length > 0 &&
+      nodeExecutions <= MAX_REPLAN_NODE_EXECUTIONS &&
+      !input.signal?.aborted
+    ) {
+      const revised: PlanGraph = {
+        ...plan,
+        revision: plan.revision + 1,
+        status: "ready",
+        updatedAt: Date.now(),
+        nodes: plan.nodes.map((node) =>
+          node.status === "failed" ? { ...node, status: "ready" as const } : node,
+        ),
+      };
+      await appendEvent(
+        createRunEvent(
+          "plan.revised",
+          initial.runId,
+          input.conversationId,
+          `Auto re-plan: retrying ${failedNodes.length} failed step(s)`,
+          { data: { revision: revised.revision, retriedNodes: failedNodes.map(({ id }) => id) } },
+        ),
+      );
+      const currentSnapshot = useOrchestrationStore.getState().current;
+      if (currentSnapshot?.runId === initial.runId) {
+        useOrchestrationStore
+          .getState()
+          .setCurrent({ ...currentSnapshot, plan: revised, phase: "execution" });
+      }
+      if (!input.privateSession) await repository.persistPlanWithEvents(revised, []);
+      plan = await scheduler.run(revised);
+    }
   } finally {
     input.signal?.removeEventListener("abort", abortScheduler);
     activeSchedulers.delete(initial.runId);

@@ -1587,3 +1587,84 @@ mod tests {
         std::fs::remove_dir_all(&private_workspace).expect("fixture should be removed");
     }
 }
+
+fn run_git(root: &std::path::Path, args: &[&str]) -> Result<String, String> {
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(args)
+        .output()
+        .map_err(|error| error.to_string())?;
+    if !output.status.success() {
+        return Err(format!(
+            "git {:?} failed: {}",
+            args,
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+/// Create an isolated git worktree for parallel write execution. Returns the
+/// worktree path. Fails cleanly when the root is not a git repository.
+#[tauri::command]
+pub(crate) fn git_worktree_create(root: String, id: String) -> Result<String, String> {
+    let root_path = validate_path(&root)?;
+    if !root_path.join(".git").exists() {
+        run_git(&root_path, &["rev-parse", "--git-dir"])?;
+    }
+    let worktrees = root_path.join(".evir-worktrees");
+    std::fs::create_dir_all(&worktrees).map_err(|error| error.to_string())?;
+    let branch = format!("evir/{}", id);
+    let path = worktrees.join(&id);
+    run_git(
+        &root_path,
+        &[
+            "worktree",
+            "add",
+            "-b",
+            &branch,
+            path.to_string_lossy().as_ref(),
+        ],
+    )?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
+/// Stage everything inside the worktree and apply the resulting patch back to
+/// the main working tree with a three-way merge. Any conflict fails the merge.
+#[tauri::command]
+pub(crate) fn git_worktree_merge(root: String, id: String) -> Result<(), String> {
+    let root_path = validate_path(&root)?;
+    let worktree = root_path.join(".evir-worktrees").join(&id);
+    run_git(&worktree, &["add", "-A"])?;
+    let patch = run_git(&worktree, &["diff", "--cached", "--binary"])?;
+    if patch.trim().is_empty() {
+        return Ok(());
+    }
+    let patch_path = worktree.join(".evir-merge.patch");
+    std::fs::write(&patch_path, &patch).map_err(|error| error.to_string())?;
+    let applied = std::process::Command::new("git")
+        .arg("-C")
+        .arg(&root_path)
+        .args(["apply", "--3-way"])
+        .arg(&patch_path)
+        .output()
+        .map_err(|error| error.to_string())?;
+    let _ = std::fs::remove_file(&patch_path);
+    if !applied.status.success() {
+        return Err(format!(
+            "worktree merge conflict: {}",
+            String::from_utf8_lossy(&applied.stderr).trim()
+        ));
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub(crate) fn git_worktree_remove(root: String, id: String) -> Result<(), String> {
+    let root_path = validate_path(&root)?;
+    let worktree = root_path.join(".evir-worktrees").join(&id);
+    let _ = run_git(&root_path, &["worktree", "remove", "--force", worktree.to_string_lossy().as_ref()]);
+    let _ = run_git(&root_path, &["branch", "-D", &format!("evir/{}", id)]);
+    Ok(())
+}

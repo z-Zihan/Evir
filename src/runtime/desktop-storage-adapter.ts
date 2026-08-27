@@ -15,6 +15,9 @@ export interface DesktopStorageAdapter {
   ): Promise<void>;
   readFile(path: string): Promise<string>;
   realPath(path: string): Promise<string>;
+  gitWorktreeCreate(root: string, id: string): Promise<string>;
+  gitWorktreeMerge(root: string, id: string): Promise<void>;
+  gitWorktreeRemove(root: string, id: string): Promise<void>;
   writeFile(path: string, content: string): Promise<void>;
   listDir(path: string): Promise<FileInfo[]>;
   fileInfo(path: string): Promise<FileInfo>;
@@ -128,6 +131,9 @@ export const desktopStorage: DesktopStorageAdapter = {
     invoke("shared_provider_profiles_write", { profiles, deletedIds }),
   readFile: (path) => invoke("fs_read_file", { path, workspaceRoot: rootForPath(path) }),
   realPath: (path) => invoke("fs_real_path", { path }),
+  gitWorktreeCreate: (root, id) => invoke("git_worktree_create", { root, id }),
+  gitWorktreeMerge: (root, id) => invoke("git_worktree_merge", { root, id }),
+  gitWorktreeRemove: (root, id) => invoke("git_worktree_remove", { root, id }),
   writeFile: (path, content) =>
     invoke("fs_write_file", { path, content, workspaceRoot: rootForPath(path) }),
   listDir: (path) => invoke("fs_list_dir", { path, workspaceRoot: rootForPath(path) }),

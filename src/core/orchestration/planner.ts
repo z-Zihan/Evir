@@ -11,6 +11,7 @@ const draftNodeSchema = z
     id: z.string().min(1),
     kind: z.enum(["task", "subgraph", "subagent", "approval", "verification", "join"]),
     title: z.string().min(1),
+    isolation: z.enum(["worktree"]).optional(),
     objective: z.string().min(1),
     dependencies: z.array(z.string()).default([]),
     requiredCapabilities: z
@@ -215,6 +216,7 @@ export async function createPlannedGraph(
     const now = Date.now();
     const nodes: PlanNode[] = draft.nodes.map((item) => ({
       ...item,
+      isolation: item.isolation ?? undefined,
       requiredCapabilities: item.requiredCapabilities,
       status: item.dependencies.length === 0 ? "ready" : "pending",
     }));

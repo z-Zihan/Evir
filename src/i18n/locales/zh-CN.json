@@ -911,7 +911,13 @@
   "goal": {
     "bannerLabel": "目标进度",
     "manualCondition": "需要你确认",
-    "conditionFailed": "验证未通过"
+    "conditionFailed": "验证未通过",
+    "usageLabel": "目标资源消耗",
+    "usageElapsed": "耗时 {{seconds}}s",
+    "usageAgents": "{{count}} 次 Agent 运行",
+    "usageTools": "{{count}} 次工具调用",
+    "usageTokens": "约 {{count}} tokens",
+    "usageEstimated": "估算值——优先采用 Provider 上报"
   },
   "preference": {
     "title": "检测到可能的偏好",

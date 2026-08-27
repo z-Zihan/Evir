@@ -307,6 +307,49 @@ async function searchFiles(
   }
 }
 
+const DOC_EXTENSIONS = [".md", ".mdx", ".txt", ".rst", ".adoc"];
+
+/** Project knowledge v1: deterministic full-text search over project docs
+ * (markdown/ADR/README) — no vector DB, per docs/advanced-agent-capabilities-plan.md. */
+async function searchDocs(
+  args: Record<string, unknown>,
+  runtime: EvirRuntime,
+): Promise<ToolResult> {
+  if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
+  const parsed = searchArgsSchema.safeParse(args);
+  if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
+  const safePath = validateWorkspacePath(parsed.data.path, runtime);
+  if (!safePath) return pathBlocked();
+  try {
+    const candidates = await runtime.storage.searchFiles(safePath, "");
+    const docs = candidates.filter((file) =>
+      DOC_EXTENSIONS.some((extension) => file.toLowerCase().endsWith(extension)),
+    );
+    const needle = parsed.data.pattern.toLowerCase();
+    const hits: string[] = [];
+    for (const doc of docs.slice(0, 200)) {
+      const content = await runtime.storage.readFile(doc).catch(() => "");
+      const lines = content.split("\n");
+      lines.forEach((line, index) => {
+        if (line.toLowerCase().includes(needle) && hits.length < 80) {
+          hits.push(`${doc}:${index + 1}: ${line.trim().slice(0, 160)}`);
+        }
+      });
+    }
+    return { success: true, output: hits.join("\n") || "no matches in project docs" };
+  } catch (error) {
+    return toolToolError(error);
+  }
+}
+
+function toolToolError(error: unknown): ToolResult {
+  return {
+    success: false,
+    output: error instanceof Error ? error.message : "search_docs failed",
+    error: "tool_error",
+  };
+}
+
 async function runCommand(
   args: Record<string, unknown>,
   runtime: EvirRuntime,
@@ -518,6 +561,25 @@ export const LOCAL_FILE_TOOLS: readonly ToolDefinition[] = [
       additionalProperties: false,
     },
     execute: searchFiles,
+  },
+  {
+    id: "search_docs",
+    name: "search_docs",
+    description:
+      "Full-text search across project documentation (markdown/ADR/README/txt) with file:line results. Use for design history, PRD, and architecture questions before reading source.",
+    source: "evir-local",
+    riskLevel: "L1",
+    requiredCapability: "filesystem",
+    schema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Directory path inside the selected workspace" },
+        pattern: { type: "string", description: "Case-insensitive text to find" },
+      },
+      required: ["path", "pattern"],
+      additionalProperties: false,
+    },
+    execute: searchDocs,
   },
   {
     id: "run_command",

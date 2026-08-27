@@ -37,6 +37,9 @@ function scopesConflict(left: ResourceScope, right: ResourceScope): boolean {
 }
 
 export function resourcesConflict(left: PlanNode, right: PlanNode): boolean {
+  // Worktree-isolated nodes write to separate working copies and merge back
+  // sequentially, so they may run alongside each other.
+  if (left.isolation === "worktree" && right.isolation === "worktree") return false;
   if (left.resourceScopes.length === 0 || right.resourceScopes.length === 0) return true;
   return left.resourceScopes.some((a) => right.resourceScopes.some((b) => scopesConflict(a, b)));
 }

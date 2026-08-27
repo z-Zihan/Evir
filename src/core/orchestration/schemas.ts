@@ -96,6 +96,7 @@ export const planNodeSchema = z
     subgraphId: z.string().optional(),
     assignmentId: z.string().optional(),
     requiresApproval: z.boolean().optional(),
+    isolation: z.enum(["worktree"]).optional(),
   })
   .strict();
 

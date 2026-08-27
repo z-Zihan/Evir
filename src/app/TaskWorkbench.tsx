@@ -37,6 +37,8 @@ import type { AgentRunRecord, AgentRunStatus } from "../features/chat/agent-run-
 import { AgentRunSummary } from "./AgentRunSummary";
 import { useMemoryStore } from "../features/memory/memory-store";
 import { getActiveWorkspaceRoot } from "../core/workspace/active-root";
+import { getStructuredStorage } from "../runtime/structured-storage";
+import type { UsageRecord } from "../core/storage/db";
 import { Sparkles } from "lucide-react";
 import { TaskRunSummary } from "./TaskRunSummary";
 
@@ -152,6 +154,46 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
   const stopGeneration = useChatStore((state) => state.stopGeneration);
   const snapshot = useOrchestrationStore((state) => state.current);
   const addMemory = useMemoryStore((state) => state.addMemory);
+  const goalUsage = useMemo(() => {
+    if (!snapshot) return null;
+    const events = snapshot.events;
+    const started = events.find(({ type }) => type === "run.started")?.timestamp ?? 0;
+    const ended =
+      events.filter(({ type }) => type.startsWith("run.") || type.startsWith("goal.")).at(-1)
+        ?.timestamp ?? Date.now();
+    const toolCalls = events.filter(({ type }) => type === "tool.completed").length;
+    const agentRuns = snapshot.assignments.length;
+    return {
+      elapsedMs: Math.max(0, ended - started),
+      agentRuns,
+      toolCalls,
+    };
+  }, [snapshot]);
+  const [goalTokens, setGoalTokens] = useState<number | null>(null);
+  useEffect(() => {
+    if (!snapshot || snapshot.phase !== "finished") return;
+    let cancelled = false;
+    void getStructuredStorage()
+      .query<UsageRecord>("usage_records", { conversationId: snapshot.conversationId })
+      .then((records) => {
+        if (cancelled) return;
+        const since = snapshot.events.find(({ type }) => type === "run.started")?.timestamp ?? 0;
+        setGoalTokens(
+          records
+            .filter((record) => record.createdAt >= since)
+            .reduce(
+              (sum, record) =>
+                sum +
+                (record.totalTokens ?? (record.inputTokens ?? 0) + (record.outputTokens ?? 0)),
+              0,
+            ),
+        );
+      })
+      .catch(() => setGoalTokens(null));
+    return () => {
+      cancelled = true;
+    };
+  }, [snapshot]);
   const [preferenceChoice, setPreferenceChoice] = useState<
     Record<string, "saved-global" | "saved-project" | "dismissed">
   >({});
@@ -620,6 +662,20 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
       {finished && matchingAgentRun && (
         <div hidden={!showFinishedDetails}>
           <AgentRunSummary record={matchingAgentRun} embedded />
+        </div>
+      )}
+
+      {goalUsage && (
+        <div className="goal-usage" aria-label={t("goal.usageLabel")}>
+          <span>
+            {t("goal.usageElapsed", {
+              seconds: Math.max(1, Math.round(goalUsage.elapsedMs / 1000)),
+            })}
+          </span>
+          <span>{t("goal.usageAgents", { count: goalUsage.agentRuns })}</span>
+          <span>{t("goal.usageTools", { count: goalUsage.toolCalls })}</span>
+          {goalTokens !== null && <span>{t("goal.usageTokens", { count: goalTokens })}</span>}
+          {goalTokens !== null && <small>{t("goal.usageEstimated")}</small>}
         </div>
       )}
     </section>

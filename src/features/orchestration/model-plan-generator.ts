@@ -49,6 +49,12 @@ const planTool = {
               kind: {
                 type: "string",
                 enum: ["task", "subgraph", "subagent", "approval", "verification", "join"],
+                isolation: {
+                  type: "string",
+                  enum: ["worktree"],
+                  description:
+                    "Set to worktree only for subagent nodes that write files and could run in parallel with other writing nodes; they execute in isolated git worktrees and merge back.",
+                },
               },
               title: { type: "string" },
               objective: { type: "string" },
