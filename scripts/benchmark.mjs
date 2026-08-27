@@ -168,6 +168,10 @@ function measureTests() {
     try {
       const failed = JSON.parse(readFileSync(jsonOutFile, "utf8"));
       for (const suite of failed.testResults ?? []) {
+        if (suite.status === "failed") {
+          console.error(`FAILED SUITE: ${suite.name ?? "(unnamed)"}`);
+          console.error(String(suite.message ?? "").slice(0, 1200));
+        }
         for (const assertion of suite.assertionResults ?? []) {
           if (assertion.status === "failed") {
             console.error(`FAILED TEST: ${assertion.fullName}`);
