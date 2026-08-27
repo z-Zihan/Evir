@@ -6,252 +6,108 @@
 
 A clean, local-first, bring-your-own-model AI client and general-purpose desktop agent.
 
-**Connect one tool-capable model and start using Evir Desktop to work with files, code, terminals, and your computer.**
+**Connect one tool-capable model and Evir Desktop can read code, edit files, run commands, and verify itself inside your projects.**
 
-[简体中文](README.md) · [Product Spec](docs/01-product-requirements.md) · [Roadmap](docs/06-development-plan.md) · [Coding Agent Prompt](prompts/coding-agent-master-prompt.md)
+[简体中文](README.md) · [Product Spec](docs/01-product-requirements.md) · [Development Guide](docs/03-development-guide.md) · [Roadmap](docs/06-development-plan.md)
 
 </div>
 
 ---
 
-## Why Evir
+![Evir Desktop: Projects and Chats in the sidebar, an agent run timeline inside a project thread](assets/readme/desktop-overview.png)
 
-Many AI clients wrap the core experience in accounts, credits, subscriptions, ads, and platform lock-in. Evir takes a different approach:
+## Works on real projects
 
-- **Bring your own model**: connect international and Chinese providers, local models, or custom compatible endpoints.
-- **Local-first data**: conversations, runs, memory, Skills, and settings remain on the user's device by default.
-- **Explicit capabilities**: streaming, tool calling, vision, and structured output are shown before use.
-- **Controlled execution**: desktop actions are permissioned, stoppable, auditable, and reversible.
-- **Clean product surface**: no ads, credits, mandatory accounts, or required Evir cloud backend.
-- **Lightweight by design**: Tauri 2, lazy-loaded tools, Skills, MCP servers, and sidecars.
-- **One model is enough**: no required secondary summarizer, embedding service, Skill, MCP server, or Evir backend.
-- **Locally diagnosable**: system-wide redacted logs, audit trails, and user-exported diagnostic bundles without a remote logging backdoor.
+The Desktop sidebar has two sections: **PROJECTS** and **CHATS**. A project maps to one local folder — create a task inside it and the Agent's working directory is the project root. No workspace picker, and if the folder moves, re-locating it keeps every thread and permission intact.
 
-## Multiple products, one shared capability core
+A compact control bar above the composer decides **how** the agent works:
 
-### Evir Web
-
-A multi-model chat client that can be deployed as static files.
-
-- Bring your own API key, base URL, and model.
-- Real streaming, Markdown, attachments, conversations, and local search.
-- Internationalization and light, dark, or system themes.
-- Ask chat and attachment analysis without Plan, Agent, or system-level computer control.
-- Direct browser-to-provider requests with no required Evir backend.
-
-> Some providers do not allow browser CORS requests. Evir Web must detect this and direct the user to Evir Desktop or a browser-compatible endpoint.
-
-### Evir Desktop
-
-A Tauri 2 agent for macOS and Windows.
-
-It adds:
-
-- Workspaces, filesystem access, terminal, and Git.
-- Agent loop, plans, context compaction, and memory.
-- Approvals, audit logs, diffs, snapshots, and rollback.
-- Built-in and user-created Skills.
-- MCP server configuration management; live stdio and Streamable HTTP closure is still in development.
-- Browser automation and Computer Use in later phases.
-
-### Evir for VS Code
-
-A standalone `.vsix` extension that does not require the Evir Desktop app to stay running.
-
-- BYOM Provider, Base URL, model, and API-key configuration using VS Code SecretStorage.
-- Streaming Ask, cancellation, and local conversation persistence.
-- Agent file, search, Git, and command tools in trusted local workspaces.
-- Per-call approval for writes and execution, plus Diff and rollback for the last file write.
-- VS Code Web, Remote SSH/WSL, MCP, Skills, and Desktop conversation sync are not currently supported.
-
-VS Code-compatible editors such as VSCodium, Cursor, and Windsurf may install the same VSIX, but have not yet been validated individually. JetBrains, Zed, and Neovim require separate runtime adapters; see the [VS Code extension and editor roadmap](docs/19-vscode-extension-and-editor-roadmap.md).
-
-### Evir CLI
-
-The standalone `evir` command does not require Evir Desktop to be installed or running.
-
-- `evir configure` saves Provider metadata and places the API key in the OS credential store.
-- `evir ask` streams answers; `evir agent --workspace <path>` runs the Agent inside an explicit workspace boundary.
-- Desktop and CLI share the default Provider's non-secret profile and OS credential; a change made by either surface is available on the other's next read.
-- `EVIR_API_KEY` is a temporary, highest-priority process override and is never written to configuration or logs.
-
-## Model and protocol architecture
-
-Evir separates provider presets, transport protocols, and model capabilities:
+- **Mode** — Agent / Plan / Goal as first-class modes (plain chats live in CHATS, stay Ask-only, and never touch local files).
+- **Permission** — how much runs automatically, per project.
+- **Model** — who does the work, switchable mid-conversation.
 
 ```text
-Provider Preset
-  vendor defaults, regions, endpoints, and auth UI
-        ↓
-Protocol Adapter
-  OpenAI Responses / Chat Completions, Anthropic Messages,
-  Gemini, Bedrock, and other native protocols
-        ↓
-Model Capability
-  streaming, tools, vision, structured output, context window
+Create a project (pick a folder) → new task → pick Mode / Permission / Model
+→ agent reads · edits · executes · verifies → diff / snapshot / rollback
 ```
 
-Planned protocol coverage includes:
+- **Agent**: executes 13 built-in tools (read/write/search/patch/command/git/snapshot) plus MCP tools under the permission policy, with pause, approval, and rollback.
+- **Plan**: read-only inspection of the project that produces a structured plan, then one-click **Execute Plan** continues as Agent.
+- **Goal**: long-running objectives with explicit done-when conditions; Evir verifies each condition with real evidence — the model saying "done" is not done.
 
-- OpenAI Responses API
-- OpenAI Chat Completions API
-- Anthropic Messages API
-- Google Gemini Interactions / GenerateContent
-- Azure OpenAI Responses / Chat Completions
-- Amazon Bedrock Converse / ConverseStream
-- Native Mistral, Cohere, and Ollama adapters
-- Custom OpenAI-compatible and Anthropic-compatible endpoints
+### Permission decides autonomy
 
-See the [Provider and Protocol Matrix](docs/13-provider-and-protocol-matrix.md).
+![Project permission: Ask for Approval / Workspace Access / Full Access](assets/readme/project-permission.png)
 
-## Ask / Plan / Agent
+Every project picks one of three levels: **Ask for Approval** (default; writes need per-call approval), **Workspace Access** (routine in-project actions run automatically and land in the audit log), or **Full Access** (removes the directory boundary; first activation always requires an explicit confirmation). Projects can also grant additional access roots. Tool boundaries are enforced in the Tool Registry and the Rust layer — not by prompts.
 
-- **Ask**: chat and analysis without autonomous local access.
-- **Plan**: an internal read-only Desktop Agent phase, not a current top-level mode.
-- **Agent**: executes tools under the selected permission policy, with pause, cancel, approval, and rollback.
+## Bring your own model
 
-The current Web UI exposes Ask only; Desktop exposes Ask and Agent.
+Providers, protocols, and model capabilities are separate layers: ~30 built-in presets for international and Chinese vendors, 7 implemented protocol adapters (OpenAI Chat Completions / Responses, Anthropic Messages, Gemini, Azure OpenAI, native Ollama, OpenAI-compatible), and custom compatible endpoints. API keys live in the OS credential store and never enter logs.
 
-## Skills and MCP
+![Provider settings: multiple vendors, models, capability badges](assets/readme/provider-settings.png)
 
-- Skills describe **how to perform a class of tasks**.
-- MCP provides **external tools, resources, and prompts**.
-- Web supports instruction-only Skills that do not depend on local capabilities.
-- Desktop currently supports Skills and MCP configuration; MCP connection, discovery, and runtime calls are still in development.
-- Third-party Skill and MCP content is untrusted by default.
+Capabilities (streaming, tool calling, vision, structured output) are shown before use; a model without tool calling can still chat, but Agent/Plan/Goal are disabled with a reason. In-conversation switching goes through safe checkpoints that handle context, attachments, and data destination; automatic cross-provider fallback stays off. See the [provider and protocol matrix](docs/13-provider-and-protocol-matrix.md).
 
-### Personalization without weakening safety
+## Four surfaces, one capability core
 
-- Configure naming, language, response style, and durable work preferences through a simple form.
-- Advanced `USER.md`, `PERSONA.md`, `INSTRUCTIONS.md`, and `SOUL.md` editors are not exposed yet.
-- Evir core security, permission, tool, and network policies remain protected and cannot be overridden by Skills or custom instructions.
-- Personalization supports global, workspace, and conversation scopes and can be disabled instantly.
+|                               | Evir Desktop           | Evir Web               | Evir for VS Code       | Evir CLI                |
+| ----------------------------- | ---------------------- | ---------------------- | ---------------------- | ----------------------- |
+| Focus                         | General desktop agent  | Clean multi-model chat | In-editor agent        | Terminal agent          |
+| Chat / attachments            | ✅                     | ✅                     | ✅                     | ✅ (ask)                |
+| Local tools / terminal / git  | ✅                     | —                      | ✅ (trusted workspace) | ✅ (workspace boundary) |
+| Agent / Plan / Goal           | ✅                     | —                      | Agent                  | Agent                   |
+| Skills                        | 36 built-in + your own | 10 instruction-only    | —                      | —                       |
+| MCP (stdio + Streamable HTTP) | ✅                     | —                      | —                      | —                       |
 
-### Complete everyday foundations
+- **Web**: a static-file chat client that talks straight from the browser to your providers, with no Evir backend; CORS-limited endpoints are detected and called out.
+- **VS Code**: a standalone VSIX with keys in VS Code SecretStorage; per-call approval for writes and commands plus diff/rollback for the last write. VS Code Web / Remote / MCP / Skills are not supported yet.
+- **CLI**: a standalone `evir` command (configure / doctor / ask / agent) that shares non-secret provider profiles and OS credentials with Desktop without requiring it to run.
 
-- Optional system notifications for long-run completion, approvals, and failures.
-- Local token and usage records that distinguish provider-reported values from estimates.
-- Settings list the current application shortcuts; customization, the command palette, and desktop global shortcuts are not exposed yet.
-- Bilingual offline help files are included in the repository; the in-app help center and feedback form are not exposed yet.
-- Provider setup includes official website, console, documentation, and status links.
+![Evir Web: multi-model chat with Markdown, tables, and code](assets/readme/web-chat.png)
 
-## One-model start and safe switching
-
-- After configuring a provider, API key, and model, the user can begin immediately.
-- Ask only requires text generation; Desktop Agent requires reliable tool calling.
-- In-conversation switching checks context limits, tools, attachments, data destination, and provider-private state.
-- Active Agent runs switch only at a safe checkpoint with a structured handoff.
-- Automatic cross-provider fallback is off by default.
-
-## Harness and local diagnostics
-
-Evir treats an agent as `Model + Harness`: the model decides, while the Harness manages context, permissions, tools, loop detection, verification, recovery, and observability. Repository documentation, tests, and architecture rules are part of the machine-readable source of truth.
-
-Diagnostics cover providers, streaming, agents, context, tools, MCP, storage, performance, and crashes. Logs are redacted and local by default. Users explicitly export a diagnostic ZIP and may attach it to a GitHub Issue; Evir has no remote log-access backdoor.
-
-## Privacy and storage
-
-Evir does not require a cloud database.
+## Local-first and diagnosable
 
 ```text
-API keys                   → OS secure credential store
-Desktop / CLI Providers    → versioned non-secret local config
-Simple settings            → local config
-Conversations/runs/memory  → embedded local storage
-Logs/diffs/snapshots/files → local Artifact store
+API keys            → OS secure credential store
+Provider config     → versioned non-secret local files
+Chats / runs / memory → embedded local storage (SQLite / IndexedDB)
+Logs / diffs / snapshots → local artifact directory
 ```
 
-Desktop uses SQLite as the default embedded adapter. It is a local file, not a server process.
+- No accounts, credits, ads, or required cloud backend; data stays on your device by default.
+- Logs cover providers, agents, tools, approvals, and performance — redacted by default, stored locally, rotated and budgeted.
+- The diagnostics page shows redacted events, exports JSON, or bundles a **diagnostics ZIP** (system/config metadata + local logs, with a size preview before export). Bundles leave your machine only if you send them — Evir has no remote log access.
+- Context compaction, three-tier memory, checkpoints, and crash recovery are built in; a single model handles all summarization, no second model required.
 
 ## Performance budgets
 
-- Desktop cold start: P50 < 2s, P95 < 4s.
-- Idle memory target: <= 150 MB; regression threshold 200 MB.
-- Idle CPU target: < 1% long-running average.
-- Initial Web JavaScript gzip: <= 350 KiB, with only the 10 shared Skills bundled.
-- Desktop frontend resources: <= 15 MiB, including 10 shared and 26 additional Desktop-only Skills.
-- Desktop installer excluding optional sidecars: <= 120 MiB, with a 180 MiB regression ceiling.
-- Display provider stream deltas within 100 ms of arrival.
+Tauri 2 without a bundled Chromium; Skill bodies, MCP, and settings panels load on demand; stream deltas render in batches. Engineering budgets: Web initial JS gzip ≤ 350 KiB (currently 320.38 KiB), desktop frontend ≤ 15 MiB (currently 2.94 MiB), cold start P50 < 2s, idle memory ≤ 150 MB. Numbers marked "currently" come from the [latest benchmark](docs/benchmarks/latest.json); the rest are targets that have not been formally measured and are not reported as achieved.
 
-These are engineering budgets and must be measured in CI or release validation.
+## Current status
 
-## Project status
-
-Evir is in **Phase S: stability and experience remediation**, not release-ready.
-
-- Web is limited to chat and attachment analysis; it does not expose Agent, Plan, local workspaces, or MCP.
-- Desktop defaults to Agent and can switch to Ask; Plan is not a persistent primary mode.
-- Local tools, approval, Agent Activity, workspaces, and baseline recovery paths are implemented and automated.
-- Web/Desktop Capability UI has E2E, visual, accessibility, theme, language, and narrow-window coverage.
-- The native macOS window passed a startup smoke test. Real-provider flows, a native multi-tool task, signed packaging, and Windows remain unverified.
-
-See the [automated quality report](docs/reviews/automated-quality-report.md) and [stability bug register](docs/reviews/stability-bug-register.md).
+Evir is under active development and **not released yet**. The core paths — chat, agent tools and approvals, Plan/Goal, permission levels, snapshot/rollback, MCP connections, logging and diagnostics export — are implemented and covered by 636 TypeScript tests + 25 Rust tests plus the E2E/visual/a11y matrix, with real-provider (GLM) and native macOS multi-tool runs verified on hardware. Not yet verified: Windows, formal performance measurements (cold start/memory/CPU/installer size), VS Code Marketplace and CLI npm publishing. Installers are ad-hoc unsigned by default (they run fine); Developer ID signing/notarization is an optional enhancement.
 
 ## Development
 
-### Requirements
-
-- Node.js 20+
-- pnpm 9+
-- Rust stable
-- Tauri 2 platform dependencies
-
-### Commands
-
 ```bash
 pnpm install
-pnpm dev:web
-pnpm dev:desktop
-pnpm build:web
-pnpm build:desktop
-pnpm build:desktop:macos:arm64
-pnpm build:desktop:macos:x64
-pnpm build:desktop:windows:x64 # run on Windows
-pnpm build:vscode
-pnpm package:vscode
-pnpm build:cli
-pnpm check
-pnpm test:e2e
-pnpm test:ui
-pnpm test:visual
-pnpm test:a11y
-pnpm benchmark
+pnpm dev:web        # web dev server
+pnpm dev:desktop    # Tauri desktop (requires Rust + Tauri 2 deps)
+pnpm check          # format + lint + strict TS + unit tests + release validation
+pnpm test:e2e       # Playwright E2E (web + desktop modes)
+pnpm benchmark      # bundle-size gates
+node scripts/capture-readme-screenshots.mjs  # regenerate README screenshots
 ```
 
-Production macOS and Windows bundles should be built on their respective operating systems. A stable release tag triggers explicit Apple Silicon (`arm64`) and Intel (`x64`) macOS DMGs plus a Windows x64 MSI, all collected in one release. M1/M2/M3/M4 users choose `arm64`; Intel Mac users choose `x64`. The two macOS packages are not interchangeable.
-
-You can package locally without creating a tag. An Apple Silicon Mac can produce both arm64 and x64 macOS DMGs with the commands above. Build the Windows x64 installer on a Windows machine or Windows CI runner. Artifacts built without local signing credentials are for testing only. See the [development guide](docs/03-development-guide.md#101-本地打包) for Rust target setup, output paths, and the tag release procedure.
+Builds and releases (macOS arm64/x64 DMGs, Windows x64 MSI, VSIX, CLI tarball) are described in the [development guide](docs/03-development-guide.md). Requires Node.js 20+, pnpm 9+, and Rust stable.
 
 ## Documentation
 
-- [Product Requirements](docs/01-product-requirements.md)
-- [Technical Architecture](docs/02-technical-architecture.md)
-- [Development Guide](docs/03-development-guide.md)
-- [Design Specification](docs/04-design-specification.md)
-- [Engineering Standards](docs/05-engineering-standards.md)
-- [Development Plan](docs/06-development-plan.md)
-- [Agent Security and Quality](docs/07-agent-security-and-quality.md)
-- [Skills and MCP](docs/08-skill-and-mcp.md)
-- [Storage, Artifacts, and Recovery](docs/09-storage-artifacts-and-recovery.md)
-- [Streaming and Performance](docs/10-streaming-and-performance.md)
-- [Providers, Permissions, and Observability](docs/11-provider-permissions-and-observability.md)
-- [Product Closure Review](docs/12-product-closure-review.md)
-- [Provider and Protocol Matrix](docs/13-provider-and-protocol-matrix.md)
-- [Personalization, Notifications, Usage, Shortcuts, Feedback, and Help](docs/14-personalization-notifications-usage-shortcuts-feedback-help.md)
-- [Final Experience, Model Switching, and Context](docs/15-final-experience-model-switching-and-context.md)
-- [Evir Harness Engineering](docs/16-harness-engineering-for-evir.md)
-- [Local Logging and Diagnostics](docs/17-local-logging-and-diagnostics.md)
-- [Final Product Review V6](docs/18-final-product-review-v6.md)
-- [VS Code Extension and Editor Roadmap](docs/19-vscode-extension-and-editor-roadmap.md)
-- [CLI Product and Technical Specification](docs/20-cli-product-and-technical-specification.md)
-- [VS Code and CLI Product/UI Review](docs/reviews/vscode-cli-product-ui-review.md)
-- [Coding Agent Prompt](prompts/coding-agent-master-prompt.md)
-
-## Repository
-
-```text
-git@github.com:z-Zihan/Evir.git
-```
+- Product & architecture: [Product Requirements](docs/01-product-requirements.md) · [Technical Architecture](docs/02-technical-architecture.md) · [Current IA Design](docs/project-chat-agent-redesign.md)
+- Standards: [Design](docs/04-design-specification.md) · [Engineering](docs/05-engineering-standards.md) · [Agent Security & Quality](docs/07-agent-security-and-quality.md) · [Harness](docs/16-harness-engineering-for-evir.md) · [Logging & Diagnostics](docs/17-local-logging-and-diagnostics.md)
+- Deep dives: [Skills & MCP](docs/08-skill-and-mcp.md) · [Provider Matrix](docs/13-provider-and-protocol-matrix.md) · [VS Code Roadmap](docs/19-vscode-extension-and-editor-roadmap.md) · [CLI Spec](docs/20-cli-product-and-technical-specification.md)
+- Testing & evidence: [Full Test Cases](docs/23-full-project-test-cases.md) · [Automated Quality Report](docs/reviews/automated-quality-report.md) · [MCP Implementation Status](docs/22-mcp-runtime-implementation-plan.md)
 
 ## License
 

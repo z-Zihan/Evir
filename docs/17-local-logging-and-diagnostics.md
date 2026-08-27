@@ -1,5 +1,7 @@
 # Evir 本地日志与诊断系统
 
+> **实现状态（2026-08-27）**：已实现——统一 LoggerPort + Correlation ID、递归脱敏（redaction + fuzz 测试）、Desktop 分类文件持久化（app/audit/performance JSONL、按日命名、15MB 轮转、14 天保留、100MB 总预算、audit/error 立即落盘、连续失败自动停用）、诊断页（级别过滤、最近事件查看、日志目录复制、清空确认、JSON 导出、**诊断 ZIP 导出**：manifest + system/runtime/provider/mcp/events/performance 脱敏元数据 + logs/ JSONL，导出前预览文件数与体积）。未实现——Crash Report 文件、详细模式开关与保留天数调整、原始协议捕获、§11 GitHub Issue 预填流程。Web 仍为内存日志（JSON 导出）。下文为完整规范，未实现部分仍为目标态。
+
 ## 1. 目标
 
 Evir 需要覆盖全系统的本地日志、审计、性能追踪和崩溃诊断，以便用户或开发者将诊断文件发送给他人，或在 GitHub Issue 中附加。
@@ -216,6 +218,22 @@ password / secret       → [REDACTED_SECRET]
 - 默认日志开销目标：空闲 CPU 增量接近 0；常规任务 CPU/延迟增量 < 2%。
 
 ## 10. 诊断包
+
+**已实现（2026-08-27，Desktop）**：诊断页“导出诊断包 (ZIP)”先预览文件数与体积并确认，经系统保存对话框生成（Rust `diagnostics_export_zip`，deflate）。当前结构：
+
+```text
+Evir-Diagnostics-<timestamp>.zip
+├── manifest.json          # evir-diagnostics/1：生成时间、版本、平台、条目清单
+├── system.json            # 版本、平台、语言、目标端
+├── runtime-status.json    # capabilities、日志持久化状态
+├── provider-metadata.json # Provider 非敏感元数据（递归脱敏）
+├── mcp-status.json        # MCP Server 状态（headers 值脱敏）
+├── diagnostics-events.json# 最近脱敏内存事件
+├── performance-summary.json
+└── logs/                  # 本地 app/audit/performance JSONL（按 includeDays 过滤）
+```
+
+完整目标结构（会话选择、crash/ 目录保留为后续项）：
 
 用户点击“导出诊断包”后生成：
 

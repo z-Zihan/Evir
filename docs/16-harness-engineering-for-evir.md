@@ -43,7 +43,7 @@ User Request
 ### 2.1 Middleware 建议
 
 - `InputNormalizationMiddleware`：统一消息、附件和模型参数。
-- `ModePolicyMiddleware`：Ask / Plan / Agent 工具边界。
+- `ModePolicyMiddleware`：Ask / Plan / Goal / Agent 工具边界（Plan=L1 只读、Goal 同 Agent 并复用编排）。
 - `CapabilityGateMiddleware`：检查模型、Runtime 和系统权限。
 - `ContextBudgetMiddleware`：预算、压缩和检索。
 - `SkillRoutingMiddleware`：只加载命中的 Skill。

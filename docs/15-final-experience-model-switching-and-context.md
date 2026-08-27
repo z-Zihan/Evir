@@ -22,8 +22,8 @@ Evir 的最高优先级不是功能数量，而是以下四项：
 → 选择或填写模型
 → 自动进行最小连接与流式检测
 → 进入主界面
-→ 输入任务
-→ 首次需要时选择工作区并授予对应系统权限
+→ 输入任务（Standalone Chat 直接提问；需要操作本地目录时在侧栏创建 Project）
+→ Project 内选择工作目录并授予对应系统权限
 → Agent 开始工作
 ```
 
@@ -65,9 +65,9 @@ Evir 的最高优先级不是功能数量，而是以下四项：
 
 主界面默认只突出：
 
-1. 当前会话。
+1. 当前会话（Sidebar 按 PROJECTS / CHATS 组织）。
 2. 当前模型。
-3. Ask / Plan / Agent 模式。
+3. 模式（Project Thread：Agent / Plan / Goal；Standalone Chat：恒 Ask）与项目权限档位。
 4. 输入与附件。
 5. 发送 / 停止。
 6. 当前任务状态与必要审批。
@@ -127,7 +127,7 @@ Agent 任务切换模型前，Evir 创建模型无关的结构化交接包：
 ```ts
 interface ModelHandoffCheckpoint {
   objective: string;
-  mode: "ask" | "plan" | "agent";
+  mode: "ask" | "plan" | "goal" | "agent";
   completedSteps: string[];
   currentStep?: string;
   pendingSteps: string[];
@@ -269,6 +269,6 @@ interface FileContextReference {
 - 常用操作可通过键盘完成，但快捷键不会成为使用前提。
 - 日志、统计、帮助和反馈完整，但不会拖慢启动和聊天体验。
 
-### 7.1 当前验证状态（2026-08-06）
+### 7.1 当前验证状态（2026-08-27）
 
-Web/Desktop Capability 的默认模式、流式、停止、错误、多工具 Activity、审批、主题、语言、窄窗口和设置无障碍已自动化通过。macOS 原生窗口完成启动、Ask 切换和设置烟测。模型切换真实跨 Provider、长上下文真实压缩和原生工作区完整 Agent 任务尚未完成真实端到端验收。
+Web/Desktop Capability 的默认模式、流式、停止、错误、多工具 Activity、审批、主题、语言、窄窗口和设置无障碍已自动化通过；Project/Permission/Goal 新信息架构已有确定性回归（600+ TS 测试、35 e2e、UI 矩阵、视觉基线、a11y）。真实 Provider（GLM）实机全链路与原生 Desktop 多工具任务已于 2026-08-26/27 验收。长上下文真实压缩与跨 Provider 真实切换的端到端验收仍未完成；运行中模型切换只在安全检查点发生（active-root 隔离下 Run 绑定 originating root，见 `src/core/workspace/active-root.ts`）。

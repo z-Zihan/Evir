@@ -21,10 +21,11 @@ UI、Agent Core、Skill 和 MCP 只能依赖 Storage Port，不得直接写 SQL�
 ## 3. 核心实体
 
 - providers / model_profiles / model_capabilities / usage_records
-- conversations / messages / attachments
-- agent_runs / plans / run_steps
+- projects（一等实体：UUID 身份、rootPath/canonicalRootPath、permissionProfile、additionalAccessRoots）
+- conversations / messages / attachments（conversations 携带 projectId 归属）
+- agent_runs / task_briefs / plans / run_events / agent_assignments / run_steps
 - tool_executions / approvals
-- workspaces / network_policies
+- network_policies
 - memories
 - skills / skill_versions / activated_skills
 - mcp_servers / mcp_capabilities / mcp_logs

@@ -1,6 +1,7 @@
 # Evir Coding Agent 续建总 Prompt（V6）
 
-你正在接手并继续开发 **Evir**。
+> **Historical（2026-08-05 项目启动总 Prompt）**：本文件是初始工程引导材料，仅作历史参考。当前 Coding Agent 入口是根目录 `AGENTS.md` 与 `docs/agent/Evir-project-memory.md`；本文的行数上限等工程参数以 `docs/05-engineering-standards.md` 现行版为准。
+> 你正在接手并继续开发 **Evir**。
 
 仓库：
 
@@ -43,7 +44,7 @@ Evir 不建设必需业务后端，不隐藏代理用户请求，不引入账号
 20. `docs/06-development-plan.md`
 21. `docs/03-development-guide.md`
 
-文档是实现约束。代码与文档冲突时先核验事实，修正过时的一方；重大决策写入 `docs/decisions/`。
+文档是实现约束。代码与文档冲突时先核验事实，修正过时的一方；重大决策记入 `docs/agent/Evir-project-memory.md` 的 Update Log。
 
 ## 三、当前状态
 

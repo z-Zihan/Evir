@@ -848,7 +848,7 @@
   },
   "diagnostics": {
     "title": "诊断",
-    "export": "导出日志",
+    "export": "导出 JSON",
     "exported": "日志已导出。",
     "exportCancelled": "已取消导出。",
     "exportFailed": "导出失败，请重试。",
@@ -874,7 +874,14 @@
     "persistenceMemoryOnly": "日志仅保留在本次会话内存中；桌面端支持分类文件持久化。",
     "logDirectoryLabel": "日志目录",
     "copyLogDirectory": "复制路径",
-    "logDirectoryCopied": "已复制"
+    "logDirectoryCopied": "已复制",
+    "exportBundle": "导出诊断包 (ZIP)",
+    "bundleConfirmTitle": "导出诊断包",
+    "bundleConfirmDescription": "将打包 {{fileCount}} 个日志文件（约 {{size}}）与脱敏的系统、Provider、MCP 元数据。内容已脱敏，不包含 API Key 或会话正文。",
+    "bundleConfirm": "导出",
+    "bundleExported": "诊断包已导出：{{path}}",
+    "bundleCancelled": "已取消导出诊断包",
+    "bundleExportFailed": "导出诊断包失败"
   },
   "project": {
     "permissionTitle": "权限 — {{name}}",

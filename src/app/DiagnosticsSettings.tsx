@@ -1,14 +1,35 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import packageJson from "../../package.json";
+import { DiagnosticExportCancelledError } from "../core/logging/diagnostic-port";
 import { logger } from "../core/logging/logger";
-import type { LogLevel } from "../core/logging/types";
+import type { DiagnosticExportOptions, LogLevel } from "../core/logging/types";
+import { currentPlatform } from "../core/shortcuts/platform";
 import { downloadBlob } from "../features/chat/conversation-export";
+import { useMcpStore } from "../features/mcp/mcp-store";
+import { useProviderStore } from "../features/provider/provider-store";
+import { DesktopDiagnosticsExport } from "../runtime/diagnostics-export";
+import { getRuntime } from "../runtime/use-runtime";
 import { useConfirmationDialog } from "./useConfirmationDialog";
 
 type DiagnosticsFilter = "all" | "info" | "warn" | "error";
 
 const FILTERS: DiagnosticsFilter[] = ["all", "info", "warn", "error"];
 const MAX_SHOWN = 50;
+
+const BUNDLE_OPTIONS: DiagnosticExportOptions = {
+  includeDays: 7,
+  includeCrashReports: false,
+  includePerformanceSummary: true,
+  includeSelectedConversationIds: [],
+  includeRawProtocolCapture: false,
+};
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 function levelBadgeClass(level: LogLevel): string {
   if (level === "error" || level === "fatal") return "text-red-600 dark:text-red-400";
@@ -18,7 +39,7 @@ function levelBadgeClass(level: LogLevel): string {
 }
 
 export function DiagnosticsSettings() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
   const [filter, setFilter] = useState<DiagnosticsFilter>("all");
   const [entries, setEntries] = useState(() => logger.getEntries());
@@ -62,6 +83,61 @@ export function DiagnosticsSettings() {
     setEntries(logger.getEntries());
   };
 
+  const runBundleExport = async (exportPort: DesktopDiagnosticsExport) => {
+    try {
+      const { zipPath } = await exportPort.generateExport(BUNDLE_OPTIONS);
+      logger.info("artifact", "diagnostics.bundle-export-completed", { path: zipPath });
+      setExportResult(t("diagnostics.bundleExported", { path: zipPath }));
+    } catch (error) {
+      if (error instanceof DiagnosticExportCancelledError) {
+        logger.info("artifact", "diagnostics.bundle-export-cancelled");
+        setExportResult(t("diagnostics.bundleCancelled"));
+        return;
+      }
+      logger.error("artifact", "diagnostics.bundle-export-failed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      setExportResult(t("diagnostics.bundleExportFailed"));
+    }
+  };
+
+  const handleBundleExport = () => {
+    setExportResult(null);
+    const bundleSource = () => ({
+      appVersion: packageJson.version,
+      platform: currentPlatform(),
+      locale: i18n.resolvedLanguage ?? i18n.language,
+      target: getRuntime().target,
+      capabilities: [...getRuntime().capabilities],
+      logPersistence: logger.persistenceStatus(),
+      providers: useProviderStore.getState().providers,
+      mcpServers: useMcpStore.getState().servers,
+      recentLogEvents: logger.getEntries(),
+    });
+    const exportPort = new DesktopDiagnosticsExport(bundleSource);
+    void exportPort
+      .previewExport(BUNDLE_OPTIONS)
+      .then((preview) => {
+        requestConfirmation(
+          {
+            title: t("diagnostics.bundleConfirmTitle"),
+            description: t("diagnostics.bundleConfirmDescription", {
+              fileCount: preview.fileCount,
+              size: formatBytes(preview.estimatedSize),
+            }),
+            confirmLabel: t("diagnostics.bundleConfirm"),
+          },
+          () => void runBundleExport(exportPort),
+        );
+      })
+      .catch((error: unknown) => {
+        logger.error("artifact", "diagnostics.bundle-preview-failed", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        setExportResult(t("diagnostics.bundleExportFailed"));
+      });
+  };
+
   return (
     <section className="diagnostics-settings settings-designed-page">
       <div className="settings-page-intro compact">
@@ -72,6 +148,11 @@ export function DiagnosticsSettings() {
           <p>{t("settingsDescriptions.diagnostics")}</p>
         </div>
         <div className="flex gap-2">
+          {getRuntime().target === "desktop" && (
+            <button type="button" className="secondary-button" onClick={handleBundleExport}>
+              {t("diagnostics.exportBundle")}
+            </button>
+          )}
           <button type="button" className="secondary-button" onClick={() => void handleExport()}>
             {t("diagnostics.export")}
           </button>

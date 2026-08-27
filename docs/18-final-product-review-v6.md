@@ -18,7 +18,7 @@ Evir 当前产品定义已经形成完整闭环，可以进入分阶段开发。
 - 主界面只保留模型、模式、输入、发送/停止和必要任务状态。
 - 系统权限渐进申请。
 - 已实现的高级能力进入设置；命令面板尚未实现。
-- Web 只呈现 Ask；Desktop 呈现 Ask/Agent，Plan 是 Agent 内部只读阶段。
+- Web 只呈现 Ask；Desktop 侧栏为 PROJECTS/CHATS，Project Thread 内 Agent/Plan/Goal 为一等模式，Standalone Chat 恒为 Ask。
 - 常用操作提供快捷键，但不要求用户学习快捷键才能使用。
 
 需要开发阶段持续验证：首次成功聊天步骤、首次 Agent 任务步骤和关键操作点击数。
@@ -96,12 +96,11 @@ Evir 当前产品定义已经形成完整闭环，可以进入分阶段开发。
 
 ### 3.4 本地日志
 
-当前仅部分实现：
+2026-08-27 状态：
 
-- 当前设置页可查看脱敏的会话内存事件并导出 JSON。
-- Logger 支持订阅，UI 不使用空闲轮询。
-- 文件级 Diagnostic/Audit/Crash 分离、滚动、空间上限、日志目录和诊断 ZIP 尚未实现。
-- GitHub Issue 预览/附加流程尚未实现。
+- Desktop 已实现分类文件持久化（app/audit/performance JSONL、按日轮转、15MB/文件、14 天保留、100MB 总预算；写入失败自动停用且不影响聊天）。
+- 诊断页可查看脱敏事件（级别过滤）、复制日志目录、清空（确认）并导出：内存事件 JSON（全端）与**诊断 ZIP**（Desktop：manifest + 脱敏元数据 + 本地日志，导出前预览确认）。
+- Crash Report 文件、详细模式开关、GitHub Issue 预览/附加流程尚未实现。
 - 不提供任何远程日志后门。
 
 ## 4. 最终首发边界
@@ -109,7 +108,7 @@ Evir 当前产品定义已经形成完整闭环，可以进入分阶段开发。
 ### 首发必须有
 
 - Provider 接入和真实流式聊天。
-- Web Ask；Desktop Ask/Agent，Agent 内部只读规划阶段。
+- Web Ask；Desktop Project Thread（Agent/Plan/Goal）与 Standalone Chat（Ask）。
 - 工作区、文件、终端基础工具。
 - 权限、审计、停止、验证、Diff 与回滚。
 - 基础上下文压缩和任务状态。
@@ -174,7 +173,7 @@ Evir 的产品需求已经足够完整。接下来最重要的不是继续写规
 
 2026-08-07 的整改建立了 Playwright E2E、358 张 UI 截图矩阵、视觉基准与全设置页 axe 门禁，并补充 390×844/900×500 紧凑布局回归。338 个 TypeScript 测试、7 个 Rust 测试及浏览器质量套件通过；macOS debug 原生应用可启动。详细证据见 `docs/reviews/ui-full-qa-report.md`。
 
-产品仍未发布就绪：真实 Provider、原生多工具 Agent 任务、MCP Runtime 原生验收、正式性能测量和 Windows 尚未验收（签名安装包为可选增强，ad-hoc 非签名包为默认交付物）；本轮 Mac 锁屏，不能把浏览器 Desktop Runtime 验收替代为原生窗口交互验收。
+产品仍未发布就绪：正式性能测量和 Windows 尚未验收（签名安装包为可选增强，ad-hoc 非签名包为默认交付物）。后续进展：真实 Provider 与原生多工具 Agent 任务已于 2026-08-26/27 实机验收；MCP Runtime 已于 2026-08-15 实现（剩余 Agent 会话内审批取证、HTTP WebView CORS、外部真实 Server、Windows 四项缺口，见 docs/22 §9）。
 
 ## 9. 编排实现状态（2026-08-13）
 

@@ -848,7 +848,7 @@
   },
   "diagnostics": {
     "title": "Diagnostics",
-    "export": "Export logs",
+    "export": "Export JSON",
     "exported": "Logs exported.",
     "exportCancelled": "Export cancelled.",
     "exportFailed": "Export failed. Please try again.",
@@ -874,7 +874,14 @@
     "persistenceMemoryOnly": "Logs are kept in memory for this session only. File persistence is available in the desktop app.",
     "logDirectoryLabel": "Log directory",
     "copyLogDirectory": "Copy path",
-    "logDirectoryCopied": "Copied"
+    "logDirectoryCopied": "Copied",
+    "exportBundle": "Export bundle (ZIP)",
+    "bundleConfirmTitle": "Export diagnostics bundle",
+    "bundleConfirmDescription": "Bundles {{fileCount}} log files (about {{size}}) plus redacted system, provider, and MCP metadata. Secrets and conversation bodies are never included.",
+    "bundleConfirm": "Export",
+    "bundleExported": "Bundle exported: {{path}}",
+    "bundleCancelled": "Diagnostics bundle export cancelled",
+    "bundleExportFailed": "Failed to export diagnostics bundle"
   },
   "project": {
     "permissionTitle": "Permission — {{name}}",

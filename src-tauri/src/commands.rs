@@ -1664,7 +1664,15 @@ pub(crate) fn git_worktree_merge(root: String, id: String) -> Result<(), String>
 pub(crate) fn git_worktree_remove(root: String, id: String) -> Result<(), String> {
     let root_path = validate_path(&root)?;
     let worktree = root_path.join(".evir-worktrees").join(&id);
-    let _ = run_git(&root_path, &["worktree", "remove", "--force", worktree.to_string_lossy().as_ref()]);
+    let _ = run_git(
+        &root_path,
+        &[
+            "worktree",
+            "remove",
+            "--force",
+            worktree.to_string_lossy().as_ref(),
+        ],
+    );
     let _ = run_git(&root_path, &["branch", "-D", &format!("evir/{}", id)]);
     Ok(())
 }

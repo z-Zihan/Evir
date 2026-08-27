@@ -1,5 +1,6 @@
 # Evir UI Page Inventory
 
+> **历史快照（2026-08-07）**。UI-009（Workspace selector）已移除；UI-018 MCP 状态已更新为已实现（2026-08-15）。
 > Final deterministic QA inventory, 2026-08-07. `Verified` means source plus automated browser/rendered evidence in this pass. `Partial` means the reachable UI is truthful and usable, but the underlying product loop is intentionally incomplete.
 
 | ID     |                                    Page / region | Web | Desktop | Current result                                                  |

@@ -66,15 +66,16 @@ Agent 模式要求当前模型支持 Tool Calling。能力证据为：
 
 ## 6. 运行模式
 
-- Ask：不自主调用本地工具。
-- Plan：只读工具可用，禁止状态变更。
+- Ask：不自主调用本地工具（Standalone Chat 与 Web 恒为 Ask）。
+- Plan：Project Thread 一等模式，只读工具（L1）可用，禁止状态变更；完成后可 Execute Plan。
+- Goal：Project Thread 一等模式，同 Agent 工具边界并复用任务编排，doneWhen 条件判定完成。
 - Agent：按权限策略执行。
 
-Tool Registry 必须基于 Runtime Capability、Mode、Workspace Permission、Network Policy 和 Model Capability 共同计算。
+Tool Registry 必须基于 Runtime Capability、Mode、Project Permission Profile、Network Policy 和 Model Capability 共同计算；有效模式由会话归属推导。
 
 ## 7. 权限和网络
 
-提供安全、标准、自动和自定义预设。任何模式下，删除、发布、提权、敏感目录、读取密钥、上传本地内容仍需确认或禁止。
+权限按 Project 配置三档 profile：ask（默认，项目内写操作逐次审批）、workspace（项目内自动放行并记录 permission.auto-approved 审计）、full（解除路径边界，首开必须明确确认，绝不默认）；Project 可声明 Additional Access Roots，边界在 Tool Executor 与 Rust 侧双层强制。任何档位下，删除、发布、提权、敏感目录、读取密钥、上传本地内容仍需确认或禁止。
 
 Network Policy 分别控制：
 

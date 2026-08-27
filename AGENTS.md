@@ -16,7 +16,8 @@ Before modifying code, read:
 6. `docs/15-final-experience-model-switching-and-context.md`
 7. `docs/16-harness-engineering-for-evir.md`
 8. `docs/17-local-logging-and-diagnostics.md`
-9. The task-relevant documents under `docs/`
+9. `docs/project-chat-agent-redesign.md` — the current information architecture: Sidebar Projects/Chats, Composer Agent/Plan/Goal modes, Permission Profiles.
+10. The task-relevant documents under `docs/`
 
 ## Architecture dependency direction
 
@@ -28,10 +29,12 @@ UI must not directly call Provider SDKs, Tauri commands, SQLite, Shell, Keychain
 
 ## Core product rules
 
-- Main UI stays simple: model, Ask/Plan/Agent, input, send/stop, essential task state.
-- Ask has no autonomous local access.
-- Plan has authorized read-only tools.
-- Agent has permission-controlled write/execute tools.
+- Main UI stays simple: model, mode, input, send/stop, essential task state.
+- Sidebar is organized as Projects and Chats; project directories come from Projects, not a workspace selector.
+- Ask has no autonomous local access (standalone chats are always Ask).
+- Plan is a first-class mode in project threads with read-only tools (L1) followed by Execute Plan.
+- Goal is a first-class mode for long-running objectives with explicit doneWhen conditions.
+- Agent has permission-controlled write/execute tools under per-project permission profiles (ask/workspace/full).
 - Tool boundaries are enforced in Tool Registry, not only prompts.
 - A model without tool calling cannot run Agent mode.
 - Model switching uses ModelSwitchCoordinator and safe checkpoints.

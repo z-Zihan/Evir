@@ -1,5 +1,7 @@
 # Evir 产品闭环审查（V6）
 
+> **Historical（2026-08-06 决策记录）**：本文记录阶段 S 前后的产品闭环方法论与决策史，保留作历史依据。当前产品模型（Sidebar Projects/Chats、Composer Agent/Plan/Goal、Permission Profiles）以 `docs/project-chat-agent-redesign.md` 与 `docs/agent/Evir-project-memory.md` 为准；本文涉及模式、工作区与 MCP 状态的段落是当时的快照。
+
 ## 1. 审查目标
 
 本审查从产品可用性而非单纯功能数量出发，检查用户从首次打开、接入模型、完成对话或任务，到数据管理、故障恢复和长期使用是否形成完整闭环。
@@ -242,4 +244,4 @@ V4 决策：浏览器自动化、文档解析、大型语法高亮和本地模�
 
 2026-08-07 已完成 Web/Desktop Capability 的确定性 E2E、358 张截图矩阵和全设置页无障碍回归，覆盖 390×844 与 900×500 紧凑布局，并实际启动 macOS debug 原生应用。Web/Desktop 能力分离、Desktop 默认 Agent、工作区入口、Agent Activity、取消态和持久化证据已与本审查一致。
 
-真实 Provider、原生完整 Agent 工具任务、系统权限、MCP Runtime、签名安装与 Windows 仍是发布前门槛；浏览器 Desktop Runtime 结果不能替代原生验收。本轮 Mac 锁屏，因此只声明原生启动，不声明窗口交互通过。
+真实 Provider、原生完整 Agent 工具任务、系统权限、签名安装与 Windows 仍是当时的发布前门槛（后续进展：真实 Provider 实机验收与 MCP Runtime 已分别于 2026-08-26/08-15 完成，见记忆 Update Log；Windows 与正式性能测量仍未验收）；浏览器 Desktop Runtime 结果不能替代原生验收。本轮 Mac 锁屏，因此只声明原生启动，不声明窗口交互通过。

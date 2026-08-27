@@ -146,20 +146,20 @@
 
 ### 4.1 安装、首次启动与 Runtime 边界
 
-| ID      | P   | 证据 | 执行                          | 预期结果                                                            |
-| ------- | --- | ---- | ----------------------------- | ------------------------------------------------------------------- |
-| ENV-001 | P0  | N    | 全新安装后首次启动            | 可进入无 Provider 空态；无账号/云后端/第二模型前置                  |
-| ENV-002 | P0  | N    | 离线首次启动                  | UI 可用并说明需配置网络 Provider；不崩溃、不死循环                  |
-| ENV-003 | P1  | A+B  | 分别以 Web/Desktop 启动       | Web 仅 Ask；Desktop 默认 Agent 并可切 Ask；Plan 不作为一级入口      |
-| ENV-004 | P0  | A+B  | 检查 Runtime 注册工具         | Web 无 filesystem/terminal/git/localMcp；Desktop 按 Capability 注册 |
-| ENV-005 | P1  | N    | 拒绝首次工作区/系统权限       | 普通 Ask 不受影响，提供系统设置下一步                               |
-| ENV-006 | P1  | N    | 重启应用和系统                | 语言、主题、非敏感配置与允许持久化的数据恢复                        |
-| ENV-007 | P0  | A+N  | 注入 Storage 初始化失败并重试 | 显示可操作错误；重试成功或安全降级，不破坏数据                      |
-| ENV-008 | P1  | N    | 检查冷启动进程/网络           | 未启用能力时无 MCP/Sidecar/浏览器进程、空闲轮询或意外外连           |
-| ENV-009 | P0  | N    | 有活动任务时退出              | 提供暂停并退出、停止并退出、返回；不静默杀死或继续执行              |
-| ENV-010 | P1  | N    | 升级兼容版本                  | Schema 迁移、备份、配置和会话兼容；版本一致                         |
-| ENV-011 | P0  | N    | 卸载后复装                    | 数据保留/清理与隐私说明一致，密钥行为明确                           |
-| ENV-012 | P1  | B+N  | 900×640 最小 Desktop 窗口     | 主流程无不可达控件、横向页面溢出或遮挡审批                          |
+| ID      | P   | 证据 | 执行                          | 预期结果                                                                                                                                 |
+| ------- | --- | ---- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| ENV-001 | P0  | N    | 全新安装后首次启动            | 可进入无 Provider 空态；无账号/云后端/第二模型前置                                                                                       |
+| ENV-002 | P0  | N    | 离线首次启动                  | UI 可用并说明需配置网络 Provider；不崩溃、不死循环                                                                                       |
+| ENV-003 | P1  | A+B  | 分别以 Web/Desktop 启动       | Web 仅 Ask；Desktop 侧栏 PROJECTS/CHATS，Project Thread 内 Agent/Plan/Goal 为一等模式，Standalone Chat 恒为 Ask（2026-08-27 重构后预期） |
+| ENV-004 | P0  | A+B  | 检查 Runtime 注册工具         | Web 无 filesystem/terminal/git/localMcp；Desktop 按 Capability 注册                                                                      |
+| ENV-005 | P1  | N    | 拒绝首次工作区/系统权限       | 普通 Ask 不受影响，提供系统设置下一步                                                                                                    |
+| ENV-006 | P1  | N    | 重启应用和系统                | 语言、主题、非敏感配置与允许持久化的数据恢复                                                                                             |
+| ENV-007 | P0  | A+N  | 注入 Storage 初始化失败并重试 | 显示可操作错误；重试成功或安全降级，不破坏数据                                                                                           |
+| ENV-008 | P1  | N    | 检查冷启动进程/网络           | 未启用能力时无 MCP/Sidecar/浏览器进程、空闲轮询或意外外连                                                                                |
+| ENV-009 | P0  | N    | 有活动任务时退出              | 提供暂停并退出、停止并退出、返回；不静默杀死或继续执行                                                                                   |
+| ENV-010 | P1  | N    | 升级兼容版本                  | Schema 迁移、备份、配置和会话兼容；版本一致                                                                                              |
+| ENV-011 | P0  | N    | 卸载后复装                    | 数据保留/清理与隐私说明一致，密钥行为明确                                                                                                |
+| ENV-012 | P1  | B+N  | 900×640 最小 Desktop 窗口     | 主流程无不可达控件、横向页面溢出或遮挡审批                                                                                               |
 
 ### 4.2 Provider、协议与模型能力
 
@@ -519,6 +519,24 @@
 | LOG-G14 | P1  | 审批请求/允许/拒绝         | approval.requested / granted / denied                       |
 | LOG-G15 | P1  | 获取模型                   | provider.fetch-models-completed/failed（含数量/原因）       |
 | LOG-G16 | P0  | 贯穿全部失败路径           | 无 API Key/Authorization/Cookie/完整会话正文泄漏            |
+
+### 4.14 Project / Permission / Goal（2026-08-27 信息架构）
+
+| ID      | P   | 证据 | 执行                                    | 预期结果                                                               |
+| ------- | --- | ---- | --------------------------------------- | ---------------------------------------------------------------------- |
+| PPG-001 | P0  | A    | 创建 Project（选目录）→ 新建 thread     | Sidebar PROJECTS 出现项目与嵌套 thread；Composer 显示 Mode+Permission  |
+| PPG-002 | P0  | A    | 同一目录再次创建 Project                | realpath 去重命中，打开既有 Project，不产生重复实体                    |
+| PPG-003 | P0  | A+N  | 项目目录改名/移出后打开                 | Folder not found 徽标 + Locate 引导；重绑保 ID/threads/权限            |
+| PPG-004 | P0  | A    | Remove Project                          | 仅删除 projects 实体；threads 迁移为 Standalone；磁盘零改动            |
+| PPG-005 | P0  | A    | Standalone Chat 输入                    | 无 Mode/Permission 控件，恒 Ask，不注册本地工具                        |
+| PPG-006 | P0  | A    | 无 tool-calling 模型打开 Project Thread | Mode 控件整体禁用 + 换模型引导；发送前拦截                             |
+| PPG-007 | P0  | A    | permission=ask 下执行 L3 写工具         | 逐次审批（默认行为不变）                                               |
+| PPG-008 | P1  | A+N  | 切换 workspace 档后执行项目内写/命令    | 自动放行；审计出现 permission.auto-approved（profile+tool+inRoot）     |
+| PPG-009 | P0  | A    | 首次切换 full 档                        | 明确确认对话框；绝不默认开启；确认后 roots 外路径不再拦截              |
+| PPG-010 | P0  | A    | Run 进行中切换 Sidebar 项目             | 活动 Run 继续绑定 originating root，不受新项目影响（active-root 隔离） |
+| PPG-011 | P1  | A    | Plan 模式发送写类意图                   | 工具集 L1 只读强制；完成后出现 Execute Plan 按钮 → 切 agent 发送       |
+| PPG-012 | P1  | A    | Goal 模式输入 Objective + Done when     | TaskWorkbench 顶部目标横幅逐条显示 doneWhen 状态；命令条件真实重跑     |
+| PPG-013 | P1  | A+N  | 诊断页导出诊断包 (ZIP)                  | 预览文件数/体积 → 确认 → 保存对话框 → ZIP 含 manifest+脱敏元数据+logs/ |
 
 ## 5. 自动化映射与执行顺序
 

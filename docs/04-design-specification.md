@@ -33,11 +33,14 @@ Evir 应呈现为经过产品设计的专业工具，而不是通用 AI 模板�
 Desktop 默认三段式，但不强制三栏同时常驻：
 
 ```text
-Sidebar          Main Workspace            Context Panel
-会话/任务         对话、计划、工具执行        文件、变更、审批、详情
+Sidebar               Main Workspace            Context Panel
+PROJECTS / CHATS       对话、计划、工具执行        文件、变更、审批、详情
 ```
 
-Web 使用两段式：Sidebar + Chat。窄屏折叠 Sidebar，不显示不存在的 Desktop 工具入口。
+- Desktop 侧栏分 PROJECTS（项目 + 嵌套 thread）与 CHATS（Standalone 会话）两区；工作目录来自 Project，不在输入区选择。
+- Composer 在 Project Thread 内含 Mode（Agent/Plan/Goal）、Permission 与 Model 紧凑控制区；Standalone Chat 只有 Model。
+
+Web 使用两段式：Sidebar（CHATS）+ Chat。窄屏折叠 Sidebar，不显示不存在的 Desktop 工具入口。
 
 ## 4. Design Token
 
@@ -187,7 +190,7 @@ Next: retry, fix configuration, inspect diff, or rerun
 
 ## 13. 跨产品面一致性
 
-- Evir Web、Desktop、VS Code 和 CLI 使用相同的 Ask/Agent、安全、数据去向和完成状态术语。
+- Evir Web、Desktop、VS Code 和 CLI 使用相同的模式（Ask/Plan/Goal/Agent）、安全、数据去向和完成状态术语。
 - 宿主平台约定优先：Desktop 使用 Evir Token，VS Code 使用 Workbench Token，CLI 使用终端能力；不追求像素级同形。
 - 同一风险操作在各产品面都必须提供相同事实：做什么、在哪里、为什么、影响、是否可撤销。
 - 未实时验证的连接或能力不得显示为“已连接”“支持”；应标为“用户声明”“未验证”或“测试失败”。
@@ -211,8 +214,8 @@ Next: retry, fix configuration, inspect diff, or rerun
 
 ## 16. 阶段 S 视觉基线
 
-- Web 不渲染 Desktop 模式、工作区或 MCP；Desktop 才显示 Ask/Agent 与工作区上下文。
-- Workspace 使用输入区附近的中性紧凑控件，不作为页面主 CTA。
+- Web 不渲染 Desktop 模式、项目或 MCP；Desktop 侧栏为 PROJECTS/CHATS，模式与权限控件在 Project Thread 的 Composer 内。
+- 工作目录来自 Sidebar 的 Project（含 Folder not found 徽标与重绑引导），不作为页面主 CTA。
 - 设置对话框使用分组导航，并满足首焦点、焦点循环、Escape 与关闭后焦点恢复。
 - 自动截图矩阵覆盖 Web/Desktop、zh-CN/en、Light/Dark、1600×1000 至 390×844；核心视觉基准位于 `e2e/snapshots/`。
 - Agent Activity 的总体状态和当前步骤优先于历史工具详情；完成项弱化，原始参数按需展开。

@@ -896,7 +896,10 @@
 
 .conversation-item:hover .conversation-actions,
 .conversation-item.active .conversation-actions,
-.conversation-item:focus-within .conversation-actions {
+.conversation-item:focus-within .conversation-actions,
+.project-item:hover .conversation-actions,
+.project-item.active .conversation-actions,
+.project-item:focus-within .conversation-actions {
   opacity: 1;
   pointer-events: auto;
   transform: translateX(0);
@@ -6925,6 +6928,7 @@
 }
 
 .project-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 5px;

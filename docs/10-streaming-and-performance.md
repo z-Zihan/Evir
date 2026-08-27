@@ -53,12 +53,11 @@ UI 采用局部 Buffer，每 16-50ms 或每帧批量提交，不为每个 Token 
 - 诊断导出在后台执行、可取消，并限制内存峰值。
 - 长任务 Checkpoint 写入节流，不能因每个 Tool Delta 写一次数据库。
 
-## 6. 2026-08-06 阶段 S 快照
+## 6. 性能快照（最新：2026-08-27）
 
-- Web JavaScript gzip 271.08 KB，CSS gzip 21.32 KB，满足 350 KB Web 预算。
-- Vite Web build 1.57 s；298 个单测 benchmark 3.63 s。
-- 主 JavaScript chunk 约 897 KB minified，仍触发 Vite 大 chunk 告警。该项记录为性能债，未提高告警阈值；后续应按设置和 Markdown 能力做安全拆分。
-- Desktop 冷启动分位、空闲 CPU/内存、长列表 FPS、1MB/10MB 输出和签名包体积尚未完成正式测量，不得视为通过。
+- 当前数字以 `docs/benchmarks/latest.json` 为准（`pnpm benchmark` 生成）：2026-08-27 Web 初始 JS gzip 320.38 KiB（预算 350 KiB）、桌面前端资源 2.94 MiB（预算 15 MiB），均在预算内。
+- 历史快照：2026-08-06 Web gzip 271.08 KB（主 chunk 约 897 KB minified，为当时性能债）→ 2026-08-12 主包拆分（vendor 分包 + 设置面板/TaskWorkbench 懒加载）后 277.5 KiB → 2026-08-27 含新能力 320.38 KiB。
+- Desktop 冷启动分位、空闲 CPU/内存、长列表 FPS、1MB/10MB 输出和安装包体积尚未完成正式测量，不得视为通过。
 
 ## 7. Web / Desktop 独立构建门禁（2026-08-12）
 

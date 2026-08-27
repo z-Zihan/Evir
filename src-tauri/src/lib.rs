@@ -1,4 +1,7 @@
 mod commands;
+mod diagnostics;
+#[cfg(test)]
+mod diagnostics_tests;
 mod mcp_stdio;
 mod mcp_stdio_process;
 #[cfg(all(test, unix))]
@@ -75,6 +78,8 @@ pub fn run() {
             mcp_stdio::mcp_stdio_send,
             mcp_stdio::mcp_stdio_status,
             mcp_stdio::mcp_stdio_stop,
+            diagnostics::diagnostics_logs_overview,
+            diagnostics::diagnostics_export_zip,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Evir");

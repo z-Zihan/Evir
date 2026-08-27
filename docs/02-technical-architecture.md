@@ -304,16 +304,23 @@ CLI 的凭据优先级为 `EVIR_API_KEY` → 系统安全凭据。Desktop 继续
 核心实体：
 
 - providers
+- projects
 - conversations
 - messages
 - attachments
 - agent_runs
+- task_briefs
+- plans
+- run_events
+- agent_assignments
 - run_steps
 - tool_executions
 - approvals
 - memories
+- skills
+- mcp_servers
+- usage_records
 - artifacts
-- workspaces
 - settings
 
 本地 Schema 迁移必须版本化、可回滚或提供前向修复策略。详细数据模型、备份、崩溃恢复见 `docs/09-storage-artifacts-and-recovery.md`。
@@ -345,7 +352,7 @@ Provider 连接成功不代表可运行 Agent。模型配置必须记录和展�
 
 ## 13. 运行模式与计划
 
-Conversation、AgentRun、Plan、Step、ToolExecution 是独立实体。Ask 不自主访问本地资源；Plan 只注册授权范围内的只读工具；Agent 才注册写入和执行工具。复杂任务允许先生成 Plan 并由用户确认；模式由用户明确选择，不由模型隐式猜测。
+Conversation、AgentRun、Plan、Step、ToolExecution 是独立实体，Conversation 携带 `projectId` 归属（缺省即 Standalone Chat）。Ask 不自主访问本地资源且不注册本地工具；Plan 与 Goal 是 Project Thread 内的一等模式（Plan 仅注册 L1 只读工具，完成后可 Execute Plan 转入 Agent；Goal 复用任务编排并以 doneWhen 条件判定完成）；Agent 才注册写入和执行工具。模式由用户在 Composer 明确选择，不由模型隐式猜测；有效模式由会话归属推导（Project Thread → 所选模式；Standalone/Web → 恒 Ask）。运行期工作目录由 `active-root` 单一真相解析（运行中 Run 绑定 originating root），权限由 Project 级 permission profile（ask/workspace/full）在 Tool Executor 层强制。
 
 ## 14. 网络与权限策略
 
@@ -394,7 +401,7 @@ Agent Core 应采用可组合 Middleware，而非单体循环：Input Normalizat
 
 所有模块依赖 `LoggerPort`，Desktop Adapter 异步写入本地 JSONL 滚动文件。日志事件通过 session/run/step/tool/request ID 关联。日志队列有界、批量 flush，低优先级日志可在压力下采样或丢弃，但 fatal/audit 不能静默丢失。
 
-Diagnostic、Audit、Crash 分开存储。`DiagnosticExportService` 生成脱敏 ZIP；Evir 不实现远程日志访问和静默上传。详细规范见 `docs/17-local-logging-and-diagnostics.md`。
+Diagnostic、Audit、Crash 分开存储。诊断 ZIP 导出已实现（Rust `diagnostics_export_zip` 命令打包 manifest + 脱敏元数据 + 本地 JSONL 日志，`DiagnosticExportPort` 的 Desktop 适配器负责保存对话框与元数据组装）；Evir 不实现远程日志访问和静默上传。详细规范与实现状态见 `docs/17-local-logging-and-diagnostics.md`。
 
 ## 21. 可组合组件运行时
 

@@ -2,8 +2,8 @@
 
 > Scope: This memory applies only to the Evir repository.
 > Repository: git@github.com:z-Zihan/Evir.git
-> Last reviewed baseline: 9bcbb80 + 2026-08-07 remediation working tree
-> Last updated: 2026-08-07
+> Last reviewed baseline: 3e8bebd + 2026-08-27 working tree
+> Last updated: 2026-08-27
 
 ## 1. Product Identity
 
@@ -27,7 +27,7 @@ Evir 是本地优先、BYOM 的多模型 AI 客户端与通用 Agent。同一代
 ## 4. Product Surface Boundaries
 
 - Web：浏览器直连 API，受 CORS 限制；无本地工具/Shell/MCP
-- Desktop：Tauri 2 + Rust；Agent、文件系统、终端、Git、Skill，以及 MCP 配置页；MCP Runtime 尚未实现
+- Desktop：Tauri 2 + Rust；Agent、文件系统、终端、Git、Skill，以及 MCP Runtime（stdio + Streamable HTTP 已实现，见 docs/22 §9）
 - Web API Key 默认仅内存；Desktop 存系统安全凭据库
 - VS Code：独立 Extension Host/Webview；密钥仅存 VS Code SecretStorage，不读取 Desktop/CLI 共享配置；首版只支持本地受信任 Workspace
 - CLI：独立 Node 进程；与 Desktop 共享版本化非敏感 Provider Profile 和 OS Credential account，不要求 Desktop 安装或运行
@@ -96,7 +96,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - 统一 LoggerPort + correlation ID（session/run/step/tool/request）
 - 默认脱敏、本地、异步有界队列
 - 禁止记录 API Key/Authorization/Cookie/完整会话/文件正文
-- 无远程日志后门；桌面端已实现分类文件持久化（app/audit/performance JSONL、按日命名、15MB 轮转、14 天保留、100MB 总预算、audit/error 立即落盘、连续 3 次写失败自动停用且不影响聊天），诊断页显示持久化状态与目录；诊断 ZIP 尚未实现；Web 仍为内存日志
+- 无远程日志后门；桌面端已实现分类文件持久化（app/audit/performance JSONL、按日命名、15MB 轮转、14 天保留、100MB 总预算、audit/error 立即落盘、连续 3 次写失败自动停用且不影响聊天），诊断页显示持久化状态与目录；诊断 ZIP 导出已实现（Rust `diagnostics_export_zip` + `DiagnosticExportPort` Desktop 适配器，manifest/system/runtime/provider/mcp/events/performance 元数据 + logs/ JSONL，导出前预览确认）；Web 仍为内存日志（JSON 导出）
 
 ## 14. Design and Interaction Rules
 
@@ -133,7 +133,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - 外部输入用 Zod 验证
 - 所有长任务支持 AbortSignal
 - PR 门禁：format + ESLint + strict TS + tests + build
-- 当前 338 TS tests + 7 Rust tests pass
+- 当前 636 TS tests + 25 Rust tests pass（2026-08-27）
 
 ## 17. Current Implementation Status
 
@@ -220,12 +220,16 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 **2026-08-27 重构新增：** Project 实体与 Sidebar Projects/Chats、Permission Profiles（ask/workspace/full + Additional Access Roots）、Plan/Goal 一等模式、active-root 运行隔离。详见 docs/project-chat-agent-redesign.md。
 
+**2026-08-27 文档轮新增：**
+
+- 诊断 ZIP 导出：Rust `diagnostics_logs_overview`/`diagnostics_export_zip` 命令（zip crate，deflate），`DiagnosticExportPort` 首个真实适配器 `DesktopDiagnosticsExport`（runtime 层），`buildDiagnosticsMetadataFiles` 纯构建器（system/runtime/provider/mcp/events/performance 元数据，全部经 redactLogValue 递归脱敏），诊断页新增"导出诊断包 (ZIP)"（桌面专属，导出前预览文件数/体积并确认，取消与失败有独立文案与日志事件）；诊断包结构 manifest.json + 元数据 + logs/*.jsonl（+可选 crash/）
+
 **未实现：**
 
-- MCP Server 实际连接（当前仅配置管理，无 stdio/HTTP 通信）
-- 文件级 Diagnostic/Audit/Crash 日志、日志目录、详细模式与诊断 ZIP
+- MCP Agent 会话内审批取证、HTTP 传输 WebView CORS 策略、外部真实 Server 与 Windows 验收（Runtime 本体已实现）
 - 通知、命令面板、应用内帮助/反馈和高级 Markdown 个性化编辑器
-- 更多 Provider 协议（Azure, Bedrock）
+- GitHub Issue 诊断包预填流程（docs/17 §11）
+- 更多 Provider 协议（15 种 ID 中 8 种待实现：Bedrock、Mistral Native、Cohere v2、Vertex 等）
 
 ## 18. Current Development Stage
 
@@ -238,7 +242,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 ## 19. Verified User Capabilities
 
-用户当前可以：添加 Provider（5 种协议）→ 测试连接 → 获取模型列表 → 新建会话 → 发送消息/附件 → 看到流式回复 → 停止生成 → 刷新恢复 → 快捷键操作 → 查看 Usage 统计 → 分类错误展示 → 拖拽上传图片/文本附件 → 历史附件参与多轮对话 → 会话导出/导入 → Web Ask / Desktop 与 Agent → 个性化设置 → 切换中英文/主题 → 重新生成/编辑消息 → 会话分支 → 模型切换 → Agent 模式工具审批 → Skill 启用/禁用。Plan 是 Agent 内部阶段，不是常驻一级入口。
+用户当前可以：添加 Provider（7 种协议适配器已实现）→ 测试连接 → 获取模型列表 → 新建会话/创建 Project → 发送消息/附件 → 看到流式回复 → 停止生成 → 刷新恢复 → 快捷键操作 → 查看 Usage 统计 → 分类错误展示 → 拖拽上传图片/文本附件 → 历史附件参与多轮对话 → 会话导出/导入 → Web Ask / Desktop Project Thread（Agent/Plan/Goal 一等模式 + Execute Plan）/ Standalone Chat（恒 Ask）→ 项目级 Permission Profile（ask/workspace/full）→ 个性化设置 → 切换中英文/主题 → 重新生成/编辑消息 → 会话分支 → 模型切换 → Agent 模式工具审批 → Skill 启用/禁用 → 导出诊断 ZIP（桌面）。
 
 2026-08-07 自动化证据：338 TypeScript tests、7 Rust tests、24 E2E pass + 6 Web capability skips、358 UI screenshots、6 visual baselines、16 accessibility tests。macOS debug 原生应用已启动；本轮 Mac 锁屏，未声明原生窗口交互通过。
 
@@ -259,7 +263,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 - 完成 2026-08-12 社区 Skill 精选库后，当前优先级回到阶段 S 真实验收；不继续无边界扩张 Provider、Skill、MCP 或 Computer Use
 - Web 使用 IndexedDB；真实 Tauri Desktop 的结构化实体走 SQLite Adapter
-- Web 只提供聊天/附件；Desktop 默认 Agent、可切换 Ask，Plan 不作为一级入口
+- Web 只提供聊天/附件；Desktop 信息架构为 Sidebar PROJECTS/CHATS + Composer 三模式（Agent/Plan/Goal，仅 Project Thread），Standalone Chat 恒为 Ask
 - Tool Registry 与 Tauri 命令双层强制工作区边界；清除工作区立即撤销本地工具范围
 - 流式 UI 使用 animation frame 批量刷新
 
@@ -291,6 +295,8 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 - [docs/reviews/vscode-cli-product-ui-review.md](../reviews/vscode-cli-product-ui-review.md)
 
 ## 24. Update Log
+
+- 2026-08-27 | working tree | 文档体系审计 + 诊断 ZIP 导出 + README 重写（见 DOCUMENTATION_AUDIT_REPORT.md / README_REFRESH_REPORT.md）：实现诊断 ZIP（Rust diagnostics_* 命令 + zip crate、DiagnosticExportPort Desktop 适配器、诊断页导出按钮含预览确认，636 TS + 25 Rust 全绿）；修正全仓 14 处重构前旧产品模型残留（README/docs01-23/help/AGENTS.md/memory 自身矛盾）；MCP/文件日志"未实现"过时声明全部更正；reviews/ 与 prompts/ 标记历史快照；README 中英重写为 Projects/Chats + Agent/Plan/Goal 模型并配真实截图（assets/readme/）；删除文档 0（无候选满足安全删除条件）
 
 - 2026-08-27 | working tree | Project/Chat/Agent 信息架构重构（设计文档 docs/project-chat-agent-redesign.md；变更 PROJECT_CHAT_AGENT_CHANGELOG.md；回归 PROJECT_CHAT_AGENT_REGRESSION_REPORT.md）：Project 成为稳定实体（UUID+realpath 去重+重绑保 ID/threads；projects 实体入 Dexie v8/SQLite/Rust allowlist，新增 fs_real_path 命令）；Conversation 显式 projectId（Standalone=ask-only，首个 Project 出现后 legacy workspace 永久退出解析）；Sidebar 重构为 PROJECTS/CHATS（Pin/Rename/Sort/Search/Locate/Remove+Folder-not-found）；Composer 移除 WorkspaceSelector，Mode（Agent/Plan/Goal）入 Composer 紧凑区且无 tool-calling 时禁用引导换模型；workspace 单一真相 core/workspace/active-root（run 期压栈，agent-loop/编排整跑/审批续跑均绑定 originating root，切项目不污染活动 Run）；Permission Profiles（ask/workspace/full，full 首开确认绝不默认；executor 层接入+词法 .. 防穿越+多根路径校验+Rust root==file 放宽+permission.auto-approved 审计）；Plan 一等模式（L1 只读 Registry 强制+Execute Plan 同线程转 Agent+run 记录持久化 mode）；Goal 模式（doneWhen 解析入 TaskBrief+TaskWorkbench 目标横幅，复用编排 pause/resume）；修复：answer-only run 被自动验证误标 failed（仅真实写变更触发）、AgentRunSummary 旧 workspace-store 依赖。回归：600 TS+19 cargo+35 e2e+UI 矩阵+视觉基线（侧栏有意更新）+a11y 18+web 277.5KiB/桌面前端 2691KiB 预算内；NOT RUN：新 Sidebar/Picker/重绑/Goal 的原生实机走查与真实 Provider 验证
 

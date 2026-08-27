@@ -1,5 +1,6 @@
 # Evir Full UI QA Bug Register
 
+> **历史快照（2026-08-07）**。其中“MCP runtime not implemented”已过时：MCP Runtime 已于 2026-08-15 实现（见 docs/22 §9）。
 > Final status, 2026-08-07. No confirmed P0/P1 implementation defects remain open in the audited reachable scope.
 
 | ID       | Priority | Finding                                                                        | Resolution / evidence                                                                                                             | Status                     |

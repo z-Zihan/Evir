@@ -4,16 +4,34 @@
 
 1. Open Settings → Model providers.
 2. Choose a provider, protocol, and model, then enter your own API key.
-3. Test the connection and return to chat. Web uses Ask; Desktop defaults to Agent and can switch to Ask.
+3. Test the connection and return to the main view. Web uses Ask; Desktop starts from the sidebar.
 4. Send a message. Streaming can be stopped at any time.
 
-## Ask, Agent, and planning
+## Sidebar: Projects and Chats
 
-- Ask: chat and analysis without autonomous local access.
-- Plan: an internal read-only phase of Desktop Agent, not a persistent primary mode.
-- Agent: may execute tools under the selected permission policy.
+The Desktop sidebar has two sections:
 
-Web does not show Agent, Plan, local workspaces, or MCP. On Desktop, workspace context is next to the composer and is not required for ordinary questions.
+- **PROJECTS**: a project maps to one local folder. Create a task (thread) inside a project and the Agent's working directory is the project root — no workspace picker required. Projects support pin, rename, sort, and search. If the folder is moved or renamed, the project shows a "Folder not found" badge; re-locate it and your history and permissions are preserved.
+- **CHATS**: standalone conversations for pure chat and analysis. They never touch local files.
+
+## Ask, Plan, Goal, and Agent
+
+- Ask: chat and analysis without autonomous local access (standalone chats are always Ask).
+- Plan: a first-class mode in project threads. It inspects files and Git status with read-only tools, produces a plan, and offers one-click "Execute Plan" to continue as Agent.
+- Goal: a first-class mode for long-running objectives with optional done-when conditions; Evir verifies each condition with real evidence before claiming success.
+- Agent: executes tools under the selected permission policy.
+
+Mode controls sit in the compact bar above the composer in project threads; they are disabled with guidance when the model lacks tool calling. Web does not show projects, Agent, Plan, Goal, or MCP.
+
+## Project permissions
+
+Each project picks its own permission level:
+
+- **Ask for Approval** (default): writes and commands inside the project require per-call approval; reads are automatic.
+- **Workspace Access**: routine writes and commands inside the project run automatically and are recorded in the audit log.
+- **Full Access**: removes the directory boundary; first activation always requires an explicit confirmation dialog.
+
+Projects can also declare additional access roots beyond the project folder.
 
 ## Personalization
 
@@ -25,7 +43,7 @@ A Skill describes how to perform a class of tasks. Enable built-in Skills, impor
 
 ## MCP (Desktop)
 
-MCP is intended to provide external tools and resources. The current Desktop UI only stores local stdio and remote Streamable HTTP configuration. Saving or enabling a configuration does not mean that Evir has connected or can call tools; connection, discovery, and test-call closure are still in development.
+MCP provides external tools and resources. Desktop supports local stdio and remote Streamable HTTP servers: save and enable a server in Settings → MCP and Evir performs a real connection and tool discovery. New servers are disabled by default and tool calls remain under the permission system. Connection failures are surfaced explicitly instead of pretending to be connected.
 
 ## Permissions and network
 
@@ -51,7 +69,7 @@ Evir stores data locally by default and keeps API keys in the OS credential stor
 
 - Correct key but Web cannot connect: check CORS or use Desktop.
 - Agent mode unavailable: verify model tool-calling support.
-- MCP: this build stores configuration only; “configuration enabled” is not evidence of a live connection.
+- MCP: check the configuration page for connection errors; tools are callable only after a successful connection.
 - Interrupted response: keep the partial output, retry, and check the provider status page.
 
 ## Send feedback
@@ -60,7 +78,7 @@ There is no in-app feedback form yet. Open the project GitHub Issues page manual
 
 ## Switching models
 
-Switch immediately while idle. During generation, the new model applies to the next message unless you stop first. During an Agent run, Evir waits for a safe step boundary and creates a structured handoff. Cross-provider switching shows the new data destination.
+Switch immediately while idle. During generation, the new model applies to the next message unless you stop first. During an Agent run, Evir waits for a safe step boundary and creates a structured handoff; a running task stays bound to the project it started in, even if you switch projects in the sidebar. Cross-provider switching shows the new data destination.
 
 ## Context compaction
 
@@ -68,4 +86,4 @@ When a long conversation approaches the target model's context limit, Evir compa
 
 ## Logs and diagnostics
 
-Settings → Diagnostics shows redacted in-memory events for the current session and can export JSON. File-backed logs, a log-folder action, temporary verbose mode, and an offline diagnostic ZIP are not implemented yet.
+Settings → Diagnostics shows redacted events and exports JSON on every surface. Desktop additionally persists categorized log files locally and supports **Export diagnostics bundle (ZIP)**: it previews the file count and size first, then saves redacted system/provider/MCP metadata plus local logs. Secrets and conversation bodies are never included. Bundles leave your machine only if you send them yourself — Evir has no remote log access.

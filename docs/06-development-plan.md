@@ -43,13 +43,13 @@
 - P1 修复：Web 不显示 Agent/Plan、Desktop 默认 Agent、Plan 降级、WorkspaceSelector 移位
 - CC 审查修复 7 个核心组件（10 个 bug）
 
-### S3：产品信息架构调整 ✅
+### S3：产品信息架构调整 ✅（2026-08-27 已被 Project/Chat/Agent 重构取代，见下节）
 
 - 顶部栏简化：会话标题 + 模式 + 模型
 - WorkspaceSelector 移到输入区（Desktop only）
 - 设置页 tab 分组：基础/能力/系统/支持
 
-### S4：Desktop 主交互重构 ✅
+### S4：Desktop 主交互重构 ✅（同上，已被 2026-08-27 重构取代）
 
 - Desktop 默认 Agent 模式
 - Plan 不作为一级模式
@@ -103,6 +103,24 @@
 - 文档与代码一致
 - 仓库内确定性 Web + Desktop Runtime 端到端验收通过；真实 Provider、原生任务和跨平台安装作为发布外部门槛单独记录
 
+### 2026-08-27 Project/Chat/Agent 信息架构重构 ✅
+
+- Sidebar 重构为 PROJECTS / CHATS；Project 成为一等实体（UUID、realpath 去重、重绑保 ID、threads 迁移、Folder not found 引导）
+- Composer 移除 WorkspaceSelector；Mode（Agent/Plan/Goal）成为 Project Thread 一等控件；Standalone Chat 恒为 Ask
+- Permission Profiles（ask/workspace/full + Additional Access Roots，full 首开确认）接入 Tool Executor
+- active-root 运行隔离：Run 绑定 originating root，切项目不污染活动 Run
+- 设计文档 `docs/project-chat-agent-redesign.md`；回归 `PROJECT_CHAT_AGENT_REGRESSION_REPORT.md`
+
+### 2026-08-27 高级 Agent 能力轮 ✅
+
+- Goal 管线修复与 doneWhen 真实验证闭环、Goal 预算护栏（节点/时长/token）、自动 Re-plan、worktree 并行写、`search_docs` 工具、偏好候选
+- 实机 GLM 全链路绿灯；变更 `ADVANCED_AGENT_CHANGELOG.md`；回归 `ADVANCED_AGENT_REGRESSION_REPORT.md`
+
+### 2026-08-27 文档体系审计与诊断 ZIP ✅
+
+- 全仓文档审计与漂移修正（`DOCUMENTATION_AUDIT_REPORT.md`）；README 中英重写 + 真实产品截图
+- 诊断 ZIP 导出实现（Rust `diagnostics_export_zip` + `DiagnosticExportPort` Desktop 适配器 + 预览确认 UI）
+
 ## 阶段 2：Desktop Agent 与内置工具
 
 交付：Ask/Agent 完整边界、Agent 内部只读规划阶段、Agent Loop、工作区授权、文件/搜索/Patch、受控终端、Git 只读工具、权限分级、审计、取消、Diff 与回滚；接入任务完成、审批和失败系统通知；支持可选 Desktop 全局快捷键。
@@ -110,7 +128,8 @@
 ### 2026-08-07 进度重审
 
 - 阶段 S 仓库内确定性整改已完成，P0/P1 UI 缺陷为 0；不再用单一百分比掩盖外部门槛。
-- 真实 Provider、原生 Agent 完整任务、MCP Runtime 原生验收、Windows 与正式性能测量仍未通过，产品尚未发布就绪；签名安装包为可选增强，不再阻塞发布。
+- MCP Runtime 已实现（2026-08-15，见 docs/22 §9）；剩余缺口为 Agent 会话内审批取证、HTTP WebView CORS 策略、外部真实 Server 与 Windows 验收。
+- 真实 Provider 实机验收已于 2026-08-26/27 完成（GLM 全链路）；原生 Windows 与正式性能测量仍未通过，产品尚未发布就绪；签名安装包为可选增强，不再阻塞发布。
 
 验收：完成“只读检查并制定计划”和“读取项目 -> 修改 -> 执行验证 -> 汇报”的两个闭环。
 
@@ -171,7 +190,7 @@
 
 ## 阶段 8：发布质量
 
-交付：macOS Apple Silicon（`aarch64-apple-darwin`）、macOS Intel（`x86_64-apple-darwin`）和 Windows x64 显式构建矩阵、架构化产物名、签名、公证、自动更新、数据迁移、隐私与许可证；完整本地 Diagnostic/Audit/Crash 日志、日志目录管理、脱敏、滚动与诊断 ZIP 导出；性能基线、包体积检查、内存/CPU/日志开销回归和启动性能门禁。
+交付：macOS Apple Silicon（`aarch64-apple-darwin`）、macOS Intel（`x86_64-apple-darwin`）和 Windows x64 显式构建矩阵、架构化产物名、签名、公证、自动更新、数据迁移、隐私与许可证；完整本地 Diagnostic/Audit/Crash 日志、日志目录管理、脱敏、滚动与诊断 ZIP 导出（日志持久化与 ZIP 导出已于 2026-08-27 实现，Crash 报告文件与保留天数调整仍在计划内）；性能基线、包体积检查、内存/CPU/日志开销回归和启动性能门禁。
 
 ## 阶段 O：智能任务理解与多 Agent 编排
 
@@ -183,7 +202,7 @@
 
 ## 全阶段横向要求
 
-- Ask / Plan / Agent 的 Tool Registry 级边界。
+- Ask / Plan / Goal / Agent 的 Tool Registry 级边界。
 - 国内外 Provider Preset、Protocol Adapter 和模型级能力证据。
 - 权限预设与 Network Policy。
 - Artifact、导入导出、备份和崩溃恢复。

@@ -1,5 +1,7 @@
 # Evir MCP Runtime implementation plan
 
+> **状态**：§1-8 为实施前计划（Historical，2026-08-15 前的现状与选型记录）；§9 为实现状态与原生物证（Current）。Runtime 已实现并有测试与原生物证；剩余缺口见 §9 末尾。
+
 ## 1. Current-state finding
 
 The current MCP page persists configurations and intentionally labels them unverified. `src/core/mcp/mcp-client.ts` is not wired into `createRuntime`; its stdio adapter starts a fresh `run_command` for every JSON-RPC request and passes the payload as a command-line argument. That is not MCP stdio, which requires one long-lived child with newline-delimited JSON-RPC over stdin/stdout. The HTTP draft also lacks protocol validation, notifications, pagination, request cancellation, bounded response handling, and generation-safe reconnect. No discovered MCP tool reaches Tool Registry.

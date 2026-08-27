@@ -168,7 +168,7 @@ CLI 的用户界面契约包括稳定的 stdout/stderr 分工、退出码、Ctrl
 - Settings：语言、主题、密钥、存储、隐私、更新。
 - Diagnostics：日志导出、环境检查、故障报告。
 - Artifacts：文件、Diff、日志、表格、图片、归档等任务产物。
-- Modes：Ask、Plan、Agent 三种明确运行模式；工具集合由模式和权限共同决定。
+- Modes：Ask、Plan、Goal、Agent 四种明确运行模式；Project Thread 内 Agent/Plan/Goal 为一等模式，Standalone Chat 恒为 Ask；工具集合由模式和权限共同决定。
 - Backup：会话、Skill、MCP 配置和设置的导入导出与恢复。
 
 ## 6. 多语言要求
@@ -286,20 +286,24 @@ Evir Desktop 支持本地 stdio 与远程 Streamable HTTP MCP；新增 Server �
 
 ## 11. 模式、权限与数据恢复闭环
 
-### Ask / Plan / Agent
+### Ask / Plan / Goal / Agent
 
 - Ask：只基于用户输入和主动添加的附件回答；不自主读取工作区或执行本地工具。
-- Plan：可在用户授权范围内使用只读工具检查文件和 Git 状态，产出结构化计划和风险；不写文件、不安装依赖、不执行改变系统状态的命令。
+- Plan：Project Thread 一等模式。可在项目范围内使用只读工具（L1）检查文件和 Git 状态，产出结构化计划和风险；不写文件、不安装依赖、不执行改变系统状态的命令；完成后可一键 Execute Plan 转入 Agent。
+- Goal：Project Thread 一等模式。面向长期目标，输入支持 Objective + doneWhen 完成条件；复用任务编排全链路（预算护栏、暂停/恢复、目标横幅），完成判定必须来自条件证据而非模型文字。
 - Agent：按权限策略执行读写工具和命令。
 
 模式切换必须重新计算 Tool Registry，禁止只依赖提示词约束。
 
-### 权限预设
+### 权限预设（Project 级）
 
-- 安全模式：所有写操作确认。
-- 标准模式：工作区内普通操作可按会话授权，高风险逐次确认。
-- 自动模式：扩大工作区内自动权限，但删除、发布、上传、提权、敏感目录仍必须确认或禁止。
-- 自定义：用户逐项配置。
+权限按 Project 配置，三档 profile：
+
+- ask（默认）：项目内写操作与命令逐次审批；只读操作自动。
+- workspace：项目内读写与命令自动放行（记录 permission.auto-approved 审计）；additional roots 之外仍需审批。
+- full：解除路径边界；首次开启必须通过明确确认对话框，绝不默认。
+
+Project 还可声明 Additional Access Roots（额外授权目录），边界校验在 Tool Executor 与 Rust 侧双层强制。
 
 ### 备份与恢复
 
@@ -344,7 +348,7 @@ Evir 支持简单表单和高级 Markdown 两种个性化方式。用户可编�
 - Evir Desktop 的默认承诺是：接入一个支持 Tool Calling 的模型，即可开始 Agent 任务。
 - 不强制配置第二模型、Embedding、Skill、MCP、长期记忆、通知或全局快捷键。
 - 首次配置完成后直接进入主界面；文件、辅助功能、屏幕录制等权限只在首次使用相关能力时申请。
-- 主界面只突出模型、Ask/Plan/Agent、输入、发送/停止和当前任务状态；高级配置统一进入设置或命令面板。
+- 主界面只突出模型、模式、输入、发送/停止和当前任务状态；高级配置统一进入设置或命令面板。
 - 不支持 Tool Calling 的模型仍可使用 Ask，但不得伪装为可操作电脑。
 
 ## 17. 模型中途切换产品要求
@@ -370,17 +374,18 @@ Evir 支持简单表单和高级 Markdown 两种个性化方式。用户可编�
 - Provider、Streaming、Agent、Context、Memory、Tool、Approval、MCP、Skill、Storage、Performance 和 Crash 使用统一 LoggerPort。
 - 日志、审计和崩溃报告分离；日志默认本地、脱敏、滚动保存。
 - 不存在可远程读取日志的后门。高级诊断入口只解锁本地选项，不能绕过用户授权。
-- 用户可生成诊断 ZIP，预览后发送给他人或手动附加到 GitHub Issue。
+- 用户可生成诊断 ZIP（已实现：manifest + 脱敏元数据 + 本地 JSONL 日志；导出前预览文件数与体积），发送给他人或手动附加到 GitHub Issue。
 - API Key、Authorization、完整会话和文件正文默认不得进入日志或诊断包。
 - 完整规则见 `docs/17-local-logging-and-diagnostics.md`。
 
-## 20. 阶段 S 已验证产品边界
+## 20. 当前已验证产品边界（2026-08-27 信息架构）
 
-- Web 当前只承诺聊天与附件分析，不展示 Agent、Plan、本地工作区、文件/终端/Git 工具或 MCP。
-- Desktop 新会话默认 Agent，可切换 Ask；Plan 是内部规划能力，不作为常驻一级入口。
-- 工作区属于任务上下文，入口位于输入区附近；普通问答不强制选择工作区或调用工具。
+- Web 当前只承诺聊天与附件分析，不展示 Project、Agent、Plan、Goal、本地工作区、文件/终端/Git 工具或 MCP。
+- Desktop 侧栏为 PROJECTS / CHATS 两区：Project 是一等实体（UUID 身份、realpath 去重、重绑保 ID），决定工作目录；Standalone Chat 只是聊天。
+- Composer 在 Project Thread 内提供 Agent / Plan / Goal 三个一等模式与项目权限档位；Standalone Chat 恒为 Ask 且不出现模式控件；无 tool-calling 时模式控件禁用并引导换模型。
+- 工作目录只来自 Sidebar 的 Project，不存在输入区工作区选择器；运行中的 Agent Run 绑定 originating root，切换项目不污染活动 Run。
 - 同一 Agent Run 的工具调用在一个 Agent Activity 内分组；审批、失败、停止和完成使用统一状态表达。
-- 上述边界已有 Web/Desktop Capability 自动化证据。真实 Provider 和原生工作区完整 Agent 任务已实现，尚未完成真实端到端验收。
+- 上述边界已有 Web/Desktop Capability 自动化证据。真实 Provider 和原生工作区完整 Agent 任务已实现并完成实机验收（见记忆 Update Log 2026-08-26/27）。
 
 ## 21. 智能任务理解与编排
 

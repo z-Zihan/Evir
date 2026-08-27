@@ -84,6 +84,9 @@ describe("data clearing confirmations", () => {
     // Memory-only persistence status renders before any sink is attached.
     expect(screen.getByText("diagnostics.persistenceMemoryOnly")).toBeTruthy();
 
+    // The ZIP bundle export is desktop-only; web target must not show it.
+    expect(screen.queryByRole("button", { name: "diagnostics.exportBundle" })).toBeNull();
+
     fireEvent.click(screen.getByRole("button", { name: "diagnostics.clear" }));
     expect(clearLogs).not.toHaveBeenCalled();
     fireEvent.click(

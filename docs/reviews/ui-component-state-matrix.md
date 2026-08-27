@@ -1,5 +1,6 @@
 # Evir UI Component State Matrix
 
+> **历史快照（2026-08-07）**。其中 WorkspaceSelector 相关行为旧信息架构证据，该控件已从产品移除。
 > Final evidence summary for the 2026-08-07 remediation pass. Source-only checks are not treated as rendered proof.
 
 | Component                  | States covered                                              | Keyboard / semantics                                    | Evidence                        |

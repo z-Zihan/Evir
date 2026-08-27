@@ -1,5 +1,6 @@
 # Evir Full UI / UX / Product-Logic QA Report
 
+> **历史快照（2026-08-07 整改验收）**。其中“Desktop defaults to Agent / Plan is internal”与 MCP 状态为旧信息架构；当前模型见 `docs/project-chat-agent-redesign.md`。
 > Date: 2026-08-07
 > Scope: all currently reachable Web and Desktop-simulated UI, critical states, persistence, product truthfulness and available native build/start evidence.
 

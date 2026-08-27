@@ -134,7 +134,7 @@ Coding Agent 必须：
 - 对启动时间、内存、CPU、包体积和长会话进行可重复基准测试。
 - 性能回归超过 `docs/10-streaming-and-performance.md` 阈值时不得无说明合并。
 
-## 13. 个性化与基础设施约束
+## 14. 个性化与基础设施约束
 
 - 用户可编辑 Prompt 必须经过独立 Prompt Layer 注入，不得拼接到 protected system rules 前方。
 - 禁止向用户开放修改 Security、Permission、Tool Policy 的写接口。
@@ -144,7 +144,7 @@ Coding Agent 必须：
 - 打开 Provider、帮助或 GitHub 外链必须使用统一 ExternalLinkService。
 - 诊断包和反馈正文必须在用户可见预览后才能外发。
 
-## 14. Harness 与模型切换约束
+## 15. Harness 与模型切换约束
 
 - Agent 行为边界必须由 Middleware、Tool Registry、Schema 和测试机械执行，不能只靠 Prompt。
 - Model 切换必须经过 `ModelSwitchCoordinator`，禁止组件直接更新 activeModel 后继续旧 Tool 链。
@@ -152,7 +152,7 @@ Coding Agent 必须：
 - Context Summary 必须版本化，关键用户约束和审批状态使用结构化字段保存。
 - 循环检测至少覆盖重复 Tool、重复文件编辑、相同错误重试和无验证进展。
 
-## 15. 日志规范
+## 16. 日志规范
 
 - 业务模块只通过 `LoggerPort` 写日志，禁止直接写文件和长期依赖 `console.log`。
 - 日志参数优先使用经过设计的安全结构，不传完整请求/响应后再脱敏。
@@ -161,7 +161,7 @@ Coding Agent 必须：
 - 自动化测试必须扫描 API Key、Authorization、Token、Cookie 和 Secret 泄露。
 - Raw Protocol Capture 默认关闭、限时且用户主动开启。
 
-## 16. VS Code 扩展规范
+## 17. VS Code 扩展规范
 
 - Webview 是不可信展示层，`postMessage` 输入必须经过 Zod 判别联合校验；不得向 Webview 注入 API Key、文件正文缓存、SecretStorage 句柄或进程对象。
 - Webview 不直接请求 Provider、不访问 `workspace.fs`、不启动进程；所有能力通过 Extension Host 的 Use Case 和 Adapter。
@@ -172,7 +172,7 @@ Coding Agent 必须：
 - 用户文案、角色名、ARIA label 和错误均纳入中英文资源；主题只使用 VS Code 语义变量。
 - `pnpm --dir extensions/vscode check` 之外，发布前必须通过真实 Extension Host 激活、Light/Dark/High Contrast、窄侧栏、键盘、审批、停止、Diff/回滚和 VSIX 内容检查。
 
-## 17. CLI 规范
+## 18. CLI 规范
 
 - 参数解析必须拒绝未知 Flag、重复互斥 Flag 和缺失值；默认错误转换为稳定错误码与友好下一步，不直接输出 Zod JSON 或堆栈。
 - stdout/stderr 严格分离；库模块不得直接写全局流，由 CLI Presenter 统一格式化人类或机器输出。
@@ -183,7 +183,7 @@ Coding Agent 必须：
 - 子进程使用参数数组和 `shell: false`，限制输出、超时与并发；取消时终止进程树并保留可诊断摘要。
 - `pnpm --dir packages/cli check` 之外，发布前必须通过 smoke、tarball 内容、macOS/Windows/Linux、TTY/非 TTY、管道、Ctrl+C、无颜色和损坏配置测试。
 
-## 18. 编排规范
+## 19. 编排规范
 
 - PlanGraph、WorkerReport 和 RunEvent 外部输入必须严格 Schema 校验并拒绝未知状态。
 - 事件先持久化，再更新派生 Plan/Step/Assignment 快照；隐私会话只能使用内存状态。

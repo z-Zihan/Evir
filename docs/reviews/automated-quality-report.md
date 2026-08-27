@@ -1,5 +1,6 @@
 # Evir 自动化质量报告
 
+> **历史快照（2026-08-06 阶段 S 首轮证据）**。测试数字已过时；当前门禁结果见 `docs/agent/Evir-project-memory.md` 与根目录回归报告。
 > 日期：2026-08-06
 > 分支：`main`
 > 基线 Commit：`5754ec91bb58f269d5fcab3248b707390cddb6b3`

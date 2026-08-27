@@ -1,5 +1,6 @@
 # Evir UI/UX 稳定性审查
 
+> **历史快照（2026-08-06）**。其中“Desktop 默认 Agent / Plan 非一级入口 / 输入区工作区”为旧信息架构；当前模型见 `docs/project-chat-agent-redesign.md`。
 > 日期：2026-08-06
 > 基线：`5754ec91bb58f269d5fcab3248b707390cddb6b3`（工作区未提交整改）
 > 范围：Web、Desktop Capability UI、macOS 原生预签名 `.app`
