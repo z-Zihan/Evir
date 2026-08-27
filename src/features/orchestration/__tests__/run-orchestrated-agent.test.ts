@@ -154,7 +154,7 @@ describe("runOrchestratedAgent", () => {
     const runtime = {
       target: "desktop",
       capabilities: new Set(["chat"]),
-      has: (capability) => capability === "chat",
+      has: (capability: string) => capability === "chat",
       toolRegistry: createToolRegistry(),
     } satisfies EvirRuntime;
     const result = await runOrchestratedAgent({
@@ -180,7 +180,7 @@ describe("runOrchestratedAgent", () => {
     const runtime = {
       target: "desktop",
       capabilities: new Set(["chat"]),
-      has: (capability) => capability === "chat",
+      has: (capability: string) => capability === "chat",
       toolRegistry: createToolRegistry(),
     } satisfies EvirRuntime;
 
@@ -211,7 +211,7 @@ describe("runOrchestratedAgent", () => {
     const runtime = {
       target: "desktop",
       capabilities: new Set(["chat"]),
-      has: (capability) => capability === "chat",
+      has: (capability: string) => capability === "chat",
       toolRegistry: createToolRegistry(),
     } satisfies EvirRuntime;
     vi.mocked(runAgentLoop).mockImplementation(async (options) => {
@@ -290,7 +290,7 @@ describe("runOrchestratedAgent", () => {
     const runtime = {
       target: "desktop",
       capabilities: new Set(["chat"]),
-      has: (capability) => capability === "chat",
+      has: (capability: string) => capability === "chat",
       toolRegistry: createToolRegistry(),
     } satisfies EvirRuntime;
 
@@ -305,5 +305,199 @@ describe("runOrchestratedAgent", () => {
 
     expect(useOrchestrationStore.getState().current?.plan?.status).toBe("paused");
     expect(vi.mocked(runAgentLoop)).not.toHaveBeenCalled();
+  });
+});
+
+describe("goal done-when verification", () => {
+  const doneWhenBrief: TaskBrief = {
+    ...brief,
+    goalKind: "change",
+    doneWhen: ["pnpm check PASS", "Code Review 无 P0"],
+  };
+
+  function runtimeWithCommand(success: boolean): EvirRuntime {
+    return {
+      target: "desktop",
+      capabilities: new Set(["chat"]),
+      has: (capability: string) => capability === "chat",
+      toolRegistry: createToolRegistry(),
+      getWorkspaceRoot: () => "/project",
+      storage: {
+        runCommand: vi.fn(() =>
+          Promise.resolve({
+            success,
+            exit_code: success ? 0 : 1,
+            stdout: "",
+            stderr: success ? "" : "type errors",
+          }),
+        ),
+      },
+    } as unknown as EvirRuntime;
+  }
+
+  it("completes the goal only when every executable criterion actually passes", async () => {
+    useOrchestrationStore.setState({
+      current: {
+        runId: "run-1",
+        conversationId: "conversation-1",
+        phase: "execution",
+        brief: doneWhenBrief,
+        plan,
+        assignments: [],
+        events: [],
+      },
+      preparing: null,
+    });
+    vi.mocked(runAgentLoop).mockImplementation((options) => {
+      const content = String(options.messages.at(-1)?.content);
+      return Promise.resolve({
+        turns: [
+          {
+            stream: { content, status: "complete" },
+            ...(content.includes("Verify")
+              ? {
+                  toolResults: [
+                    { toolCallId: "v", toolName: "git_status", success: true, output: "ok" },
+                  ],
+                }
+              : {}),
+          },
+        ],
+        maxIterationsReached: false,
+        messages: options.messages,
+        agentRun: options.runtime.agentRun!,
+      });
+    });
+
+    await runOrchestratedAgent({
+      provider,
+      conversationId: "conversation-1",
+      messages: [{ role: "user", content: doneWhenBrief.objective }],
+      runtime: runtimeWithCommand(true),
+      privateSession: true,
+      onDelta: vi.fn(),
+    });
+
+    const current = useOrchestrationStore.getState().current;
+    expect(current?.plan?.status).toBe("completed");
+    expect(current?.brief.doneWhenResults?.[0]).toMatchObject({ status: "passed" });
+    expect(current?.brief.doneWhenResults?.[1]).toMatchObject({ status: "manual" });
+    expect(current?.events.filter(({ type }) => type === "goal.verification.passed")).toHaveLength(
+      1,
+    );
+  });
+
+  it("fails the goal when a done-when command fails, even with all steps completed", async () => {
+    useOrchestrationStore.setState({
+      current: {
+        runId: "run-1",
+        conversationId: "conversation-1",
+        phase: "execution",
+        brief: doneWhenBrief,
+        plan,
+        assignments: [],
+        events: [],
+      },
+      preparing: null,
+    });
+    vi.mocked(runAgentLoop).mockImplementation((options) => {
+      const content = String(options.messages.at(-1)?.content);
+      return Promise.resolve({
+        turns: [
+          {
+            stream: { content, status: "complete" },
+            ...(content.includes("Verify")
+              ? {
+                  toolResults: [
+                    { toolCallId: "v", toolName: "git_status", success: true, output: "ok" },
+                  ],
+                }
+              : {}),
+          },
+        ],
+        maxIterationsReached: false,
+        messages: options.messages,
+        agentRun: options.runtime.agentRun!,
+      });
+    });
+
+    await runOrchestratedAgent({
+      provider,
+      conversationId: "conversation-1",
+      messages: [{ role: "user", content: doneWhenBrief.objective }],
+      runtime: runtimeWithCommand(false),
+      privateSession: true,
+      onDelta: vi.fn(),
+    });
+
+    const current = useOrchestrationStore.getState().current;
+    // Steps all completed, but the done-when command failed -> goal not complete.
+    expect(current?.plan?.status).toBe("failed");
+    expect(current?.brief.doneWhenResults?.[0]).toMatchObject({ status: "failed" });
+    expect(current?.events.filter(({ type }) => type === "goal.verification.failed")).toHaveLength(
+      1,
+    );
+  });
+});
+
+describe("sub-agent security ceiling", () => {
+  it("workers inherit the parent permission context and never gain extra tools", async () => {
+    useOrchestrationStore.setState({
+      current: {
+        runId: "run-1",
+        conversationId: "conversation-1",
+        phase: "execution",
+        brief,
+        plan,
+        assignments: [],
+        events: [],
+      },
+      preparing: null,
+    });
+    const registry = createToolRegistry();
+    registry.register({
+      id: "write_file",
+      name: "write_file",
+      description: "write",
+      source: "evir-local",
+      riskLevel: "L3",
+      schema: { type: "object" },
+      execute: () => Promise.resolve({ success: true, output: "" }),
+    });
+    const parentContext = { profile: "workspace" as const, roots: ["/project"] };
+    const seenContexts: unknown[] = [];
+    const seenTools: string[][] = [];
+    vi.mocked(runAgentLoop).mockImplementation((options) => {
+      seenContexts.push(options.runtime.permissionContext);
+      seenTools.push(options.runtime.toolRegistry?.list().map(({ id }) => id) ?? []);
+      const content = String(options.messages.at(-1)?.content);
+      return Promise.resolve({
+        turns: [{ stream: { content, status: "complete" } }],
+        maxIterationsReached: false,
+        messages: options.messages,
+        agentRun: options.runtime.agentRun!,
+      });
+    });
+
+    await runOrchestratedAgent({
+      provider,
+      conversationId: "conversation-1",
+      messages: [{ role: "user", content: brief.objective }],
+      runtime: {
+        target: "desktop",
+        capabilities: new Set(["chat"]),
+        has: (capability: string) => capability === "chat",
+        toolRegistry: registry,
+        permissionContext: parentContext,
+      } as unknown as EvirRuntime,
+      privateSession: true,
+      onDelta: vi.fn(),
+    });
+
+    // Sub-agent nodes have no write scopes -> toolsForNode drops the L3 tool,
+    // and the permission context is the parent's (never escalated).
+    expect(seenTools.length).toBeGreaterThan(0);
+    for (const tools of seenTools) expect(tools).not.toContain("write_file");
+    for (const context of seenContexts) expect(context).toEqual(parentContext);
   });
 });

@@ -4,6 +4,8 @@ import { GraphScheduler, type NodeExecutionResult } from "../../core/orchestrati
 import { logger } from "../../core/logging/logger";
 import { getActiveWorkspaceRoot, popRunRoot, pushRunRoot } from "../../core/workspace/active-root";
 import { permissionContextForRoot } from "../projects/run-permission";
+import { doneWhenSatisfied, evaluateDoneWhen } from "../../core/orchestration/done-when";
+import { goalBudgetExceeded } from "../../core/orchestration/goal-budget";
 import type {
   AgentAssignment,
   PlanGraph,
@@ -199,6 +201,10 @@ async function runOrchestratedAgentBound(input: OrchestratedRunInput): Promise<A
   }
   const repository = new OrchestrationRepository(input.runtime.structuredStorage!);
   const turns: AgentLoopResult["turns"] = [];
+  // Run-level guardrails (see goalBudgetExceeded): exceeding the node or
+  // wall-clock budget pauses the run as blocked instead of silently continuing.
+  const runStartedAt = Date.now();
+  let nodeExecutions = 0;
   const approvalContexts: AgentApprovalContext[] = [];
   const completedSummaries = new Map(
     initial.events.flatMap(({ type, nodeId, summary }) =>
@@ -247,7 +253,17 @@ async function runOrchestratedAgentBound(input: OrchestratedRunInput): Promise<A
     useOrchestrationStore.getState().setCurrent({ ...current, assignments });
   };
 
+  const budgetBlocked = async (): Promise<string | null> => {
+    const reason = goalBudgetExceeded(nodeExecutions, Date.now() - runStartedAt);
+    if (reason) {
+      await appendEvent(createRunEvent("run.blocked", initial.runId, input.conversationId, reason));
+      return reason;
+    }
+    return null;
+  };
+
   const executeLoop = async (node: PlanNode, signal: AbortSignal, worker: boolean) => {
+    nodeExecutions += 1;
     const allowedTools = toolsForNode(node, input.runtime);
     const runtime = scopedRuntime(input.runtime, allowedTools);
     const mode = node.resourceScopes.some(({ access }) => access === "write") ? "agent" : "plan";
@@ -374,6 +390,8 @@ async function runOrchestratedAgentBound(input: OrchestratedRunInput): Promise<A
       };
     }
     if (node.kind !== "subagent") {
+      const budgetReason = await budgetBlocked();
+      if (budgetReason) return { status: "blocked", summary: budgetReason };
       const result = await executeLoop(node, signal, false);
       turns.push(...result.turns);
       const summary = loopSummary(result);
@@ -392,6 +410,10 @@ async function runOrchestratedAgentBound(input: OrchestratedRunInput): Promise<A
     }
 
     const parentTools = input.runtime.toolRegistry?.list().map(({ id }) => id) ?? [];
+    const subagentBudgetReason = await budgetBlocked();
+    if (subagentBudgetReason) {
+      return { status: "blocked", summary: subagentBudgetReason };
+    }
     const dispatcher = new AgentDispatcher({
       execute: async (assignment, workerSignal) => {
         const result = await executeLoop(node, workerSignal, true);
@@ -543,6 +565,43 @@ async function runOrchestratedAgentBound(input: OrchestratedRunInput): Promise<A
     verificationEvidence.size === 0
   ) {
     plan = { ...plan, status: "failed", updatedAt: Date.now() };
+  }
+  // Final Done-when verification: completed steps never complete the goal by
+  // themselves — every executable completion criterion is re-run against the
+  // project workspace, and a failing criterion fails the goal.
+  if (plan.status === "completed" && (initial.brief.doneWhen?.length ?? 0) > 0) {
+    const doneWhenResults = await evaluateDoneWhen(
+      initial.brief.doneWhen ?? [],
+      input.runtime,
+      input.runtime.getWorkspaceRoot?.() ?? null,
+    );
+    const satisfied = doneWhenSatisfied(doneWhenResults);
+    if (!input.privateSession) {
+      await repository.persistBrief({ ...initial.brief, doneWhenResults, updatedAt: Date.now() });
+    }
+    const current = useOrchestrationStore.getState().current;
+    if (current?.runId === initial.runId) {
+      useOrchestrationStore.getState().setCurrent({
+        ...current,
+        brief: { ...current.brief, doneWhenResults },
+      });
+    }
+    await appendEvent(
+      createRunEvent(
+        satisfied ? "goal.verification.passed" : "goal.verification.failed",
+        initial.runId,
+        input.conversationId,
+        satisfied ? "All executable Done-when criteria verified" : "Done-when verification failed",
+        {
+          data: {
+            doneWhen: doneWhenResults.map(({ label, status }) => ({ label, status })),
+          },
+        },
+      ),
+    );
+    if (!satisfied) {
+      plan = { ...plan, status: "failed", updatedAt: Date.now() };
+    }
   }
   const terminalType =
     plan.status === "completed"

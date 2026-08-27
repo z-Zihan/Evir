@@ -19,6 +19,15 @@ export interface UnknownField {
   answer?: string | undefined;
 }
 
+export type DoneWhenKind = "command" | "manual";
+
+export interface DoneWhenResult {
+  label: string;
+  kind: DoneWhenKind;
+  status: "pending" | "passed" | "failed" | "manual" | "skipped";
+  evidence: string;
+}
+
 export interface TaskBrief {
   id: string;
   runId: string;
@@ -35,7 +44,9 @@ export interface TaskBrief {
   clarificationRound: number;
   version: number;
   /** Goal mode: user-stated completion conditions shown as a checklist. */
-  doneWhen?: string[];
+  doneWhen?: string[] | undefined;
+  /** Evaluated Done-when results from the final goal verification. */
+  doneWhenResults?: DoneWhenResult[] | undefined;
   createdAt: number;
   updatedAt: number;
 }
@@ -156,7 +167,10 @@ export type RunEventType =
   | "run.partial"
   | "run.completed"
   | "run.failed"
-  | "run.cancelled";
+  | "run.cancelled"
+  | "run.blocked"
+  | "goal.verification.passed"
+  | "goal.verification.failed";
 
 export interface RunEventV1 {
   id: string;

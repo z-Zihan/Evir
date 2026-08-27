@@ -245,12 +245,30 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
             <span>{snapshot.brief.objective}</span>
           </div>
           <ul className="goal-done-when">
-            {(finishedStatus === "completed" || snapshot.phase === "finished") &&
-            finishedStatus === "completed"
-              ? snapshot.brief.doneWhen.map((condition) => (
-                  <li key={condition} className="met">
-                    <CheckCircle2 size={12} aria-hidden="true" />
-                    {condition}
+            {(snapshot.brief.doneWhenResults ?? []).length > 0
+              ? (snapshot.brief.doneWhenResults ?? []).map((result) => (
+                  <li
+                    key={result.label}
+                    className={
+                      result.status === "passed"
+                        ? "met"
+                        : result.status === "failed"
+                          ? "unmet"
+                          : undefined
+                    }
+                  >
+                    {result.status === "passed" ? (
+                      <CheckCircle2 size={12} aria-hidden="true" />
+                    ) : result.status === "failed" ? (
+                      <XCircle size={12} aria-hidden="true" />
+                    ) : (
+                      <Circle size={12} aria-hidden="true" />
+                    )}
+                    <span>{result.label}</span>
+                    {result.status === "manual" && <small>{t("goal.manualCondition")}</small>}
+                    {result.status === "failed" && result.evidence && (
+                      <small title={result.evidence}>{t("goal.conditionFailed")}</small>
+                    )}
                   </li>
                 ))
               : snapshot.brief.doneWhen.map((condition) => (

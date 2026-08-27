@@ -909,6 +909,8 @@
     "executeHint": "在同一线程切换到 Agent 模式。"
   },
   "goal": {
-    "bannerLabel": "目标进度"
+    "bannerLabel": "目标进度",
+    "manualCondition": "需要你确认",
+    "conditionFailed": "验证未通过"
   }
 }

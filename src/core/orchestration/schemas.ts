@@ -54,6 +54,19 @@ export const taskBriefSchema = z
     risk: z.enum(["low", "medium", "high"]),
     clarificationRound: z.number().int().min(0).max(2),
     version: z.number().int().min(1),
+    doneWhen: z.array(z.string().min(1)).optional(),
+    doneWhenResults: z
+      .array(
+        z
+          .object({
+            label: z.string().min(1),
+            kind: z.enum(["command", "manual"]),
+            status: z.enum(["pending", "passed", "failed", "manual", "skipped"]),
+            evidence: z.string(),
+          })
+          .strict(),
+      )
+      .optional(),
     createdAt: z.number(),
     updatedAt: z.number(),
   })
@@ -162,6 +175,9 @@ export const runEventSchema = z
       "run.completed",
       "run.failed",
       "run.cancelled",
+      "run.blocked",
+      "goal.verification.passed",
+      "goal.verification.failed",
     ]),
     runId: z.string().min(1),
     conversationId: z.string().min(1),
