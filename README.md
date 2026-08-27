@@ -24,13 +24,13 @@
 
 ## 产品速览
 
-|                |                                                                                                              |
-| :------------- | :----------------------------------------------------------------------------------------------------------- |
-| **它是什么**   | 用户自带模型、数据本地优先、跨 Web / Desktop / VS Code / CLI 的多模型 AI 客户端与通用 Agent。                |
-| **核心承诺**   | 不绑定模型厂商，不强制账号，不用积分体系；本地能力有权限边界，执行过程可停止、可审计、可回滚。               |
-| **最短路径**   | 配置一个模型即可开始；Ask 用于对话分析，Desktop Agent 在明确授权后操作文件、代码、终端与电脑。               |
-| **产品边界**   | Web 专注聊天与附件；Desktop 承载通用 Agent；VS Code 与 CLI 是可独立安装、独立运行的工程入口。                |
-| **当前成熟度** | 阶段 S：稳定性与体验整改。自动化覆盖较完整，但真实 Provider、原生多工具任务、签名安装包与 Windows 仍需验收。 |
+|                |                                                                                                                                                                        |
+| :------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **它是什么**   | 用户自带模型、数据本地优先、跨 Web / Desktop / VS Code / CLI 的多模型 AI 客户端与通用 Agent。                                                                          |
+| **核心承诺**   | 不绑定模型厂商，不强制账号，不用积分体系；本地能力有权限边界，执行过程可停止、可审计、可回滚。                                                                         |
+| **最短路径**   | 配置一个模型即可开始；Ask 用于对话分析，Desktop Agent 在明确授权后操作文件、代码、终端与电脑。                                                                         |
+| **产品边界**   | Web 专注聊天与附件；Desktop 承载通用 Agent；VS Code 与 CLI 是可独立安装、独立运行的工程入口。                                                                          |
+| **当前成熟度** | 阶段 S：稳定性与体验整改。自动化覆盖较完整，但真实 Provider、原生多工具任务与 Windows 仍需验收。安装包默认 ad-hoc 非签名（可运行），Developer ID 签名/公证为可选增强。 |
 
 ```text
 你的模型  →  Evir Harness  →  权限与工具  →  可验证的任务结果
@@ -209,7 +209,7 @@ Evir 当前处于**阶段 S：稳定性与体验整改**，不是发布就绪产
 - Desktop 默认 Agent，可切换 Ask；Plan 不作为常驻一级入口。
 - 本地工具、审批、Agent Activity、工作区和基础恢复链路已实现并有自动化覆盖。
 - Web/Desktop Capability 已覆盖 E2E、视觉、无障碍、主题、语言和窄窗口矩阵。
-- macOS 原生窗口已完成基础启动烟测；真实 Provider、原生多工具任务、签名安装包和 Windows 仍需验收。
+- macOS 原生窗口已完成基础启动烟测；真实 Provider、原生多工具任务和 Windows 仍需验收。
 
 当前证据见 [自动化质量报告](docs/reviews/automated-quality-report.md) 和 [稳定性缺陷登记](docs/reviews/stability-bug-register.md)。
 
@@ -246,7 +246,7 @@ pnpm benchmark
 
 macOS 与 Windows 正式安装包需要在对应系统构建。稳定版 Git Tag 会触发 GitHub Actions，并显式生成 Apple Silicon（`arm64`）、Intel（`x64`）两个 macOS DMG 和 Windows x64 MSI，汇总到同一个 Release。M1/M2/M3/M4 用户选择 `arm64`，Intel Mac 用户选择 `x64`；两个 macOS 包不能互相替代。
 
-可以不打 Tag 直接在本地打包。Apple Silicon Mac 可用上述两个 macOS 命令分别生成 arm64 与 x64 DMG；Windows x64 安装包必须在 Windows 本机或 Windows CI Runner 上生成。本地未配置签名证书时产物仅适合测试。完整的 Rust target 安装命令、产物路径和 Tag 发布步骤见[开发指南](docs/03-development-guide.md#101-本地打包)。
+可以不打 Tag 直接在本地打包。Apple Silicon Mac 可用上述两个 macOS 命令分别生成 arm64 与 x64 DMG；Windows x64 安装包必须在 Windows 本机或 Windows CI Runner 上生成。本地未配置签名证书时产出 ad-hoc 非签名包（可正常安装运行；首次打开需右键 → 打开绕过 Gatekeeper）。签名/公证为可选增强。完整的 Rust target 安装命令、产物路径和 Tag 发布步骤见[开发指南](docs/03-development-guide.md#101-本地打包)。
 
 ## 文档
 

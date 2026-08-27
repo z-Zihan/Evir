@@ -34,7 +34,7 @@
       "icons/icon.ico"
     ],
     "macOS": {
-      "signingIdentity": ""
+      "signingIdentity": "-"
     },
     "windows": {
       "webviewInstallMode": {

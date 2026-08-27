@@ -174,7 +174,7 @@ Evir 的产品需求已经足够完整。接下来最重要的不是继续写规
 
 2026-08-07 的整改建立了 Playwright E2E、358 张 UI 截图矩阵、视觉基准与全设置页 axe 门禁，并补充 390×844/900×500 紧凑布局回归。338 个 TypeScript 测试、7 个 Rust 测试及浏览器质量套件通过；macOS debug 原生应用可启动。详细证据见 `docs/reviews/ui-full-qa-report.md`。
 
-产品仍未发布就绪：真实 Provider、原生多工具 Agent 任务、MCP Runtime、正式性能测量、签名安装包和 Windows 尚未验收；本轮 Mac 锁屏，不能把浏览器 Desktop Runtime 验收替代为原生窗口交互验收。
+产品仍未发布就绪：真实 Provider、原生多工具 Agent 任务、MCP Runtime 原生验收、正式性能测量和 Windows 尚未验收（签名安装包为可选增强，ad-hoc 非签名包为默认交付物）；本轮 Mac 锁屏，不能把浏览器 Desktop Runtime 验收替代为原生窗口交互验收。
 
 ## 9. 编排实现状态（2026-08-13）
 

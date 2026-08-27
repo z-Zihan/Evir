@@ -4,7 +4,7 @@
 >
 > 适用产品：Evir Web、Evir Desktop、Evir for VS Code、Evir CLI
 >
-> 文档性质：发布验收主清单。测试文件存在或构建成功不等于产品闭环；真实 Provider、原生宿主、签名安装与跨平台结果必须分别取证。
+> 文档性质：发布验收主清单。测试文件存在或构建成功不等于产品闭环；真实 Provider、原生宿主与跨平台结果必须分别取证。签名/公证为可选增强（P2）：ad-hoc 非签名包是默认交付物，实体机安装与升级取证仍必须完成。
 
 ## 1. 测试目标与判定规则
 
@@ -76,7 +76,7 @@
 
 ### J02 Desktop 原生 Agent 完整任务（P0，N+X）
 
-1. 从签名安装包首次启动，不预先授予文件/辅助功能/屏幕录制权限。
+1. 从安装包（ad-hoc 非签名包即可）首次启动，不预先授予文件/辅助功能/屏幕录制权限。
 2. 添加 `P_TOOL_A`，验证 Tool Calling 证据后进入默认 Agent。
 3. 选择 `WS_DIRTY`，提交“读取 → 制定计划 → 修改文件 → 运行测试 → 展示 Diff”的任务。
 4. 核对 Task Brief、计划、数据去向、工作区范围；批准 L2 写入，拒绝一次 L3 操作后重试。
@@ -135,10 +135,10 @@
 1. 在干净 Commit 运行全部质量门禁、构建、E2E、视觉、无障碍与性能基准。
 2. 校验 Tag、根/VS Code/CLI 版本一致和 Release workflow 三平台矩阵。
 3. 检查 macOS arm64/x64 DMG、Windows x64 MSI、VSIX、CLI tarball 的命名、内容、哈希和大小。
-4. 验证 macOS Developer ID 签名与公证、Windows 签名；在对应真实设备安装、启动、升级和卸载。
+4. （可选增强，P2）配置证书后验证 macOS Developer ID 签名与公证、Windows 签名；在对应真实设备安装、启动、升级和卸载。默认门禁只要求非签名包实体机安装取证。
 5. 运行 Web、Desktop、VS Code、CLI 各自核心冒烟；扫描包体、日志、Source Map 和诊断包中的 Secret。
 
-预期：unsigned/ad-hoc 包只能作为开发证据；缺任一架构、签名、公证、实体机安装或 P0 证据时不得发布。
+预期：缺任一架构、非签名包实体机安装或 P0 证据时不得发布；签名/公证缺失不阻塞发布，但发布说明必须标注包为未签名。
 
 ## 4. 原子测试用例
 
@@ -415,29 +415,29 @@
 
 ### 4.12 性能、稳定性与发布
 
-| ID       | P   | 证据 | 执行                      | 预期结果                                                             |
-| -------- | --- | ---- | ------------------------- | -------------------------------------------------------------------- |
-| PERF-001 | P0  | A    | Web production build      | 初始 JS gzip ≤350KiB；仅 10 个共享 Skill Chunk                       |
-| PERF-002 | P0  | A    | Desktop frontend build    | 全部资源 ≤15MiB；36 个 Skill Chunk；MCP/重模块按需分包               |
-| PERF-003 | P1  | N    | Desktop 冷启动 30 次      | P50 <2s、P95 <4s，记录设备和采样方法                                 |
-| PERF-004 | P1  | N    | Desktop 空闲 10 分钟      | 平均 CPU <1%；内存目标 ≤150MB、警戒 200MB                            |
-| PERF-005 | P1  | B+N  | Provider 首增量到 UI      | 到达后 ≤100ms；输入 P95 <50ms；无全局 Store 每 Token 更新            |
-| PERF-006 | P1  | B+N  | 1000 消息滚动+流式        | 平滑可交互，历史项不随每个 Token 重渲染                              |
-| PERF-007 | P1  | A+N  | 256KB/1MB/10MB 工具输出   | 大输出流入 Artifact，UI 只保留窗口和摘要，内存有界                   |
-| PERF-008 | P1  | A+N  | 10k 搜索                  | 常用查询 <150ms，结果准确                                            |
-| PERF-009 | P1  | N    | MCP disabled/enabled 对照 | disabled 无进程/请求/Timer；enabled 开销和连接时延有记录             |
-| PERF-010 | P1  | N    | Context/日志对照          | 压缩只在阈值/边界执行；日志常规开销 <2%                              |
-| PERF-011 | P1  | N    | VS Code 激活/长会话       | 已缓存 View 可输入 P95 <500ms，无历史全量重绘                        |
-| PERF-012 | P1  | N    | CLI help/version/Ask      | 热 <200ms、冷 <500ms、Presenter 首 Token 额外开销 <20ms              |
-| PERF-013 | P0  | A    | 单元/浏览器持续运行与泄漏 | Listener/Timer/AbortController/子进程无累积；单失败不拖垮应用        |
-| REL-001  | P0  | A    | `pnpm check` 与 Rust gate | Format、Lint、strict TS、Vitest、VS Code/CLI、fmt/clippy/test 全过   |
-| REL-002  | P0  | B    | Playwright 四套           | E2E、UI 矩阵、Visual、A11y 分开运行并保留报告                        |
-| REL-003  | P0  | A    | Tag/版本/workflow         | 稳定 SemVer；三 Manifest 一致；arm64/x64/Windows 矩阵完整            |
-| REL-004  | P0  | N+X  | macOS arm64/x64 包        | 对应设备签名安装、启动、升级、卸载、Gatekeeper/公证通过              |
-| REL-005  | P0  | N+X  | Windows x64 MSI           | 签名安装、启动、升级、卸载、进程树终止通过                           |
-| REL-006  | P0  | A+N  | 包体与许可                | Desktop 目标 ≤120MiB、≥180MiB 阻断；VSIX/tarball 内容与许可证正确    |
-| REL-007  | P0  | A    | Secret/恶意内容扫描       | 构建产物、日志、截图、trace、诊断、Source Map 无真实或 Canary Secret |
-| REL-008  | P0  | X    | 发布后冒烟                | 四产品面核心路径、下载链接架构标识、Release 哈希与版本一致           |
+| ID       | P   | 证据 | 执行                      | 预期结果                                                                    |
+| -------- | --- | ---- | ------------------------- | --------------------------------------------------------------------------- |
+| PERF-001 | P0  | A    | Web production build      | 初始 JS gzip ≤350KiB；仅 10 个共享 Skill Chunk                              |
+| PERF-002 | P0  | A    | Desktop frontend build    | 全部资源 ≤15MiB；36 个 Skill Chunk；MCP/重模块按需分包                      |
+| PERF-003 | P1  | N    | Desktop 冷启动 30 次      | P50 <2s、P95 <4s，记录设备和采样方法                                        |
+| PERF-004 | P1  | N    | Desktop 空闲 10 分钟      | 平均 CPU <1%；内存目标 ≤150MB、警戒 200MB                                   |
+| PERF-005 | P1  | B+N  | Provider 首增量到 UI      | 到达后 ≤100ms；输入 P95 <50ms；无全局 Store 每 Token 更新                   |
+| PERF-006 | P1  | B+N  | 1000 消息滚动+流式        | 平滑可交互，历史项不随每个 Token 重渲染                                     |
+| PERF-007 | P1  | A+N  | 256KB/1MB/10MB 工具输出   | 大输出流入 Artifact，UI 只保留窗口和摘要，内存有界                          |
+| PERF-008 | P1  | A+N  | 10k 搜索                  | 常用查询 <150ms，结果准确                                                   |
+| PERF-009 | P1  | N    | MCP disabled/enabled 对照 | disabled 无进程/请求/Timer；enabled 开销和连接时延有记录                    |
+| PERF-010 | P1  | N    | Context/日志对照          | 压缩只在阈值/边界执行；日志常规开销 <2%                                     |
+| PERF-011 | P1  | N    | VS Code 激活/长会话       | 已缓存 View 可输入 P95 <500ms，无历史全量重绘                               |
+| PERF-012 | P1  | N    | CLI help/version/Ask      | 热 <200ms、冷 <500ms、Presenter 首 Token 额外开销 <20ms                     |
+| PERF-013 | P0  | A    | 单元/浏览器持续运行与泄漏 | Listener/Timer/AbortController/子进程无累积；单失败不拖垮应用               |
+| REL-001  | P0  | A    | `pnpm check` 与 Rust gate | Format、Lint、strict TS、Vitest、VS Code/CLI、fmt/clippy/test 全过          |
+| REL-002  | P0  | B    | Playwright 四套           | E2E、UI 矩阵、Visual、A11y 分开运行并保留报告                               |
+| REL-003  | P0  | A    | Tag/版本/workflow         | 稳定 SemVer；三 Manifest 一致；arm64/x64/Windows 矩阵完整                   |
+| REL-004  | P0  | N+X  | macOS arm64/x64 包        | 对应设备非签名包安装、启动、升级、卸载通过（Gatekeeper/公证为 P2 可选增强） |
+| REL-005  | P0  | N+X  | Windows x64 MSI           | 非签名包安装、启动、升级、卸载、进程树终止通过（代码签名为 P2 可选增强）    |
+| REL-006  | P0  | A+N  | 包体与许可                | Desktop 目标 ≤120MiB、≥180MiB 阻断；VSIX/tarball 内容与许可证正确           |
+| REL-007  | P0  | A    | Secret/恶意内容扫描       | 构建产物、日志、截图、trace、诊断、Source Map 无真实或 Canary Secret        |
+| REL-008  | P0  | X    | 发布后冒烟                | 四产品面核心路径、下载链接架构标识、Release 哈希与版本一致                  |
 
 ### 4.13 GUI 交互级回归用例（2026-08-26 真实操作实测沉淀）
 
@@ -574,7 +574,7 @@ pnpm release:validate-tag v0.1.0
 2. PR 产品门：Playwright E2E、UI、A11y；视觉变更经人工确认后定向更新基线。
 3. `main` 夜间门：双前端 build、benchmark、长列表/大输出、泄漏、fixture MCP。
 4. Release Candidate：真实 Provider、原生 Desktop Agent、外部 MCP、VS Code Host、CLI TTY/三平台。
-5. Tag 门：版本与矩阵、签名/公证、安装升级卸载、包体和 Secret 扫描、发布后冒烟。
+5. Tag 门：版本与矩阵、非签名包安装升级卸载、包体和 Secret 扫描、发布后冒烟（签名/公证可选）。
 
 ## 6. 发布阻断清单
 
@@ -584,7 +584,7 @@ pnpm release:validate-tag v0.1.0
 - 原生 Desktop 在真实工作区完成读取、修改、审批、验证、Diff 和冲突安全回滚。
 - Ask/Plan/Agent、工作区、网络外发和 L3/L4 权限边界无绕过。
 - MCP 从 Agent 对话发起的审批调用、至少一个外部 Server，以及 Windows 生命周期证据。
-- macOS arm64/x64 与 Windows x64 的签名安装、启动、升级和卸载。
+- macOS arm64/x64 与 Windows x64 的非签名包安装、启动、升级和卸载。
 - VS Code Agent 完整运行事件/验证摘要与 High Contrast/屏幕阅读器验收。
 - CLI 友好错误、稳定退出码、JSON/JSONL、三平台 Keyring 与安装验收。
 - Desktop 冷启动、空闲 CPU/内存、长会话、大输出、日志开销的可重复测量。
@@ -606,7 +606,7 @@ P0/P1 未关闭缺陷:
 审批人 / 日期:
 ```
 
-报告中必须把 A、B、N、X 四层结果分开；不得用 Fixture、浏览器 Desktop Runtime、ad-hoc 签名或旧安装包替代真实外部/原生/正式发布证据。
+报告中必须把 A、B、N、X 四层结果分开；不得用 Fixture、浏览器 Desktop Runtime 或旧安装包替代真实外部/原生/正式发布证据。
 
 ## 8. 真实 Provider 原生冒烟执行记录（2026-08-25）
 

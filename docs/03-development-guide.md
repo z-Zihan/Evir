@@ -154,7 +154,7 @@ pnpm build:desktop:windows:x64
 
 macOS DMG 输出到 `src-tauri/target/<target>/release/bundle/dmg/`，Windows 安装包输出到 `src-tauri/target/x86_64-pc-windows-msvc/release/bundle/`。`pnpm build:desktop` 则按当前操作系统和默认 target 打包。
 
-macOS 可以本地生成 arm64 与 x64 两种 macOS 包，但不能作为受支持的 Windows MSI 构建机；Windows 安装包应在 Windows 本机或 GitHub Actions 的 `windows-latest` Runner 上构建。本地未配置证书时得到的是未签名测试包，不得作为正式发行包分发。
+macOS 可以本地生成 arm64 与 x64 两种 macOS 包，但不能作为受支持的 Windows MSI 构建机；Windows 安装包应在 Windows 本机或 GitHub Actions 的 `windows-latest` Runner 上构建。本地未配置证书时得到的是 ad-hoc 签名的非签名包，可正常安装运行；这是默认交付物。Developer ID 签名/公证为可选增强，发布时须在说明中标注未签名。
 
 ### 10.2 Tag 发布
 
@@ -174,7 +174,7 @@ Tag 格式固定为 `v<MAJOR>.<MINOR>.<PATCH>`：
 3. 本地校验：`pnpm release:validate-tag vX.Y.Z`。
 4. 创建带说明的 Tag：`git tag -a vX.Y.Z -m "Evir vX.Y.Z"`。
 5. 推送 Tag：`git push origin vX.Y.Z`。此时 Quality 与 Desktop Release 两个 workflow 才会启动。
-6. 检查 VSIX、CLI tarball、macOS/Windows 安装包、签名、启动和基础对话，再发布同一个 GitHub Release。
+6. 检查 VSIX、CLI tarball、macOS/Windows 安装包、启动和基础对话，再发布同一个 GitHub Release（配置了证书时额外验证签名）。
 
 发布前的产品面验收不得只看构建成功：
 

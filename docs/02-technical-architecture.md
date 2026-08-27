@@ -322,9 +322,9 @@ CLI 的凭据优先级为 `EVIR_API_KEY` → 系统安全凭据。Desktop 继续
 
 - Web：静态部署；可选独立、无状态、自托管 Proxy。
 - Desktop：GitHub Actions 矩阵构建。
-- macOS：签名与 notarization。
-- macOS CPU：分别构建 `aarch64-apple-darwin` 和 `x86_64-apple-darwin`；两者使用相同版本、签名与 notarization 门禁。
-- Windows：代码签名。
+- macOS：默认产出 ad-hoc 签名的可运行包（非签名包）；Developer ID 签名与 notarization 为可选增强，非发布必要项，配置证书密钥后自动启用。
+- macOS CPU：分别构建 `aarch64-apple-darwin` 和 `x86_64-apple-darwin`；两者使用相同版本与打包门禁。
+- Windows：默认非签名包；代码签名为可选增强，非发布必要项。
 - Updater：后续使用 Tauri Updater + 静态更新 JSON/GitHub Releases。
 - VS Code：生成 `evir.vsix`，分别在 VS Code Marketplace 与 Open VSX 做安装/升级/卸载验收；首版不自动发布。
 - CLI：生成 npm tarball，验证 `bin`、生产依赖、macOS/Windows/Linux 凭据适配和全局/一次性执行；首版不自动发布 npm。
