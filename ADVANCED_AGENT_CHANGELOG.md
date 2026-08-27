@@ -25,4 +25,17 @@
 
 ## Not Done（按优先级明确不做）
 
-- 偏好记忆候选 UI（Phase 4）、并行写/Git Worktree（Phase 3，写互斥已安全）、RAG（不引入 Vector DB）、LangChain/LangGraph（禁止且未引入）。
+- RAG（不引入 Vector DB）、LangChain/LangGraph（禁止且未引入）。
+
+## 追加（同日第三批：③④⑤⑥ 高级能力 + 真实 Provider 实测闭环）
+
+- **Goal Usage 条**（③）：TaskWorkbench "目标资源消耗"展示耗时 / Agent 运行次数 / 工具调用次数（事件派生）+ finished 后从 usage_records 汇总本次 run 的真实 token（标注"估算值——优先采用 Provider 上报"）。
+- **运行中动态 Re-plan**（④）：scheduler.run 失败后自动重置 failed→ready、revision+1、`plan.revised` 事件并持久化，一次重试上限（MAX_REPLAN_NODE_EXECUTIONS=18）。
+- **Git Worktree 并行写**（⑤）：Rust `git_worktree_create/merge/remove`（merge = add -A + diff --binary + 主树 apply --3way，冲突显式失败）；PlanNode.isolation="worktree" 时调度器不视为资源冲突（`resourcesConflict` 放行双方 worktree），子代理在 worktree 内执行后合并回主树再清理。
+- **项目知识检索 search_docs**（⑥）：L1 只读工具，DOC_EXTENSIONS(.md/.mdx/.txt/.rst/.adoc) 逐行匹配，file:line:内容 最多 80 条；无 Vector DB。
+- **真实验证暴露并修复的 4 个缺陷**（原生 app + EvoMap GLM glm-5.2 真实链路，三轮 Goal 任务）：
+  1. Goal 模式确认工作台不渲染（ChatView 只在 agent 模式挂 TaskWorkbench）——补 goal gate。
+  2. `parseDoneWhen` 只认独占行 "Done when:"，用户自然的同行写法解析不出——支持行内标记（中英文冒号、分号多条件），DoneWhen 闭环因此从未启动过的缺陷随之修复。
+  3. verification 节点被双层工具策略拦死 run_command（toolsForNode 按 riskLevel 白名单只放行 L0/L1 + executeLoop 无写作用域即 mode=plan 再滤一次）→ "Verification produced no successful tool evidence" 历史上 7 个 run 同因失败——verification 节点放行 run_command（capability 过滤仍生效）且节点循环用 agent 工具档（边界仍在 toolsForNode 白名单 + 执行期审批）。
+  4. GLM 偶发把参数序列化拼进 tool call name（如 `run_commandprogram</arg_key><arg_value>ls</arg_value>`）被当作未知工具拦截——`normalizeToolCallName` 最长前缀匹配已知工具 id 恢复 + `agent.tool-name-normalized` 事件。
+- **实测结论**（run 950d9cf3 全绿）：plan.confirmed → create-file（write_file 6 字节）→ verify-file 真实执行 `ls`（退出码 0，verification.completed）→ `goal.verification.passed` → `run.completed`；磁盘 `/tmp/evir-real-verify/hello3.txt` 内容 "three"；7 个 provider 请求共 13273 tokens 真实计费入库；模型口头 PASS 而无工具证据时系统正确判失败（"模型文本不算完成"防线实测有效）；完成态呈现偏好记忆候选卡（全局记住/记住到本项目/忽略）。

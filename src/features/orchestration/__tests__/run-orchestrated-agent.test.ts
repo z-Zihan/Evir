@@ -441,6 +441,139 @@ describe("goal done-when verification", () => {
 });
 
 describe("sub-agent security ceiling", () => {
+  it("verification nodes may run commands; read-only nodes stay on the plan profile", async () => {
+    const verificationPlan: PlanGraph = {
+      ...plan,
+      nodes: [
+        {
+          id: "inspect",
+          kind: "task",
+          title: "Inspect files",
+          objective: "List the files",
+          dependencies: [],
+          requiredCapabilities: ["filesystem"],
+          resourceScopes: [],
+          expectedArtifacts: [],
+          successCriteria: [],
+          status: "ready",
+        },
+        {
+          id: "verify",
+          kind: "verification",
+          title: "Verify via ls",
+          objective: "Run ls hello.txt and confirm status 0",
+          dependencies: ["inspect"],
+          requiredCapabilities: ["terminal"],
+          resourceScopes: [],
+          expectedArtifacts: [],
+          successCriteria: ["ls hello.txt exits 0"],
+          status: "pending",
+        },
+      ],
+      edges: [{ from: "inspect", to: "verify", when: "success" }],
+    };
+    useOrchestrationStore.setState({
+      current: {
+        runId: "run-1",
+        conversationId: "conversation-1",
+        phase: "execution",
+        brief,
+        plan: verificationPlan,
+        assignments: [],
+        events: [],
+      },
+      preparing: null,
+    });
+    const registry = createToolRegistry();
+    registry.register({
+      id: "read_file",
+      name: "read_file",
+      description: "read",
+      source: "evir-local",
+      riskLevel: "L1",
+      requiredCapability: "filesystem",
+      schema: { type: "object" },
+      execute: () => Promise.resolve({ success: true, output: "" }),
+    });
+    registry.register({
+      id: "run_command",
+      name: "run_command",
+      description: "run a shell command",
+      source: "evir-local",
+      riskLevel: "L3",
+      requiredCapability: "terminal",
+      schema: { type: "object" },
+      execute: () => Promise.resolve({ success: true, output: "hello.txt" }),
+    });
+    registry.register({
+      id: "write_file",
+      name: "write_file",
+      description: "write",
+      source: "evir-local",
+      riskLevel: "L3",
+      requiredCapability: "filesystem",
+      schema: { type: "object" },
+      execute: () => Promise.resolve({ success: true, output: "" }),
+    });
+    const observed: { mode: unknown; tools: string[] }[] = [];
+    vi.mocked(runAgentLoop).mockImplementation((options) => {
+      observed.push({
+        mode: options.mode,
+        tools: options.runtime.toolRegistry?.list().map(({ id }) => id) ?? [],
+      });
+      const content = String(options.messages.at(-1)?.content);
+      const isVerification = content.includes("Verify");
+      return Promise.resolve({
+        turns: [
+          {
+            stream: { content, status: "complete" },
+            ...(isVerification
+              ? {
+                  toolResults: [
+                    {
+                      toolCallId: "v",
+                      toolName: "run_command",
+                      success: true,
+                      output: "hello.txt",
+                    },
+                  ],
+                }
+              : {}),
+          },
+        ],
+        maxIterationsReached: false,
+        messages: options.messages,
+        agentRun: options.runtime.agentRun!,
+      });
+    });
+
+    const runtime = {
+      target: "desktop",
+      capabilities: new Set(["chat", "filesystem", "terminal"]),
+      has: (capability: string) => ["chat", "filesystem", "terminal"].includes(capability),
+      toolRegistry: registry,
+    } satisfies EvirRuntime;
+    await runOrchestratedAgent({
+      provider,
+      conversationId: "conversation-1",
+      messages: [{ role: "user", content: brief.objective }],
+      runtime,
+      privateSession: true,
+      onDelta: vi.fn(),
+    });
+
+    const current = useOrchestrationStore.getState().current;
+    expect(current?.plan?.status).toBe("completed");
+    const verifyLoop = observed.at(-1);
+    expect(verifyLoop?.mode).toBe("agent");
+    expect(verifyLoop?.tools).toContain("run_command");
+    expect(verifyLoop?.tools).not.toContain("write_file");
+    const inspectLoop = observed[0];
+    expect(inspectLoop?.mode).toBe("plan");
+    expect(inspectLoop?.tools).not.toContain("run_command");
+    expect(inspectLoop?.tools).not.toContain("write_file");
+  });
+
   it("workers inherit the parent permission context and never gain extra tools", async () => {
     useOrchestrationStore.setState({
       current: {

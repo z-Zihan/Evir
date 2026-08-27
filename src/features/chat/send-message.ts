@@ -12,10 +12,21 @@ import { ModelPlanGenerator } from "../orchestration/model-plan-generator";
 import { effectiveMode } from "../projects/conversation-mode";
 
 const DONE_WHEN_MARKER = /^(?:done\s+when|完成条件|验收条件)\s*[:：]?\s*$/i;
+const DONE_WHEN_INLINE = /(?:done\s+when|完成条件|验收条件)\s*[:：]\s*(.+)$/i;
 
 /** Goal mode: lines after a "Done when" marker become checklist conditions. */
 export function parseDoneWhen(text: string): string[] {
   const lines = text.split("\n").map((line) => line.trim());
+  const inline = lines
+    .map((line) => DONE_WHEN_INLINE.exec(line)?.[1])
+    .find((captured): captured is string => Boolean(captured));
+  if (inline) {
+    return inline
+      .split(/[;；]/)
+      .map((condition) => condition.trim())
+      .filter((condition) => condition.length > 0)
+      .slice(0, 10);
+  }
   const markerIndex = lines.findIndex((line) => DONE_WHEN_MARKER.test(line));
   if (markerIndex === -1) return [];
   const afterMarker = lines.slice(markerIndex + 1);

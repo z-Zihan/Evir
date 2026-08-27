@@ -459,7 +459,7 @@ export function ChatView({
               onRegenerate={regenerate}
               {...(!privateSession ? { onRemember: rememberMessage } : {})}
             />
-            {mode === "agent" && (
+            {(mode === "agent" || mode === "goal") && (
               <Suspense fallback={null}>
                 <TaskWorkbench agentRun={currentAgentRun} />
               </Suspense>

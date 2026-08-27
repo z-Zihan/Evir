@@ -70,7 +70,15 @@ function toolsForNode(node: PlanNode, runtime: EvirRuntime): string[] {
       (tool) =>
         !tool.requiredCapability || node.requiredCapabilities.includes(tool.requiredCapability),
     )
-    .filter((tool) => writes || tool.riskLevel === "L0" || tool.riskLevel === "L1")
+    .filter(
+      (tool) =>
+        writes ||
+        tool.riskLevel === "L0" ||
+        tool.riskLevel === "L1" ||
+        // Verification nodes exist to run the acceptance commands the confirmed
+        // plan promised; execution-time approval gating still applies.
+        (node.kind === "verification" && tool.id === "run_command"),
+    )
     .map(({ id }) => id);
 }
 
@@ -282,7 +290,12 @@ async function runOrchestratedAgentBound(input: OrchestratedRunInput): Promise<A
     nodeExecutions += 1;
     const allowedTools = toolsForNode(node, input.runtime);
     const runtime = scopedRuntime(input.runtime, allowedTools);
-    const mode = node.resourceScopes.some(({ access }) => access === "write") ? "agent" : "plan";
+    // Verification nodes run acceptance commands, so they need the agent tool
+    // profile; the node-level boundary is toolsForNode's allowlist above.
+    const mode =
+      node.resourceScopes.some(({ access }) => access === "write") || node.kind === "verification"
+        ? "agent"
+        : "plan";
     const result = await runAgentLoop({
       provider: input.provider,
       conversationId: input.conversationId,

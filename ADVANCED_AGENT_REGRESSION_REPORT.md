@@ -23,3 +23,14 @@
 
 - Goal doneWhen 验证、预算阻断、子代理天花板、偏好候选在**原生 Tauri 实机 + 真实 Provider** 下的端到端（本轮为单测/集成 + 浏览器 desktop-mode e2e；fixture provider 无法产生真实命令执行差异——fixture 工作区的命令由 mocked storage 验证）。
 - `pnpm test:visual`：本轮 UI 仅 goal 横幅条件行内样式微调，fixtures 无 doneWhen 场景，基线不受影响，未重跑（上轮全绿）。
+
+## 追加（同日第三批回归：③④⑤⑥ + 真实 Provider 实测修复）
+
+| 门禁                                                 | 结果                                |
+| ---------------------------------------------------- | ----------------------------------- |
+| `pnpm format:check` / `pnpm lint` / `pnpm typecheck` | ✅ 全过                             |
+| `pnpm test`（第三批后）                              | ✅ 101 文件 / **632 通过** / 0 失败 |
+| `cargo fmt --check` / `cargo clippy -D warnings`     | ✅（worktree 三命令批次）           |
+
+- 新增测试：worktree 调度（3：无隔离冲突 / worktree 隔离不冲突 / 隔离写并行 maxInFlight=2）；parseDoneWhen（7：独占行 / 行内中英文 / 分号多条件 / 上限）；verification 工具边界（1：verify 节点 agent 档 + run_command 放行、只读节点保持 plan 档 + L0/L1）；normalizeToolCallName（4：合法名 / 参数碎屑恢复 / 未知名 / 最长前缀）。
+- **NOT RUN → 已实测**：上一批声明的"原生 Tauri 实机 + 真实 Provider 端到端"缺口已由真实会话补上（EvoMap GLM glm-5.2，三轮 Goal 任务、SQLite/磁盘/结构化日志三源取证），其中暴露的 4 个真实缺陷（goal 工作台 gate / DoneWhen 同行解析 / verification 节点 run_command 双层拦截 / 畸形 tool-call name）已修复且回归全绿。Goal→DoneWhen 的 Playwright e2e 仍列 NOT RUN（语义已由单测 + 真机覆盖）。

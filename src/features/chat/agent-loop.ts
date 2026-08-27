@@ -17,6 +17,26 @@ import { streamAssistant, type StreamResult } from "./chat-stream";
 export const MAX_AGENT_ITERATIONS = 12;
 export const AGENT_TURN_TIMEOUT_MS = 120_000;
 
+/**
+ * Some providers occasionally emit a malformed tool-call name that concatenates
+ * the tool id with serialized argument fragments (for example
+ * "run_commandprogram</arg_key><arg_value>ls</arg_value>"). When the junk
+ * directly follows a known tool id, recover the intended call instead of
+ * blocking it as an unknown tool.
+ */
+export function normalizeToolCallName(name: string, allowedToolIds: Set<string>): string {
+  if (allowedToolIds.has(name)) return name;
+  const match = [...allowedToolIds]
+    .filter((toolId) => name.startsWith(toolId))
+    .sort((a, b) => b.length - a.length)[0];
+  if (!match) return name;
+  logger.info("agent", "agent.tool-name-normalized", {
+    rawLength: name.length,
+    toolName: match,
+  });
+  return match;
+}
+
 export interface AgentLoopTurn {
   stream: StreamResult;
   toolCalls?: ToolCallRecord[];
@@ -301,6 +321,7 @@ async function runAgentLoopBound(
       );
     }
     for (const rawCall of stream.toolCalls) {
+      rawCall.toolName = normalizeToolCallName(rawCall.toolName, allowedToolIds);
       const args = parseArguments(rawCall.arguments) ?? {};
       if (!harness) continue;
       const policy = await harness.dispatch({
