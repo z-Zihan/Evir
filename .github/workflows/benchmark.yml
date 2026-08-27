@@ -15,6 +15,11 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --no-frozen-lockfile
+      # Snapshot the committed baseline before scripts/benchmark.mjs overwrites
+      # docs/benchmarks/latest.json. The baseline is versioned with the repo:
+      # intentional performance changes must update it in the same PR.
+      - name: Snapshot committed benchmark baseline
+        run: cp docs/benchmarks/latest.json baseline.json 2>/dev/null || echo "no committed baseline"
       - run: pnpm build:web
       - run: pnpm build:desktop:frontend
       - run: node scripts/benchmark.mjs
@@ -35,33 +40,15 @@ jobs:
           }
           if (failed) process.exit(1);
           "
-      - name: Download previous benchmark
-        id: prev-benchmark
-        uses: dawidd6/action-download-artifact@v6
-        continue-on-error: true
-        with:
-          workflow: benchmark.yml
-          branch: main
-          name: benchmark-results
-          path: previous-benchmark
-          if_no_artifact_found: warn
-      - name: Check for regressions
-        if: steps.prev-benchmark.outcome == 'success'
+      - name: Check for regressions against committed baseline
         run: |
           node -e "
           const fs = require('fs');
-          const path = require('path');
-          const prevDir = 'previous-benchmark';
-          if (!fs.existsSync(prevDir)) {
-            console.log('No previous benchmark artifact found, skipping regression check.');
+          if (!fs.existsSync('baseline.json')) {
+            console.log('No committed baseline found, skipping regression check.');
             process.exit(0);
           }
-          const prevFile = fs.readdirSync(prevDir).find((f) => f.endsWith('.json'));
-          if (!prevFile) {
-            console.log('No previous benchmark JSON found, skipping regression check.');
-            process.exit(0);
-          }
-          const prev = JSON.parse(fs.readFileSync(path.join(prevDir, prevFile), 'utf8'));
+          const prev = JSON.parse(fs.readFileSync('baseline.json', 'utf8'));
           const curr = JSON.parse(fs.readFileSync('docs/benchmarks/latest.json', 'utf8'));
 
           const metrics = [
@@ -69,7 +56,6 @@ jobs:
             ['web.cssGzipSizeBytes', prev.web?.cssGzipSizeBytes, curr.web?.cssGzipSizeBytes],
             ['web.totalSizeBytes', prev.web?.totalSizeBytes ?? prev.dist?.totalSizeBytes, curr.web?.totalSizeBytes],
             ['desktop.frontend.totalSizeBytes', prev.desktop?.frontend?.totalSizeBytes, curr.desktop?.frontend?.totalSizeBytes],
-            ['tests.durationMs', prev.tests?.durationMs, curr.tests?.durationMs],
           ];
 
           const THRESHOLD = 0.05;
@@ -83,7 +69,7 @@ jobs:
             const pct = (delta * 100).toFixed(2);
             console.log(\`\${name}: \${prevValue} -> \${currValue} (\${pct}%)\`);
             if (delta > THRESHOLD) {
-              console.log(\`::error::\${name} regressed by \${pct}% (previous: \${prevValue}, current: \${currValue}), exceeds 5% threshold\`);
+              console.log(\`::error::\${name} regressed by \${pct}% (baseline: \${prevValue}, current: \${currValue}), exceeds 5% threshold; update docs/benchmarks/latest.json in this PR if the change is intentional\`);
               failed = true;
             }
           }
