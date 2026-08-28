@@ -16,6 +16,27 @@ interface ProjectType {
   args: string[];
 }
 
+interface CommandEvidence {
+  exitCode: number | null;
+  stdout: string;
+  stderr: string;
+}
+
+function commandEvidence(output: string, success: boolean): CommandEvidence {
+  const match = output.match(
+    /^exit_code: (N\/A|-?\d+)\n--- stdout ---\n([\s\S]*?)\n--- stderr ---\n([\s\S]*)$/,
+  );
+  if (!match) {
+    return { exitCode: success ? 0 : null, stdout: output, stderr: success ? "" : output };
+  }
+  const rawExitCode = match[1];
+  return {
+    exitCode: rawExitCode === "N/A" ? null : Number(rawExitCode),
+    stdout: match[2] ?? "",
+    stderr: match[3] ?? "",
+  };
+}
+
 function detectProjectType(files: string[]): ProjectType | null {
   if (files.includes("package.json")) {
     return { checker: "pnpm check", program: "pnpm", args: ["check"] };
@@ -104,13 +125,21 @@ export async function runVerification(
       };
     }
 
+    const evidence = commandEvidence(result.output, result.success);
+    const status: VerificationResult["status"] = result.success
+      ? "passed"
+      : result.error === "tool_cancelled" || /command cancelled/i.test(evidence.stderr)
+        ? "cancelled"
+        : /command timed out/i.test(evidence.stderr)
+          ? "timed_out"
+          : "failed";
     return {
       command: project.checker,
-      exitCode: result.success ? 0 : 1,
-      status: result.success ? "passed" : "failed",
+      exitCode: evidence.exitCode,
+      status,
       durationMs,
-      stdoutPreview: result.output.slice(0, 2000),
-      stderrPreview: result.success ? "" : result.output.slice(0, 2000),
+      stdoutPreview: evidence.stdout.slice(0, 2000),
+      stderrPreview: evidence.stderr.slice(0, 2000),
     };
   } catch (error) {
     return {

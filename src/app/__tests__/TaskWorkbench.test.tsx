@@ -343,6 +343,64 @@ describe("TaskWorkbench", () => {
     expect(screen.getByRole("button", { name: "orchestration.retryTask" })).toBeTruthy();
   });
 
+  it.each([
+    ["execution", "orchestration.pause", "orchestration.stop"],
+    ["paused", "orchestration.resume", "orchestration.stop"],
+    ["blocked", "common.cancel", null],
+  ] as const)("exposes the expected controls for the %s phase", (phase, primary, secondary) => {
+    useOrchestrationStore.setState({
+      current: {
+        runId: brief.runId,
+        conversationId: brief.conversationId,
+        phase,
+        brief,
+        plan: { ...plan, status: phase === "paused" ? "paused" : "running" },
+        assignments: [],
+        events: [],
+      },
+    });
+    render(<TaskWorkbench />);
+
+    expect(screen.getByRole("button", { name: primary })).toBeTruthy();
+    if (secondary) expect(screen.getByRole("button", { name: secondary })).toBeTruthy();
+  });
+
+  it("renders Goal done-when evidence without treating failed conditions as complete", () => {
+    useOrchestrationStore.setState({
+      current: {
+        runId: brief.runId,
+        conversationId: brief.conversationId,
+        phase: "finished",
+        brief: {
+          ...brief,
+          objective: "Ship only when verified",
+          doneWhen: ["Tests pass", "Release is signed"],
+          doneWhenResults: [
+            { label: "Tests pass", kind: "command", status: "passed", evidence: "664 tests" },
+            {
+              label: "Release is signed",
+              kind: "manual",
+              status: "failed",
+              evidence: "No Developer ID",
+            },
+          ],
+        },
+        plan: { ...plan, status: "partial" },
+        assignments: [],
+        events: [],
+      },
+    });
+    render(<TaskWorkbench />);
+
+    expect(screen.getByLabelText("goal.bannerLabel").textContent).toContain(
+      "Ship only when verified",
+    );
+    expect(screen.getByText("Tests pass").closest("li")?.className).toContain("met");
+    expect(screen.getByText("Release is signed").closest("li")?.className).toContain("unmet");
+    expect(screen.getByText("orchestration.finishedStatus.partial")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "orchestration.retryTask" })).toBeTruthy();
+  });
+
   it("does not offer retry for a completed run", () => {
     useOrchestrationStore.setState({
       current: {

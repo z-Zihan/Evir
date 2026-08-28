@@ -52,6 +52,19 @@ describe("workspace path validation", () => {
     expect(validatePath("/tmp/project/.gitignore")).toBe("/tmp/project/.gitignore");
   });
 
+  it("accepts spaces, Chinese, emoji, deep paths, and long filenames", () => {
+    const longName = `${"a".repeat(180)}.txt`;
+    for (const path of [
+      "/tmp/project/folder with spaces/file.txt",
+      "/tmp/project/中文目录/说明.md",
+      "/tmp/project/emoji-😀/result.txt",
+      `/tmp/project/${Array.from({ length: 20 }, (_, index) => `level-${index}`).join("/")}/file.txt`,
+      `/tmp/project/${longName}`,
+    ]) {
+      expect(validatePath(path)).toBe(path);
+    }
+  });
+
   it("handles empty path", () => {
     expect(validatePath("")).toBeUndefined();
   });

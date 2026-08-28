@@ -33,6 +33,16 @@ const L1_TOOL: ToolDefinition = {
   execute: () => Promise.resolve({ success: true, output: "" }),
 };
 
+const L4_TOOL: ToolDefinition = {
+  id: "publish_release",
+  name: "publish_release",
+  description: "publish",
+  source: "evir-local",
+  riskLevel: "L4",
+  schema: { type: "object" },
+  execute: () => Promise.resolve({ success: true, output: "" }),
+};
+
 function runtimeWith(context: EvirRuntime["permissionContext"]): EvirRuntime {
   return {
     target: "desktop",
@@ -96,6 +106,20 @@ describe("resolveExecutionPermission", () => {
         false,
       ),
     ).toBe(TOOL_NOT_ALLOWED);
+  });
+
+  it("never auto-approves L4 operations under any permission profile", () => {
+    for (const profile of ["ask", "workspace", "full"] as const) {
+      const context = { profile, roots: ROOTS };
+      expect(resolveExecutionPermission(context, "L4", "/projects/evir/release")).toMatchObject({
+        autoApproved: false,
+      });
+      expect(
+        validateToolForExecution(L4_TOOL, "agent", runtimeWith(context), false, {
+          path: "/projects/evir/release",
+        }),
+      ).toBe(TOOL_PERMISSION_REQUIRED);
+    }
   });
 
   it("workspace profile still auto-approves L3 in agent mode inside roots", () => {

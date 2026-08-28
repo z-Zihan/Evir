@@ -317,6 +317,13 @@ async function resolveApproval(
   get: ChatStoreGet,
   outcome: "approved" | "denied",
 ): Promise<void> {
+  const current = get().pendingToolApproval;
+  const isCurrent =
+    current !== null &&
+    current.conversationId === pending.conversationId &&
+    current.toolCallId === pending.toolCallId &&
+    current.approvalId === pending.approvalId;
+  if (!isCurrent) return;
   const approved = outcome === "approved";
   const ctx = getApprovalContext(pending, set, get);
   if (!ctx) return;

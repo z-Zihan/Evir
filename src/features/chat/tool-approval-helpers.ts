@@ -45,6 +45,15 @@ export function getApprovalContext(
   set: ChatStoreSet,
   get: ChatStoreGet,
 ): { provider: ProviderRecord; runtime: EvirRuntime; streamStartedAt: number } | null {
+  const current = get().pendingToolApproval;
+  const sameApproval =
+    current !== null &&
+    current.conversationId === pending.conversationId &&
+    current.toolCallId === pending.toolCallId &&
+    current.approvalId === pending.approvalId;
+  // A delayed click or restored UI must never execute an approval that has
+  // already been replaced, denied, cancelled, or resolved.
+  if (!sameApproval) return null;
   const streamStartedAt = beginConversationStream(set, pending.conversationId);
   if (visibleForConversation(get, pending.conversationId)) set({ pendingToolApproval: null });
   const provider =

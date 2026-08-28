@@ -114,14 +114,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
   updateConversationProvider: async (providerId, modelId) =>
     doUpdateConversationProvider(set, get, providerId, modelId),
   addAttachment: async (file) => {
-    const current = get().pendingAttachments;
-    if (!validateAttachmentCount(current.length)) {
+    if (!validateAttachmentCount(get().pendingAttachments.length)) {
       set({ error: "chat.attachmentLimit" });
       return;
     }
     try {
       const processed = await processFile(file);
-      set({ pendingAttachments: [...current, processed], error: null });
+      // FileReader completions can race when a multi-select or drop contains
+      // several files. Resolve against the latest state at commit time so one
+      // attachment cannot overwrite another, while still enforcing the cap.
+      set((state) =>
+        validateAttachmentCount(state.pendingAttachments.length)
+          ? { pendingAttachments: [...state.pendingAttachments, processed], error: null }
+          : { error: "chat.attachmentLimit" },
+      );
     } catch (error) {
       const message = error instanceof AttachmentError ? error.message : "chat.unsupportedFileType";
       set({ error: message });

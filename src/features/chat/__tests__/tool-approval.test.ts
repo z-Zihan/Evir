@@ -50,7 +50,12 @@ vi.mock("../../../i18n/config", () => ({
   default: { t: (key: string) => key },
 }));
 
-import { approveTool, denyTool, type PendingToolApproval } from "../tool-approval";
+import {
+  approveTool,
+  cancelPendingToolApprovals,
+  denyTool,
+  type PendingToolApproval,
+} from "../tool-approval";
 import type { ChatState } from "../chat-store";
 import type { StoreApi } from "zustand";
 import type { EvirRuntime } from "../../../runtime/types";
@@ -103,7 +108,7 @@ function harness(pending: PendingToolApproval, runtimeOverrides: Partial<EvirRun
     activeStreamConversationId: "conversation-1",
     activeStreamStartedAt: 111,
     streamingContent: "",
-    pendingToolApproval: null,
+    pendingToolApproval: pending,
     error: null,
   };
   // zustand setState accepts a partial object OR an updater function.
@@ -196,6 +201,47 @@ describe("approveTool", () => {
     expect(get().error).toBe("tools.notAvailable");
     expect(get().isStreaming).toBe(false);
   });
+
+  it("ignores an approval that is no longer the current pending request", async () => {
+    const stale = pendingApproval({ approvalId: "approval-stale" });
+    const current = pendingApproval({ approvalId: "approval-current", toolCallId: "call-2" });
+    const { set, get, state } = harness(stale);
+    state.pendingToolApproval = current;
+
+    await approveTool(stale, set, get);
+
+    expect(executeApproved).not.toHaveBeenCalled();
+    expect(continueAgentLoop).not.toHaveBeenCalled();
+    expect(state.pendingToolApproval).toBe(current);
+  });
+
+  it("does not let a legacy approval without an id resolve a newer request", async () => {
+    const stale = pendingApproval();
+    delete stale.approvalId;
+    const current = pendingApproval({ approvalId: "approval-current" });
+    const { set, get, state } = harness(stale);
+    state.pendingToolApproval = current;
+
+    await approveTool(stale, set, get);
+
+    expect(executeApproved).not.toHaveBeenCalled();
+    expect(continueAgentLoop).not.toHaveBeenCalled();
+    expect(state.pendingToolApproval).toBe(current);
+  });
+
+  it("surfaces the next queued approval after resolving the current request", async () => {
+    const next = pendingApproval({ approvalId: "approval-2", toolCallId: "call-2" });
+    const pending = pendingApproval({ remainingApprovals: [next] });
+    const { set, get, state } = harness(pending);
+
+    await approveTool(pending, set, get);
+
+    expect(state.pendingToolApproval).toMatchObject({
+      approvalId: "approval-2",
+      toolCallId: "call-2",
+      remainingApprovals: [],
+    });
+  });
 });
 
 describe("denyTool", () => {
@@ -228,5 +274,20 @@ describe("denyTool", () => {
     expect(cancelCurrentRun).toHaveBeenCalledOnce();
     const record = storageWrite.mock.calls.at(-1)?.[2];
     expect(record?.status).toBe("denied");
+  });
+});
+
+describe("cancelPendingToolApprovals", () => {
+  it("marks the current and queued requests cancelled", async () => {
+    const next = pendingApproval({ approvalId: "approval-2", toolCallId: "call-2" });
+    const pending = pendingApproval({ remainingApprovals: [next] });
+
+    await cancelPendingToolApprovals(pending, false);
+
+    expect(storageWrite).toHaveBeenCalledTimes(2);
+    expect(storageWrite.mock.calls.map((call) => call[2]?.status)).toEqual([
+      "cancelled",
+      "cancelled",
+    ]);
   });
 });

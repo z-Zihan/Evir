@@ -134,6 +134,38 @@ describe("agent-loop end-to-end workflows", () => {
     expect(vi.mocked(streamAssistant)).toHaveBeenCalledTimes(2);
   });
 
+  it("executes more than 30 tool calls in one provider turn and continues to completion", async () => {
+    const toolCalls = Array.from({ length: 36 }, (_, index) => ({
+      id: `call-${index}`,
+      toolName: "read_file",
+      arguments: JSON.stringify({ path: `/tmp/file-${index}.txt` }),
+    }));
+    const execute = vi.fn<ToolExecutor["execute"]>((_toolId, args) => {
+      const path = typeof args.path === "string" ? args.path : "unknown";
+      return Promise.resolve({ success: true, output: `read:${path}` });
+    });
+
+    vi.mocked(streamAssistant)
+      .mockResolvedValueOnce({ content: "", status: "complete", toolCalls })
+      .mockResolvedValueOnce({ content: "Reviewed all 36 files", status: "complete" });
+
+    const result = await runAgentLoop({
+      provider,
+      conversationId: "conversation-long-run",
+      messages: [{ role: "user", content: "Review every file" }],
+      runtime: setupRuntime(execute),
+      onDelta: vi.fn(),
+    });
+
+    expect(result.maxIterationsReached).toBe(false);
+    expect(result.turns).toHaveLength(2);
+    expect(result.turns[0]?.toolCalls).toHaveLength(36);
+    expect(result.turns[0]?.toolResults).toHaveLength(36);
+    expect(result.turns[0]?.toolResults?.every(({ success }) => success)).toBe(true);
+    expect(result.turns[1]?.stream.content).toBe("Reviewed all 36 files");
+    expect(execute).toHaveBeenCalledTimes(36);
+  });
+
   it("User rejects approval", async () => {
     const execute = vi.fn().mockResolvedValueOnce({
       success: false,

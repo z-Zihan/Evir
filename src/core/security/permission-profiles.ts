@@ -64,6 +64,12 @@ export function resolveExecutionPermission(
   if (riskLevel === "L0" || riskLevel === "L1") {
     return { autoApproved: true, reason: "read-only" };
   }
+  // L4 actions (publishing, credentials, irreversible/system changes) always
+  // require an explicit per-call approval. A broad project profile may relax
+  // path boundaries, but it must not turn high-risk work into unattended work.
+  if (riskLevel === "L4") {
+    return { autoApproved: false, reason: context ? "ask-profile" : "no-permission-context" };
+  }
   if (!context) return { autoApproved: false, reason: "no-permission-context" };
   if (context.profile === "full") return { autoApproved: true, reason: "full-access" };
   if (context.profile === "workspace") {

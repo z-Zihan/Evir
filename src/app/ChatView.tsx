@@ -352,15 +352,19 @@ export function ChatView({
     }
   };
 
-  const handleFileSelect = (files: FileList | null) => {
+  const handleFileSelect = async (files: FileList | null) => {
     if (!files) return;
-    for (const file of files) {
-      void addAttachment(file);
+    // Preserve selection order and avoid racing async FileReader completions.
+    // Concurrent additions can otherwise overwrite each other in the store.
+    for (const file of Array.from(files)) {
+      await addAttachment(file);
     }
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const { dragOver, handleDrop, handleDragOver, handleDragLeave } = useDragDrop(handleFileSelect);
+  const { dragOver, handleDrop, handleDragOver, handleDragLeave } = useDragDrop((files) => {
+    void handleFileSelect(files);
+  });
 
   const finishModelSwitch = async (
     request: ModelSwitchRequest,
@@ -716,7 +720,7 @@ export function ChatView({
             type="file"
             multiple
             style={{ display: "none" }}
-            onChange={(e) => handleFileSelect(e.target.files)}
+            onChange={(e) => void handleFileSelect(e.target.files)}
             accept="image/*,text/*,.md,.json,.js,.jsx,.ts,.tsx,.py,.rs,.go,.java,.c,.cpp,.h,.css,.html,.xml,.yaml,.yml,.toml,.csv,.sh,.bash,.sql"
           />
         </div>

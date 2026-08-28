@@ -23,3 +23,7 @@ UI 矩阵 2/2、视觉基线 6/6、axe/键盘测试 18/18 通过；生成并抽�
 - Composer 移除常驻 Token；Usage 设置继续提供统计。
 
 原生 VoiceOver 与原生窗口 AX 交互未完成，不能由 axe 或浏览器渲染替代。
+
+## 原生补充证据
+
+当前 arm64 release app 已通过精确 bundle 路径启动并由 Accessibility Tree 读取；实际点击“添加供应商”、打开设置以及 Escape 返回主界面均成功。该证据只覆盖这些关键交互，不替代完整 VoiceOver 走查。

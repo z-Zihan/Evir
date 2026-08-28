@@ -106,6 +106,49 @@ describe("project store", () => {
     expect(conversation?.projectId).toBe(project!.id);
   });
 
+  it("keeps a relocated project and its threads after a simulated restart", async () => {
+    const { project } = await useProjectStore.getState().addProject("/tmp/proj");
+    await getStructuredStorage().write("conversations", "conv-restart", {
+      id: "conv-restart",
+      title: "Relocation survives restart",
+      providerId: "p",
+      modelId: "m",
+      createdAt: 1,
+      updatedAt: 1,
+      projectId: project!.id,
+    });
+
+    useProjectStore.setState({
+      projects: [{ ...project!, rootPath: "/tmp/gone", canonicalRootPath: "/tmp/gone" }],
+    });
+    await useProjectStore.getState().refreshFolderStatus(project!.id);
+    expect(useProjectStore.getState().folderMissing[project!.id]).toBe(true);
+
+    const rebound = await useProjectStore
+      .getState()
+      .rebindProject(project!.id, "/tmp/项目 moved-😀");
+    expect(rebound.project?.rootPath).toBe("/tmp/项目 moved-😀");
+
+    useProjectStore.setState({
+      projects: [],
+      currentProjectId: null,
+      loaded: false,
+      folderMissing: {},
+    });
+    await useProjectStore.getState().load();
+
+    expect(useProjectStore.getState().projects).toHaveLength(1);
+    expect(useProjectStore.getState().projects[0]).toMatchObject({
+      id: project!.id,
+      rootPath: "/tmp/项目 moved-😀",
+    });
+    const conversation = await getStructuredStorage().read<{ projectId?: string | null }>(
+      "conversations",
+      "conv-restart",
+    );
+    expect(conversation?.projectId).toBe(project!.id);
+  });
+
   it("rebinding to another project's folder is refused", async () => {
     const a = await useProjectStore.getState().addProject("/tmp/a");
     const b = await useProjectStore.getState().addProject("/tmp/b");

@@ -102,8 +102,39 @@ const server = createServer((request, response) => {
     if (prompt.includes("[auth-error]")) {
       return json(response, 401, { error: { message: "Fixture API key rejected" } });
     }
+    if (prompt.includes("[forbidden]")) {
+      return json(response, 403, { error: { message: "Fixture request forbidden" } });
+    }
+    if (prompt.includes("[not-found]")) {
+      return json(response, 404, { error: { message: "Fixture model not found" } });
+    }
+    if (prompt.includes("[server-500]")) {
+      return json(response, 500, { error: { message: "Fixture internal error" } });
+    }
     if (prompt.includes("[server-error]")) {
       return json(response, 503, { error: { message: "Fixture provider unavailable" } });
+    }
+    if (prompt.includes("[disconnect]")) {
+      response.writeHead(200, {
+        ...cors,
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+      });
+      response.write(`data: ${textChunks("partial")[0]}\n\n`);
+      return setTimeout(() => response.destroy(), 20);
+    }
+    if (prompt.includes("[no-stream]")) {
+      return json(response, 200, {
+        id: "fixture-non-stream-response",
+        choices: [
+          {
+            index: 0,
+            message: { role: "assistant", content: "Deterministic non-stream response." },
+            finish_reason: "stop",
+          },
+        ],
+        usage: { prompt_tokens: 4, completion_tokens: 4, total_tokens: 8 },
+      });
     }
     if (prompt.includes("[invalid-sse]")) {
       return sse(response, ["{invalid-json", "[DONE]"]);
@@ -113,7 +144,11 @@ const server = createServer((request, response) => {
           8,
         )
       : "Deterministic fixture response. Streaming, persistence, and usage all use the production chat pipeline.";
-    return sse(response, textChunks(reply), prompt.includes("[slow]") ? 80 : 18);
+    return sse(
+      response,
+      textChunks(reply),
+      prompt.includes("[slow]") ? 80 : prompt.includes("[burst]") ? 1 : 18,
+    );
   });
 });
 

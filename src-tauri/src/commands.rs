@@ -1008,14 +1008,24 @@ fn read_pipe<R>(mut pipe: R) -> std::thread::JoinHandle<String>
 where
     R: std::io::Read + Send + 'static,
 {
-    // Cap the raw read so `cat huge-file` / endless output cannot OOM the app;
-    // 50k chars survive truncation with headroom for multibyte + the notice.
-    const MAX_PIPE_BYTES: u64 = 200_000;
+    // Cap retained output so `cat huge-file` cannot OOM the app, but keep
+    // draining the pipe. Closing it at the cap can send the child SIGPIPE and
+    // turn an otherwise successful command into a false failure.
+    const MAX_PIPE_BYTES: usize = 200_000;
     std::thread::spawn(move || {
-        use std::io::Read as _;
         let mut bytes = Vec::with_capacity(8192);
-        let mut limited = (&mut pipe).take(MAX_PIPE_BYTES);
-        let _ = limited.read_to_end(&mut bytes);
+        let mut chunk = [0u8; 8192];
+        loop {
+            match pipe.read(&mut chunk) {
+                Ok(0) => break,
+                Ok(read) => {
+                    let remaining = MAX_PIPE_BYTES.saturating_sub(bytes.len());
+                    bytes.extend_from_slice(&chunk[..read.min(remaining)]);
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(_) => break,
+            }
+        }
         truncate_string(&String::from_utf8_lossy(&bytes), 50_000)
     })
 }
@@ -1562,6 +1572,73 @@ mod tests {
         validate_path, validate_path_in_workspace, validate_query_sql, validate_shared_provider,
         validate_update_sql, SharedProviderProfile, STRUCTURED_ENTITIES,
     };
+
+    struct CountingReader {
+        remaining: usize,
+        consumed: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    }
+
+    struct InterruptedOnceReader {
+        interrupted: bool,
+        inner: CountingReader,
+    }
+
+    impl std::io::Read for InterruptedOnceReader {
+        fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+            if !self.interrupted {
+                self.interrupted = true;
+                return Err(std::io::Error::from(std::io::ErrorKind::Interrupted));
+            }
+            self.inner.read(buffer)
+        }
+    }
+
+    impl std::io::Read for CountingReader {
+        fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+            let read = self.remaining.min(buffer.len());
+            buffer[..read].fill(b'x');
+            self.remaining -= read;
+            self.consumed
+                .fetch_add(read, std::sync::atomic::Ordering::SeqCst);
+            Ok(read)
+        }
+    }
+
+    #[test]
+    fn command_pipe_is_fully_drained_after_output_capture_limit() {
+        use std::sync::atomic::Ordering;
+
+        let consumed = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let output = read_pipe(CountingReader {
+            remaining: 300_000,
+            consumed: std::sync::Arc::clone(&consumed),
+        })
+        .join()
+        .expect("pipe reader should finish");
+
+        assert_eq!(consumed.load(Ordering::SeqCst), 300_000);
+        assert!(output.len() <= 50_100);
+        assert!(output.contains("truncated"));
+    }
+
+    #[test]
+    fn command_pipe_retries_interrupted_reads() {
+        use std::sync::atomic::Ordering;
+
+        let consumed = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let output = read_pipe(InterruptedOnceReader {
+            interrupted: false,
+            inner: CountingReader {
+                remaining: 16,
+                consumed: std::sync::Arc::clone(&consumed),
+            },
+        })
+        .join()
+        .expect("pipe reader should finish");
+
+        assert_eq!(consumed.load(Ordering::SeqCst), 16);
+        assert_eq!(output, "xxxxxxxxxxxxxxxx");
+    }
 
     #[test]
     #[cfg(target_os = "macos")]

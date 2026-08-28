@@ -50,13 +50,45 @@ describe("runVerification", () => {
 
   it("fails the verification when the checker fails", async () => {
     const execute = vi.fn<ExecuteFn>();
-    execute.mockResolvedValue({ success: false, output: "1 failing test" });
+    execute.mockResolvedValue({
+      success: false,
+      output: "exit_code: 7\n--- stdout ---\n1 failing test\n--- stderr ---\nassertion failed",
+    });
     const result = await runVerification(
       "/project",
       desktopRuntime([{ name: "package.json" }], execute),
     );
-    expect(result).toMatchObject({ status: "failed", exitCode: 1 });
-    expect(result.stderrPreview).toContain("1 failing test");
+    expect(result).toMatchObject({ status: "failed", exitCode: 7 });
+    expect(result.stdoutPreview).toContain("1 failing test");
+    expect(result.stderrPreview).toContain("assertion failed");
+  });
+
+  it("reports a timeout without inventing an exit code", async () => {
+    const execute = vi.fn<ExecuteFn>();
+    execute.mockResolvedValue({
+      success: false,
+      output:
+        "exit_code: N/A\n--- stdout ---\npartial output\n--- stderr ---\nCommand timed out after 60000ms",
+    });
+    const result = await runVerification(
+      "/project",
+      desktopRuntime([{ name: "package.json" }], execute),
+    );
+    expect(result).toMatchObject({ status: "timed_out", exitCode: null });
+  });
+
+  it("reports cancellation distinctly", async () => {
+    const execute = vi.fn<ExecuteFn>();
+    execute.mockResolvedValue({
+      success: false,
+      output: "Tool execution cancelled",
+      error: "tool_cancelled",
+    });
+    const result = await runVerification(
+      "/project",
+      desktopRuntime([{ name: "package.json" }], execute),
+    );
+    expect(result).toMatchObject({ status: "cancelled", exitCode: null });
   });
 
   it("stays skipped without a recognized project config", async () => {
