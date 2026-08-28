@@ -162,6 +162,11 @@ fn write_message(process: &mut McpProcess, message: &Value) -> Result<(), String
 }
 
 fn terminate(process: &mut McpProcess) {
+    // Once the child has been reaped its pid may have been recycled by an
+    // unrelated process; signaling the group then would hit the wrong target.
+    if process.child.try_wait().ok().flatten().is_some() {
+        return;
+    }
     #[cfg(unix)]
     unsafe {
         libc::kill(-(process.child.id() as i32), libc::SIGTERM);
@@ -288,7 +293,9 @@ impl McpProcessHandle {
                 Ok(Ok(response)) if response.get("id") == Some(&expected_id) => {
                     return Ok(response)
                 }
-                Ok(Ok(_)) => return Err("MCP response id mismatch".to_owned()),
+                // Stale reply to an earlier timed-out request: drain it and
+                // keep waiting for ours instead of failing this request.
+                Ok(Ok(_)) => continue,
                 Ok(Err(error)) => return Err(error),
                 Err(mpsc::RecvTimeoutError::Timeout) => continue,
                 Err(mpsc::RecvTimeoutError::Disconnected) => {

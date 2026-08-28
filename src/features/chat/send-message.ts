@@ -1,5 +1,5 @@
 import type { StoreApi } from "zustand";
-import type { ConversationRecord, MessageRecord } from "../../core/storage/db";
+import type { ConversationRecord, MessageRecord, ProviderRecord } from "../../core/storage/db";
 import { useProviderStore } from "../provider/provider-store";
 import type { ChatState } from "./chat-store";
 import { providerReadinessError } from "./chat-stream";
@@ -9,7 +9,7 @@ import { getStructuredStorage } from "../../runtime/structured-storage";
 import { prepareTask } from "../orchestration/orchestration-session";
 import { ModelTaskIntakeAnalyzer } from "../orchestration/model-task-intake-analyzer";
 import { ModelPlanGenerator } from "../orchestration/model-plan-generator";
-import { effectiveMode } from "../projects/conversation-mode";
+import { effectiveModeForModel } from "../projects/conversation-mode";
 
 const DONE_WHEN_MARKER = /^(?:done\s+when|完成条件|验收条件)\s*[:：]?\s*$/i;
 const DONE_WHEN_INLINE = /(?:done\s+when|完成条件|验收条件)\s*[:：]\s*(.+)$/i;
@@ -67,6 +67,28 @@ export async function sendChatMessage(
   const readinessError = providerReadinessError(provider);
   if (readinessError) return set({ error: readinessError });
 
+  // Flip the busy flag synchronously, BEFORE the first await: agent/goal
+  // preparation runs two LLM round trips before beginConversationStream fires,
+  // and without this window a second send starts a concurrent run.
+  set({ isStreaming: true });
+  try {
+    await sendChatMessageInner(set, get, text, provider);
+  } finally {
+    // Early exits (cancelled/clarification/confirmation/preparation failure)
+    // never open a stream slot — reset the flag so the composer re-enables.
+    // When a stream did run, it has already finished and this is a no-op.
+    if (get().activeStreamConversationId === null) {
+      set({ isStreaming: false });
+    }
+  }
+}
+
+async function sendChatMessageInner(
+  set: ChatStoreSet,
+  get: ChatStoreGet,
+  text: string,
+  provider: ProviderRecord,
+): Promise<void> {
   const attachments = get().pendingAttachments;
   const selectedSkillIds = new Set(get().selectedSkillIds);
   let conversationId = get().currentConversationId;
@@ -143,7 +165,11 @@ export async function sendChatMessage(
   const nextHistory = [...history, userMessage];
   let preparation: Awaited<ReturnType<typeof prepareTask>> = "not-applicable";
   const conversationRecord = get().conversations.find((c) => c.id === conversationId);
-  const runMode = effectiveMode(conversationRecord, get().mode);
+  const runMode = effectiveModeForModel(
+    conversationRecord,
+    get().mode,
+    provider.modelCapabilities?.toolCalling === true,
+  );
   if (runMode === "agent" || runMode === "goal") {
     try {
       preparation = await prepareTask({

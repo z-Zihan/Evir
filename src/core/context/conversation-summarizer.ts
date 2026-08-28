@@ -1,6 +1,14 @@
 import type { MessageRecord, ProviderRecord } from "../storage/db";
-import { streamAssistant, type StreamResult } from "../../features/chat/chat-stream";
+import type { StreamResult } from "../../features/chat/chat-stream";
 import { estimateMessagesTokens } from "./token-estimate";
+
+/** Provider streaming injected by callers — keeps core free of feature deps. */
+export type SummarizerStreamFn = (
+  provider: ProviderRecord,
+  conversationId: string,
+  messages: { role: string; content: unknown }[],
+  onDelta: (content: string) => void,
+) => Promise<StreamResult>;
 
 /**
  * Summarize old conversation messages using the current provider.
@@ -9,9 +17,14 @@ import { estimateMessagesTokens } from "./token-estimate";
 export async function summarizeConversation(
   provider: ProviderRecord,
   messages: MessageRecord[],
-  options?: { maxSummaryTokens?: number },
+  options?: {
+    maxSummaryTokens?: number;
+    /** Required to actually stream — callers wire `streamAssistant` in. */
+    streamFn: SummarizerStreamFn;
+  },
 ): Promise<string> {
-  const maxTokens = options?.maxSummaryTokens ?? 500;
+  const { streamFn, maxSummaryTokens } = options ?? {};
+  const maxTokens = maxSummaryTokens ?? 500;
 
   if (messages.length === 0) return "";
 
@@ -51,7 +64,8 @@ Output a concise summary. Do not include pleasantries.`,
     },
   ];
 
-  const result: StreamResult = await streamAssistant(provider, "summary", summaryPrompt, () => {});
+  if (!streamFn) return "Summary unavailable";
+  const result: StreamResult = await streamFn(provider, "summary", summaryPrompt, () => {});
 
   return result.content || "Summary unavailable";
 }

@@ -25,6 +25,9 @@ const toolResultSchema = z.object({
   success: z.boolean(),
   output: z.string(),
   error: z.string().optional(),
+  startedAt: z.number().optional(),
+  completedAt: z.number().optional(),
+  durationMs: z.number().optional(),
 });
 
 const messageSchema = z.object({
@@ -43,8 +46,18 @@ const messageSchema = z.object({
     })
     .optional(),
   attachments: z.array(attachmentSchema).optional(),
+  activeSkills: z.array(z.object({ id: z.string(), name: z.string() })).optional(),
   toolCalls: z.array(toolCallSchema).optional(),
   toolResults: z.array(toolResultSchema).optional(),
+  summaryMetadata: z
+    .object({
+      version: z.literal(1),
+      sourceMessageIds: z.array(z.string()),
+      sourceStartedAt: z.number(),
+      sourceEndedAt: z.number(),
+      archiveId: z.string(),
+    })
+    .optional(),
 });
 
 const conversationSchema = z.object({
@@ -56,6 +69,10 @@ const conversationSchema = z.object({
   updatedAt: z.number(),
   parentConversationId: z.string().optional(),
   branchedFromMessageId: z.string().optional(),
+  // Keep parity with ConversationRecord: without these an export → import
+  // round-trip silently drops project ownership and pinning.
+  pinned: z.number().optional(),
+  projectId: z.string().nullable().optional(),
   messages: z.array(messageSchema),
 });
 
@@ -117,6 +134,10 @@ export async function importConversations(
               },
             }
           : {}),
+        ...(msgData.summaryMetadata !== undefined
+          ? { summaryMetadata: msgData.summaryMetadata }
+          : {}),
+        ...(msgData.activeSkills !== undefined ? { activeSkills: msgData.activeSkills } : {}),
         ...(msgData.toolCalls !== undefined ? { toolCalls: msgData.toolCalls } : {}),
         ...(msgData.toolResults !== undefined
           ? {

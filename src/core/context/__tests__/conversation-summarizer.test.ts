@@ -123,7 +123,9 @@ describe("summarizeConversation", () => {
       createdAt: 1,
       updatedAt: 1,
     };
-    const result = await summarizeConversation(provider, []);
+    const result = await summarizeConversation(provider, [], {
+      streamFn: () => Promise.resolve({ content: "", status: "complete" }),
+    });
     expect(result).toBe("");
   });
 });

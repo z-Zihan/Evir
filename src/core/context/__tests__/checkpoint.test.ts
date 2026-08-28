@@ -84,6 +84,37 @@ describe("loadCheckpoint", () => {
       }),
     ).toBeNull();
   });
+
+  it("normalizes goal-mode checkpoints on read-back", () => {
+    const checkpoint = normalizeCheckpoint({
+      id: "cp-goal",
+      conversationId: "c1",
+      createdAt: 1,
+      messageCount: 3,
+      tokenEstimate: 10,
+      summary: "summary",
+      objective: "ship the goal",
+      mode: "goal",
+    });
+    // The zod enum once forgot "goal" and silently dropped every goal checkpoint.
+    expect(checkpoint?.mode).toBe("goal");
+  });
+
+  it("round-trips every interaction mode through normalizeCheckpoint", () => {
+    for (const mode of ["ask", "plan", "goal", "agent"] as const) {
+      const checkpoint = normalizeCheckpoint({
+        id: `cp-${mode}`,
+        conversationId: "c1",
+        createdAt: 1,
+        messageCount: 1,
+        tokenEstimate: 1,
+        summary: "s",
+        objective: "o",
+        mode,
+      });
+      expect(checkpoint?.mode).toBe(mode);
+    }
+  });
 });
 
 describe("buildHandoffMessage", () => {

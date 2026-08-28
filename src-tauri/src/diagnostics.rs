@@ -251,23 +251,46 @@ pub fn diagnostics_logs_overview(
 }
 
 #[tauri::command]
-pub fn diagnostics_export_zip(
+pub async fn diagnostics_export_zip(
     app: AppHandle,
     dest_path: String,
     metadata_files: Vec<MetadataFile>,
     from_day: Option<String>,
     include_crash_reports: bool,
 ) -> Result<DiagnosticsExportResult, String> {
+    // The destination comes over IPC; every other write path in the app goes
+    // through validate_path, this one must not accept junk either.
+    let dest = PathBuf::from(&dest_path);
+    if !dest.is_absolute() {
+        return Err("diagnostics export destination must be an absolute path".to_owned());
+    }
+    let parent = dest
+        .parent()
+        .ok_or_else(|| "invalid diagnostics export destination".to_owned())?;
+    if !parent.is_dir() {
+        return Err(format!(
+            "diagnostics export destination directory does not exist: {}",
+            parent.display()
+        ));
+    }
+    if dest.is_dir() {
+        return Err("diagnostics export destination is a directory".to_owned());
+    }
     let logs_dir = logs_directory(&app)?;
     let app_version = app.package_info().version.to_string();
-    export_zip_to_path(
-        &logs_dir,
-        Path::new(&dest_path),
-        &metadata_files,
-        from_day.as_deref(),
-        include_crash_reports,
-        &app_version,
-    )
+    // Zipping can walk hundreds of MB of logs; keep it off the app main thread.
+    tauri::async_runtime::spawn_blocking(move || {
+        export_zip_to_path(
+            &logs_dir,
+            &dest,
+            &metadata_files,
+            from_day.as_deref(),
+            include_crash_reports,
+            &app_version,
+        )
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 fn logs_directory(app: &AppHandle) -> Result<PathBuf, String> {

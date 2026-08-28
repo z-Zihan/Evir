@@ -41,8 +41,11 @@ export function finishConversationStream(
   startedAt: number,
 ): void {
   const durationMs = Date.now() - startedAt;
+  // The startedAt match matters when a stopped run's persistence tail is still
+  // draining while a NEW run has begun in the same conversation: without it
+  // the old tail would flip the new run's isStreaming back to false.
   set((state) =>
-    state.activeStreamConversationId === conversationId
+    state.activeStreamConversationId === conversationId && state.activeStreamStartedAt === startedAt
       ? {
           isStreaming: false,
           activeStreamConversationId: null,

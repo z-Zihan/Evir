@@ -23,7 +23,7 @@ describe("ModeSwitcher", () => {
     expect(screen.queryByRole("button")).toBeNull();
   });
 
-  it("offers Agent, Plan, and Goal for project threads", async () => {
+  it("keeps Agent implicit and offers only Plan and Goal for project threads", async () => {
     const onModeChange = vi.fn();
     const { ModeSwitcher } = await import("../ModeSwitcher");
     render(
@@ -36,9 +36,27 @@ describe("ModeSwitcher", () => {
       />,
     );
 
+    expect(screen.queryByRole("button", { name: /chat\.modes\.agent/ })).toBeNull();
     expect(screen.getByRole("button", { name: /chat\.modes\.plan/ })).toBeDefined();
     fireEvent.click(screen.getByRole("button", { name: /chat\.modes\.goal/ }));
     expect(onModeChange).toHaveBeenCalledWith("goal");
+  });
+
+  it("returns an active special mode to the default project task", async () => {
+    const onModeChange = vi.fn();
+    const { ModeSwitcher } = await import("../ModeSwitcher");
+    render(
+      <ModeSwitcher
+        mode="plan"
+        onModeChange={onModeChange}
+        projectScoped
+        toolCalling
+        onConfigureModel={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /chat\.modes\.plan/ }));
+    expect(onModeChange).toHaveBeenCalledWith("agent");
   });
 
   it("disables the group with an actionable reason when the model lacks tool calling", async () => {

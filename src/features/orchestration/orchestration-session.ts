@@ -181,6 +181,29 @@ export async function prepareTask(input: {
       input.runtime,
       input.planner,
     );
+    // Stop during planning aborts the planner stream; buildValidatedPlan then
+    // returns its deterministic fallback. Honour the cancellation here so a
+    // user-stopped task never proceeds to execution.
+    if (cancelledPreparations.delete(input.conversationId)) {
+      const cancelled = createRunEvent(
+        "run.cancelled",
+        runId,
+        input.conversationId,
+        "Task cancelled during planning",
+      );
+      const snapshot: OrchestrationSnapshot = {
+        runId,
+        conversationId: input.conversationId,
+        phase: "finished",
+        brief: briefWithDoneWhen,
+        assignments: [],
+        events: [start, intake, cancelled],
+      };
+      await persist(repository, snapshot, input.privateSession, snapshot.events);
+      useOrchestrationStore.getState().setCurrent(snapshot);
+      useOrchestrationStore.getState().setPreparing(null);
+      return "cancelled";
+    }
     const planEvent = createRunEvent(
       "plan.created",
       runId,

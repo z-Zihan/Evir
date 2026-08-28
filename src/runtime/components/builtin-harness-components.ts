@@ -5,6 +5,7 @@ import { logger } from "../../core/logging/logger";
 import { retrieveMemoryContext } from "../../core/memory/memory-retrieval";
 import { routeSkill } from "../../core/skills/skill-router";
 import { taskResolver } from "../../core/tools/verification-evidence";
+import { requiresToolCalling } from "../../core/providers/tool-registry";
 import type {
   HarnessEvent,
   HarnessMiddleware,
@@ -89,7 +90,11 @@ const modePolicy = component("mode-policy", parseEmptyConfig, () =>
 
 const capabilityGate = component("capability-gate", parseEmptyConfig, () =>
   passthrough("capability-gate", (event, next) => {
-    if (event.type !== "request" || event.effectiveMode !== "agent" || event.providerToolCalling) {
+    if (
+      event.type !== "request" ||
+      !requiresToolCalling(event.effectiveMode) ||
+      event.providerToolCalling
+    ) {
       return next(event);
     }
     return next({ ...event, blocked: true, blockReason: "agent-requires-tool-calling" });

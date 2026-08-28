@@ -70,7 +70,7 @@ describe("ModelSwitchCoordinatorImpl", () => {
     });
   });
 
-  it("requires an Ask downgrade when the target cannot call tools", async () => {
+  it("keeps the default project task when the target can only chat", async () => {
     await db.providers.put(
       target({
         id: "source",
@@ -82,10 +82,29 @@ describe("ModelSwitchCoordinatorImpl", () => {
       request({ toProviderId: "source" }),
     );
     expect(assessment).toMatchObject({
-      status: "requires-confirmation",
+      status: "switched",
       requiresDataDestinationConfirmation: false,
-      requiresModeDowngrade: true,
+      requiresModeDowngrade: false,
     });
+  });
+
+  it("requires a downgrade when an explicit Plan or Goal cannot use tools", async () => {
+    await db.providers.put(
+      target({
+        id: "source",
+        modelId: "target-model",
+        modelCapabilities: { streaming: true, toolCalling: false },
+      }),
+    );
+    const coordinator = new ModelSwitchCoordinatorImpl();
+    for (const mode of ["plan", "goal"] as const) {
+      await expect(
+        coordinator.assess(request({ toProviderId: "source", mode })),
+      ).resolves.toMatchObject({
+        status: "requires-confirmation",
+        requiresModeDowngrade: true,
+      });
+    }
   });
 
   it("blocks active execution and target context overflow", async () => {

@@ -2,8 +2,7 @@ import type { PlanGeneratorPort } from "../../core/orchestration/planner";
 import type { TaskBrief } from "../../core/orchestration/types";
 import type { ProviderRecord } from "../../core/storage/db";
 import { streamAssistant } from "../chat/chat-stream";
-
-const STRUCTURED_RESPONSE_TIMEOUT_MS = 45_000;
+import { STRUCTURED_RESPONSE_TIMEOUT_MS } from "./structured-response";
 
 const capability = [
   "chat",

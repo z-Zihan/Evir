@@ -1,31 +1,29 @@
 import { useTranslation } from "react-i18next";
-import { Bot, Crosshair, ListChecks } from "lucide-react";
+import { Crosshair, ListChecks } from "lucide-react";
 import type { InteractionMode } from "../core/providers/tool-registry";
 
 interface ModeSwitcherProps {
   mode: InteractionMode;
   onModeChange: (mode: InteractionMode) => void;
-  /** Project threads (or the legacy workspace) can run agent/plan/goal. */
+  /** Project threads (or the legacy workspace) can run the special plan/goal modes. */
   projectScoped: boolean;
   toolCalling: boolean;
   onConfigureModel: () => void;
 }
 
 const PROJECT_MODES: ReadonlyArray<{
-  mode: Exclude<InteractionMode, "ask">;
+  mode: Extract<InteractionMode, "plan" | "goal">;
   labelKey: string;
-  icon: typeof Bot;
+  icon: typeof ListChecks;
 }> = [
-  { mode: "agent", labelKey: "chat.modes.agent", icon: Bot },
   { mode: "plan", labelKey: "chat.modes.plan", icon: ListChecks },
   { mode: "goal", labelKey: "chat.modes.goal", icon: Crosshair },
 ];
 
 /**
- * Compact mode control inside the composer for project threads. Standalone
- * chats are always ask-mode and render nothing. Without tool calling the
- * whole group is disabled with an actionable reason instead of failing after
- * the run starts.
+ * Project tasks use Agent behavior by default, so only the explicit special
+ * modes are visible. Pressing the selected special mode returns to the default
+ * project task. Standalone chats are always ask-mode and render nothing.
  */
 export function ModeSwitcher({
   mode,
@@ -56,7 +54,7 @@ export function ModeSwitcher({
           type="button"
           aria-pressed={mode === candidate}
           className={mode === candidate ? "active" : ""}
-          onClick={() => onModeChange(candidate)}
+          onClick={() => onModeChange(mode === candidate ? "agent" : candidate)}
           title={t(`chat.modes.${candidate}Desc`)}
         >
           <Icon size={13} aria-hidden="true" />

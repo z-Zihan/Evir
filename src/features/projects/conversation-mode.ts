@@ -32,3 +32,18 @@ export function effectiveMode(
   if (!allowsProjectModes(conversation)) return "ask";
   return requestedMode;
 }
+
+/**
+ * A project task uses Agent semantics when the model can call tools. With a
+ * text-only model, the same task remains usable as chat instead of failing
+ * every send. The UI hides Plan/Goal in that state; a stale special-mode value
+ * (for example after restoring a session) is safely treated as chat-only.
+ */
+export function effectiveModeForModel(
+  conversation: ConversationRecord | undefined,
+  requestedMode: InteractionMode,
+  toolCalling: boolean,
+): InteractionMode {
+  const mode = effectiveMode(conversation, requestedMode);
+  return mode !== "ask" && !toolCalling ? "ask" : mode;
+}

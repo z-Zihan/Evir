@@ -22,10 +22,12 @@ import { createActiveTaskController } from "./chat-stream";
 import { finishConversationStream, updateConversationStream } from "./stream-ownership";
 import { permissionContextForRoot } from "../projects/run-permission";
 import type { PermissionContext } from "../../core/security/permission-profiles";
-import type {
-  RiskLevel,
-  ToolApprovalDetails,
-  ToolSource,
+import {
+  RISK_LEVELS,
+  TOOL_SOURCES,
+  type RiskLevel,
+  type ToolApprovalDetails,
+  type ToolSource,
 } from "../../core/providers/tool-registry";
 
 export interface PendingToolApproval {
@@ -70,14 +72,6 @@ export interface ApprovalRecord {
   createdAt: number;
   updatedAt: number;
 }
-
-const RISK_LEVELS: readonly RiskLevel[] = ["L0", "L1", "L2", "L3", "L4"];
-const TOOL_SOURCES: readonly ToolSource[] = [
-  "evir-local",
-  "mcp-local",
-  "mcp-remote",
-  "provider-server",
-];
 
 function riskLevelOf(value: unknown): RiskLevel | undefined {
   return typeof value === "string" && RISK_LEVELS.includes(value as RiskLevel)

@@ -1,13 +1,12 @@
 import type { ProviderRecord } from "../../core/storage/db";
 import type { TaskIntakeAnalyzerPort, TaskIntakeInput } from "../../core/orchestration/task-intake";
 import { streamAssistant } from "../chat/chat-stream";
+import { STRUCTURED_RESPONSE_TIMEOUT_MS } from "./structured-response";
 
 interface PriorDialogueMessage {
   role: "user" | "assistant";
   content: string;
 }
-
-const STRUCTURED_RESPONSE_TIMEOUT_MS = 45_000;
 
 const taskBriefTool = {
   type: "function",

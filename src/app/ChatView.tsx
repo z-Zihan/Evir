@@ -33,7 +33,6 @@ import type { MessageRecord, ProviderRecord } from "../core/storage/db";
 import { useDragDrop } from "./use-drag-drop";
 import { getRuntime } from "../runtime/use-runtime";
 import { handleExportMarkdown } from "./export-helpers";
-import { useConversationTokenCount } from "./use-token-count";
 import { ModelSwitchCoordinatorImpl } from "../core/providers/model-switch-coordinator-impl";
 import type { ModelSwitchRequest } from "../core/providers/model-switching";
 import { loadPersonalizationPreferences } from "../features/settings/personalization-settings";
@@ -44,7 +43,7 @@ import { SkillPicker } from "./SkillPicker";
 import { useSkillStore } from "../features/skills/skill-store";
 import { useMemoryStore } from "../features/memory/memory-store";
 import { useOrchestrationStore } from "../features/orchestration/orchestration-store";
-import { allowsProjectModes } from "../features/projects/conversation-mode";
+import { allowsProjectModes, effectiveModeForModel } from "../features/projects/conversation-mode";
 // The orchestration workbench (plan DAG, node timeline, clarifications) only
 // appears in desktop Agent runs; keep it and its store graph out of the entry
 // chunk.
@@ -52,7 +51,12 @@ const TaskWorkbench = lazy(() =>
   import("./TaskWorkbench").then((m) => ({ default: m.TaskWorkbench })),
 );
 
-const modelSwitchCoordinator = new ModelSwitchCoordinatorImpl();
+// Constructed lazily: a module-scope `new` pulled the impl (and transitively
+// the runtime graph) into every import of this module before anything ran.
+let modelSwitchCoordinator: ModelSwitchCoordinatorImpl | undefined;
+function coordinator(): ModelSwitchCoordinatorImpl {
+  return (modelSwitchCoordinator ??= new ModelSwitchCoordinatorImpl());
+}
 
 function useElapsedSeconds(startedAt: number | null): number {
   const [seconds, setSeconds] = useState(0);
@@ -214,7 +218,11 @@ export function ChatView({
   );
   const conversationTitle = currentConversation?.title || t("chat.title");
   const projectScoped = allowsProjectModes(currentConversation);
-  const effectiveConversationMode = projectScoped ? mode : "ask";
+  const toolCalling = provider?.modelCapabilities?.toolCalling === true;
+  const effectiveConversationMode =
+    runtime.target === "web"
+      ? "ask"
+      : effectiveModeForModel(currentConversation, mode, toolCalling);
   const isCurrentConversationStreaming =
     isStreaming && activeStreamConversationId === currentConversationId;
   const currentAgentRun =
@@ -244,7 +252,6 @@ export function ChatView({
     [addMemory, t],
   );
 
-  const tokenCount = useConversationTokenCount(currentConversationId);
   const hasMessageError = messages.some(
     (message) => message.status === "error" && Boolean(message.errorMessage),
   );
@@ -322,7 +329,7 @@ export function ChatView({
     assessment: ModelSwitchAssessment,
     nextProvider: ProviderRecord,
   ) => {
-    const result = await modelSwitchCoordinator.execute(request, assessment);
+    const result = await coordinator().execute(request, assessment);
     if (result.status !== "switched") {
       useChatStore.setState({
         error: t("chat.modelSwitchBlocked", { reason: result.status }),
@@ -331,7 +338,7 @@ export function ChatView({
     }
     await switchProvider(nextProvider.id);
     await updateConversationProvider(nextProvider.id, nextProvider.modelId);
-    if (assessment.requiresModeDowngrade) setMode("ask");
+    if (assessment.requiresModeDowngrade) setMode("agent");
   };
 
   const handleModelSwitch = (nextProvider: ProviderRecord) => {
@@ -352,7 +359,7 @@ export function ChatView({
           mode,
           hasActiveExecution: isStreaming || pendingToolApproval !== null,
         };
-        const assessment = await modelSwitchCoordinator.assess(request);
+        const assessment = await coordinator().assess(request);
         if (assessment.status === "blocked") {
           useChatStore.setState({
             error: t("chat.modelSwitchBlocked", {
@@ -631,12 +638,11 @@ export function ChatView({
                 mode={mode}
                 onModeChange={setMode}
                 projectScoped={projectScoped}
-                toolCalling={provider?.modelCapabilities?.toolCalling === true}
+                toolCalling={toolCalling}
                 onConfigureModel={onOpenSettings}
               />
               <span className="composer-info">
                 {input.length > 0 && <span className="char-count">{input.length}</span>}
-                {tokenCount > 0 && t("chat.tokenCount", { count: tokenCount })}
               </span>
             </div>
             {isCurrentConversationStreaming ? (

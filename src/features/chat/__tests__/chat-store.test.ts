@@ -486,3 +486,31 @@ describe("private sessions", () => {
     expect(await db.messages.count()).toBe(0);
   });
 });
+
+describe("send busy guard", () => {
+  it("rejects a second send while the first is still streaming", async () => {
+    let releaseStream: (value: Awaited<ReturnType<typeof streamAssistant>>) => void = () => {};
+    vi.mocked(streamAssistant).mockReturnValue(
+      new Promise((resolve) => {
+        releaseStream = resolve;
+      }),
+    );
+    const first = useChatStore.getState().sendMessage("first message");
+    // The flag flips synchronously before any await — otherwise the second
+    // send during the first one's async work started a concurrent run.
+    expect(useChatStore.getState().isStreaming).toBe(true);
+
+    await useChatStore.getState().sendMessage("second message");
+    await vi.waitFor(() =>
+      expect(useChatStore.getState().messages.filter(({ role }) => role === "user")).toHaveLength(
+        1,
+      ),
+    );
+    expect(useChatStore.getState().messages.map(({ content }) => content)).toEqual([
+      "first message",
+    ]);
+
+    releaseStream({ content: "done", status: "complete" });
+    await first;
+  });
+});

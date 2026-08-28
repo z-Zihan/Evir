@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { getActivePermissionContext, getActiveWorkspaceRoot } from "../core/workspace/active-root";
+import { isInsideRoots } from "../core/security/permission-profiles";
 import type { EntityName, StorageMutation, StoragePort } from "../core/storage/storage-port";
 
 export interface DesktopStorageAdapter {
@@ -112,7 +113,10 @@ function rootForPath(path: string): string {
   if (context?.profile === "full") return path;
   if (context && context.roots.length > 0) {
     const active = selectedWorkspace();
-    const containing = context.roots.find((root) => root === path || path.startsWith(`${root}/`));
+    // Containment must go through isInsideRoots (normalized comparison) — a raw
+    // prefix check silently misses backslash or trailing-slash root spellings
+    // and then submits the wrong root to the Rust validator.
+    const containing = context.roots.find((root) => isInsideRoots(path, [root]));
     return containing ?? (active || context.roots[0] || "");
   }
   return selectedWorkspace();

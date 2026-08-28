@@ -47,6 +47,28 @@ export interface ToolRegistry {
 
 export type InteractionMode = "ask" | "plan" | "goal" | "agent";
 
+// Single source of truth for the full mode set — zod enums (e.g. checkpoints)
+// derive from this tuple so a new mode cannot be added to the union alone.
+export const INTERACTION_MODES = ["ask", "plan", "goal", "agent"] as const;
+
+// Modes whose execution path issues tool calls to the provider; used as the
+// tool-calling capability gate. Plan mode also *runs* L1 tools, so the model
+// switch coordinator keeps its stricter "!== ask" check on purpose.
+export const MODES_REQUIRING_TOOL_CALLING = ["agent", "goal"] as const;
+
+export function requiresToolCalling(mode: InteractionMode): boolean {
+  return (MODES_REQUIRING_TOOL_CALLING as readonly string[]).includes(mode);
+}
+
+export const RISK_LEVELS = ["L0", "L1", "L2", "L3", "L4"] as const satisfies readonly RiskLevel[];
+
+export const TOOL_SOURCES = [
+  "evir-local",
+  "mcp-local",
+  "mcp-remote",
+  "provider-server",
+] as const satisfies readonly ToolSource[];
+
 export const MODE_TOOL_RISK_LIMITS: Record<InteractionMode, RiskLevel> = {
   ask: "L0",
   plan: "L1",

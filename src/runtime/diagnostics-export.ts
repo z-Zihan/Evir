@@ -8,6 +8,7 @@ import {
 } from "../core/logging/diagnostic-port";
 import { logger } from "../core/logging/logger";
 import type { DiagnosticExportOptions, LogChannel } from "../core/logging/types";
+import { localDateStamp } from "../core/time/local-date-stamp";
 
 export type DiagnosticsBundleSource = () => Omit<
   DiagnosticsBundleInput,
@@ -27,16 +28,9 @@ interface ExportZipCommandResult {
   manifest: Record<string, unknown>;
 }
 
-function dayStamp(date: Date): string {
-  const year = String(date.getFullYear()).padStart(4, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
 function fromDayFor(options: DiagnosticExportOptions): string {
   const cutoff = new Date(Date.now() - options.includeDays * 24 * 60 * 60 * 1000);
-  return dayStamp(cutoff);
+  return localDateStamp(cutoff);
 }
 
 /**

@@ -10,7 +10,9 @@ import {
   asNumber as number,
   asRecord as record,
   asString as string,
+  mapHttpError,
   mapThrownError,
+  uuid,
 } from "./openai-chat-utils";
 
 const DEFAULT_BASE_URL = "http://localhost:11434";
@@ -23,12 +25,6 @@ export interface OllamaConnectionConfig {
 const authSchema = z.object({
   baseUrl: z.string().url().optional(),
 });
-
-function uuid(): string {
-  return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
 
 async function* ndjsonLines(body: ReadableStream<Uint8Array>): AsyncGenerator<string> {
   const reader = body.getReader();
@@ -60,21 +56,9 @@ async function ollamaResponseError(response: Response): Promise<ProviderError> {
     payload = undefined;
   }
   const message = string(record(payload)?.error) ?? `Provider returned HTTP ${response.status}`;
-  if (response.status === 404) {
-    return { type: ProviderErrorType.MODEL_NOT_FOUND, message, retryable: false };
-  }
-  if (response.status === 429) {
-    return { type: ProviderErrorType.RATE_LIMITED, message, retryable: true };
-  }
-  return {
-    type:
-      response.status >= 500
-        ? ProviderErrorType.PROVIDER_ERROR
-        : ProviderErrorType.PROTOCOL_INCOMPATIBLE,
-    message,
-    retryable: response.status >= 500,
-    providerDetails: { status: response.status },
-  };
+  // Shared mapping keeps 401/403 → AUTH_FAILED and message classification in
+  // line with every other adapter (the old local fork lost both).
+  return mapHttpError(response.status, message);
 }
 
 export class OllamaClient implements ProtocolAdapter {

@@ -11,6 +11,7 @@ import { getStructuredStorage } from "../../runtime/structured-storage";
 import { getRuntime, isNativeDesktopRuntime } from "../../runtime/use-runtime";
 import { estimateMessagesTokens } from "../context/token-estimate";
 import { retrieveMemoryContext } from "../memory/memory-retrieval";
+import { DEFAULT_MAX_CONTEXT_TOKENS } from "./model-defaults";
 
 function hasActiveToolExecutionOrPendingApproval(message: MessageRecord | undefined): boolean {
   if (!message) return false;
@@ -83,9 +84,14 @@ export class ModelSwitchCoordinatorImpl implements ModelSwitchCoordinator {
       };
     }
 
+    // The default project task can fall back to ordinary chat when the target
+    // model has no tool calling. Explicit Plan/Goal modes cannot be preserved
+    // because both rely on project-tool semantics.
     const requiresModeDowngrade =
-      request.mode !== "ask" && targetProvider.modelCapabilities?.toolCalling !== true;
-    const maxContextTokens = targetProvider.modelCapabilities?.maxContextTokens ?? 128_000;
+      (request.mode === "plan" || request.mode === "goal") &&
+      targetProvider.modelCapabilities?.toolCalling !== true;
+    const maxContextTokens =
+      targetProvider.modelCapabilities?.maxContextTokens ?? DEFAULT_MAX_CONTEXT_TOKENS;
     const estimatedTokens = estimateMessagesTokens(messages);
     if (estimatedTokens >= maxContextTokens) {
       return {

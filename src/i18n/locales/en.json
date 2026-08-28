@@ -132,11 +132,11 @@
     "tokenCount": "{{count}} tokens",
     "retry": "Retry",
     "privateSession": "Private Session",
-    "agentRequiresToolCalling": "This model is not marked as supporting Tool Calling. Switch to Ask or update the model capability in Provider settings.",
+    "agentRequiresToolCalling": "This model can chat, but cannot use project tools. Change to a model that supports tool calling.",
     "skillContextTooLarge": "The selected Skills do not fit in this model's remaining context. Select fewer Skills, shorten the conversation, or choose a model with a larger context window.",
     "tableRegion": "Table",
     "previewImage": "Preview image",
-    "noToolCalling": "Current model does not support tool calling.",
+    "noToolCalling": "This model can chat, but cannot use project tools.",
     "changeModel": "Change model"
   },
   "runtime": {

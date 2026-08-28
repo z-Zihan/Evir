@@ -12,7 +12,13 @@ import { TOOL_DENIED } from "../../core/tools/tool-executor";
 import { popRunRoot, pushRunRoot } from "../../core/workspace/active-root";
 import { permissionContextForRoot } from "../projects/run-permission";
 import { useProviderStore } from "../provider/provider-store";
-import { type AgentLoopTurn, type AgentMessage, type AgentLoopResult } from "./agent-loop";
+import {
+  type AgentLoopTurn,
+  type AgentMessage,
+  type AgentLoopResult,
+  assistantToolCallWireMessage,
+  toolResultWireMessages,
+} from "./agent-loop";
 import type { StreamResult } from "./chat-stream";
 import type { ChatState } from "./chat-store";
 import { toMessage, sorted } from "./chat-helpers";
@@ -93,23 +99,17 @@ export function appendResolvedMessages(
   turn: AgentLoopTurn,
   results: ToolResultRecord[],
 ): void {
-  messages.push({
-    role: "assistant",
-    content: turn.stream.content,
-    tool_calls: (turn.toolCalls ?? []).map((call) => ({
-      id: call.id,
-      type: "function" as const,
-      function: { name: call.toolName, arguments: JSON.stringify(call.arguments) },
-    })),
-  });
-  for (const result of results) {
-    messages.push({
-      role: "tool",
-      content: result.output,
-      tool_call_id: result.toolCallId,
-      name: result.toolName,
-    });
-  }
+  messages.push(
+    assistantToolCallWireMessage(
+      turn.stream.content,
+      (turn.toolCalls ?? []).map((call) => ({
+        id: call.id,
+        toolName: call.toolName,
+        arguments: JSON.stringify(call.arguments),
+      })),
+    ),
+  );
+  messages.push(...toolResultWireMessages(results));
 }
 
 export async function executeApproved(

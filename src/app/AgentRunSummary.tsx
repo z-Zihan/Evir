@@ -63,17 +63,28 @@ export function AgentRunSummary({
     )
       return;
     const runtime = getRuntime();
+    let cancelled = false;
     setLoading(true);
     void Promise.all([
       runVerification(workspace, runtime),
       getGitDiff(workspace, runtime),
       getGitStatus(workspace, runtime),
-    ]).then(([v, d, g]) => {
-      setVerification(v);
-      setDiff(d);
-      setGitInfo(g);
-      setLoading(false);
-    });
+    ])
+      .then(([v, d, g]) => {
+        if (cancelled) return;
+        setVerification(v);
+        setDiff(d);
+        setGitInfo(g);
+        setLoading(false);
+      })
+      .catch(() => {
+        // A deleted workspace folder or failed invoke must not wedge the
+        // summary in the loading state (or setState after unmount).
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
     // Record-promoting automatic verification is owned by the data layer
     // (finalizeAutomaticVerification); this component only renders evidence.
   }, [workspace, runId, record, onLayoutChange]);

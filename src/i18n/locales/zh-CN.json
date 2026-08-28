@@ -132,11 +132,11 @@
     "tokenCount": "{{count}} tokens",
     "retry": "重试",
     "privateSession": "隐私会话",
-    "agentRequiresToolCalling": "当前模型未标记为支持 Tool Calling。请切换到提问模式，或在供应商设置中更新模型能力。",
+    "agentRequiresToolCalling": "此模型可以聊天，但不能使用项目工具。请更换为支持工具调用的模型。",
     "skillContextTooLarge": "所选 Skill 无法放入当前模型的剩余上下文。请减少 Skill、缩短会话，或选择上下文窗口更大的模型。",
     "tableRegion": "表格",
     "previewImage": "预览图片",
-    "noToolCalling": "当前模型不支持工具调用。",
+    "noToolCalling": "此模型可以聊天，但不能使用项目工具。",
     "changeModel": "更换模型"
   },
   "runtime": {

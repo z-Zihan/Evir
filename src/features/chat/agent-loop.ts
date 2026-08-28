@@ -182,32 +182,50 @@ async function executeCalls(
   return { calls, results };
 }
 
+/** Wire-format mapping shared by the agent loop, approval continuation, and
+ * conversation replay. `arguments` must already be a JSON string — callers
+ * decide whether to echo the model's raw text or re-serialize a parsed value. */
+export function assistantToolCallWireMessage(
+  content: string,
+  calls: readonly { id: string; toolName: string; arguments: string }[],
+): AgentMessage {
+  return {
+    role: "assistant",
+    content,
+    tool_calls: calls.map((call) => ({
+      id: call.id,
+      type: "function" as const,
+      function: { name: call.toolName, arguments: call.arguments },
+    })),
+  };
+}
+
+export function toolResultWireMessages(results: readonly ToolResultRecord[]): AgentMessage[] {
+  return results.map((result) => ({
+    role: "tool",
+    content: result.output,
+    tool_call_id: result.toolCallId,
+    name: result.toolName,
+  }));
+}
+
 function appendToolMessages(
   messages: AgentMessage[],
   stream: StreamResult,
   calls: CallWithRaw[],
   results: ToolResultRecord[],
 ): void {
-  messages.push({
-    role: "assistant",
-    content: stream.content,
-    tool_calls: calls.map((call) => ({
-      id: call.record.id,
-      type: "function" as const,
-      function: {
-        name: call.record.toolName,
+  messages.push(
+    assistantToolCallWireMessage(
+      stream.content,
+      calls.map((call) => ({
+        id: call.record.id,
+        toolName: call.record.toolName,
         arguments: call.rawArguments,
-      },
-    })),
-  });
-  for (const result of results) {
-    messages.push({
-      role: "tool",
-      content: result.output,
-      tool_call_id: result.toolCallId,
-      name: result.toolName,
-    });
-  }
+      })),
+    ),
+  );
+  messages.push(...toolResultWireMessages(results));
 }
 
 function requiresPermission(results: ToolResultRecord[]): boolean {

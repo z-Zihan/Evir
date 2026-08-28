@@ -14,6 +14,7 @@ import {
   dataLines,
   mapThrownError,
   responseError,
+  uuid,
 } from "./openai-chat-utils";
 
 export interface OpenAIConnectionConfig {
@@ -29,12 +30,6 @@ const authSchema = z.object({
 const modelsResponseSchema = z.object({
   data: z.array(z.object({ id: z.string() })),
 });
-
-function uuid(): string {
-  return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
 
 export class OpenAIChatClient implements ProtocolAdapter {
   private connection: OpenAIConnectionConfig;

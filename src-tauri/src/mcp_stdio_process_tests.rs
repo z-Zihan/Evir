@@ -115,9 +115,29 @@ fn response_ids_cannot_cross_request_ownership() {
         Arc::new(|_| {}),
     );
     let error = process
-        .request(json!({"jsonrpc":"2.0","id":1,"method":"wrong-id"}), 1_000)
+        .request(json!({"jsonrpc":"2.0","id":1,"method":"wrong-id"}), 500)
         .expect_err("mismatched ids should fail closed");
-    assert_eq!(error, "MCP response id mismatch");
+    // A foreign-id response is discarded, never returned; with nothing else to
+    // read the request then fails via the bounded timeout.
+    assert!(error.contains("timed out after 500ms"), "got: {error}");
+}
+
+#[test]
+fn stale_response_does_not_fail_the_next_request() {
+    // Simulates the retry path: an earlier timed-out request (id 2) finally
+    // gets its reply just as request id 1 goes out. The stale reply must be
+    // drained, not treated as a fatal mismatch.
+    let process = shell(
+        concat!(
+            r#"echo '{"jsonrpc":"2.0","id":2,"result":{}}';"#,
+            r#" while IFS= read -r line; do echo '{"jsonrpc":"2.0","id":1,"result":{"ok":true}}'; done"#
+        ),
+        Arc::new(|_| {}),
+    );
+    let response = process
+        .request(json!({"jsonrpc":"2.0","id":1,"method":"fresh"}), 2_000)
+        .expect("request should succeed after draining the stale reply");
+    assert_eq!(response["result"]["ok"], true);
 }
 
 #[test]

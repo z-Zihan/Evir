@@ -3,6 +3,7 @@ import { z } from "zod";
 import { estimateMessagesTokens } from "./token-estimate";
 import { getStructuredStorage } from "../../runtime/structured-storage";
 import { buildRunCapsule } from "./run-capsule";
+import { INTERACTION_MODES, type InteractionMode } from "../providers/tool-registry";
 
 export interface Checkpoint {
   id: string;
@@ -21,7 +22,7 @@ export interface Checkpoint {
   verificationEvidence: string[];
   relevantMemoryIds: string[];
   contextSummaryVersion: string;
-  mode: "ask" | "plan" | "goal" | "agent";
+  mode: InteractionMode;
 }
 
 export interface CheckpointOptions {
@@ -46,7 +47,9 @@ const checkpointSchema = z.object({
   verificationEvidence: z.array(z.string()).default([]),
   relevantMemoryIds: z.array(z.string()).default([]),
   contextSummaryVersion: z.string().default("legacy"),
-  mode: z.enum(["ask", "plan", "agent"]).default("agent"),
+  // Derived from INTERACTION_MODES so goal (and any future mode) checkpoints
+  // normalize on read instead of silently failing safeParse.
+  mode: z.enum(INTERACTION_MODES).default("agent"),
 });
 
 export function normalizeCheckpoint(value: unknown): Checkpoint | null {

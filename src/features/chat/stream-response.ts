@@ -5,11 +5,15 @@ import type {
   ConversationRecord,
   MessageRecord,
   ProviderRecord,
-  ToolResultRecord,
 } from "../../core/storage/db";
 import { useProviderStore } from "../provider/provider-store";
 import { formatAttachmentForProvider } from "./attachment-utils";
-import { runAgentLoop, type AgentLoopResult } from "./agent-loop";
+import {
+  runAgentLoop,
+  assistantToolCallWireMessage,
+  toolResultWireMessages,
+  type AgentLoopResult,
+} from "./agent-loop";
 import type { ChatState } from "./chat-store";
 import {
   createActiveTaskController,
@@ -32,6 +36,8 @@ import {
 import { retrieveMemoryContext } from "../../core/memory/memory-retrieval";
 import { createCheckpoint } from "../../core/context/checkpoint";
 import { estimateMessagesTokens, estimateTokens } from "../../core/context/token-estimate";
+import { requiresToolCalling } from "../../core/providers/tool-registry";
+import { DEFAULT_MAX_CONTEXT_TOKENS } from "../../core/providers/model-defaults";
 import { getStructuredStorage } from "../../runtime/structured-storage";
 import {
   buildAgentRunRecord,
@@ -48,7 +54,7 @@ import {
   loadPersonalizationPreferences,
 } from "../settings/personalization-settings";
 import { runOrchestratedAgent } from "../orchestration/run-orchestrated-agent";
-import { effectiveMode } from "../projects/conversation-mode";
+import { effectiveModeForModel } from "../projects/conversation-mode";
 import { useOrchestrationStore } from "../orchestration/orchestration-store";
 import {
   beginConversationStream,
@@ -76,27 +82,17 @@ function attachmentMessage(message: MessageRecord, protocolId: string): Provider
   return { role: message.role, content };
 }
 
-function resultMessages(results: ToolResultRecord[]): ProviderMessage[] {
-  return results.map((result) => ({
-    role: "tool",
-    content: result.output,
-    tool_call_id: result.toolCallId,
-    name: result.toolName,
-  }));
-}
-
 function providerMessage(message: MessageRecord, protocolId: string): ProviderMessage[] {
   if (!message.toolCalls?.length) return [attachmentMessage(message, protocolId)];
-  const assistant = {
-    role: "assistant",
-    content: message.content,
-    tool_calls: message.toolCalls.map((call) => ({
+  const assistant = assistantToolCallWireMessage(
+    message.content,
+    message.toolCalls.map((call) => ({
       id: call.id,
-      type: "function",
-      function: { name: call.toolName, arguments: JSON.stringify(call.arguments) },
+      toolName: call.toolName,
+      arguments: JSON.stringify(call.arguments),
     })),
-  };
-  return [assistant, ...resultMessages(message.toolResults ?? [])];
+  );
+  return [assistant, ...toolResultWireMessages(message.toolResults ?? [])];
 }
 
 function providerMessages(history: MessageRecord[], protocolId: string): ProviderMessage[] {
@@ -318,7 +314,9 @@ async function summarizeAndPersist(
         messageCount: toSummarize.length,
       });
       const sourceMessages = await expandSummarySources(toSummarize);
-      const summary = await summarizeConversation(provider, sourceMessages);
+      const summary = await summarizeConversation(provider, sourceMessages, {
+        streamFn: streamAssistant,
+      });
       const compressed = buildCompressedHistory(summary, toKeep, conversationId, sourceMessages);
       await persistSummarization(toSummarize, sourceMessages, compressed[0]!);
       current = compressed;
@@ -365,13 +363,53 @@ export async function streamResponse(
   if (readinessError) return set({ error: readinessError });
 
   const streamStartedAt = beginConversationStream(set, conversationId);
+  try {
+    await runStreamResponse(
+      set,
+      get,
+      history,
+      conversationId,
+      runtime,
+      provider,
+      explicitlySelectedSkillIds,
+      streamStartedAt,
+    );
+  } catch (error) {
+    // A persistence/harness failure must not leave the composer wedged in the
+    // streaming state; raw message text follows the lastStream?.errorMessage
+    // precedent (i18next renders unknown keys verbatim).
+    if (visibleForConversation(get, conversationId)) {
+      set({ error: error instanceof Error ? error.message : "chat.streamFailed" });
+    }
+  } finally {
+    finishConversationStream(set, get, conversationId, streamStartedAt);
+  }
+}
+
+async function runStreamResponse(
+  set: ChatStoreSet,
+  get: ChatStoreGet,
+  history: MessageRecord[],
+  conversationId: string,
+  runtime: EvirRuntime,
+  provider: ProviderRecord,
+  explicitlySelectedSkillIds: ReadonlySet<string>,
+  streamStartedAt: number,
+): Promise<void> {
   const lastUserMessage = [...history].reverse().find((message) => message.role === "user");
   const requestedMode = get().mode;
   const conversation = get().conversations.find(({ id }) => id === conversationId);
   // Project modes (agent/plan/goal) only run inside a project thread; legacy
   // global-workspace behavior covers standalone conversations until the first
   // project exists.
-  let mode = runtime.target === "web" ? "ask" : effectiveMode(conversation, requestedMode);
+  let mode =
+    runtime.target === "web"
+      ? "ask"
+      : effectiveModeForModel(
+          conversation,
+          requestedMode,
+          provider.modelCapabilities?.toolCalling === true,
+        );
   let normalizedUserInput = lastUserMessage?.content ?? "";
   if (runtime.harnessMiddlewareRegistry) {
     const request = await runtime.harnessMiddlewareRegistry.dispatch({
@@ -388,7 +426,6 @@ export async function streamResponse(
     mode = request.effectiveMode;
     normalizedUserInput = request.normalizedInput;
     if (request.blocked) {
-      finishConversationStream(set, get, conversationId, streamStartedAt);
       if (visibleForConversation(get, conversationId)) {
         set({
           error:
@@ -400,8 +437,7 @@ export async function streamResponse(
       return;
     }
   }
-  if ((mode === "agent" || mode === "goal") && provider.modelCapabilities?.toolCalling !== true) {
-    finishConversationStream(set, get, conversationId, streamStartedAt);
+  if (requiresToolCalling(mode) && provider.modelCapabilities?.toolCalling !== true) {
     if (visibleForConversation(get, conversationId)) {
       set({ error: "chat.agentRequiresToolCalling" });
     }
@@ -409,7 +445,6 @@ export async function streamResponse(
   }
 
   // Context budget: estimate tokens and compact tool outputs if needed
-  const DEFAULT_MAX_CONTEXT_TOKENS = 128_000;
   const maxContextTokens =
     provider.modelCapabilities?.maxContextTokens ?? DEFAULT_MAX_CONTEXT_TOKENS;
   const budgetManager = budgetManagerInstance;
@@ -534,7 +569,6 @@ export async function streamResponse(
         estimatedTokens: estimateTokens(activeSkills),
         skillTokenBudget,
       });
-      finishConversationStream(set, get, conversationId, streamStartedAt);
       if (visibleForConversation(get, conversationId)) set({ error: "chat.skillContextTooLarge" });
       return;
     }
@@ -694,7 +728,6 @@ export async function streamResponse(
     get().privateSession,
   );
   if (result.turns.length === 0) {
-    finishConversationStream(set, get, conversationId, streamStartedAt);
     if (visibleForConversation(get, conversationId)) set({ error: "chat.streamEnded" });
     return;
   }
@@ -798,7 +831,6 @@ export async function streamResponse(
           }
         : {}),
     }));
-    finishConversationStream(set, get, conversationId, streamStartedAt);
     return;
   }
 
@@ -831,16 +863,21 @@ export async function streamResponse(
     agentRunRecord = await finalizeAutomaticVerification(agentRunRecord, runtime);
   }
 
+  // After a Stop the active stream slot is null and this tail must still land
+  // (persisting the partial content); but if a NEWER run already owns the same
+  // conversation, applying this tail would append stale turns on top of it.
+  const ownsStreamSlot =
+    get().activeStreamStartedAt === null || get().activeStreamStartedAt === streamStartedAt;
   set(({ conversations, currentConversationId, messages: currentMessages }) => ({
     conversations: sorted(
       conversations.map((item) =>
         item.id === conversationId ? { ...item, updatedAt, ...(title ? { title } : {}) } : item,
       ),
     ),
-    ...(currentConversationId === conversationId
+    ...(ownsStreamSlot && currentConversationId === conversationId
       ? { messages: [...currentMessages, ...assistants] }
       : {}),
-    ...(currentConversationId === conversationId
+    ...(ownsStreamSlot && currentConversationId === conversationId
       ? {
           streamingContent: "",
           error: error ?? null,
@@ -848,5 +885,4 @@ export async function streamResponse(
         }
       : {}),
   }));
-  finishConversationStream(set, get, conversationId, streamStartedAt);
 }

@@ -6,6 +6,13 @@ export function asRecord(value: unknown): Record<string, unknown> | undefined {
     : undefined;
 }
 
+/** Correlation id for tool calls and SSE events across all protocol adapters. */
+export function uuid(): string {
+  return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 export function asString(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
@@ -138,6 +145,50 @@ export async function* dataLines(body: ReadableStream<Uint8Array>): AsyncGenerat
       if (done) break;
     }
     if (buffer.startsWith("data:")) yield buffer.slice(5).trimStart();
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+export interface SseEvent {
+  event?: string;
+  data: string;
+}
+
+/**
+ * Shared SSE parser for `text/event-stream` bodies (Anthropic and OpenAI
+ * Responses both use named events + JSON data payloads). Line-oriented: an
+ * empty line dispatches the accumulated event, with a final flush at EOF.
+ */
+export async function* sseEvents(
+  body: ReadableStream<Uint8Array>,
+): AsyncGenerator<SseEvent, void, undefined> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let event: string | undefined;
+  let data: string[] = [];
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      buffer += decoder.decode(value, { stream: !done });
+      const lines = buffer.split(/\r?\n/);
+      buffer = lines.pop() ?? "";
+      if (done && buffer) lines.push(buffer);
+      for (const line of lines) {
+        if (line === "") {
+          if (data.length > 0) yield { ...(event ? { event } : {}), data: data.join("\n") };
+          event = undefined;
+          data = [];
+        } else if (line.startsWith("event:")) {
+          event = line.slice(6).trim();
+        } else if (line.startsWith("data:")) {
+          data.push(line.slice(5).trimStart());
+        }
+      }
+      if (done) break;
+    }
+    if (data.length > 0) yield { ...(event ? { event } : {}), data: data.join("\n") };
   } finally {
     reader.releaseLock();
   }

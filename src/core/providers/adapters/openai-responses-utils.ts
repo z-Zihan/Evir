@@ -1,16 +1,8 @@
 import { ProviderErrorType, type ProviderError } from "../stream-events";
 import { asRecord, asString } from "./openai-chat-utils";
 
-interface SseEvent {
-  event?: string;
-  data: string;
-}
-
-export function uuid(): string {
-  return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+export { uuid } from "./openai-chat-utils";
+export { sseEvents as responseSseEvents } from "./openai-chat-utils";
 
 export function responsesEndpoint(baseUrl: string): string {
   const clean = baseUrl.replace(/\/+$/, "");
@@ -43,37 +35,6 @@ export function responsesInput(messages: unknown[]): {
     input,
     ...(systemParts.length > 0 ? { instructions: systemParts.join("\n\n") } : {}),
   };
-}
-
-export async function* responseSseEvents(
-  body: ReadableStream<Uint8Array>,
-): AsyncGenerator<SseEvent> {
-  const reader = body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let event: string | undefined;
-  let data: string[] = [];
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      buffer += decoder.decode(value, { stream: !done });
-      const lines = buffer.split(/\r?\n/);
-      buffer = lines.pop() ?? "";
-      if (done && buffer) lines.push(buffer);
-      for (const line of lines) {
-        if (line === "") {
-          if (data.length > 0) yield { ...(event ? { event } : {}), data: data.join("\n") };
-          event = undefined;
-          data = [];
-        } else if (line.startsWith("event:")) event = line.slice(6).trim();
-        else if (line.startsWith("data:")) data.push(line.slice(5).trimStart());
-      }
-      if (done) break;
-    }
-    if (data.length > 0) yield { ...(event ? { event } : {}), data: data.join("\n") };
-  } finally {
-    reader.releaseLock();
-  }
 }
 
 export function responsesStreamError(payload: Record<string, unknown> | undefined): ProviderError {

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { ConversationRecord } from "../../../core/storage/db";
 import { useProjectStore } from "../project-store";
 
-import { allowsProjectModes, effectiveMode } from "../conversation-mode";
+import { allowsProjectModes, effectiveMode, effectiveModeForModel } from "../conversation-mode";
 import { parseDoneWhen } from "../../chat/send-message";
 
 function conversation(projectId?: string | null): ConversationRecord {
@@ -75,6 +75,16 @@ describe("effectiveMode", () => {
 
   it("without a project or legacy workspace standalone is ask", () => {
     expect(effectiveMode(conversation(null), "agent")).toBe("ask");
+  });
+
+  it("lets a project default task fall back to chat when the model has no tools", () => {
+    expect(effectiveModeForModel(conversation("p1"), "agent", false)).toBe("ask");
+    expect(effectiveModeForModel(conversation("p1"), "agent", true)).toBe("agent");
+  });
+
+  it("safely falls back stale Plan or Goal state when the model has no tools", () => {
+    expect(effectiveModeForModel(conversation("p1"), "plan", false)).toBe("ask");
+    expect(effectiveModeForModel(conversation("p1"), "goal", false)).toBe("ask");
   });
 });
 

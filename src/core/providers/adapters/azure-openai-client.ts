@@ -13,6 +13,7 @@ import {
   dataLines,
   mapThrownError,
   responseError,
+  uuid,
 } from "./openai-chat-utils";
 
 const DEFAULT_API_VERSION = "2024-02-15-preview";
@@ -31,12 +32,6 @@ const authSchema = z.object({
   authMode: z.enum(["api-key", "entra"]).optional(),
   apiVersion: z.string().optional(),
 });
-
-function uuid(): string {
-  return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
 
 function chatEndpoint(baseUrl: string, apiVersion: string): string {
   const clean = baseUrl.replace(/\/+$/, "");

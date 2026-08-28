@@ -5,7 +5,7 @@ import type { McpServerConfig, StdioMcpServer, HttpMcpServer } from "../../core/
 import { getStructuredStorage } from "../../runtime/structured-storage";
 import { getRuntime } from "../../runtime/use-runtime";
 import type { McpServerRuntimeSnapshot } from "../../core/mcp/runtime-service";
-import { publicMcpToolId } from "../../core/mcp/tool-adapter";
+import { publicMcpToolId } from "../../core/mcp/tool-id";
 import type { ToolResult } from "../../core/providers/tool-registry";
 import { logger } from "../../core/logging/logger";
 

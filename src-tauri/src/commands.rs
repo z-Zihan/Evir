@@ -18,6 +18,8 @@ use tauri::{AppHandle, Manager};
 
 use crate::storage::{self, DatabaseState};
 
+// Keep in sync with EntityName in src/core/storage/storage-port.ts (the web
+// adapter intentionally supports only the Dexie-backed subset).
 const STRUCTURED_ENTITIES: &[&str] = &[
     "projects",
     "providers",
@@ -631,7 +633,10 @@ fn validate_path(path: &str) -> Result<PathBuf, String> {
     } else {
         canonical_ancestor.join(suffix)
     };
-    let blocked = [
+    // Note: `/private/var` (where macOS `/var` canonicalizes, incl. TMPDIR
+    // workspaces) is deliberately NOT blocked here — real workspaces live under
+    // it; the lexical `/var` block on the TS layer carries that policy.
+    let mut blocked: Vec<PathBuf> = [
         "/etc",
         "/var",
         "/usr",
@@ -639,13 +644,48 @@ fn validate_path(path: &str) -> Result<PathBuf, String> {
         "/sbin",
         "/System",
         "/private/etc",
-    ];
-    for prefix in blocked {
+    ]
+    .iter()
+    .map(PathBuf::from)
+    .collect();
+    // The TS-side home-prefix block never fires in the WebView (`process` is
+    // undefined there, so its homeDir() falls back to "/"); this layer is the
+    // only one that can actually enforce it for the Full Access profile.
+    if let Some(home) = home_sensitive_root() {
+        blocked.extend([
+            home.join(".ssh"),
+            home.join(".gnupg"),
+            home.join("Library/Keychains"),
+        ]);
+    }
+    for prefix in &blocked {
         if canonical.starts_with(prefix) {
-            return Err(format!("access to {prefix} is not allowed"));
+            return Err(format!("access to {} is not allowed", prefix.display()));
         }
     }
     Ok(canonical)
+}
+
+fn home_sensitive_root() -> Option<PathBuf> {
+    std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).map(PathBuf::from)
+}
+
+/// Identifiers that are joined into filesystem paths (snapshot run/snapshot
+/// ids, worktree ids) must stay a single path component. The TS callers
+/// sanitize today, but the Rust boundary has to defend for itself: these
+/// values originate from model-controlled tool parameters.
+fn validate_component_id(kind: &str, value: &str) -> Result<(), String> {
+    if value.is_empty()
+        || value.len() > 128
+        || value == "."
+        || value == ".."
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
+    {
+        return Err(format!("invalid {kind}"));
+    }
+    Ok(())
 }
 
 fn validate_path_in_workspace(path: &str, workspace_root: &str) -> Result<PathBuf, String> {
@@ -810,7 +850,7 @@ fn search_recursive(
 /// Execute a shell command in the workspace directory.
 /// Uses argument array (no shell interpolation) for safety.
 #[tauri::command]
-pub(crate) fn run_command(
+pub(crate) async fn run_command(
     command_id: String,
     cwd: String,
     program: String,
@@ -819,6 +859,34 @@ pub(crate) fn run_command(
     env: Option<std::collections::HashMap<String, String>>,
     workspace_root: String,
 ) -> Result<CommandResult, String> {
+    // Sync commands run on the app main thread; this one polls for the whole
+    // command lifetime, so it must stay off the main thread or the UI (and
+    // cancel_command itself, which also arrives via IPC) freezes.
+    tauri::async_runtime::spawn_blocking(move || {
+        run_command_blocking(
+            command_id,
+            cwd,
+            program,
+            args,
+            timeout_ms,
+            env,
+            workspace_root,
+        )
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+fn run_command_blocking(
+    command_id: String,
+    cwd: String,
+    program: String,
+    args: Vec<String>,
+    timeout_ms: Option<u64>,
+    env: Option<std::collections::HashMap<String, String>>,
+    workspace_root: String,
+) -> Result<CommandResult, String> {
+    const MAX_COMMAND_TIMEOUT_MS: u64 = 600_000;
     let cwd = validate_path_in_workspace(&cwd, &workspace_root)?;
     let cancellation = Arc::new(AtomicBool::new(false));
     command_cancellations()
@@ -841,7 +909,8 @@ pub(crate) fn run_command(
         cmd.process_group(0);
     }
 
-    let timeout = std::time::Duration::from_millis(timeout_ms.unwrap_or(30_000));
+    let timeout =
+        std::time::Duration::from_millis(timeout_ms.unwrap_or(30_000).min(MAX_COMMAND_TIMEOUT_MS));
     let start = std::time::Instant::now();
 
     let mut child = cmd.spawn().map_err(|error| error.to_string())?;
@@ -904,10 +973,15 @@ fn read_pipe<R>(mut pipe: R) -> std::thread::JoinHandle<String>
 where
     R: std::io::Read + Send + 'static,
 {
+    // Cap the raw read so `cat huge-file` / endless output cannot OOM the app;
+    // 50k chars survive truncation with headroom for multibyte + the notice.
+    const MAX_PIPE_BYTES: u64 = 200_000;
     std::thread::spawn(move || {
-        let mut buffer = String::new();
-        let _ = pipe.read_to_string(&mut buffer);
-        truncate_string(&buffer, 50_000)
+        use std::io::Read as _;
+        let mut bytes = Vec::with_capacity(8192);
+        let mut limited = (&mut pipe).take(MAX_PIPE_BYTES);
+        let _ = limited.read_to_end(&mut bytes);
+        truncate_string(&String::from_utf8_lossy(&bytes), 50_000)
     })
 }
 
@@ -939,7 +1013,12 @@ fn truncate_string(s: &str, max_len: usize) -> String {
     if s.len() <= max_len {
         s.to_string()
     } else {
-        format!("{}\n... truncated ({} bytes total)", &s[..max_len], s.len())
+        // max_len is a byte budget; slicing mid-codepoint would panic on CJK output.
+        let mut end = max_len;
+        while end > 0 && !s.is_char_boundary(end) {
+            end -= 1;
+        }
+        format!("{}\n... truncated ({} bytes total)", &s[..end], s.len())
     }
 }
 
@@ -1088,6 +1167,7 @@ pub(crate) fn fs_create_snapshot(
     run_id: String,
     workspace_root: String,
 ) -> Result<SnapshotResult, String> {
+    validate_component_id("snapshot run id", &run_id)?;
     let validated = validate_path_in_workspace(&file_path, &workspace_root)?;
     let data_dir = app_data_dir(&app)?;
     let snapshot_dir = data_dir.join("snapshots").join(&run_id);
@@ -1142,6 +1222,8 @@ pub(crate) fn fs_seal_snapshot(
     file_path: String,
     workspace_root: String,
 ) -> Result<(), String> {
+    validate_component_id("snapshot run id", &run_id)?;
+    validate_component_id("snapshot id", &snapshot_id)?;
     let target = validate_path_in_workspace(&file_path, &workspace_root)?;
     let data_dir = app_data_dir(&app)?;
     let meta_path = data_dir
@@ -1164,7 +1246,9 @@ pub(crate) fn fs_seal_snapshot(
     } else {
         Value::Null
     };
-    meta["post_hash"] = post_hash;
+    // Indexing assignment panics when a corrupted meta file parses to a non-object.
+    let meta_object = meta.as_object_mut().ok_or("invalid snapshot metadata")?;
+    meta_object.insert("post_hash".to_owned(), post_hash);
     std::fs::write(&meta_path, meta.to_string()).map_err(|e| e.to_string())
 }
 
@@ -1177,15 +1261,21 @@ pub(crate) fn fs_restore_snapshot(
     file_path: String,
     workspace_root: String,
 ) -> Result<bool, String> {
+    validate_component_id("snapshot run id", &run_id)?;
+    validate_component_id("snapshot id", &snapshot_id)?;
     let data_dir = app_data_dir(&app)?;
     let snapshot_dir = data_dir.join("snapshots").join(&run_id);
     let meta_path = snapshot_dir.join(format!("{snapshot_id}.json"));
     let meta_str =
         std::fs::read_to_string(&meta_path).map_err(|e| format!("snapshot not found: {e}"))?;
     let meta: serde_json::Value = serde_json::from_str(&meta_str).map_err(|e| e.to_string())?;
-    let snapshot_path = meta["snapshot_path"]
+    let recorded_snapshot_path = meta["snapshot_path"]
         .as_str()
         .ok_or("invalid snapshot metadata")?;
+    // The meta file is writable by the agent itself (write_file), so the
+    // recorded payload location must be re-confined to the app's snapshot
+    // store — otherwise restore becomes an arbitrary-file-copy primitive.
+    let snapshot_payload = confine_snapshot_payload(&data_dir, recorded_snapshot_path)?;
     let existed = meta["existed"].as_bool().unwrap_or(false);
     let target = validate_path_in_workspace(&file_path, &workspace_root)?;
     let recorded_path = meta["file_path"]
@@ -1218,7 +1308,7 @@ pub(crate) fn fs_restore_snapshot(
     }
 
     if existed {
-        std::fs::copy(snapshot_path, &target).map_err(|e| e.to_string())?;
+        std::fs::copy(snapshot_payload, &target).map_err(|e| e.to_string())?;
     } else {
         // File didn't exist before — delete it
         if target.exists() {
@@ -1233,7 +1323,22 @@ fn uuid_string() -> String {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default();
-    format!("{}-{}", now.as_millis(), now.subsec_nanos() % 100000)
+    // Full subsec nanos: the %100000 truncation collided within ~100µs and
+    // made one snapshot's metadata overwrite another's.
+    format!("{}-{}", now.as_millis(), now.subsec_nanos())
+}
+
+/// Resolve a metadata-recorded snapshot payload path and enforce that it stays
+/// inside the app's snapshots store. Symlinks are resolved by canonicalize.
+fn confine_snapshot_payload(data_dir: &Path, recorded: &str) -> Result<PathBuf, String> {
+    let store_root = std::fs::canonicalize(data_dir.join("snapshots"))
+        .map_err(|error| format!("snapshot store is not accessible: {error}"))?;
+    let payload = std::fs::canonicalize(recorded)
+        .map_err(|error| format!("snapshot payload is not accessible: {error}"))?;
+    if !payload.starts_with(&store_root) {
+        return Err("snapshot payload is outside the snapshot store".to_owned());
+    }
+    Ok(payload)
 }
 
 fn simple_hash(data: &[u8]) -> String {
@@ -1285,8 +1390,9 @@ fn validate_update_sql(sql: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        cancel_command, fs_read_file, merge_shared_provider_profiles, run_command, validate_entity,
-        validate_path_in_workspace, validate_query_sql, validate_shared_provider,
+        cancel_command, confine_snapshot_payload, fs_read_file, merge_shared_provider_profiles,
+        read_pipe, run_command_blocking, truncate_string, validate_component_id, validate_entity,
+        validate_path, validate_path_in_workspace, validate_query_sql, validate_shared_provider,
         validate_update_sql, SharedProviderProfile, STRUCTURED_ENTITIES,
     };
 
@@ -1409,7 +1515,7 @@ mod tests {
         let command_id = "cancel-test-command".to_owned();
         let worker_id = command_id.clone();
         let worker = std::thread::spawn(move || {
-            run_command(
+            run_command_blocking(
                 worker_id,
                 cwd,
                 "sh".to_owned(),
@@ -1440,6 +1546,93 @@ mod tests {
         assert_eq!(result.stderr, "Command cancelled by user");
         assert!(started.elapsed() < std::time::Duration::from_secs(3));
         let _ = std::fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn component_ids_reject_path_traversal() {
+        for valid in ["run-123", "abc_DEF.001", "a"] {
+            assert!(validate_component_id("snapshot run id", valid).is_ok());
+        }
+        for invalid in [
+            "",
+            ".",
+            "..",
+            "../escape",
+            "run/../../etc",
+            "run\\escape",
+            "with space",
+        ] {
+            assert!(
+                validate_component_id("snapshot run id", invalid).is_err(),
+                "expected {invalid:?} to be rejected"
+            );
+        }
+        let overlong = "a".repeat(129);
+        assert!(validate_component_id("worktree id", &overlong).is_err());
+    }
+
+    #[test]
+    fn truncate_string_stays_on_char_boundaries() {
+        // CJK characters are 3 bytes each; any byte budget lands mid-codepoint.
+        let cjk = "汉".repeat(40_000);
+        let truncated = truncate_string(&cjk, 50_000);
+        assert!(truncated.contains("... truncated ("));
+        let body = truncated.split("\n... truncated").next().expect("has body");
+        let prefix = &cjk[..body.len()];
+        assert_eq!(body, prefix);
+        assert!(body.len() <= 50_000);
+
+        let short = "abc".to_owned();
+        assert_eq!(truncate_string(&short, 50_000), short);
+    }
+
+    #[test]
+    fn read_pipe_caps_output_size() {
+        let huge = vec![b'x'; 500_000];
+        let joined = read_pipe(std::io::Cursor::new(huge))
+            .join()
+            .expect("pipe reader should finish");
+        assert!(joined.contains("... truncated (200000 bytes total)"));
+        assert!(joined.len() < 60_000);
+    }
+
+    #[test]
+    fn validate_path_blocks_sensitive_home_locations() {
+        let home = std::env::var("HOME").expect("HOME should be set for tests");
+        for sensitive in [
+            ".ssh/id_rsa",
+            ".gnupg/private.key",
+            "Library/Keychains/login.keychain",
+        ] {
+            let blocked = format!("{home}/{sensitive}");
+            assert!(
+                validate_path(&blocked).is_err(),
+                "expected {blocked} to be blocked"
+            );
+        }
+    }
+
+    #[test]
+    fn confine_snapshot_payload_stays_inside_store() {
+        let base = std::env::temp_dir().join(format!("evir-confine-{}", std::process::id()));
+        let store = base.join("snapshots").join("run-1");
+        std::fs::create_dir_all(&store).expect("store should be created");
+        let payload = store.join("1690000000-1_file.txt");
+        std::fs::write(&payload, b"content").expect("payload should be written");
+        let outside = base.join("outside.txt");
+        std::fs::write(&outside, b"secret").expect("outside file should be written");
+
+        let confined = confine_snapshot_payload(&base, payload.to_str().expect("valid utf8 path"))
+            .expect("inside payload should be accepted");
+        assert_eq!(
+            confined,
+            std::fs::canonicalize(&payload).expect("canonical")
+        );
+        assert!(
+            confine_snapshot_payload(&base, outside.to_str().expect("valid utf8 path")).is_err(),
+            "payload outside the store must be rejected"
+        );
+        let _ = std::fs::remove_dir_all(base);
     }
 
     #[test]
@@ -1609,6 +1802,7 @@ fn run_git(root: &std::path::Path, args: &[&str]) -> Result<String, String> {
 /// worktree path. Fails cleanly when the root is not a git repository.
 #[tauri::command]
 pub(crate) fn git_worktree_create(root: String, id: String) -> Result<String, String> {
+    validate_component_id("worktree id", &id)?;
     let root_path = validate_path(&root)?;
     if !root_path.join(".git").exists() {
         run_git(&root_path, &["rev-parse", "--git-dir"])?;
@@ -1634,6 +1828,7 @@ pub(crate) fn git_worktree_create(root: String, id: String) -> Result<String, St
 /// the main working tree with a three-way merge. Any conflict fails the merge.
 #[tauri::command]
 pub(crate) fn git_worktree_merge(root: String, id: String) -> Result<(), String> {
+    validate_component_id("worktree id", &id)?;
     let root_path = validate_path(&root)?;
     let worktree = root_path.join(".evir-worktrees").join(&id);
     run_git(&worktree, &["add", "-A"])?;
@@ -1662,6 +1857,7 @@ pub(crate) fn git_worktree_merge(root: String, id: String) -> Result<(), String>
 
 #[tauri::command]
 pub(crate) fn git_worktree_remove(root: String, id: String) -> Result<(), String> {
+    validate_component_id("worktree id", &id)?;
     let root_path = validate_path(&root)?;
     let worktree = root_path.join(".evir-worktrees").join(&id);
     let _ = run_git(

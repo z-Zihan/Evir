@@ -1,4 +1,5 @@
 import type { UsageRecord } from "../core/storage/db";
+import { localDateStamp } from "../core/time/local-date-stamp";
 
 export type UsageRange = "daily" | "weekly" | "cumulative";
 
@@ -45,8 +46,7 @@ function startOfDay(timestamp: number): number {
 }
 
 function dayKey(timestamp: number): string {
-  const date = new Date(timestamp);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  return localDateStamp(new Date(timestamp));
 }
 
 function recordTokens(record: UsageRecord): number {

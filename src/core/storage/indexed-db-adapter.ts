@@ -4,6 +4,11 @@ import type { EntityName, StorageMutation, StoragePort } from "./storage-port";
 
 type StoredRecord = Record<string, unknown>;
 
+// Web subset of the entity union in ./storage-port.ts (which also lists
+// skills/backups/notifications/shortcuts/personalization — desktop-only; they
+// have no Dexie store in db.ts and no TS writer). Keep this list in sync with
+// the Dexie schema version stores in ./db.ts; the Rust allowlist lives in
+// src-tauri/src/commands.rs STRUCTURED_ENTITIES.
 const SUPPORTED_ENTITIES = [
   "projects",
   "providers",

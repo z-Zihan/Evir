@@ -203,12 +203,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
     if (!currentConversationId || isStreaming) return;
     const lastAssistant = [...messages].reverse().find(({ role }) => role === "assistant");
     if (!lastAssistant) return;
-    if (!get().privateSession) {
-      await getStructuredStorage().delete("messages", lastAssistant.id);
+    // Claim the busy flag before the storage await: a double-click during it
+    // would otherwise launch two concurrent streams for one conversation.
+    set({ isStreaming: true });
+    try {
+      if (!get().privateSession) {
+        await getStructuredStorage().delete("messages", lastAssistant.id);
+      }
+      const history = get().messages.filter(({ id }) => id !== lastAssistant.id);
+      set({ messages: history, pendingToolApproval: null });
+      await streamResponse(set, get, history, currentConversationId, getRuntime());
+    } finally {
+      if (get().activeStreamConversationId === null) set({ isStreaming: false });
     }
-    const history = messages.filter(({ id }) => id !== lastAssistant.id);
-    set({ messages: history, pendingToolApproval: null });
-    await streamResponse(set, get, history, currentConversationId, getRuntime());
   },
   editMessage: async (messageId, newContent) => {
     const { messages, currentConversationId, isStreaming } = get();
@@ -216,29 +223,34 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const index = messages.findIndex(({ id }) => id === messageId);
     const message = messages[index];
     if (!message || message.role !== "user") return;
-    const toDelete = messages.slice(index + 1);
-    const deleteIds = toDelete.map(({ id }) => id);
-    if (!get().privateSession) {
-      const storage = getStructuredStorage();
-      const attachments = await storage.readAll<AttachmentRecord>("attachments");
-      const deleteIdSet = new Set(deleteIds);
-      await storage.apply([
-        {
-          type: "write",
-          entity: "messages",
-          id: messageId,
-          data: { ...message, content: newContent },
-        },
-        ...attachments
-          .filter(({ messageId: attachmentMessageId }) => deleteIdSet.has(attachmentMessageId))
-          .map(({ id }) => ({ type: "delete" as const, entity: "attachments" as const, id })),
-        ...deleteIds.map((id) => ({ type: "delete" as const, entity: "messages" as const, id })),
-      ]);
+    set({ isStreaming: true });
+    try {
+      const toDelete = messages.slice(index + 1);
+      const deleteIds = toDelete.map(({ id }) => id);
+      if (!get().privateSession) {
+        const storage = getStructuredStorage();
+        const attachments = await storage.readAll<AttachmentRecord>("attachments");
+        const deleteIdSet = new Set(deleteIds);
+        await storage.apply([
+          {
+            type: "write",
+            entity: "messages",
+            id: messageId,
+            data: { ...message, content: newContent },
+          },
+          ...attachments
+            .filter(({ messageId: attachmentMessageId }) => deleteIdSet.has(attachmentMessageId))
+            .map(({ id }) => ({ type: "delete" as const, entity: "attachments" as const, id })),
+          ...deleteIds.map((id) => ({ type: "delete" as const, entity: "messages" as const, id })),
+        ]);
+      }
+      const updated = messages.slice(0, index + 1);
+      updated[index] = { ...message, content: newContent };
+      set({ messages: updated, pendingToolApproval: null });
+      await streamResponse(set, get, updated, currentConversationId, getRuntime());
+    } finally {
+      if (get().activeStreamConversationId === null) set({ isStreaming: false });
     }
-    const updated = messages.slice(0, index + 1);
-    updated[index] = { ...message, content: newContent };
-    set({ messages: updated, pendingToolApproval: null });
-    await streamResponse(set, get, updated, currentConversationId, getRuntime());
   },
   stopGeneration: () => {
     const { pendingToolApproval, privateSession } = get();

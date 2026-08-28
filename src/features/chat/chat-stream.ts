@@ -1,4 +1,8 @@
-import { createConfiguredAdapter } from "../../core/providers/adapter-registry";
+import {
+  createConfiguredAdapter,
+  isSupportedProtocol,
+} from "../../core/providers/adapter-registry";
+import { uuid } from "../../core/providers/adapters/openai-chat-utils";
 import { getErrorDisplay } from "../../core/providers/error-messages";
 import { ProviderErrorType } from "../../core/providers/stream-events";
 import type { ProviderRecord, UsageRecord } from "../../core/storage/db";
@@ -30,14 +34,9 @@ function formatProviderError(errorType: ProviderErrorType, providerMessage: stri
 
 export function providerReadinessError(provider: ProviderRecord): string | undefined {
   if (!provider.apiKey) return "chat.apiKeyMissing";
-  if (
-    provider.protocolId !== "openai-chat-completions" &&
-    provider.protocolId !== "openai-compatible-chat" &&
-    provider.protocolId !== "anthropic-messages" &&
-    provider.protocolId !== "gemini-generate-content" &&
-    provider.protocolId !== "openai-responses"
-  )
-    return "chat.protocolUnsupported";
+  // Ask the adapter registry which protocols are usable; a hardcoded subset
+  // here drifted from the registry and blocked working azure/ollama setups.
+  if (!isSupportedProtocol(provider.protocolId)) return "chat.protocolUnsupported";
 }
 
 export function stopActiveStream(): void {
@@ -113,10 +112,7 @@ export async function streamAssistant(
   let completed = false;
   const toolCalls = new Map<string, { id: string; toolName: string; arguments: string }>();
   const startTime = Date.now();
-  const requestId =
-    typeof crypto !== "undefined" && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const requestId = uuid();
   let firstTokenMs: number | undefined;
   let reportedUsage: TokenBreakdown | undefined;
   const batched = batchDeltas(onDelta);
