@@ -111,6 +111,10 @@
     "branchFromHere": "从此处分支",
     "branched": "(已分支)",
     "switchModel": "切换模型",
+    "modelPickerModels": "模型",
+    "modelPickerOtherProviders": "其他供应商",
+    "modelPickerCustomPlaceholder": "输入模型 ID…",
+    "modelPickerUse": "使用",
     "currentModel": "当前模型",
     "pinFailed": "置顶失败",
     "modelSwitchBlocked": "模型切换已阻止：{{reason}}",
@@ -139,7 +143,8 @@
     "tableRegion": "表格",
     "previewImage": "预览图片",
     "noToolCalling": "此模型可以聊天，但不能使用项目工具。",
-    "changeModel": "更换模型"
+    "changeModel": "更换模型",
+    "permissionPickerTitle": "权限"
   },
   "runtime": {
     "agentReady": "本地 Agent Runtime",
@@ -262,7 +267,6 @@
     "importAll": "从文件导入",
     "importSuccess": "已导入 {{imported}} 个会话（跳过 {{skipped}} 个）",
     "importFailed": "导入失败：{{message}}",
-    "exportMarkdown": "导出为 Markdown",
     "exportMdSingle": "导出对话为 .md",
     "light": "浅色",
     "dark": "深色",

@@ -285,7 +285,10 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
 
         <div className="sidebar-scroll">
           {getRuntime().target === "desktop" && (
-            <section className="sidebar-section" aria-label={t("sidebar.projects")}>
+            <section
+              className="sidebar-section sidebar-section-projects"
+              aria-label={t("sidebar.projects")}
+            >
               <div className="section-label-row">
                 <div className="section-label">{t("sidebar.projects")}</div>
                 <button
@@ -368,7 +371,10 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
             </section>
           )}
 
-          <section className="sidebar-section" aria-label={t("sidebar.chats")}>
+          <section
+            className="sidebar-section sidebar-section-chats"
+            aria-label={t("sidebar.chats")}
+          >
             <div className="section-label-row">
               <div className="section-label">{t("sidebar.chats")}</div>
               <button

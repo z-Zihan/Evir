@@ -95,7 +95,7 @@ export const SidebarProjectItem = memo(function SidebarProjectItem({
             onClick={(event) => event.stopPropagation()}
           />
         ) : (
-          <span className="project-name" title={project.rootPath}>
+          <span className="project-name" title={`${project.displayName}\n${project.rootPath}`}>
             {project.displayName}
           </span>
         )}

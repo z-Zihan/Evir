@@ -64,7 +64,9 @@ export const SidebarConversationItem = memo(function SidebarConversationItem({
           onClick={(event) => event.stopPropagation()}
         />
       ) : (
-        <span className="conversation-title">{conversation.title || t("chat.title")}</span>
+        <span className="conversation-title" title={conversation.title || t("chat.title")}>
+          {conversation.title || t("chat.title")}
+        </span>
       )}
       {!renaming && (
         <div className="conversation-actions" onClick={(event) => event.stopPropagation()}>

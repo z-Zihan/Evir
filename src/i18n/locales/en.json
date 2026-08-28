@@ -111,6 +111,10 @@
     "branchFromHere": "Branch from here",
     "branched": "(branched)",
     "switchModel": "Switch model",
+    "modelPickerModels": "Models",
+    "modelPickerOtherProviders": "Other providers",
+    "modelPickerCustomPlaceholder": "Type a model id…",
+    "modelPickerUse": "Use",
     "currentModel": "Current model",
     "pinFailed": "Failed to pin conversation",
     "modelSwitchBlocked": "Model switch blocked: {{reason}}",
@@ -139,7 +143,8 @@
     "tableRegion": "Table",
     "previewImage": "Preview image",
     "noToolCalling": "This model can chat, but cannot use project tools.",
-    "changeModel": "Change model"
+    "changeModel": "Change model",
+    "permissionPickerTitle": "Permission"
   },
   "runtime": {
     "agentReady": "Local agent runtime",
@@ -262,7 +267,6 @@
     "importAll": "Import from file",
     "importSuccess": "Imported {{imported}} conversations ({{skipped}} skipped)",
     "importFailed": "Import failed: {{message}}",
-    "exportMarkdown": "Export as Markdown",
     "exportMdSingle": "Export Chat as .md",
     "light": "Light",
     "dark": "Dark",

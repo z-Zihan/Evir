@@ -32,27 +32,34 @@ test("first run and runtime capability boundaries", async ({ page }, testInfo) =
 
 test("sidebar scrolls internally and keeps the settings footer visible", async ({ page }) => {
   await configurePage(page);
-  await seedFixture(page);
+  await seedFixture(page, { messages: agentMessages() });
   // Force overflow: an extremely short viewport leaves no room for even one
-  // list row, so the scroll region must absorb it while the footer stays put.
+  // list row, so the conversation list must scroll inside its own region while
+  // the projects header and the footer stay put.
   await page.setViewportSize({ width: 1100, height: 240 });
   await expect(page.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
+  await page.locator(".conversation-list").evaluate((el) => {
+    el.scrollTop = el.scrollHeight;
+  });
   const layout = await page.evaluate(() => {
-    const scroll = document.querySelector<HTMLElement>(".sidebar-scroll");
+    const list = document.querySelector<HTMLElement>(".conversation-list");
+    const projects = document.querySelector<HTMLElement>(".sidebar-section-projects");
     const footer = document.querySelector<HTMLElement>(".sidebar-footer");
-    if (!scroll || !footer) return null;
+    if (!list || !footer) return null;
     const footerRect = footer.getBoundingClientRect();
+    const projectsTop = projects ? projects.getBoundingClientRect().top : Number.POSITIVE_INFINITY;
     return {
-      scrollable: scroll.scrollHeight > scroll.clientHeight,
-      contained: scroll.scrollHeight > scroll.clientHeight + 4,
+      listScrollable: list.scrollHeight > list.clientHeight,
+      listScrolled: list.scrollTop > 0,
       footerInsideViewport: footerRect.bottom <= window.innerHeight + 1 && footerRect.height > 0,
-      sidebarOverflow: getComputedStyle(document.querySelector<HTMLElement>(".sidebar")!).overflow,
+      projectsStillVisible: projects ? projectsTop < window.innerHeight : true,
     };
   });
   expect(layout).not.toBeNull();
+  expect(layout?.listScrollable).toBe(true);
+  expect(layout?.listScrolled).toBe(true);
   expect(layout?.footerInsideViewport).toBe(true);
-  expect(layout?.contained).toBe(true);
-  expect(layout?.sidebarOverflow).toBe("hidden");
+  expect(layout?.projectsStillVisible).toBe(true);
 });
 
 test("shows the platform-specific built-in Skill catalog", async ({ page }, testInfo) => {

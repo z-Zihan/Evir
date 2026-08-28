@@ -16,6 +16,10 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
+vi.mock("../../core/providers/adapter-registry", () => ({
+  listModelsForProtocol: vi.fn(() => Promise.resolve(undefined)),
+}));
+
 function makeProvider(overrides: Partial<ProviderRecord> = {}): ProviderRecord {
   return {
     id: overrides.id ?? "p-1",
@@ -34,12 +38,24 @@ function makeProvider(overrides: Partial<ProviderRecord> = {}): ProviderRecord {
 afterEach(() => {
   cleanup();
   mockProviders = [];
+  localStorage.clear();
 });
 
 // Dynamic import so the mock is in place before the component loads
-async function renderSwitcher(onSwitch = vi.fn()) {
+async function renderSwitcher(
+  onSwitch = vi.fn(),
+  onSwitchModel = vi.fn(),
+  active?: { provider: ProviderRecord; modelId: string },
+) {
   const { ModelSwitcher } = await import("../ModelSwitcher");
-  return render(<ModelSwitcher onSwitch={onSwitch} />);
+  return render(
+    <ModelSwitcher
+      onSwitch={onSwitch}
+      onSwitchModel={onSwitchModel}
+      activeProvider={active?.provider}
+      activeModelId={active?.modelId}
+    />,
+  );
 }
 
 describe("ModelSwitcher", () => {
@@ -55,7 +71,18 @@ describe("ModelSwitcher", () => {
     expect(screen.getByText("gpt-4o")).toBeDefined();
   });
 
-  it("opens dropdown with all enabled providers on click", async () => {
+  it("opens the dropdown even with a single provider and lists its models", async () => {
+    mockProviders = [makeProvider({ id: "p-1", name: "OpenAI", isDefault: true })];
+
+    await renderSwitcher();
+
+    fireEvent.click(screen.getByRole("button", { expanded: false }));
+    const listbox = screen.getByRole("listbox");
+    expect(listbox).toBeDefined();
+    expect(listbox.textContent).toContain("gpt-4o");
+  });
+
+  it("opens dropdown with model options and other providers", async () => {
     mockProviders = [
       makeProvider({ id: "p-1", name: "OpenAI", isDefault: true }),
       makeProvider({ id: "p-2", name: "Anthropic", isDefault: false, modelId: "claude-3" }),
@@ -67,11 +94,11 @@ describe("ModelSwitcher", () => {
 
     const listbox = screen.getByRole("listbox");
     expect(listbox).toBeDefined();
-    expect(listbox.textContent).toContain("OpenAI");
+    expect(listbox.textContent).toContain("gpt-4o");
     expect(listbox.textContent).toContain("Anthropic");
   });
 
-  it("calls onSwitch when a provider is clicked", async () => {
+  it("calls onSwitch when another provider is clicked", async () => {
     const onSwitch = vi.fn();
     mockProviders = [
       makeProvider({ id: "p-1", name: "OpenAI", isDefault: true }),
@@ -85,6 +112,41 @@ describe("ModelSwitcher", () => {
 
     expect(onSwitch).toHaveBeenCalledWith(
       expect.objectContaining({ id: "p-2", name: "Anthropic" }),
+    );
+  });
+
+  it("calls onSwitchModel when a model option is clicked", async () => {
+    const onSwitch = vi.fn();
+    const onSwitchModel = vi.fn();
+    mockProviders = [makeProvider({ id: "p-1", name: "OpenAI", isDefault: true })];
+    localStorage.setItem("evir-known-models:p-1", JSON.stringify(["gpt-4o", "gpt-4o-mini"]));
+
+    await renderSwitcher(onSwitch, onSwitchModel);
+
+    fireEvent.click(screen.getByRole("button", { expanded: false }));
+    fireEvent.click(screen.getByText("gpt-4o-mini"));
+
+    expect(onSwitchModel).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "p-1" }),
+      "gpt-4o-mini",
+    );
+    expect(onSwitch).not.toHaveBeenCalled();
+  });
+
+  it("commits a custom model id from the manual input", async () => {
+    const onSwitchModel = vi.fn();
+    mockProviders = [makeProvider({ id: "p-1", name: "OpenAI", isDefault: true })];
+
+    await renderSwitcher(vi.fn(), onSwitchModel);
+
+    fireEvent.click(screen.getByRole("button", { expanded: false }));
+    const input = screen.getByLabelText("chat.modelPickerCustomPlaceholder");
+    fireEvent.change(input, { target: { value: "o4-mini-2025-04-16" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onSwitchModel).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "p-1" }),
+      "o4-mini-2025-04-16",
     );
   });
 

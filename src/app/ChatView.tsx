@@ -11,7 +11,6 @@ import {
 import { useTranslation } from "react-i18next";
 import {
   ArrowUp,
-  Download,
   KeyRound,
   PanelLeft,
   Paperclip,
@@ -33,7 +32,6 @@ import { ModelSwitcher } from "./ModelSwitcher";
 import type { MessageRecord, ProviderRecord } from "../core/storage/db";
 import { useDragDrop } from "./use-drag-drop";
 import { getRuntime } from "../runtime/use-runtime";
-import { handleExportMarkdown } from "./export-helpers";
 import { getModelSwitchCoordinator } from "../features/chat/model-switch-service";
 import type { ModelSwitchRequest } from "../core/providers/model-switching";
 import { loadPersonalizationPreferences } from "../features/settings/personalization-settings";
@@ -45,6 +43,8 @@ import { useSkillStore } from "../features/skills/skill-store";
 import { useMemoryStore } from "../features/memory/memory-store";
 import { useOrchestrationStore } from "../features/orchestration/orchestration-store";
 import { allowsProjectModes, effectiveModeForModel } from "../features/projects/conversation-mode";
+import { useProjectStore } from "../features/projects/project-store";
+import { PermissionSwitcher } from "./PermissionSwitcher";
 // The orchestration workbench (plan DAG, node timeline, clarifications) only
 // appears in desktop Agent runs; keep it and its store graph out of the entry
 // chunk.
@@ -231,6 +231,8 @@ export function ChatView({
   const orchestrationSnapshot = useOrchestrationStore((state) => state.current);
   const getDefaultProvider = useProviderStore((state) => state.getDefaultProvider);
   const switchProvider = useProviderStore((state) => state.switchProvider);
+  const providers = useProviderStore((state) => state.providers);
+  const projects = useProjectStore((state) => state.projects);
   const [localDisplayName, setLocalDisplayName] = useState("");
   const [localUserAvatar, setLocalUserAvatar] = useState("");
   const {
@@ -243,8 +245,18 @@ export function ChatView({
   const currentConversation = conversations.find(
     (conversation) => conversation.id === currentConversationId,
   );
+  // The header must reflect the model this conversation actually uses, which
+  // may differ from the default provider after an in-chat switch.
+  const effectiveProvider =
+    (currentConversation
+      ? providers.find((entry) => entry.id === currentConversation.providerId)
+      : undefined) ?? provider;
+  const effectiveModelId = currentConversation?.modelId ?? effectiveProvider?.modelId;
   const conversationTitle = currentConversation?.title || t("chat.title");
   const projectScoped = allowsProjectModes(currentConversation);
+  const conversationProject = currentConversation?.projectId
+    ? projects.find((project) => project.id === currentConversation.projectId)
+    : undefined;
   const toolCalling = provider?.modelCapabilities?.toolCalling === true;
   const effectiveConversationMode =
     runtime.target === "web"
@@ -393,8 +405,8 @@ export function ChatView({
         const request: ModelSwitchRequest = {
           conversationId: currentConversationId,
           privateSession,
-          fromProviderId: provider?.id ?? "",
-          fromModelId: provider?.modelId ?? "",
+          fromProviderId: effectiveProvider?.id ?? "",
+          fromModelId: effectiveModelId ?? "",
           toProviderId: nextProvider.id,
           toModelId: nextProvider.modelId,
           requestedAt: Date.now(),
@@ -457,14 +469,21 @@ export function ChatView({
         <div className="workspace-title-block">
           <h1>{conversationTitle}</h1>
           <span className="workspace-context">
-            {provider
-              ? provider.name
+            {effectiveProvider
+              ? effectiveProvider.name
               : t(runtime.target === "desktop" ? "runtime.desktopLocal" : "runtime.chatOnly")}
           </span>
         </div>
       </div>
       <div className="workspace-controls">
-        <ModelSwitcher onSwitch={handleModelSwitch} />
+        <ModelSwitcher
+          activeProvider={effectiveProvider}
+          activeModelId={effectiveModelId}
+          onSwitch={handleModelSwitch}
+          onSwitchModel={(switchProviderRecord, modelId) =>
+            handleModelSwitch({ ...switchProviderRecord, modelId })
+          }
+        />
       </div>
     </header>
   );
@@ -669,19 +688,11 @@ export function ChatView({
                 mode={runtime.target === "web" ? "ask" : effectiveConversationMode}
                 disabled={isCurrentConversationStreaming}
               />
-
-              <button
-                type="button"
-                className="composer-tool-button"
-                onClick={() => void handleExportMarkdown(currentConversationId ?? "")}
-                disabled={isCurrentConversationStreaming || !currentConversationId}
-                aria-label={t("settings.exportMarkdown")}
-                title={t("settings.exportMarkdown")}
-              >
-                <Download size={16} />
-              </button>
             </div>
             <div className="composer-context">
+              {projectScoped && runtime.target === "desktop" && conversationProject && (
+                <PermissionSwitcher project={conversationProject} />
+              )}
               <ModeSwitcher
                 mode={mode}
                 onModeChange={setMode}

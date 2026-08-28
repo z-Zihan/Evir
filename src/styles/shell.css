@@ -735,10 +735,33 @@
   border-right: 1px solid var(--border);
 }
 
-/* Single scroll region between the pinned search header and the pinned
-   identity/settings footer, so long project/chat lists never push the
-   footer out of the viewport. */
+/* Sidebar body: projects stay pinned near the header; only the conversation
+   list scrolls inside its own region. */
 .sidebar-scroll {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-section-projects {
+  min-height: 0;
+  max-height: 45%;
+  flex: 0 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.sidebar-section-chats {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 0;
+  flex-direction: column;
+}
+
+.sidebar-section-chats .conversation-list,
+.sidebar-section-chats .empty-list {
   min-height: 0;
   flex: 1 1 auto;
   overflow-y: auto;
@@ -1091,6 +1114,94 @@
 .model-switcher {
   position: relative;
   min-width: 0;
+}
+
+.permission-switcher {
+  position: relative;
+  min-width: 0;
+}
+
+.permission-switcher-button {
+  display: inline-flex;
+  max-width: min(260px, 30vw);
+  overflow: hidden;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  min-height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.permission-switcher-button:hover {
+  background: var(--surface-hover);
+  color: var(--foreground);
+}
+
+.permission-switcher-dropdown {
+  right: 0;
+  left: auto;
+  min-width: 240px;
+}
+
+.permission-switcher-copy {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 2px;
+  text-align: left;
+}
+
+.permission-switcher-hint {
+  color: var(--muted-foreground);
+  font-size: 10.5px;
+  font-weight: 400;
+}
+
+.model-switcher-group-label {
+  padding: 7px 10px 3px;
+  color: var(--muted-foreground);
+  font-size: 9.5px;
+  font-weight: 650;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.model-switcher-custom {
+  display: flex;
+  gap: 6px;
+  padding: 6px 8px 8px;
+}
+
+.model-switcher-custom input {
+  min-width: 0;
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--foreground);
+  font-size: 12px;
+}
+
+.model-switcher-custom button {
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  cursor: pointer;
+  font-size: 11.5px;
+}
+
+.model-switcher-custom button:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .model-switcher-button {
