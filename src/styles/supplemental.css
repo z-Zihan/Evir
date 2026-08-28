@@ -335,7 +335,9 @@
   font-size: var(--font-size-xs);
 }
 
-.composer-footer button {
+/* Direct child only: the blue send-button style must not leak into dropdown
+   option buttons rendered inside the footer (permission/model/slash). */
+.composer-footer > button {
   display: flex;
   align-items: center;
   gap: var(--space-1);
@@ -349,10 +351,10 @@
   transition: background var(--transition-fast);
 }
 
-.composer-footer button:hover {
+.composer-footer > button:hover {
   background: var(--primary-hover);
 }
-.composer-footer button:disabled {
+.composer-footer > button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
