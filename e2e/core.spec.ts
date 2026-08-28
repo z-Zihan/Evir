@@ -421,7 +421,7 @@ test("failed provider connection is visible in redacted diagnostic logs", async 
   ).toBeVisible();
 
   const downloadPromise = page.waitForEvent("download");
-  await settings.getByRole("button", { name: "Export logs", exact: true }).click();
+  await settings.getByRole("button", { name: "Export JSON", exact: true }).click();
   const download = await downloadPromise;
   const downloadPath = await download.path();
   expect(downloadPath).not.toBeNull();
@@ -587,11 +587,98 @@ test("legacy workspace keeps project modes available without the removed selecto
   // The composer no longer selects folders; the legacy workspace still scopes modes.
   await expect(page.locator(".workspace-selector")).toHaveCount(0);
   const composer = page.locator(".composer");
-  await expect(composer.getByRole("button", { name: "Agent", exact: true })).toBeVisible();
+  await expect(composer.getByRole("button", { name: "Agent", exact: true })).toHaveCount(0);
   await expect(composer.getByRole("button", { name: "Plan", exact: true })).toBeVisible();
   await expect(composer.getByRole("button", { name: "Goal", exact: true })).toBeVisible();
   await page.reload();
-  await expect(composer.getByRole("button", { name: "Agent", exact: true })).toBeVisible();
+  await expect(composer.getByRole("button", { name: "Agent", exact: true })).toHaveCount(0);
+});
+
+test("a text-only model can still chat in a project without exposing project tools", async ({
+  page,
+}, testInfo) => {
+  test.skip(!isDesktop(testInfo), "Project task capability UI only");
+  await configurePage(page);
+  await page.evaluate(() => {
+    localStorage.setItem("evir-workspace", JSON.stringify(["/tmp/evir-fixture"]));
+    localStorage.setItem("evir-workspace-current", "/tmp/evir-fixture");
+  });
+  await seedFixture(page);
+  await page.evaluate(async () => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("evir");
+      request.onerror = () => reject(request.error ?? new Error("Unable to open Evir test DB"));
+      request.onsuccess = () => resolve(request.result);
+    });
+    const transaction = database.transaction("providers", "readwrite");
+    const store = transaction.objectStore("providers");
+    const provider = await new Promise<Record<string, unknown>>((resolve, reject) => {
+      const request = store.get("fixture-provider");
+      request.onerror = () => reject(request.error ?? new Error("Unable to read provider"));
+      request.onsuccess = () => resolve(request.result as Record<string, unknown>);
+    });
+    store.put({
+      ...provider,
+      modelCapabilities: { toolCalling: false, source: "probe", verifiedAt: Date.now() },
+    });
+    await new Promise<void>((resolve, reject) => {
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () =>
+        reject(transaction.error ?? new Error("Unable to update provider"));
+    });
+    database.close();
+  });
+  await page.reload();
+
+  const composer = page.locator(".composer");
+  await expect(composer).toContainText("This model can chat, but cannot use project tools.");
+  await expect(composer.getByRole("button", { name: "Plan", exact: true })).toHaveCount(0);
+  await expect(composer.getByRole("button", { name: "Goal", exact: true })).toHaveCount(0);
+  await composer.locator("textarea").fill("Explain JavaScript closures without using tools");
+  await composer.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page.getByText(/Deterministic fixture response/)).toBeVisible();
+  await expect(page.locator(".task-workbench")).toHaveCount(0);
+});
+
+test("token usage lives in Usage settings instead of the composer", async ({ page }) => {
+  await configurePage(page);
+  await seedFixture(page);
+  await page.evaluate(async () => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("evir");
+      request.onerror = () => reject(request.error ?? new Error("Unable to open Evir test DB"));
+      request.onsuccess = () => resolve(request.result);
+    });
+    const transaction = database.transaction("usage_records", "readwrite");
+    transaction.objectStore("usage_records").put({
+      id: "usage-fixture",
+      conversationId: "fixture-conversation",
+      providerId: "fixture-provider",
+      modelId: "evir-fixture-model",
+      inputTokens: 20,
+      outputTokens: 22,
+      totalTokens: 42,
+      evidence: "provider",
+      success: true,
+      durationMs: 100,
+      createdAt: Date.now(),
+    });
+    await new Promise<void>((resolve, reject) => {
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error ?? new Error("Unable to seed usage"));
+    });
+    database.close();
+  });
+  await page.reload();
+
+  await expect(page.locator(".composer-info")).not.toContainText("tokens");
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  const settings = page.getByRole("dialog", { name: "Settings", exact: true });
+  await settings.getByRole("button", { name: "Usage", exact: true }).click();
+  await expect(settings.getByText("Total tokens", { exact: true })).toBeVisible();
+  await expect(settings.locator(".usage-metric").filter({ hasText: "Total tokens" })).toContainText(
+    "42",
+  );
 });
 
 test("persisted Agent completion evidence returns after reloading a conversation", async ({

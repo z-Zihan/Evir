@@ -168,7 +168,7 @@ CLI 的用户界面契约包括稳定的 stdout/stderr 分工、退出码、Ctrl
 - Settings：语言、主题、密钥、存储、隐私、更新。
 - Diagnostics：日志导出、环境检查、故障报告。
 - Artifacts：文件、Diff、日志、表格、图片、归档等任务产物。
-- Modes：Ask、Plan、Goal、Agent 四种明确运行模式；Project Thread 内 Agent/Plan/Goal 为一等模式，Standalone Chat 恒为 Ask；工具集合由模式和权限共同决定。
+- Modes：内部运行语义包括 Ask、Plan、Goal、Agent；Project Thread 默认任务在模型支持 Tool Calling 时使用 Agent 工具能力，Composer 仅把 Plan/Goal 暴露为显式特殊模式；Standalone Chat 恒为 Ask。工具集合由有效模式、模型能力和权限共同决定。
 - Backup：会话、Skill、MCP 配置和设置的导入导出与恢复。
 
 ## 6. 多语言要求
@@ -382,7 +382,7 @@ Evir 支持简单表单和高级 Markdown 两种个性化方式。用户可编�
 
 - Web 当前只承诺聊天与附件分析，不展示 Project、Agent、Plan、Goal、本地工作区、文件/终端/Git 工具或 MCP。
 - Desktop 侧栏为 PROJECTS / CHATS 两区：Project 是一等实体（UUID 身份、realpath 去重、重绑保 ID），决定工作目录；Standalone Chat 只是聊天。
-- Composer 在 Project Thread 内提供 Agent / Plan / Goal 三个一等模式与项目权限档位；Standalone Chat 恒为 Ask 且不出现模式控件；无 tool-calling 时模式控件禁用并引导换模型。
+- Composer 在 Project Thread 内默认执行普通 Project Task，仅提供 Plan / Goal 两个可切换的特殊模式与项目权限档位，不显示 Agent 选择器；Standalone Chat 恒为 Ask 且不出现模式控件。无 Tool Calling 时 Project 仍可聊天，但不开放项目工具并引导换模型。
 - 工作目录只来自 Sidebar 的 Project，不存在输入区工作区选择器；运行中的 Agent Run 绑定 originating root，切换项目不污染活动 Run。
 - 同一 Agent Run 的工具调用在一个 Agent Activity 内分组；审批、失败、停止和完成使用统一状态表达。
 - 上述边界已有 Web/Desktop Capability 自动化证据。真实 Provider 和原生工作区完整 Agent 任务已实现并完成实机验收（见记忆 Update Log 2026-08-26/27）。

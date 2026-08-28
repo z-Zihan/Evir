@@ -38,7 +38,7 @@ PROJECTS / CHATS       对话、计划、工具执行        文件、变更、�
 ```
 
 - Desktop 侧栏分 PROJECTS（项目 + 嵌套 thread）与 CHATS（Standalone 会话）两区；工作目录来自 Project，不在输入区选择。
-- Composer 在 Project Thread 内含 Mode（Agent/Plan/Goal）、Permission 与 Model 紧凑控制区；Standalone Chat 只有 Model。
+- Composer 在 Project Thread 内含 Plan/Goal 特殊模式、Permission 与 Model 紧凑控制区；默认 Project Task 不显示 Agent 选择器。Standalone Chat 只有 Model。
 
 Web 使用两段式：Sidebar（CHATS）+ Chat。窄屏折叠 Sidebar，不显示不存在的 Desktop 工具入口。
 

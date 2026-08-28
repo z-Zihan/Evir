@@ -18,7 +18,7 @@ Evir 当前产品定义已经形成完整闭环，可以进入分阶段开发。
 - 主界面只保留模型、模式、输入、发送/停止和必要任务状态。
 - 系统权限渐进申请。
 - 已实现的高级能力进入设置；命令面板尚未实现。
-- Web 只呈现 Ask；Desktop 侧栏为 PROJECTS/CHATS，Project Thread 内 Agent/Plan/Goal 为一等模式，Standalone Chat 恒为 Ask。
+- Web 只呈现 Ask；Desktop 侧栏为 PROJECTS/CHATS，Project Thread 默认任务按需使用 Agent 工具并显式提供 Plan/Goal，Standalone Chat 恒为 Ask。
 - 常用操作提供快捷键，但不要求用户学习快捷键才能使用。
 
 需要开发阶段持续验证：首次成功聊天步骤、首次 Agent 任务步骤和关键操作点击数。
@@ -108,7 +108,7 @@ Evir 当前产品定义已经形成完整闭环，可以进入分阶段开发。
 ### 首发必须有
 
 - Provider 接入和真实流式聊天。
-- Web Ask；Desktop Project Thread（Agent/Plan/Goal）与 Standalone Chat（Ask）。
+- Web Ask；Desktop Project Thread（默认 Project Task + 显式 Plan/Goal）与 Standalone Chat（Ask）。
 - 工作区、文件、终端基础工具。
 - 权限、审计、停止、验证、Diff 与回滚。
 - 基础上下文压缩和任务状态。

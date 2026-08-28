@@ -242,7 +242,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 ## 19. Verified User Capabilities
 
-用户当前可以：添加 Provider（7 种协议适配器已实现）→ 测试连接 → 获取模型列表 → 新建会话/创建 Project → 发送消息/附件 → 看到流式回复 → 停止生成 → 刷新恢复 → 快捷键操作 → 查看 Usage 统计 → 分类错误展示 → 拖拽上传图片/文本附件 → 历史附件参与多轮对话 → 会话导出/导入 → Web Ask / Desktop Project Thread（Agent/Plan/Goal 一等模式 + Execute Plan）/ Standalone Chat（恒 Ask）→ 项目级 Permission Profile（ask/workspace/full）→ 个性化设置 → 切换中英文/主题 → 重新生成/编辑消息 → 会话分支 → 模型切换 → Agent 模式工具审批 → Skill 启用/禁用 → 导出诊断 ZIP（桌面）。
+用户当前可以：添加 Provider（7 种协议适配器已实现）→ 测试连接 → 获取模型列表 → 新建会话/创建 Project → 发送消息/附件 → 看到流式回复 → 停止生成 → 刷新恢复 → 快捷键操作 → 查看 Usage 统计 → 分类错误展示 → 拖拽上传图片/文本附件 → 历史附件参与多轮对话 → 会话导出/导入 → Web Ask / Desktop Project Thread（默认 Project Task 按需使用 Agent 工具，Plan/Goal 显式特殊模式 + Execute Plan）/ Standalone Chat（恒 Ask）→ 项目级 Permission Profile（ask/workspace/full）→ 个性化设置 → 切换中英文/主题 → 重新生成/编辑消息 → 会话分支 → 模型切换 → Agent 工具审批 → Skill 启用/禁用 → 导出诊断 ZIP（桌面）。
 
 2026-08-07 自动化证据：338 TypeScript tests、7 Rust tests、24 E2E pass + 6 Web capability skips、358 UI screenshots、6 visual baselines、16 accessibility tests。macOS debug 原生应用已启动；本轮 Mac 锁屏，未声明原生窗口交互通过。
 
@@ -263,7 +263,7 @@ Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter �
 
 - 完成 2026-08-12 社区 Skill 精选库后，当前优先级回到阶段 S 真实验收；不继续无边界扩张 Provider、Skill、MCP 或 Computer Use
 - Web 使用 IndexedDB；真实 Tauri Desktop 的结构化实体走 SQLite Adapter
-- Web 只提供聊天/附件；Desktop 信息架构为 Sidebar PROJECTS/CHATS + Composer 三模式（Agent/Plan/Goal，仅 Project Thread），Standalone Chat 恒为 Ask
+- Web 只提供聊天/附件；Desktop 信息架构为 Sidebar PROJECTS/CHATS + 默认 Project Task（按需使用 Agent 工具）+ Composer 显式 Plan/Goal，Standalone Chat 恒为 Ask
 - Tool Registry 与 Tauri 命令双层强制工作区边界；清除工作区立即撤销本地工具范围
 - 流式 UI 使用 animation frame 批量刷新
 

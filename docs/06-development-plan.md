@@ -106,7 +106,7 @@
 ### 2026-08-27 Project/Chat/Agent 信息架构重构 ✅
 
 - Sidebar 重构为 PROJECTS / CHATS；Project 成为一等实体（UUID、realpath 去重、重绑保 ID、threads 迁移、Folder not found 引导）
-- Composer 移除 WorkspaceSelector；Mode（Agent/Plan/Goal）成为 Project Thread 一等控件；Standalone Chat 恒为 Ask
+- Composer 移除 WorkspaceSelector 与 Agent 选择器；Project Thread 默认任务按需使用工具，Plan/Goal 为显式特殊模式；Standalone Chat 恒为 Ask
 - Permission Profiles（ask/workspace/full + Additional Access Roots，full 首开确认）接入 Tool Executor
 - active-root 运行隔离：Run 绑定 originating root，切项目不污染活动 Run
 - 设计文档 `docs/project-chat-agent-redesign.md`；回归 `PROJECT_CHAT_AGENT_REGRESSION_REPORT.md`

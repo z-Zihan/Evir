@@ -28,18 +28,18 @@
 
 Desktop 侧栏分为 **PROJECTS** 和 **CHATS** 两区。一个 Project 对应一个本地目录：在项目里新建任务后，Agent 的工作目录就是项目根目录，不需要再手动选择工作区；目录被移动后重新定位即可，历史任务与权限全部保留。
 
-项目任务的输入框上方是一组紧凑控件，决定 Agent **怎么工作**：
+项目任务的输入框上方是一组紧凑控件，决定任务**怎么工作**：
 
-- **Mode** — Agent / Plan / Goal 三种一等模式（普通聊天在 CHATS 区，永远是 Ask，不触碰本地文件）。
+- **Mode** — 默认 Project Task 会按任务决定是否使用 Agent 工具；只把 Plan / Goal 作为显式特殊工作方式（普通聊天在 CHATS 区，永远是 Ask，不触碰本地文件）。
 - **Permission** — 按项目选择自动程度。
 - **Model** — 由谁工作，随时切换。
 
 ```text
-创建 Project（选择目录） → 新建任务 → 选择 Mode / Permission / Model
-→ Agent 读取 · 修改 · 执行 · 验证 → Diff / 快照 / 回滚
+创建 Project（选择目录） → 新建任务 → 选择 Permission / Model（按需切换 Plan / Goal）
+→ Evir 判断是否需要工具 → 读取 · 修改 · 执行 · 验证 → Diff / 快照 / 回滚
 ```
 
-- **Agent**：按权限策略执行 13 个内置工具（读/写/搜索/patch/命令/git/快照）与 MCP 工具，可暂停、审批、回滚。
+- **默认 Project Task**：普通问答直接回复；需要操作项目时，按权限策略使用 13 个内置工具（读/写/搜索/patch/命令/git/快照）与 MCP 工具，可暂停、审批、回滚。
 - **Plan**：只用只读工具检查项目并产出结构化计划，一键 **Execute Plan** 转入 Agent 执行。
 - **Goal**：面向长期目标，附带“完成条件”；Evir 用真实证据逐条验证，模型说“完成”不算完成。
 
@@ -55,7 +55,7 @@ Provider、协议、模型能力三层分离：内置约 30 家国内外厂商�
 
 ![Provider 设置：多厂商、多模型、能力标记](assets/readme/provider-settings.png)
 
-模型能力（流式、工具调用、图片、结构化输出）在使用前明确展示；不支持工具调用的模型仍可聊天，但 Agent/Plan/Goal 会被禁用并说明原因。会话中切换模型经安全检查点处理上下文、附件与数据去向；默认不做跨 Provider 自动回退。完整矩阵见 [Provider 与协议矩阵](docs/13-provider-and-protocol-matrix.md)。
+模型能力（流式、工具调用、图片、结构化输出）在使用前明确展示；不支持工具调用的模型仍可在 Project 中聊天，但不会获得项目工具，Plan/Goal 也不可用并会说明原因。会话中切换模型经安全检查点处理上下文、附件与数据去向；默认不做跨 Provider 自动回退。完整矩阵见 [Provider 与协议矩阵](docs/13-provider-and-protocol-matrix.md)。
 
 ## 四种产品形态，一套核心能力
 
@@ -64,7 +64,7 @@ Provider、协议、模型能力三层分离：内置约 30 家国内外厂商�
 | 定位                           | 通用桌面 Agent   | 纯净多模型聊天 | 编辑器内 Agent     | 终端 Agent       |
 | 聊天 / 附件                    | ✅               | ✅             | ✅                 | ✅（ask）        |
 | 本地工具 / 终端 / Git          | ✅               | —              | ✅（受信任工作区） | ✅（工作区边界） |
-| Agent / Plan / Goal            | ✅               | —              | Agent              | Agent            |
+| Project Task / Plan / Goal     | ✅               | —              | Agent              | Agent            |
 | Skill                          | 36 个内置 + 自建 | 10 个指令型    | —                  | —                |
 | MCP（stdio + Streamable HTTP） | ✅               | —              | —                  | —                |
 
@@ -94,7 +94,7 @@ Tauri 2，不内置完整 Chromium；Skill 正文、MCP、设置面板按需加�
 
 ## 当前状态
 
-Evir 仍在积极开发中，**尚未发布**。核心链路（聊天、Agent 工具与审批、Plan/Goal、权限档位、快照回滚、MCP 连接、日志与诊断导出）已实现并有 636 个 TypeScript 测试 + 25 个 Rust 测试 + E2E/视觉/无障碍矩阵覆盖，真实 Provider（GLM）与 macOS 原生多工具任务已实机验收。仍未验收：Windows、正式性能测量（冷启动/内存/CPU/安装包体积）、VS Code Marketplace 与 CLI npm 发布。安装包默认 ad-hoc 非签名（可正常运行），Developer ID 签名/公证为可选增强。
+Evir 仍在积极开发中，**尚未发布**。核心链路（聊天、Agent 工具与审批、Plan/Goal、权限档位、快照回滚、MCP 连接、日志与诊断导出）已实现并有 647 个 TypeScript 测试 + 31 个 Rust 测试 + E2E/视觉/无障碍矩阵覆盖，真实 Provider（GLM）与 macOS 原生多工具任务已有历史实机验收。仍未验收：Windows、正式冷启动/内存/CPU 测量、VS Code Marketplace 与 CLI npm 发布。安装包默认 ad-hoc 签名（可正常运行），Developer ID 签名/公证为可选增强。
 
 ## 本地开发
 

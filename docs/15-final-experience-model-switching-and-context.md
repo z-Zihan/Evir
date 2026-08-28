@@ -67,7 +67,7 @@ Evir 的最高优先级不是功能数量，而是以下四项：
 
 1. 当前会话（Sidebar 按 PROJECTS / CHATS 组织）。
 2. 当前模型。
-3. 模式（Project Thread：Agent / Plan / Goal；Standalone Chat：恒 Ask）与项目权限档位。
+3. 工作方式（Project Thread：默认 Project Task，按需显式切换 Plan / Goal；Standalone Chat：恒 Ask）与项目权限档位。
 4. 输入与附件。
 5. 发送 / 停止。
 6. 当前任务状态与必要审批。

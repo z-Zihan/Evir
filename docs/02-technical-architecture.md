@@ -352,7 +352,7 @@ Provider 连接成功不代表可运行 Agent。模型配置必须记录和展�
 
 ## 13. 运行模式与计划
 
-Conversation、AgentRun、Plan、Step、ToolExecution 是独立实体，Conversation 携带 `projectId` 归属（缺省即 Standalone Chat）。Ask 不自主访问本地资源且不注册本地工具；Plan 与 Goal 是 Project Thread 内的一等模式（Plan 仅注册 L1 只读工具，完成后可 Execute Plan 转入 Agent；Goal 复用任务编排并以 doneWhen 条件判定完成）；Agent 才注册写入和执行工具。模式由用户在 Composer 明确选择，不由模型隐式猜测；有效模式由会话归属推导（Project Thread → 所选模式；Standalone/Web → 恒 Ask）。运行期工作目录由 `active-root` 单一真相解析（运行中 Run 绑定 originating root），权限由 Project 级 permission profile（ask/workspace/full）在 Tool Executor 层强制。
+Conversation、AgentRun、Plan、Step、ToolExecution 是独立实体，Conversation 携带 `projectId` 归属（缺省即 Standalone Chat）。Ask 不自主访问本地资源且不注册本地工具；默认 Project Task 在模型支持 Tool Calling 时具备 Agent 工具能力，并由模型依据任务决定是否调用工具；Plan 与 Goal 是显式特殊模式（Plan 仅注册 L1 只读工具，完成后可 Execute Plan 转入 Agent；Goal 复用任务编排并以 doneWhen 条件判定完成）。Composer 不显示 Agent 选择器；无 Tool Calling 时 Project Task 降级为聊天语义且不注册项目工具。有效模式由会话归属、显式 Plan/Goal 选择与模型能力推导（Standalone/Web → 恒 Ask）。运行期工作目录由 `active-root` 单一真相解析（运行中 Run 绑定 originating root），权限由 Project 级 permission profile（ask/workspace/full）在 Tool Executor 层强制。
 
 ## 14. 网络与权限策略
 

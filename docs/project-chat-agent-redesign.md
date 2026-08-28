@@ -25,7 +25,7 @@
 Sidebar                 │  Main
 ────────────────────────│──────────────────────
 PROJECTS                │  Project Thread:
-  ▾ Evir                │    Composer: [Mode][Permission][Model] 附件/Skill 发送/停止
+  ▾ Evir                │    Composer: [Plan/Goal][Permission][Model] 附件/Skill 发送/停止
       重构 Sidebar      │    （无目录选择——目录来自 Project）
       优化 Runtime      │  Standalone Chat:
   ▸ Chorus              │    Composer: [Model] 附件/Skill（无 Mode/Permission）
@@ -34,7 +34,7 @@ CHATS                   │
   Transformer 是什么    │
 ```
 
-- **Project 决定在哪里工作**；**Chat（Standalone）只是聊天**；**Thread 是连续任务上下文**；**Mode 决定 Agent 怎么工作**（agent/plan/goal，仅 Project Thread）；**Permission 决定自动程度**；**Model 决定由谁工作**。六者正交。
+- **Project 决定在哪里工作**；**Chat（Standalone）只是聊天**；**Thread 是连续任务上下文**；默认 **Project Task** 根据任务决定是否使用工具，**Plan/Goal** 是显式特殊工作方式；**Permission 决定自动程度**；**Model 决定由谁工作**。
 - 顶部不再有 Ask/Agent 一级切换；`WorkspaceSelector` 从 ChatView 移除，目录只来自 Sidebar → Project。
 
 ## Domain Model
