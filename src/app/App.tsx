@@ -28,15 +28,16 @@ export function App() {
   const [messageInput, setMessageInput] = useState("");
   const [initializationError, setInitializationError] = useState<string | null>(null);
   const [unfinishedRuns, setUnfinishedRuns] = useState<UnfinishedRun[]>([]);
-  const { loadProviders, getDefaultProvider } = useProviderStore();
-  const {
-    loadConversations,
-    createOrReuseConversation,
-    selectConversation,
-    sendMessage,
-    stopGeneration,
-    isStreaming,
-  } = useChatStore();
+  // Field selectors: a whole-store subscription here would re-render the
+  // entire app (including the sidebar tree) on every streaming delta.
+  const loadProviders = useProviderStore((state) => state.loadProviders);
+  const getDefaultProvider = useProviderStore((state) => state.getDefaultProvider);
+  const loadConversations = useChatStore((state) => state.loadConversations);
+  const createOrReuseConversation = useChatStore((state) => state.createOrReuseConversation);
+  const selectConversation = useChatStore((state) => state.selectConversation);
+  const sendMessage = useChatStore((state) => state.sendMessage);
+  const stopGeneration = useChatStore((state) => state.stopGeneration);
+  const isStreaming = useChatStore((state) => state.isStreaming);
   const loadUsageRecords = useUsageStore((state) => state.loadRecords);
   const loadProjects = useProjectStore((state) => state.load);
 

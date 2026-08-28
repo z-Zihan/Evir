@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pencil, Pin, Trash2 } from "lucide-react";
 import type { ConversationRecord } from "../core/storage/db";
@@ -14,7 +14,7 @@ interface SidebarConversationItemProps {
   variant?: "chat" | "thread";
 }
 
-export function SidebarConversationItem({
+export const SidebarConversationItem = memo(function SidebarConversationItem({
   conversation,
   isActive,
   onSelect,
@@ -102,4 +102,4 @@ export function SidebarConversationItem({
       )}
     </div>
   );
-}
+});

@@ -23,7 +23,8 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { useChatStore } from "../features/chat/chat-store";
+import { useChatStore, type ChatState } from "../features/chat/chat-store";
+import { useShallow } from "zustand/react/shallow";
 import { useProviderStore } from "../features/provider/provider-store";
 import { ChatMessage } from "./ChatMessage";
 import { ChatEmptyState } from "./ChatEmptyState";
@@ -33,7 +34,7 @@ import type { MessageRecord, ProviderRecord } from "../core/storage/db";
 import { useDragDrop } from "./use-drag-drop";
 import { getRuntime } from "../runtime/use-runtime";
 import { handleExportMarkdown } from "./export-helpers";
-import { ModelSwitchCoordinatorImpl } from "../core/providers/model-switch-coordinator-impl";
+import { getModelSwitchCoordinator } from "../features/chat/model-switch-service";
 import type { ModelSwitchRequest } from "../core/providers/model-switching";
 import { loadPersonalizationPreferences } from "../features/settings/personalization-settings";
 import { AgentRunSummary } from "./AgentRunSummary";
@@ -50,13 +51,6 @@ import { allowsProjectModes, effectiveModeForModel } from "../features/projects/
 const TaskWorkbench = lazy(() =>
   import("./TaskWorkbench").then((m) => ({ default: m.TaskWorkbench })),
 );
-
-// Constructed lazily: a module-scope `new` pulled the impl (and transitively
-// the runtime graph) into every import of this module before anything ran.
-let modelSwitchCoordinator: ModelSwitchCoordinatorImpl | undefined;
-function coordinator(): ModelSwitchCoordinatorImpl {
-  return (modelSwitchCoordinator ??= new ModelSwitchCoordinatorImpl());
-}
 
 function useElapsedSeconds(startedAt: number | null): number {
   const [seconds, setSeconds] = useState(0);
@@ -98,6 +92,35 @@ interface MessageListProps {
  * 连续相同失败重试的判定：无正文 + 单个工具调用 + 失败结果 + 与前一条完全相同的工具和参数。
  * 这些消息在渲染层折叠到第一条卡片上（failedRetryCount），避免聊天流被重复失败刷屏。
  */
+/** Field subset ChatView subscribes to (consumed via a shallow selector). */
+function pickChatViewFields(state: ChatState) {
+  return {
+    messages: state.messages,
+    mode: state.mode,
+    isStreaming: state.isStreaming,
+    activeStreamConversationId: state.activeStreamConversationId,
+    activeStreamStartedAt: state.activeStreamStartedAt,
+    streamingContent: state.streamingContent,
+    error: state.error,
+    sendMessage: state.sendMessage,
+    regenerate: state.regenerate,
+    editMessage: state.editMessage,
+    stopGeneration: state.stopGeneration,
+    pendingAttachments: state.pendingAttachments,
+    addAttachment: state.addAttachment,
+    removeAttachment: state.removeAttachment,
+    setMode: state.setMode,
+    updateConversationProvider: state.updateConversationProvider,
+    currentConversationId: state.currentConversationId,
+    conversations: state.conversations,
+    latestAgentRun: state.latestAgentRun,
+    pendingToolApproval: state.pendingToolApproval,
+    selectedSkillIds: state.selectedSkillIds,
+    toggleSelectedSkill: state.toggleSelectedSkill,
+    privateSession: state.privateSession,
+  };
+}
+
 function isDuplicateFailedRetry(previous: MessageRecord, message: MessageRecord): boolean {
   if (message.role !== "assistant" || previous.role !== "assistant") return false;
   if (message.content.trim() || previous.content.trim()) return false;
@@ -175,6 +198,9 @@ export function ChatView({
   sidebarVisible,
 }: ChatViewProps) {
   const { t, i18n } = useTranslation();
+  // useShallow group: ChatView legitimately re-renders on stream deltas (it
+  // renders streamingContent), but must not re-render on unrelated chat-store
+  // fields (e.g. a pending approval in another conversation).
   const {
     messages,
     mode,
@@ -199,11 +225,12 @@ export function ChatView({
     selectedSkillIds,
     toggleSelectedSkill,
     privateSession,
-  } = useChatStore();
+  } = useChatStore(useShallow(pickChatViewFields));
   const installedSkills = useSkillStore((state) => state.skills);
   const addMemory = useMemoryStore((state) => state.addMemory);
   const orchestrationSnapshot = useOrchestrationStore((state) => state.current);
-  const { getDefaultProvider, switchProvider } = useProviderStore();
+  const getDefaultProvider = useProviderStore((state) => state.getDefaultProvider);
+  const switchProvider = useProviderStore((state) => state.switchProvider);
   const [localDisplayName, setLocalDisplayName] = useState("");
   const [localUserAvatar, setLocalUserAvatar] = useState("");
   const {
@@ -258,8 +285,19 @@ export function ChatView({
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Stickiness: streaming frames only auto-scroll while the user is already
+  // at (near) the bottom, so reading earlier output is never yanked away.
+  const stickToBottomRef = useRef(true);
 
-  const scrollToBottom = useCallback(() => {
+  const handleScroll = useCallback(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+    stickToBottomRef.current = element.scrollHeight - element.scrollTop - element.clientHeight < 80;
+  }, []);
+
+  const scrollToBottom = useCallback((force = false) => {
+    if (!force && !stickToBottomRef.current) return;
+    stickToBottomRef.current = true;
     requestAnimationFrame(() => {
       scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "auto" });
     });
@@ -329,7 +367,7 @@ export function ChatView({
     assessment: ModelSwitchAssessment,
     nextProvider: ProviderRecord,
   ) => {
-    const result = await coordinator().execute(request, assessment);
+    const result = await getModelSwitchCoordinator().execute(request, assessment);
     if (result.status !== "switched") {
       useChatStore.setState({
         error: t("chat.modelSwitchBlocked", { reason: result.status }),
@@ -359,7 +397,7 @@ export function ChatView({
           mode,
           hasActiveExecution: isStreaming || pendingToolApproval !== null,
         };
-        const assessment = await coordinator().assess(request);
+        const assessment = await getModelSwitchCoordinator().assess(request);
         if (assessment.status === "blocked") {
           useChatStore.setState({
             error: t("chat.modelSwitchBlocked", {
@@ -452,14 +490,19 @@ export function ChatView({
   return (
     <main className="workspace">
       {header}
-      <div className="messages-area" ref={scrollRef}>
+      <div className="messages-area" ref={scrollRef} onScroll={handleScroll}>
         {messages.length === 0 && !isCurrentConversationStreaming ? (
-          <ChatEmptyState onSendMessage={(content) => void sendMessage(content)} />
+          <ChatEmptyState
+            onSendMessage={(content) => {
+              scrollToBottom(true);
+              void sendMessage(content);
+            }}
+          />
         ) : (
           <div className="message-list">
             <MessageList
               messages={messages}
-              disabled={isStreaming}
+              disabled={isCurrentConversationStreaming}
               localUserName={localUserName}
               localUserAvatar={localUserAvatar}
               onEdit={editMessage}
@@ -485,6 +528,7 @@ export function ChatView({
                     className="primary-button"
                     onClick={() => {
                       setMode("agent");
+                      scrollToBottom(true);
                       void sendMessage(t("plan.executePrompt"));
                     }}
                   >
@@ -602,7 +646,7 @@ export function ChatView({
             value={input}
             onChange={(e) => onInputChange(e.target.value)}
             onKeyDown={handleKeyDown}
-            disabled={isStreaming}
+            disabled={isCurrentConversationStreaming}
           />
           <div className="composer-footer">
             <div className="composer-tools">
@@ -610,7 +654,7 @@ export function ChatView({
                 type="button"
                 className="composer-tool-button"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={isStreaming}
+                disabled={isCurrentConversationStreaming}
                 aria-label={t("chat.attachFile")}
                 title={t("chat.attachFile")}
               >
@@ -619,14 +663,14 @@ export function ChatView({
 
               <SkillPicker
                 mode={runtime.target === "web" ? "ask" : effectiveConversationMode}
-                disabled={isStreaming}
+                disabled={isCurrentConversationStreaming}
               />
 
               <button
                 type="button"
                 className="composer-tool-button"
                 onClick={() => void handleExportMarkdown(currentConversationId ?? "")}
-                disabled={isStreaming || !currentConversationId}
+                disabled={isCurrentConversationStreaming || !currentConversationId}
                 aria-label={t("settings.exportMarkdown")}
                 title={t("settings.exportMarkdown")}
               >
@@ -656,6 +700,11 @@ export function ChatView({
                 className="send-button"
                 disabled={isStreaming || (!input.trim() && pendingAttachments.length === 0)}
                 onClick={onSendMessage}
+                title={
+                  isStreaming && !isCurrentConversationStreaming
+                    ? t("chat.streamInProgress")
+                    : undefined
+                }
               >
                 {t("chat.send")}
                 <ArrowUp size={15} aria-hidden="true" />

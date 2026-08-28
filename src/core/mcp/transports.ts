@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { HttpMcpServer, StdioMcpServer } from "./types";
+import { MCP_STDIO_NOTIFICATION_EVENT } from "./events";
 import {
   DEFAULT_MCP_REQUEST_TIMEOUT_MS,
   MAX_MCP_RESPONSE_BYTES,
@@ -33,26 +34,21 @@ export type ListenFn = <T>(
   handler: (event: { payload: T }) => void,
 ) => Promise<() => void>;
 
-let tauriInvoke: InvokeFn | undefined;
-let tauriListen: ListenFn | undefined;
-
-export const defaultInvoke: InvokeFn = async (command, args) => {
-  if (!tauriInvoke) tauriInvoke = (await import("@tauri-apps/api/core")).invoke;
-  return tauriInvoke(command, args);
-};
-
-const defaultListen: ListenFn = async (event, handler) => {
-  if (!tauriListen) tauriListen = (await import("@tauri-apps/api/event")).listen;
-  return tauriListen(event, handler);
-};
-
+// This module is core: it must not import Tauri. Callers inject the desktop
+// invoke/listen implementations (src/runtime wires the real ones); HTTP
+// servers without secret refs never need invoke at all.
 async function resolveSecretRefs(
   refs: Record<string, string>,
-  invoke: InvokeFn,
+  invoke?: InvokeFn,
 ): Promise<Record<string, string>> {
   const resolved: Record<string, string> = {};
+  const entries = Object.entries(refs);
+  if (entries.length === 0) return resolved;
+  if (!invoke) {
+    throw new Error("MCP secret references require a desktop keychain (invoke) bridge");
+  }
   await Promise.all(
-    Object.entries(refs).map(async ([key, reference]) => {
+    entries.map(async ([key, reference]) => {
       const value = await invoke<string | null>("keychain_get", { key: reference });
       if (value !== null) resolved[key] = value;
     }),
@@ -104,8 +100,8 @@ export class StdioMcpTransport implements McpTransport {
 
   static async open(
     server: StdioMcpServer,
-    invoke: InvokeFn = defaultInvoke,
-    listen: ListenFn = defaultListen,
+    invoke: InvokeFn,
+    listen: ListenFn,
   ): Promise<StdioMcpTransport> {
     const env = await resolveSecretRefs(server.envSecretRefs, invoke);
     const started = await invoke<{ pid: number }>("mcp_stdio_start", {
@@ -118,7 +114,7 @@ export class StdioMcpTransport implements McpTransport {
       },
     });
     const transport = new StdioMcpTransport(server, invoke, started.pid);
-    transport.unlisten = await listen<unknown>("mcp-stdio-notification", (event) => {
+    transport.unlisten = await listen<unknown>(MCP_STDIO_NOTIFICATION_EVENT, (event) => {
       const parsed = StdioNotificationEventSchema.safeParse(event.payload);
       if (!parsed.success || parsed.data.serverId !== server.id) return;
       for (const listener of transport.notificationListeners) {
@@ -265,7 +261,7 @@ export class HttpMcpTransport implements McpTransport {
 
   constructor(
     private readonly server: HttpMcpServer,
-    invoke: InvokeFn = defaultInvoke,
+    invoke?: InvokeFn,
   ) {
     this.headerPromise = resolveSecretRefs(server.headerSecretRefs, invoke);
   }

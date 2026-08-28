@@ -66,6 +66,28 @@ describe("ToolExecutor", () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
+  it("gates L2 mutations through the permission profile like L3/L4", async () => {
+    const execute = vi.fn(() => Promise.resolve({ success: true, output: "ok" }));
+    const registry = createToolRegistry();
+    registry.register(tool("L2", execute));
+
+    // No permission context: mutating tools fail closed.
+    await expect(
+      new ToolExecutor(registry).execute("test_tool", {}, runtime("agent")),
+    ).resolves.toMatchObject({ success: false, error: TOOL_PERMISSION_REQUIRED });
+    expect(execute).not.toHaveBeenCalled();
+
+    // Inside granted roots under the workspace profile they auto-approve.
+    const workspaceRuntime: EvirRuntime = {
+      ...runtime("agent"),
+      permissionContext: { profile: "workspace", roots: ["/project"] },
+    };
+    await expect(
+      new ToolExecutor(registry).execute("test_tool", { path: "/project/a" }, workspaceRuntime),
+    ).resolves.toEqual({ success: true, output: "ok" });
+    expect(execute).toHaveBeenCalledOnce();
+  });
+
   it("blocks an L1 tool in ask mode", async () => {
     const execute = vi.fn(() => Promise.resolve({ success: true, output: "ok" }));
     const registry = createToolRegistry();

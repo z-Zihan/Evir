@@ -48,27 +48,25 @@ function readExpanded(): Set<string> {
 
 export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarProps) {
   const { t } = useTranslation();
-  const {
-    conversations,
-    currentConversationId,
-    selectConversation,
-    deleteConversation,
-    renameConversation,
-    togglePin,
-    createConversation,
-  } = useChatStore();
-  const {
-    projects,
-    currentProjectId,
-    folderMissing,
-    load: loadProjects,
-    addProject,
-    selectProject,
-    renameProject,
-    togglePinProject,
-    rebindProject,
-    removeProject,
-  } = useProjectStore();
+  // Field selectors keep the sidebar out of per-frame streaming re-renders;
+  // only conversation/project list changes repaint it.
+  const conversations = useChatStore((state) => state.conversations);
+  const currentConversationId = useChatStore((state) => state.currentConversationId);
+  const selectConversation = useChatStore((state) => state.selectConversation);
+  const deleteConversation = useChatStore((state) => state.deleteConversation);
+  const renameConversation = useChatStore((state) => state.renameConversation);
+  const togglePin = useChatStore((state) => state.togglePin);
+  const createConversation = useChatStore((state) => state.createConversation);
+  const projects = useProjectStore((state) => state.projects);
+  const currentProjectId = useProjectStore((state) => state.currentProjectId);
+  const folderMissing = useProjectStore((state) => state.folderMissing);
+  const loadProjects = useProjectStore((state) => state.load);
+  const addProject = useProjectStore((state) => state.addProject);
+  const selectProject = useProjectStore((state) => state.selectProject);
+  const renameProject = useProjectStore((state) => state.renameProject);
+  const togglePinProject = useProjectStore((state) => state.togglePinProject);
+  const rebindProject = useProjectStore((state) => state.rebindProject);
+  const removeProject = useProjectStore((state) => state.removeProject);
   const [search, setSearch] = useState("");
   const [sortOrder, setSortOrder] = useState<SortOrder>(readSortOrder);
   const [expanded, setExpanded] = useState<Set<string>>(readExpanded);
@@ -158,8 +156,12 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
     [conversations, query, sortOrder],
   );
 
-  const threadsOf = (projectId: string) =>
-    sortConversations(conversations.filter((c) => c.projectId === projectId && matches(c.title)));
+  const threadsOf = useMemo(
+    () => (projectId: string) =>
+      sortConversations(conversations.filter((c) => c.projectId === projectId && matches(c.title))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [conversations, query, sortOrder],
+  );
 
   const handleAddProject = async () => {
     const runtime = getRuntime();

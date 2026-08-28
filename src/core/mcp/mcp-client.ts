@@ -14,7 +14,6 @@ import {
 import {
   HttpMcpTransport,
   StdioMcpTransport,
-  defaultInvoke,
   type InvokeFn,
   type ListenFn,
   type McpRequestOptions,
@@ -108,12 +107,16 @@ export class McpClient {
     if (server.transport === "stdio") {
       if (!isDesktopRuntime())
         throw new McpClientError("stdio MCP servers require the desktop app");
-      const invoke = this.dependencies.invoke ?? defaultInvoke;
-      return this.dependencies.listen
-        ? StdioMcpTransport.open(server, invoke, this.dependencies.listen)
-        : StdioMcpTransport.open(server, invoke);
+      // Stdio needs the desktop IPC bridge for spawn + keychain secrets; the
+      // runtime injects both (there is no in-core default anymore).
+      if (!this.dependencies.invoke || !this.dependencies.listen) {
+        throw new McpClientError(
+          "stdio MCP servers require the desktop invoke/listen bridge to be injected",
+        );
+      }
+      return StdioMcpTransport.open(server, this.dependencies.invoke, this.dependencies.listen);
     }
-    return new HttpMcpTransport(server, this.dependencies.invoke ?? defaultInvoke);
+    return new HttpMcpTransport(server, this.dependencies.invoke);
   }
 
   async connect(server: McpServerConfig, options: McpRequestOptions = {}): Promise<void> {

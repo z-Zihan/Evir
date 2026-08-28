@@ -36,6 +36,10 @@ export function PrivacySettings() {
 
   const clearConversations = () =>
     clearData(async () => {
+      // Wiping conversations kills the backing data of any active run — stop
+      // it first instead of letting it persist rows for a cleared store.
+      const chat = useChatStore.getState();
+      if (chat.isStreaming) chat.stopGeneration();
       const storage = getStructuredStorage();
       const conversationMemories = (await storage.readAll<MemoryRecord>("memories")).filter(
         ({ type }) => type === "conversation",
@@ -93,6 +97,8 @@ export function PrivacySettings() {
 
   const clearAll = () =>
     clearData(async () => {
+      const chat = useChatStore.getState();
+      if (chat.isStreaming) chat.stopGeneration();
       const providers = await getStructuredStorage().readAll<ProviderRecord>("providers");
       if (isNativeDesktopRuntime()) {
         const nativeStorage = getRuntime().storage;

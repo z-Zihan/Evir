@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { ProjectRecord } from "../../core/storage/db";
 import { getStructuredStorage } from "../../runtime/structured-storage";
 import { getRuntime } from "../../runtime/use-runtime";
-import { useChatStore } from "../chat/chat-store";
+import { notifyProjectRemoved } from "./project-events";
 import { logger } from "../../core/logging/logger";
 
 const CURRENT_PROJECT_KEY = "evir-project-current";
@@ -220,13 +220,10 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
         data: { ...conversation, projectId: null, updatedAt: Date.now() },
       })),
     ]);
-    useChatStore.setState((state) => ({
-      conversations: state.conversations.map((conversation) =>
-        conversation.projectId === projectId
-          ? { ...conversation, projectId: null, updatedAt: Date.now() }
-          : conversation,
-      ),
-    }));
+    // The chat side owns conversation state and detaches its threads via the
+    // listener in project-events — importing chat-store here would close a
+    // module cycle (chat → send-message → projects → chat).
+    notifyProjectRemoved(projectId);
     set((state) => ({
       projects: state.projects.filter(({ id }) => id !== projectId),
       folderMissing: Object.fromEntries(

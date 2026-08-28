@@ -6,8 +6,10 @@ import { MODE_TOOL_RISK_LIMITS } from "../providers/tool-registry";
 import type { ProviderPreset } from "../providers/types";
 
 const SRC_DIR = path.resolve(process.cwd(), "src");
+// Static imports/exports AND dynamic import("...") — a dynamic import is the
+// classic way to slip an infrastructure dependency past a static-only scan.
 const IMPORT_PATTERN =
-  /(?:^|\n)\s*(?:import|export)\s+(?:type\s+)?(?:[\w*\s{},]+from\s+)?["']([^"']+)["']/g;
+  /(?:^|\n)\s*(?:import|export)\s+(?:type\s+)?(?:[\w*\s{},]+from\s+)?["']([^"']+)["']|(?:^|\n)\s*import\s*\(\s*["']([^"']+)["']\s*\)/g;
 
 function sourceFiles(directory: string): string[] {
   if (!fs.existsSync(directory)) return [];
@@ -25,7 +27,7 @@ function withoutComments(source: string): string {
 
 function importedModules(file: string): string[] {
   return [...withoutComments(fs.readFileSync(file, "utf8")).matchAll(IMPORT_PATTERN)].map(
-    (match) => match[1] ?? "",
+    (match) => match[1] ?? match[2] ?? "",
   );
 }
 
@@ -45,7 +47,9 @@ function translationKeys(value: unknown, prefix = ""): string[] {
 }
 
 const appFiles = sourceFiles(path.join(SRC_DIR, "app"));
-const componentFiles = sourceFiles(path.join(SRC_DIR, "components"));
+// UI includes core/components (the shared component layer); there is no
+// top-level src/components directory.
+const componentFiles = sourceFiles(path.join(SRC_DIR, "core", "components"));
 const coreFiles = sourceFiles(path.join(SRC_DIR, "core"));
 
 describe("architecture dependency direction", () => {

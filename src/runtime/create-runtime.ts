@@ -91,7 +91,11 @@ export function createRuntime(options: CreateRuntimeOptions = {}): EvirRuntime {
     mcpRuntimePromise ??= Promise.all([
       import("../core/mcp/runtime-service"),
       import("../core/mcp/mcp-repository"),
-    ]).then(([{ McpRuntimeService }, { McpServerRepository }]) => {
+      import("../core/mcp/mcp-client"),
+      // The runtime layer owns Tauri access: core/mcp transports receive the
+      // invoke/listen bridge by injection, never by importing Tauri itself.
+      import("./tauri-ipc").catch(() => undefined),
+    ]).then(([{ McpRuntimeService }, { McpServerRepository }, { McpClient }, tauriIpc]) => {
       const mcpStorage =
         target === "desktop" && "__TAURI_INTERNALS__" in globalThis
           ? desktopStructuredStorage
@@ -99,7 +103,9 @@ export function createRuntime(options: CreateRuntimeOptions = {}): EvirRuntime {
       return new McpRuntimeService(
         componentRuntime,
         options.componentConfiguration,
-        undefined,
+        tauriIpc
+          ? () => new McpClient({ invoke: tauriIpc.tauriInvoke, listen: tauriIpc.tauriListen })
+          : undefined,
         new McpServerRepository(mcpStorage),
       );
     });

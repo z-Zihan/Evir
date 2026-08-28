@@ -67,7 +67,7 @@
 
 **推荐修复** `run_command` 与 `diagnostics_export_zip` 改为 `async fn` + `tauri::async_runtime::spawn_blocking`（复用 mcp_stdio 模式）；`timeout_ms` 钳制上限（10 分钟，对齐 `MAX_REQUEST_TIMEOUT_MS`）。其余命令（毫秒级）本轮不动，报告中列明。
 
-**修复风险** Low-Medium（执行线程变化，签名与返回不变；并发语义：`DatabaseState` 已为 `Mutex`，跨线程安全）　**本轮处理**：Yes（两个最重命令）　**验证**：cargo test 全量 + 现有 mcp 模式等价　**状态**：Partially Fixed（`run_command` 与 `diagnostics_export_zip` 已改 `async fn` + `spawn_blocking` 并钳制超时；其余毫秒级命令未动，见未修复清单）
+**修复风险** Low-Medium（执行线程变化，签名与返回不变；并发语义：`DatabaseState` 已为 `Mutex`，跨线程安全）　**本轮处理**：Yes（两个最重命令）　**验证**：cargo test 全量 + 现有 mcp 模式等价　**状态**：Fixed（第二轮：全部 37 个同步命令已加 `#[tauri::command(async)]` 移出主线程）
 
 ---
 
@@ -233,7 +233,7 @@
 
 **为什么是问题** 安全（审批绕过类）。**但**修复需产品决策（路由经 ToolExecutor 会将审批弹窗引入自动验证流程；或 ask profile 跳过自动验证）。
 
-**本轮处理**：No（仅报告，避免擅自改变已设计的自动验证行为）　**状态**：Not Fixed（建议产品层决策）
+**本轮处理**：第二轮已落地（用户拍板）　**状态**：Fixed（验证命令改经 ToolExecutor 权限门控；需审批档案下返回 skipped 并提示，run 停留 needs_verification）
 
 ---
 
@@ -257,7 +257,7 @@
 
 **推荐修复** 合并为单一 `resolveApproval(pending, outcome, exec)`。**但**该路径为审批咽喉、时序敏感，合并属高回归风险重构。
 
-**本轮处理**：No（defer；现有测试不足以特征化全部分支）　**状态**：Not Fixed（列入后续计划，先补特征测试再合并）
+**本轮处理**：第二轮已落地　**状态**：Fixed（先补 4 条特征测试再合并为 resolveApproval；保留 approve 停止="cancelled" / deny 停止="denied" 差异）
 
 ---
 
@@ -373,3 +373,18 @@
 3. `/private/var` 阻断与 macOS TMPDIR 工作区冲突，刻意不加并注释（详见 P1-10）。
 4. 0.75 阈值"重复"（context-budget-manager vs coordinator）分母语义不同（可用量 vs 原始 max），非真重复，不合并。
 5. 既有测试 `response_ids_cannot_cross_request_ownership` 断言的正是 P2-1 要修的旧契约；按新契约重写并新增正向用例（排空陈旧响应后成功），"响应不跨请求归属"的安全属性由更强的断言保留。
+
+---
+
+## 6. 第二轮执行结果（2026-08-28，A–D 组清偿）
+
+**第二轮修复**（详见 CHANGELOG 第二轮章节）：
+
+- **P1-1** 其余 37 命令异步化（→Fixed）；**P1-14** 自动验证过 ToolExecutor（→Fixed）；**P1-16** approve/deny 合并（→Fixed）。
+- **P2-R1** selector 化+memo（→Fixed）；**P2-R2** 按会话门控 composer（→Fixed）；**P2-R3** 贴底滚动（→Fixed）；**P2-R4** Ask 300s 超时（→Fixed）；**P2-R5** 删除/清空防孤儿（→Fixed）；**P2-R7** db_query readonly 闸口+PRAGMA 白名单+多语句拒绝（→Fixed）；**P2-R8** api_key 清洗 migration 3（→Fixed）；**P2-R9** CSP 上线+构建+启动冒烟（→Fixed）；**P2-R10** 原子写+分块快照/哈希+读取上限（→Fixed）；**P2-R11** TOCTOU 写侧缓解（→Partially，读侧 openat 级未做）；**P2-R12** MCP 剪枝+锁重构（→Fixed）；**P2-R13** stdin null（→Partially，env 继承为 PATH 所需、有意保留）；**P2-R14** 架构测试正则+transports 注入（→Fixed）。
+- **产品策略**：L2 审批门对齐、工具能力模式集统一（plan/goal/agent）。
+- **新决策记录**：done-when 权限不足 → manual 且阻止自动达成；自动验证权限不足 → skipped 停留 needs_verification。
+- **意外收获**：worktree 集成测试暴露 `git apply --3-way` 拼写错误（`--3way` 才对）——真实合并从未成功过，已修复。
+- **仍不做/遗留**：P2-R6 selectConversation 窄窗口竞态；TOCTOU 读侧；linkAbort/ModelCapabilities（非真重复）；签名公证（非阻塞待凭据）；深度真机交互冒烟（缺屏幕录制权限）。
+
+**第二轮基线**：vitest 107 文件/658 用例；cargo 35 用例；e2e 38/0 失败；全部可选门禁绿。

@@ -83,6 +83,7 @@
     "modelPlaceholder": "尚未配置模型",
     "send": "发送",
     "stop": "停止",
+    "streamInProgress": "另一个对话正在生成中",
     "regenerate": "重新生成",
     "edit": "编辑",
     "save": "保存",

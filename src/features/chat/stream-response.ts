@@ -167,7 +167,18 @@ async function getLoopResult(
       task.dispose();
     }
   }
-  const stream = await streamAssistant(provider, conversationId, messages, onDelta);
+  // Ask-mode hang protection: generous wall clock so slow models stay usable,
+  // but a dead connection surfaces as a timeout instead of spinning forever.
+  const ASK_STREAM_TIMEOUT_MS = 300_000;
+  const stream = await streamAssistant(
+    provider,
+    conversationId,
+    messages,
+    onDelta,
+    undefined,
+    undefined,
+    ASK_STREAM_TIMEOUT_MS,
+  );
   return {
     turns: [{ stream: explainToolCallWithoutAccess(stream) }],
     maxIterationsReached: false,

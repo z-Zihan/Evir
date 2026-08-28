@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ChevronDown,
@@ -27,7 +27,7 @@ interface SidebarProjectItemProps {
   onRemove: () => void;
 }
 
-export function SidebarProjectItem({
+export const SidebarProjectItem = memo(function SidebarProjectItem({
   project,
   expanded,
   active,
@@ -168,4 +168,4 @@ export function SidebarProjectItem({
       </div>
     </div>
   );
-}
+});

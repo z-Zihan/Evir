@@ -239,7 +239,7 @@ pub(crate) fn export_zip_to_path(
     })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn diagnostics_logs_overview(
     app: AppHandle,
     from_day: Option<String>,
@@ -250,7 +250,7 @@ pub fn diagnostics_logs_overview(
     Ok(LogsOverview { files, total_bytes })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub async fn diagnostics_export_zip(
     app: AppHandle,
     dest_path: String,

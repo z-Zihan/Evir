@@ -51,6 +51,14 @@ export function AgentActivity({
   const { t, i18n } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const isStreaming = useChatStore((state) => state.isStreaming);
+  // Approve/deny belong to THIS conversation's pending approval; a stream
+  // running in another conversation must not disable them.
+  const isApprovalConversationStreaming = useChatStore(
+    (state) =>
+      state.isStreaming &&
+      state.pendingToolApproval !== null &&
+      state.activeStreamConversationId === state.pendingToolApproval.conversationId,
+  );
   const approveTool = useChatStore((state) => state.approveTool);
   const denyTool = useChatStore((state) => state.denyTool);
   const pendingApproval = useChatStore((state) => state.pendingToolApproval);
@@ -239,7 +247,7 @@ export function AgentActivity({
             <button
               type="button"
               className="secondary-button"
-              disabled={isStreaming}
+              disabled={isApprovalConversationStreaming}
               onClick={() => void denyTool()}
             >
               {t("tools.deny")}
@@ -247,7 +255,7 @@ export function AgentActivity({
             <button
               type="button"
               className="primary-button"
-              disabled={isStreaming}
+              disabled={isApprovalConversationStreaming}
               onClick={() => void approveTool()}
             >
               {t("tools.approveOnce")}

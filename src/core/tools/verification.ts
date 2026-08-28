@@ -1,4 +1,5 @@
 import type { EvirRuntime } from "../../runtime/types";
+import { TOOL_PERMISSION_REQUIRED } from "./tool-executor";
 
 export interface VerificationResult {
   command: string;
@@ -65,22 +66,51 @@ export async function runVerification(
       };
     }
 
+    const executor = runtime.toolExecutor;
+    if (!executor) {
+      return {
+        command: "skipped (no tool executor)",
+        exitCode: null,
+        status: "skipped",
+        durationMs: 0,
+        stdoutPreview: "",
+        stderrPreview: "Automatic verification is not available in this runtime",
+      };
+    }
+
     const start = Date.now();
-    const result = await runtime.storage.runCommand(
-      workspacePath,
-      project.program,
-      project.args,
-      60_000,
+    // Route through the tool executor instead of raw storage so the permission
+    // profile gates automatic verification like any other command — the agent
+    // just wrote the very scripts this runs (e.g. package.json "scripts").
+    // Verification is part of the agent run, hence the agent mode override.
+    const result = await executor.execute(
+      "run_command",
+      { cwd: workspacePath, program: project.program, args: project.args, timeout_ms: 60_000 },
+      { ...runtime, mode: "agent" as const },
     );
     const durationMs = Date.now() - start;
 
+    if (result.error === TOOL_PERMISSION_REQUIRED) {
+      // "ask" (or an unresolved profile) must not silently execute workspace
+      // scripts — leave the run in needs_verification for the user instead.
+      return {
+        command: project.checker,
+        exitCode: null,
+        status: "skipped",
+        durationMs,
+        stdoutPreview: "",
+        stderrPreview:
+          "Automatic verification requires a permission profile that allows command execution (workspace or full)",
+      };
+    }
+
     return {
       command: project.checker,
-      exitCode: result.exit_code,
+      exitCode: result.success ? 0 : 1,
       status: result.success ? "passed" : "failed",
       durationMs,
-      stdoutPreview: result.stdout.slice(0, 2000),
-      stderrPreview: result.stderr.slice(0, 2000),
+      stdoutPreview: result.output.slice(0, 2000),
+      stderrPreview: result.success ? "" : result.output.slice(0, 2000),
     };
   } catch (error) {
     return {

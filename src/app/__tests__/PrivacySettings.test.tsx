@@ -12,8 +12,17 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
+const chatStoreMock = Object.assign(
+  () => ({ privateSession: false, togglePrivateSession: vi.fn() }),
+  {
+    setState: vi.fn(),
+    // PrivacySettings stops an active run before wiping; tests run idle.
+    getState: () => ({ isStreaming: false, stopGeneration: vi.fn() }),
+  },
+);
+
 vi.mock("../../features/chat/chat-store", () => ({
-  useChatStore: () => ({ privateSession: false, togglePrivateSession: vi.fn() }),
+  useChatStore: chatStoreMock,
 }));
 
 vi.mock("../../core/storage/db", () => ({

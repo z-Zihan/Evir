@@ -27,12 +27,14 @@ pub(crate) struct McpProcessStatus {
 pub(crate) struct McpProcessHandle {
     cancelled: AtomicBool,
     inner: Mutex<McpProcess>,
+    // Kept OUTSIDE the process mutex: waiting for a response (up to the
+    // request timeout) must not block status()/stop() or a concurrent request.
+    responses: Mutex<mpsc::Receiver<Result<Value, String>>>,
 }
 
 struct McpProcess {
     child: Child,
     stdin: ChildStdin,
-    responses: mpsc::Receiver<Result<Value, String>>,
     _stderr: Arc<Mutex<String>>,
 }
 
@@ -240,9 +242,9 @@ impl McpProcessHandle {
             inner: Mutex::new(McpProcess {
                 child,
                 stdin,
-                responses: response_rx,
                 _stderr: stderr,
             }),
+            responses: Mutex::new(response_rx),
         })
     }
 
@@ -263,19 +265,22 @@ impl McpProcessHandle {
             .get("id")
             .cloned()
             .ok_or("MCP request id is required")?;
-        let mut process = self
-            .inner
-            .lock()
-            .map_err(|_| "MCP process is poisoned".to_owned())?;
-        if process
-            .child
-            .try_wait()
-            .map_err(|error| error.to_string())?
-            .is_some()
         {
-            return Err("MCP server exited".to_owned());
+            let mut process = self
+                .inner
+                .lock()
+                .map_err(|_| "MCP process is poisoned".to_owned())?;
+            if process
+                .child
+                .try_wait()
+                .map_err(|error| error.to_string())?
+                .is_some()
+            {
+                return Err("MCP server exited".to_owned());
+            }
+            write_message(&mut process, &request)?;
+            // Lock released before waiting so status()/stop() stay responsive.
         }
-        write_message(&mut process, &request)?;
         let timeout = Duration::from_millis(timeout_ms);
         let deadline = Instant::now() + timeout;
         loop {
@@ -286,10 +291,11 @@ impl McpProcessHandle {
             if remaining.is_zero() {
                 return Err(format!("MCP request timed out after {timeout_ms}ms"));
             }
-            match process
+            let responses = self
                 .responses
-                .recv_timeout(remaining.min(Duration::from_millis(50)))
-            {
+                .lock()
+                .map_err(|_| "MCP process is poisoned".to_owned())?;
+            match responses.recv_timeout(remaining.min(Duration::from_millis(50))) {
                 Ok(Ok(response)) if response.get("id") == Some(&expected_id) => {
                     return Ok(response)
                 }

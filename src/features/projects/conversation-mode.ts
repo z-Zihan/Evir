@@ -1,8 +1,7 @@
 import type { ConversationRecord } from "../../core/storage/db";
 import type { InteractionMode } from "../../core/providers/tool-registry";
 import { useProjectStore } from "./project-store";
-
-const LEGACY_WORKSPACE_KEY = "evir-workspace-current";
+import { CURRENT_STORAGE_KEY as LEGACY_WORKSPACE_KEY } from "../workspace/workspace-store";
 
 export function conversationProjectId(conversation: ConversationRecord | undefined): string | null {
   return conversation?.projectId ?? null;

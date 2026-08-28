@@ -13,6 +13,7 @@ import { sendChatMessage } from "./send-message";
 import { streamResponse } from "./stream-response";
 import { getRuntime } from "../../runtime/use-runtime";
 import { branchConversation as doBranchConversation } from "./branch-conversation";
+import { onProjectRemoved } from "../projects/project-events";
 import {
   approveTool,
   cancelPendingToolApprovals,
@@ -101,7 +102,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
   createOrReuseConversation: async (providerId, modelId, projectId = null) =>
     doCreateOrReuseConversation(set, get, providerId, modelId, projectId),
   selectConversation: async (id) => doSelectConversation(set, get, id),
-  deleteConversation: async (id) => doDeleteConversation(set, id),
+  deleteConversation: async (id) => {
+    // Deleting the conversation that is currently streaming must stop its run
+    // first — otherwise it keeps burning tokens and persists orphan rows for a
+    // conversation that no longer exists.
+    if (get().activeStreamConversationId === id) get().stopGeneration();
+    return doDeleteConversation(set, id);
+  },
   renameConversation: async (id, title) => doRenameConversation(set, id, title),
   togglePin: async (id) => doTogglePin(set, get, id),
   updateConversationProvider: async (providerId, modelId) =>
@@ -277,3 +284,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
     return newId;
   },
 }));
+
+// Projects never import this store (cycle-free direction chat → projects);
+// they announce removals via project-events and the chat side detaches here.
+onProjectRemoved((projectId) => {
+  useChatStore.setState((state) => ({
+    conversations: state.conversations.map((conversation) =>
+      conversation.projectId === projectId
+        ? { ...conversation, projectId: null, updatedAt: Date.now() }
+        : conversation,
+    ),
+  }));
+});

@@ -74,6 +74,16 @@ pub fn init_db(app_data_dir: &Path) -> Result<Connection> {
           VALUES (2, unixepoch() * 1000);
         "#,
     )?;
+    // Migration 3: pre-entity-storage builds could leave plaintext API keys in
+    // the legacy providers table; current code always stores '' (the keychain
+    // holds the secret). Scrub any leftover once, idempotently.
+    conn.execute_batch(
+        r#"
+        UPDATE providers SET api_key = '' WHERE api_key != '';
+        INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+          VALUES (3, unixepoch() * 1000);
+        "#,
+    )?;
     Ok(conn)
 }
 
@@ -115,6 +125,13 @@ fn sql_to_json(value: ValueRef<'_>) -> Value {
 pub fn execute_query(conn: &Connection, sql: &str, params: &[Value]) -> Result<Vec<Row>> {
     let values = params.iter().map(json_to_sql).collect::<Result<Vec<_>>>()?;
     let mut statement = conn.prepare(sql)?;
+    // Authoritative read-only gate: the keyword prefilter in validate_query_sql
+    // cannot see through CTEs (`WITH ... INSERT`) or write pragmas, but SQLite
+    // itself knows. (Tail statements are rejected lexically by the validators —
+    // rusqlite's check_no_tail needs the extra_check feature and is a no-op.)
+    if !statement.readonly() {
+        return Err(rusqlite::Error::InvalidQuery);
+    }
     let names = statement
         .column_names()
         .iter()

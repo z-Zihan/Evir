@@ -57,3 +57,62 @@ fn initializes_schema_and_round_trips_values() {
     drop(conn);
     std::fs::remove_dir_all(directory).expect("temporary directory must be removed");
 }
+
+#[test]
+fn queries_enforce_readonly_at_the_sqlite_level() {
+    let suffix = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system time must be valid")
+        .as_nanos();
+    let directory =
+        std::env::temp_dir().join(format!("evir-storage-ro-{}-{suffix}", std::process::id()));
+    std::fs::create_dir_all(&directory).expect("temporary directory must be created");
+    let conn = init_db(&directory).expect("database must initialize");
+
+    // CTE-prefixed DML passes the keyword prefilter but must be refused here.
+    assert!(execute_query(
+        &conn,
+        "WITH removed AS (DELETE FROM settings RETURNING name) SELECT * FROM removed",
+        &[],
+    )
+    .is_err());
+    // Read pragmas stay queryable.
+    assert!(execute_query(&conn, "PRAGMA table_info(settings)", &[]).is_ok());
+
+    drop(conn);
+    std::fs::remove_dir_all(directory).expect("temporary directory must be removed");
+}
+
+#[test]
+fn legacy_provider_api_keys_are_scrubbed_on_init() {
+    let suffix = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system time must be valid")
+        .as_nanos();
+    let directory =
+        std::env::temp_dir().join(format!("evir-storage-key-{}-{suffix}", std::process::id()));
+    std::fs::create_dir_all(&directory).expect("temporary directory must be created");
+
+    {
+        let conn = init_db(&directory).expect("database must initialize");
+        execute_update(
+            &conn,
+            "INSERT INTO providers(id, name, protocol_id, base_url, api_key, model_id, \
+             enabled, is_default, created_at, updated_at) \
+             VALUES ('p1', 'Legacy', 'openai-chat-completions', 'https://x', 'sk-plaintext', \
+             'm', 1, 0, 1, 1)",
+            &[],
+        )
+        .expect("legacy provider row must be inserted");
+        drop(conn);
+    }
+
+    let conn = init_db(&directory).expect("database must re-initialize");
+    let rows = execute_query(&conn, "SELECT api_key FROM providers WHERE id = 'p1'", &[])
+        .expect("provider row must be readable");
+    // The secret lives in the keychain; the table must never retain it.
+    assert_eq!(rows[0]["api_key"], json!(""));
+
+    drop(conn);
+    std::fs::remove_dir_all(directory).expect("temporary directory must be removed");
+}

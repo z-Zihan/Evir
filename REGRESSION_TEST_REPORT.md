@@ -79,3 +79,41 @@ cd src-tauri && cargo fmt --check && cargo clippy --all-targets && cargo test
 ## 结论
 
 除 1 项预存 e2e 失败（与本次无关，已单列）外，**所有静态检查、单元/集成测试、Rust 三件套、benchmark、UI/a11y/visual/核心 e2e 全部通过**。本轮未新增任何依赖，未改任何公共接口、存储格式、事件与命令名。
+
+---
+
+# 第二轮回归（A–D 组清偿，2026-08-28）
+
+## Environment
+
+同第一轮（macOS 26.5.1 arm64 / Node 24.18 / pnpm 10 / rustc 1.97.1）。
+
+## Result
+
+| 检查                                 | 结果             | 明细                                                                                                                                                                                                                   |
+| ------------------------------------ | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| pnpm format:check / lint / typecheck | **PASS**         | 0 警告 0 错误                                                                                                                                                                                                          |
+| pnpm test                            | **PASS**         | **107 文件 / 658 用例**（第二轮 +11：executor L2、verification×4、done-when 重写+权限、approve/deny 特征×4、发送停止等）                                                                                               |
+| vscode / cli                         | **PASS**         | 8 / 8                                                                                                                                                                                                                  |
+| cargo fmt --check / clippy           | **PASS**         |                                                                                                                                                                                                                        |
+| cargo test                           | **PASS**         | **35 用例**（+2：readonly 闸口、api_key 清洗；+2：worktree 真实往返、非 git 失败）                                                                                                                                     |
+| pnpm test:e2e                        | **PASS**         | **38 通过 / 0 失败** / 10 平台跳过（上轮预存失败已由产品 QA 轮修复并回归）                                                                                                                                             |
+| pnpm test:stress                     | **PASS**         | 7 通过 / 1 Web 不适用                                                                                                                                                                                                  |
+| pnpm test:ui / :visual / :a11y       | **PASS**         | 2 / 6 / 18                                                                                                                                                                                                             |
+| pnpm benchmark                       | **PASS**         | 依赖数不变（未新增依赖）                                                                                                                                                                                               |
+| pnpm build:desktop                   | **PASS**         | arm64 .app + DMG（含新 CSP；ad-hoc 签名，公证按用户指示跳过=非阻塞）                                                                                                                                                   |
+| release:validate-tag                 | **PASS**         | `v0.1.0` 格式校验通过（脚本需传 tag 参数）                                                                                                                                                                             |
+| 真机 CSP 冒烟                        | **PASS（受限）** | 打包版启动后完整写入 `app.session-started`/`project.loaded`/`personalization.loaded` 等日志 = CSP 下 JS/React/日志链路正常；AX 菜单退出干净。屏幕录制权限缺失，无法截屏/坐标级交互——深度 UI 交互冒烟留待下次有权限会话 |
+
+## Not Run / 受限
+
+- **深度真机交互冒烟**（发送→长命令→停止的主线程阻塞修复体感验证）：环境缺屏幕录制权限，无法操作窗口内容；建议你日常使用中留意（本轮后命令执行期间 UI 应全程流畅）。
+- **签名/公证**：按明确指示降级为非必选、非阻塞；发布正式版前补 Apple 凭据即可。
+- selectConversation 加载窄窗口竞态（P2-R6）：本轮未动（影响极窄，改动需引入消息版本号），仍留报告。
+
+## 第二轮引入并修复的过程缺陷（如实记录）
+
+1. `(async)` 属性转换后 diagnostics.rs 同步命令遗漏 → 补齐。
+2. `check_no_tail` 为 rusqlite 私有（extra_check feature）→ 改词法层尾部检测 + readonly() 权威闸口；期间发现 `PRAGMA writable_schema` readonly() 误报 true → 增 PRAGMA 白名单。
+3. 我的新测试文件经历多轮类型/lint 整备（mock 路径深度、vi.fn 泛型、require-await）——最终以显式泛型定稿；期间特征测试确实先于合并通过（4/4）后才动实现。
+4. worktree 集成测试暴露 `--3-way` 拼写 bug（真缺陷，非测试问题）→ 修复。

@@ -1,5 +1,6 @@
 import { continueAgentLoop, type AgentLoopTurn, type AgentMessage } from "./agent-loop";
 import type { AgentRunContext, EvirRuntime } from "../../runtime/types";
+import type { MessageRecord } from "../../core/storage/db";
 import { ToolRegistryImpl } from "../../core/tools/tool-registry-impl";
 import { ToolExecutor } from "../../core/tools/tool-executor";
 import { logger } from "../../core/logging/logger";
@@ -292,9 +293,34 @@ export async function approveTool(
   set: ChatStoreSet,
   get: ChatStoreGet,
 ): Promise<void> {
+  return resolveApproval(pending, set, get, "approved");
+}
+
+export async function denyTool(
+  pending: PendingToolApproval,
+  set: ChatStoreSet,
+  get: ChatStoreGet,
+): Promise<void> {
+  return resolveApproval(pending, set, get, "denied");
+}
+
+/**
+ * Single continuation pipeline for both approval outcomes. The flows are
+ * structurally identical; the outcome only changes (a) how the resolved turn
+ * is produced (execute vs. denial record), (b) the persisted status — note a
+ * STOPPED approve continuation persists "cancelled" while a stopped deny
+ * persists "denied" — and (c) the orchestration outcome summary.
+ */
+async function resolveApproval(
+  pending: PendingToolApproval,
+  set: ChatStoreSet,
+  get: ChatStoreGet,
+  outcome: "approved" | "denied",
+): Promise<void> {
+  const approved = outcome === "approved";
   const ctx = getApprovalContext(pending, set, get);
   if (!ctx) return;
-  logger.info("approval", "approval.granted", {
+  logger.info("approval", approved ? "approval.granted" : "approval.denied", {
     conversationId: pending.conversationId,
     toolCallId: pending.toolCallId,
     toolName: pending.toolName,
@@ -303,7 +329,7 @@ export async function approveTool(
   });
   const { provider, runtime: baseRuntime, streamStartedAt } = ctx;
   const runtime = approvalRuntime(baseRuntime, pending);
-  if (!runtime.toolExecutor) {
+  if (approved && !runtime.toolExecutor) {
     finishConversationStream(set, get, pending.conversationId, streamStartedAt);
     if (get().currentConversationId === pending.conversationId) {
       set({ error: "tools.notAvailable" });
@@ -312,11 +338,20 @@ export async function approveTool(
   }
   const task = createActiveTaskController();
   try {
-    const {
-      messages,
-      msg: resolvedMsg,
-      resolvedTurn,
-    } = await executeApproved(pending, runtime, !get().privateSession, task.signal);
+    let resolved: { messages: AgentMessage[]; msg: MessageRecord; resolvedTurn: AgentLoopTurn };
+    if (approved) {
+      resolved = await executeApproved(pending, runtime, !get().privateSession, task.signal);
+    } else {
+      const denial = buildDenial(pending);
+      const resolvedMsg = await persistTurn(
+        denial.resolvedTurn,
+        pending.conversationId,
+        pending.turn.stream.content,
+        !get().privateSession,
+      );
+      resolved = { messages: denial.messages, msg: resolvedMsg, resolvedTurn: denial.resolvedTurn };
+    }
+    const { messages, msg: resolvedMsg, resolvedTurn } = resolved;
     const onDelta = (streamingContent: string) =>
       updateConversationStream(set, get, pending.conversationId, streamingContent);
     const loopResult = await continueAgentLoop({
@@ -342,14 +377,14 @@ export async function approveTool(
     finishConversationStream(set, get, pending.conversationId, streamStartedAt);
     const finalTurn = loopResult.turns.at(-1);
     if (approvalContinuationStopped(task.signal, finalTurn)) {
-      await persistApprovalStatus(pending, "cancelled", get().privateSession);
+      await persistApprovalStatus(pending, approved ? "cancelled" : "denied", get().privateSession);
       await cancelCurrentRun(runtime, get().privateSession);
       return;
     }
     if (finalTurn) {
       const next = continuedApproval(pending, finalTurn, loopResult.messages, loopResult.agentRun);
       if (next) {
-        await persistApprovalStatus(pending, "approved", get().privateSession);
+        await persistApprovalStatus(pending, outcome, get().privateSession);
         await persistApprovalStatus(next, "pending", get().privateSession);
         if (get().currentConversationId === pending.conversationId) {
           set({ pendingToolApproval: next });
@@ -357,95 +392,14 @@ export async function approveTool(
         return;
       }
     }
-    await persistApprovalStatus(pending, "approved", get().privateSession);
+    await persistApprovalStatus(pending, outcome, get().privateSession);
     const completed = finalTurn?.stream.status === "complete" && !loopResult.maxIterationsReached;
     await continueOrchestrationAfterApproval(
       pending,
       runtime,
-      completed ? "completed" : "failed",
-      finalTurn?.stream.content || "Approved tool execution finished",
-      set,
-      get,
-    );
-  } catch (error) {
-    finishConversationStream(set, get, pending.conversationId, streamStartedAt);
-    throw error;
-  } finally {
-    task.dispose();
-  }
-}
-
-export async function denyTool(
-  pending: PendingToolApproval,
-  set: ChatStoreSet,
-  get: ChatStoreGet,
-): Promise<void> {
-  const ctx = getApprovalContext(pending, set, get);
-  if (!ctx) return;
-  logger.info("approval", "approval.denied", {
-    conversationId: pending.conversationId,
-    toolCallId: pending.toolCallId,
-    toolName: pending.toolName,
-    ...(pending.riskLevel ? { riskLevel: pending.riskLevel } : {}),
-    ...(pending.orchestration ? { runId: pending.orchestration.runId } : {}),
-  });
-  const { provider, runtime: baseRuntime, streamStartedAt } = ctx;
-  const runtime = approvalRuntime(baseRuntime, pending);
-  const task = createActiveTaskController();
-  try {
-    const { resolvedTurn, messages } = buildDenial(pending);
-    const resolvedMsg = await persistTurn(
-      resolvedTurn,
-      pending.conversationId,
-      pending.turn.stream.content,
-      !get().privateSession,
-    );
-    const onDelta = (streamingContent: string) =>
-      updateConversationStream(set, get, pending.conversationId, streamingContent);
-    const loopResult = await continueAgentLoop({
-      provider,
-      conversationId: pending.conversationId,
-      messages,
-      runtime,
-      onDelta,
-      ...(pending.mode ? { mode: pending.mode } : {}),
-      signal: task.signal,
-    });
-    await finalizeApprovalFlow(
-      set,
-      get,
-      loopResult,
-      resolvedMsg,
-      pending.conversationId,
-      pending.toolCallId,
-      resolvedTurn,
-      runtime,
-      pending.orchestration?.runId,
-    );
-    finishConversationStream(set, get, pending.conversationId, streamStartedAt);
-    const finalTurn = loopResult.turns.at(-1);
-    if (approvalContinuationStopped(task.signal, finalTurn)) {
-      await persistApprovalStatus(pending, "denied", get().privateSession);
-      await cancelCurrentRun(runtime, get().privateSession);
-      return;
-    }
-    if (finalTurn) {
-      const next = continuedApproval(pending, finalTurn, loopResult.messages, loopResult.agentRun);
-      if (next) {
-        await persistApprovalStatus(pending, "denied", get().privateSession);
-        await persistApprovalStatus(next, "pending", get().privateSession);
-        if (get().currentConversationId === pending.conversationId) {
-          set({ pendingToolApproval: next });
-        }
-        return;
-      }
-    }
-    await persistApprovalStatus(pending, "denied", get().privateSession);
-    await continueOrchestrationAfterApproval(
-      pending,
-      runtime,
-      "failed",
-      finalTurn?.stream.content || "Tool approval was denied",
+      approved ? (completed ? "completed" : "failed") : "failed",
+      finalTurn?.stream.content ||
+        (approved ? "Approved tool execution finished" : "Tool approval was denied"),
       set,
       get,
     );

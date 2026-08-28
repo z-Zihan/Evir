@@ -109,6 +109,26 @@ fn get_process(
         .ok_or_else(|| "MCP server is not running".to_owned())
 }
 
+/// Drop a dead server from the registry. Dropping the handle reaps the child
+/// (Drop terminates), so exited servers stop shadowing restarts with
+/// "already running" and stop holding zombie processes.
+fn prune_exited(state: &State<'_, McpStdioState>, server_id: &str) {
+    if let Ok(mut processes) = state.processes.lock() {
+        let dead = processes
+            .get(server_id)
+            .map(|handle| {
+                handle
+                    .status()
+                    .map(|status| !status.running)
+                    .unwrap_or(true)
+            })
+            .unwrap_or(false);
+        if dead {
+            processes.remove(server_id);
+        }
+    }
+}
+
 #[tauri::command]
 pub(crate) async fn mcp_stdio_request(
     state: State<'_, McpStdioState>,
@@ -120,9 +140,13 @@ pub(crate) async fn mcp_stdio_request(
         .unwrap_or(DEFAULT_REQUEST_TIMEOUT_MS)
         .clamp(1, MAX_REQUEST_TIMEOUT_MS);
     let process = get_process(&state, &server_id)?;
-    tauri::async_runtime::spawn_blocking(move || process.request(request, timeout))
+    let result = tauri::async_runtime::spawn_blocking(move || process.request(request, timeout))
         .await
-        .map_err(|error| error.to_string())?
+        .map_err(|error| error.to_string())?;
+    if matches!(&result, Err(error) if error.contains("MCP server exited")) {
+        prune_exited(&state, &server_id);
+    }
+    result
 }
 
 #[tauri::command]
@@ -132,9 +156,13 @@ pub(crate) async fn mcp_stdio_send(
     message: Value,
 ) -> Result<(), String> {
     let process = get_process(&state, &server_id)?;
-    tauri::async_runtime::spawn_blocking(move || process.send(message))
+    let result = tauri::async_runtime::spawn_blocking(move || process.send(message))
         .await
-        .map_err(|error| error.to_string())?
+        .map_err(|error| error.to_string())?;
+    if matches!(&result, Err(error) if error.contains("MCP server exited")) {
+        prune_exited(&state, &server_id);
+    }
+    result
 }
 
 #[tauri::command]
@@ -146,6 +174,9 @@ pub(crate) async fn mcp_stdio_status(
     let status = tauri::async_runtime::spawn_blocking(move || process.status())
         .await
         .map_err(|error| error.to_string())??;
+    if !status.running {
+        prune_exited(&state, &server_id);
+    }
     Ok(McpStdioStatus {
         running: status.running,
         pid: status.pid,

@@ -322,16 +322,17 @@ describe("goal done-when verification", () => {
       has: (capability: string) => capability === "chat",
       toolRegistry: createToolRegistry(),
       getWorkspaceRoot: () => "/project",
-      storage: {
-        runCommand: vi.fn(() =>
+      storage: {},
+      toolExecutor: {
+        execute: vi.fn(() =>
           Promise.resolve({
             success,
-            exit_code: success ? 0 : 1,
-            stdout: "",
-            stderr: success ? "" : "type errors",
+            output: success ? "" : "type errors",
           }),
         ),
-      },
+      } as unknown as NonNullable<EvirRuntime["toolExecutor"]>,
+      permissionContext: { profile: "full", roots: ["/project"] },
+      mode: "goal",
     } as unknown as EvirRuntime;
   }
 

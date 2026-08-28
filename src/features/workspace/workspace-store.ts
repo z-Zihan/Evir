@@ -2,7 +2,9 @@ import { create } from "zustand";
 import { logger } from "../../core/logging/logger";
 
 const STORAGE_KEY = "evir-workspace";
-const CURRENT_STORAGE_KEY = "evir-workspace-current";
+// Shared with conversation-mode.ts (legacy-workspace detection) — export so
+// the literal exists once.
+export const CURRENT_STORAGE_KEY = "evir-workspace-current";
 
 interface WorkspaceState {
   currentWorkspace: string | null;

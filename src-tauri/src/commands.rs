@@ -163,7 +163,7 @@ fn with_connection<T>(
     operation(&conn).map_err(|error| error.to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn db_init(app: AppHandle) -> Result<String, String> {
     let data_dir = app_data_dir(&app)?;
     let new_conn = storage::init_db(&data_dir).map_err(|error| error.to_string())?;
@@ -176,7 +176,7 @@ pub(crate) fn db_init(app: AppHandle) -> Result<String, String> {
     Ok(data_dir.join("evir.db").to_string_lossy().into_owned())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn db_query(
     app: AppHandle,
     sql: String,
@@ -186,13 +186,13 @@ pub(crate) fn db_query(
     with_connection(&app, |conn| storage::execute_query(conn, &sql, &params))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn db_update(app: AppHandle, sql: String, params: Vec<Value>) -> Result<usize, String> {
     validate_update_sql(&sql)?;
     with_connection(&app, |conn| storage::execute_update(conn, &sql, &params))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn entity_get(
     app: AppHandle,
     entity: String,
@@ -217,7 +217,7 @@ pub(crate) fn entity_get(
     })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn entity_list(app: AppHandle, entity: String) -> Result<Vec<Value>, String> {
     validate_entity(&entity)?;
     with_connection(&app, |conn| {
@@ -238,7 +238,7 @@ pub(crate) fn entity_list(app: AppHandle, entity: String) -> Result<Vec<Value>, 
     })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn entity_put(
     app: AppHandle,
     entity: String,
@@ -257,7 +257,7 @@ pub(crate) fn entity_put(
     })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn entity_put_many(
     app: AppHandle,
     entity: String,
@@ -283,7 +283,7 @@ pub(crate) fn entity_put_many(
     })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn entity_delete(app: AppHandle, entity: String, id: String) -> Result<(), String> {
     validate_entity(&entity)?;
     with_connection(&app, |conn| {
@@ -295,7 +295,7 @@ pub(crate) fn entity_delete(app: AppHandle, entity: String, id: String) -> Resul
     })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn entity_delete_many(
     app: AppHandle,
     entity: String,
@@ -314,7 +314,7 @@ pub(crate) fn entity_delete_many(
     })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn entity_clear(app: AppHandle, entity: String) -> Result<(), String> {
     validate_entity(&entity)?;
     with_connection(&app, |conn| {
@@ -326,7 +326,7 @@ pub(crate) fn entity_clear(app: AppHandle, entity: String) -> Result<(), String>
     })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn entity_apply(app: AppHandle, mutations: Vec<EntityMutation>) -> Result<(), String> {
     for mutation in &mutations {
         let entity = match mutation {
@@ -375,7 +375,7 @@ fn validate_key(key: &str) -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn keychain_set(key: String, value: String) -> Result<(), String> {
     validate_key(&key)?;
     let entry = Entry::new("evir", &key).map_err(|error| error.to_string())?;
@@ -384,7 +384,7 @@ pub(crate) fn keychain_set(key: String, value: String) -> Result<(), String> {
         .map_err(|error| error.to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn keychain_get(key: String) -> Result<Option<String>, String> {
     validate_key(&key)?;
     let entry = Entry::new("evir", &key).map_err(|error| error.to_string())?;
@@ -395,7 +395,7 @@ pub(crate) fn keychain_get(key: String) -> Result<Option<String>, String> {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn keychain_delete(key: String) -> Result<(), String> {
     validate_key(&key)?;
     let entry = Entry::new("evir", &key).map_err(|error| error.to_string())?;
@@ -418,6 +418,33 @@ fn shared_provider_path(app: &AppHandle) -> Result<PathBuf, String> {
 #[cfg(not(windows))]
 fn replace_file_atomically(source: &Path, destination: &Path) -> Result<(), String> {
     std::fs::rename(source, destination).map_err(|error| error.to_string())
+}
+
+/// Crash-safe file replacement for workspace writes: write a sibling temp
+/// file, fsync, then swap it in. Unlike truncate-in-place, a crash mid-write
+/// leaves the original intact, and a symlink at the destination is replaced
+/// rather than followed.
+fn write_file_atomically(target: &Path, contents: &str) -> Result<(), String> {
+    let directory = target.parent().ok_or("file has no parent directory")?;
+    let temp = directory.join(format!(
+        ".evir-write-{}-{}.tmp",
+        std::process::id(),
+        uuid_string()
+    ));
+    if let Err(error) = std::fs::write(&temp, contents) {
+        let _ = std::fs::remove_file(&temp);
+        return Err(error.to_string());
+    }
+    let sync = std::fs::File::open(&temp).and_then(|file| file.sync_all());
+    if let Err(error) = sync {
+        let _ = std::fs::remove_file(&temp);
+        return Err(error.to_string());
+    }
+    if let Err(error) = replace_file_atomically(&temp, target) {
+        let _ = std::fs::remove_file(&temp);
+        return Err(error);
+    }
+    Ok(())
 }
 
 #[cfg(windows)]
@@ -521,7 +548,7 @@ fn merge_shared_provider_profiles(
     Ok(merged)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn shared_provider_profiles_read(
     app: AppHandle,
 ) -> Result<Vec<SharedProviderProfile>, String> {
@@ -542,7 +569,7 @@ pub(crate) fn shared_provider_profiles_read(
     Ok(document.providers)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn shared_provider_profiles_write(
     app: AppHandle,
     profiles: Vec<SharedProviderProfile>,
@@ -738,23 +765,30 @@ fn file_info_from_path(path: &Path) -> Result<FileInfo, String> {
     })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn fs_read_file(path: String, workspace_root: String) -> Result<String, String> {
-    std::fs::read_to_string(validate_path_in_workspace(&path, &workspace_root)?)
-        .map_err(|error| error.to_string())
+    use std::io::Read as _;
+    // 1 MiB cap: the tool layer truncates to 100k chars anyway, and an
+    // unbounded read lets a huge file OOM the webview bridge.
+    const MAX_READ_BYTES: u64 = 1 << 20;
+    let mut file = std::fs::File::open(validate_path_in_workspace(&path, &workspace_root)?)
+        .map_err(|error| error.to_string())?;
+    let mut bytes = Vec::with_capacity(8192);
+    let _ = (&mut file).take(MAX_READ_BYTES).read_to_end(&mut bytes);
+    Ok(String::from_utf8_lossy(&bytes).into_owned())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn fs_write_file(
     path: String,
     content: String,
     workspace_root: String,
 ) -> Result<(), String> {
-    std::fs::write(validate_path_in_workspace(&path, &workspace_root)?, content)
-        .map_err(|error| error.to_string())
+    let target = validate_path_in_workspace(&path, &workspace_root)?;
+    write_file_atomically(&target, &content)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn fs_list_dir(path: String, workspace_root: String) -> Result<Vec<FileInfo>, String> {
     let mut files = std::fs::read_dir(validate_path_in_workspace(&path, &workspace_root)?)
         .map_err(|error| error.to_string())?
@@ -767,7 +801,7 @@ pub(crate) fn fs_list_dir(path: String, workspace_root: String) -> Result<Vec<Fi
     Ok(files)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn fs_file_info(path: String, workspace_root: String) -> Result<FileInfo, String> {
     file_info_from_path(&validate_path_in_workspace(&path, &workspace_root)?)
 }
@@ -775,7 +809,7 @@ pub(crate) fn fs_file_info(path: String, workspace_root: String) -> Result<FileI
 /// Resolve the canonical real path of a folder chosen by the user (project
 /// binding and duplicate detection). No workspace containment: the input is
 /// expected to come from the native folder picker.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn fs_real_path(path: String) -> Result<String, String> {
     let validated = validate_path(&path)?;
     std::fs::canonicalize(&validated)
@@ -784,7 +818,7 @@ pub(crate) fn fs_real_path(path: String) -> Result<String, String> {
 }
 
 /// Apply a unified diff patch to a file. Supports simple search-and-replace style patches.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn fs_apply_patch(
     path: String,
     old_content: String,
@@ -798,11 +832,11 @@ pub(crate) fn fs_apply_patch(
         return Err("old_content not found in file — patch cannot be applied".to_owned());
     }
     let patched = current.replacen(&old_content, &new_content, 1);
-    std::fs::write(&validated, patched).map_err(|error| error.to_string())
+    write_file_atomically(&validated, &patched)
 }
 
 /// Search for files by name pattern in a directory tree (max depth 5).
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn fs_search_files(
     path: String,
     pattern: String,
@@ -849,7 +883,7 @@ fn search_recursive(
 
 /// Execute a shell command in the workspace directory.
 /// Uses argument array (no shell interpolation) for safety.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) async fn run_command(
     command_id: String,
     cwd: String,
@@ -901,6 +935,7 @@ fn run_command_blocking(
     if let Some(env_vars) = env {
         cmd.envs(env_vars);
     }
+    cmd.stdin(std::process::Stdio::null());
     cmd.stdout(std::process::Stdio::piped());
     cmd.stderr(std::process::Stdio::piped());
     #[cfg(unix)]
@@ -957,7 +992,7 @@ fn run_command_blocking(
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn cancel_command(command_id: String) -> Result<bool, String> {
     let cancellations = command_cancellations()
         .lock()
@@ -1023,7 +1058,7 @@ fn truncate_string(s: &str, max_len: usize) -> String {
 }
 
 /// Get git status for a directory.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn git_status(path: String, workspace_root: String) -> Result<GitStatusResult, String> {
     let dir = validate_path_in_workspace(&path, &workspace_root)?;
     let git_dir = dir.join(".git");
@@ -1068,7 +1103,7 @@ pub(crate) fn git_status(path: String, workspace_root: String) -> Result<GitStat
 }
 
 /// Get git diff for a directory.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn git_diff(
     path: String,
     staged: bool,
@@ -1101,14 +1136,14 @@ pub struct FileStat {
 }
 
 /// Create a directory (and parents) if it doesn't exist.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn fs_create_directory(path: String, workspace_root: String) -> Result<(), String> {
     let validated = validate_path_in_workspace(&path, &workspace_root)?;
     std::fs::create_dir_all(&validated).map_err(|error| error.to_string())
 }
 
 /// Get detailed file metadata.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn fs_file_stat(path: String, workspace_root: String) -> Result<FileStat, String> {
     let validated = validate_path_in_workspace(&path, &workspace_root)?;
     let metadata = match std::fs::metadata(&validated) {
@@ -1160,7 +1195,7 @@ pub struct SnapshotResult {
 
 /// Create a snapshot of a file before modification.
 /// Saves the original content to app data dir for later restoration.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn fs_create_snapshot(
     app: AppHandle,
     file_path: String,
@@ -1181,10 +1216,7 @@ pub(crate) fn fs_create_snapshot(
 
     let exists = validated.exists();
     let original_hash = if exists {
-        let content = std::fs::read(&validated).map_err(|e| e.to_string())?;
-        let hash = simple_hash(&content);
-        std::fs::write(&snapshot_path, &content).map_err(|e| e.to_string())?;
-        Some(hash)
+        Some(copy_and_hash(&validated, &snapshot_path)?)
     } else {
         None
     };
@@ -1214,7 +1246,7 @@ pub(crate) fn fs_create_snapshot(
 
 /// Seal a snapshot after a successful mutation with the resulting file hash.
 /// Restore uses this hash to avoid overwriting edits made after the Agent run.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn fs_seal_snapshot(
     app: AppHandle,
     snapshot_id: String,
@@ -1240,9 +1272,7 @@ pub(crate) fn fs_seal_snapshot(
         return Err("snapshot target does not match requested file".to_owned());
     }
     let post_hash = if target.exists() {
-        Value::String(simple_hash(
-            &std::fs::read(&target).map_err(|e| e.to_string())?,
-        ))
+        Value::String(hash_file(&target)?)
     } else {
         Value::Null
     };
@@ -1253,7 +1283,7 @@ pub(crate) fn fs_seal_snapshot(
 }
 
 /// Restore a file from a snapshot.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn fs_restore_snapshot(
     app: AppHandle,
     snapshot_id: String,
@@ -1286,9 +1316,7 @@ pub(crate) fn fs_restore_snapshot(
     }
 
     let current_hash = if target.exists() {
-        Some(simple_hash(
-            &std::fs::read(&target).map_err(|e| e.to_string())?,
-        ))
+        Some(hash_file(&target)?)
     } else {
         None
     };
@@ -1341,14 +1369,50 @@ fn confine_snapshot_payload(data_dir: &Path, recorded: &str) -> Result<PathBuf, 
     Ok(payload)
 }
 
-fn simple_hash(data: &[u8]) -> String {
-    // Simple FNV-1a hash for content verification
+/// Streamed FNV-1a over a file (init and multiplier match the historical
+/// in-memory hasher, so sealed snapshot hashes stay comparable) — never holds
+/// the whole file in memory.
+fn hash_file(path: &Path) -> Result<String, String> {
+    use std::io::Read as _;
+    let mut file = std::fs::File::open(path).map_err(|e| e.to_string())?;
     let mut hash: u64 = 0xcbf29ce484222325;
-    for &byte in data {
-        hash ^= byte as u64;
-        hash = hash.wrapping_mul(0x100000001b3);
+    let mut buffer = [0u8; 64 * 1024];
+    loop {
+        let read = file.read(&mut buffer).map_err(|e| e.to_string())?;
+        if read == 0 {
+            break;
+        }
+        for &byte in &buffer[..read] {
+            hash ^= byte as u64;
+            hash = hash.wrapping_mul(0x100000001b3);
+        }
     }
-    format!("{:016x}", hash)
+    Ok(format!("{:016x}", hash))
+}
+
+/// Chunked copy that hashes while streaming, so snapshotting a huge file
+/// cannot OOM the app.
+fn copy_and_hash(source: &Path, destination: &Path) -> Result<String, String> {
+    use std::io::{Read as _, Write as _};
+    let mut input = std::fs::File::open(source).map_err(|e| e.to_string())?;
+    let mut output = std::fs::File::create(destination).map_err(|e| e.to_string())?;
+    let mut hash: u64 = 0xcbf29ce484222325;
+    let mut buffer = [0u8; 64 * 1024];
+    loop {
+        let read = input.read(&mut buffer).map_err(|e| e.to_string())?;
+        if read == 0 {
+            break;
+        }
+        for &byte in &buffer[..read] {
+            hash ^= byte as u64;
+            hash = hash.wrapping_mul(0x100000001b3);
+        }
+        output
+            .write_all(&buffer[..read])
+            .map_err(|e| e.to_string())?;
+    }
+    output.sync_all().map_err(|e| e.to_string())?;
+    Ok(format!("{:016x}", hash))
 }
 
 fn system_time_now_ms() -> u64 {
@@ -1359,6 +1423,71 @@ fn system_time_now_ms() -> u64 {
         .unwrap_or(0)
 }
 
+/// True when a semicolon inside SQL text separates real statements (a second
+/// statement would be silently dropped by prepare/execute without the
+/// `extra_check` feature, so reject it here). String/blob literals and
+/// comments are skipped; identifiers cannot contain raw semicolons.
+fn has_statement_tail(sql: &str) -> bool {
+    let bytes = sql.as_bytes();
+    let mut index = 0;
+    while index < bytes.len() {
+        let byte = bytes[index];
+        match byte {
+            b'\'' | b'"' => {
+                let quote = byte;
+                index += 1;
+                while index < bytes.len() {
+                    if bytes[index] == quote {
+                        if index + 1 < bytes.len() && bytes[index + 1] == quote {
+                            index += 2; // escaped quote
+                            continue;
+                        }
+                        break;
+                    }
+                    index += 1;
+                }
+            }
+            b'-' if index + 1 < bytes.len() && bytes[index + 1] == b'-' => {
+                while index < bytes.len() && bytes[index] != b'\n' {
+                    index += 1;
+                }
+            }
+            b'/' if index + 1 < bytes.len() && bytes[index + 1] == b'*' => {
+                index += 2;
+                while index + 1 < bytes.len() && !(bytes[index] == b'*' && bytes[index + 1] == b'/')
+                {
+                    index += 1;
+                }
+            }
+            b';' => {
+                // Skip whitespace and comments after the separator: a trailing
+                // comment is not a second statement.
+                let mut rest = &sql[index + 1..];
+                loop {
+                    rest = rest.trim_start();
+                    if let Some(stripped) = rest.strip_prefix("--") {
+                        let consumed = stripped.len();
+                        let after = &rest[consumed..];
+                        let newline = after.find('\n').unwrap_or(after.len());
+                        rest = &after[newline..];
+                    } else if rest.starts_with("/*") {
+                        let end = rest.find("*/").map(|at| at + 2).unwrap_or(rest.len());
+                        rest = &rest[end..];
+                    } else {
+                        break;
+                    }
+                }
+                if !rest.is_empty() {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+        index += 1;
+    }
+    false
+}
+
 fn validate_query_sql(sql: &str) -> Result<(), String> {
     let trimmed = sql.trim().to_uppercase();
     if !trimmed.starts_with("SELECT")
@@ -1366,6 +1495,44 @@ fn validate_query_sql(sql: &str) -> Result<(), String> {
         && !trimmed.starts_with("PRAGMA")
     {
         return Err("only SELECT, WITH, and PRAGMA queries are allowed".to_owned());
+    }
+    if trimmed.starts_with("PRAGMA") {
+        // sqlite3_stmt_readonly() reports TRUE for some writing pragmas
+        // (writable_schema), so pragmas get their own read-only allowlist;
+        // an '=' argument makes even an allowlisted pragma a write.
+        const READ_ONLY_PRAGMAS: &[&str] = &[
+            "table_info",
+            "index_list",
+            "index_xinfo",
+            "table_list",
+            "pragma_list",
+            "foreign_keys",
+            "journal_mode",
+            "page_count",
+            "page_size",
+            "encoding",
+            "user_version",
+            "integrity_check",
+            "quick_check",
+        ];
+        let lowered = sql.trim_start().to_lowercase();
+        let rest = lowered
+            .strip_prefix("pragma")
+            .unwrap_or(&lowered)
+            .trim_start();
+        let name = rest
+            .split(|c: char| c.is_whitespace() || c == '(' || c == '=' || c == ';')
+            .next()
+            .unwrap_or("");
+        if !READ_ONLY_PRAGMAS.contains(&name) {
+            return Err("only read-only PRAGMA queries are allowed".to_owned());
+        }
+        if rest.contains('=') {
+            return Err("PRAGMA arguments are not allowed".to_owned());
+        }
+    }
+    if has_statement_tail(sql) {
+        return Err("only a single statement is allowed".to_owned());
     }
     Ok(())
 }
@@ -1378,12 +1545,12 @@ fn validate_update_sql(sql: &str) -> Result<(), String> {
     {
         return Err("only INSERT, UPDATE, and DELETE are allowed".to_owned());
     }
-    let lower = sql.to_lowercase();
-    for keyword in ["drop", "attach", "detach", "pragma", "vacuum", "reindex"] {
-        if lower.contains(keyword) {
-            return Err(format!("{keyword} is not allowed"));
-        }
+    if has_statement_tail(sql) {
+        return Err("only a single statement is allowed".to_owned());
     }
+    // No keyword substring scan: it false-positives on identifiers like a
+    // "drop_reason" column, and the single-statement + prefix rules above are
+    // the actual boundary.
     Ok(())
 }
 
@@ -1641,6 +1808,8 @@ mod tests {
             "SELECT * FROM messages",
             " with recent AS (SELECT 1) SELECT * FROM recent",
             "pragma table_info(messages)",
+            "SELECT ';' AS sep",
+            "SELECT 1; -- trailing comment only",
         ] {
             assert!(
                 validate_query_sql(sql).is_ok(),
@@ -1651,14 +1820,25 @@ mod tests {
             validate_query_sql("DELETE FROM messages"),
             Err("only SELECT, WITH, and PRAGMA queries are allowed".to_owned())
         );
+        // A second statement must error instead of being silently dropped.
+        assert_eq!(
+            validate_query_sql("SELECT 1; DROP TABLE messages"),
+            Err("only a single statement is allowed".to_owned())
+        );
+        assert!(validate_query_sql("SELECT 1; INSERT INTO settings VALUES (1, 'x')").is_err());
+        // sqlite reports some writing pragmas as readonly; the allowlist is the guard.
+        assert!(validate_query_sql("PRAGMA writable_schema = 1").is_err());
+        assert!(validate_query_sql("pragma journal_mode = WAL").is_err());
+        assert!(validate_query_sql("PRAGMA table_info(messages)").is_ok());
     }
 
     #[test]
-    fn update_validation_allows_dml_and_blocks_dangerous_keywords() {
+    fn update_validation_allows_single_dml_statements() {
         for sql in [
             "INSERT INTO settings VALUES (?1, ?2)",
             " update settings SET value = ?1",
             "DELETE FROM settings WHERE name = ?1",
+            "UPDATE settings SET value = 'contains; semicolon' WHERE name = ?1",
         ] {
             assert!(
                 validate_update_sql(sql).is_ok(),
@@ -1668,8 +1848,10 @@ mod tests {
         assert!(validate_update_sql("DROP TABLE settings").is_err());
         assert_eq!(
             validate_update_sql("DELETE FROM settings; VACUUM"),
-            Err("vacuum is not allowed".to_owned())
+            Err("only a single statement is allowed".to_owned())
         );
+        // Identifiers that merely contain a scary substring must not be rejected.
+        assert!(validate_update_sql("UPDATE tickets SET drop_reason = ?1 WHERE id = ?2").is_ok());
     }
 
     #[cfg(unix)]
@@ -1800,7 +1982,7 @@ fn run_git(root: &std::path::Path, args: &[&str]) -> Result<String, String> {
 
 /// Create an isolated git worktree for parallel write execution. Returns the
 /// worktree path. Fails cleanly when the root is not a git repository.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn git_worktree_create(root: String, id: String) -> Result<String, String> {
     validate_component_id("worktree id", &id)?;
     let root_path = validate_path(&root)?;
@@ -1826,7 +2008,7 @@ pub(crate) fn git_worktree_create(root: String, id: String) -> Result<String, St
 
 /// Stage everything inside the worktree and apply the resulting patch back to
 /// the main working tree with a three-way merge. Any conflict fails the merge.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn git_worktree_merge(root: String, id: String) -> Result<(), String> {
     validate_component_id("worktree id", &id)?;
     let root_path = validate_path(&root)?;
@@ -1838,10 +2020,12 @@ pub(crate) fn git_worktree_merge(root: String, id: String) -> Result<(), String>
     }
     let patch_path = worktree.join(".evir-merge.patch");
     std::fs::write(&patch_path, &patch).map_err(|error| error.to_string())?;
+    // NB: the flag is `--3way` (no second hyphen); `--3-way` is an unknown
+    // option, which made every real worktree merge fail until this test.
     let applied = std::process::Command::new("git")
         .arg("-C")
         .arg(&root_path)
-        .args(["apply", "--3-way"])
+        .args(["apply", "--3way"])
         .arg(&patch_path)
         .output()
         .map_err(|error| error.to_string())?;
@@ -1855,7 +2039,7 @@ pub(crate) fn git_worktree_merge(root: String, id: String) -> Result<(), String>
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn git_worktree_remove(root: String, id: String) -> Result<(), String> {
     validate_component_id("worktree id", &id)?;
     let root_path = validate_path(&root)?;
@@ -1871,4 +2055,93 @@ pub(crate) fn git_worktree_remove(root: String, id: String) -> Result<(), String
     );
     let _ = run_git(&root_path, &["branch", "-D", &format!("evir/{}", id)]);
     Ok(())
+}
+
+#[cfg(test)]
+mod worktree_tests {
+    use super::{git_worktree_create, git_worktree_merge, git_worktree_remove};
+
+    fn git_available() -> bool {
+        std::process::Command::new("git")
+            .arg("--version")
+            .output()
+            .map(|output| output.status.success())
+            .unwrap_or(false)
+    }
+
+    fn init_repo(root: &std::path::Path) {
+        let run = |args: &[&str]| {
+            let output = std::process::Command::new("git")
+                .arg("-C")
+                .arg(root)
+                .args(args)
+                .output()
+                .expect("git must spawn");
+            assert!(
+                output.status.success(),
+                "git {:?} failed: {}",
+                args,
+                String::from_utf8_lossy(&output.stderr)
+            );
+        };
+        run(&["init", "--initial-branch=main"]);
+        run(&["config", "user.email", "test@evir.local"]);
+        run(&["config", "user.name", "Evir Test"]);
+        std::fs::write(root.join("README.md"), "base\n").expect("seed file");
+        run(&["add", "-A"]);
+        run(&["commit", "-m", "init"]);
+    }
+
+    #[test]
+    fn worktree_create_merge_remove_round_trip() {
+        if !git_available() {
+            eprintln!("skipping: git binary not available");
+            return;
+        }
+        let suffix = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let root =
+            std::env::temp_dir().join(format!("evir-worktree-{}-{suffix}", std::process::id()));
+        std::fs::create_dir_all(&root).expect("repo dir");
+        init_repo(&root);
+        let root_str = root.to_string_lossy().into_owned();
+
+        // Create → isolated checkout exists with the committed file.
+        let worktree = git_worktree_create(root_str.clone(), "wt-test-1".to_owned())
+            .expect("worktree must be created");
+        assert!(std::path::Path::new(&worktree).join("README.md").exists());
+        assert!(worktree.contains(".evir-worktrees"));
+
+        // Merge → writes made inside the worktree land in the main tree.
+        std::fs::write(
+            std::path::Path::new(&worktree).join("feature.txt"),
+            "isolated write\n",
+        )
+        .expect("worktree write");
+        git_worktree_merge(root_str.clone(), "wt-test-1".to_owned())
+            .expect("merge must apply the patch");
+        assert!(root.join("feature.txt").exists());
+
+        // Remove → the worktree directory and its branch are cleaned up.
+        git_worktree_remove(root_str, "wt-test-1".to_owned()).expect("worktree must be removed");
+        assert!(!std::path::Path::new(&worktree).exists());
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn worktree_create_fails_outside_a_git_repository() {
+        let suffix = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("evir-nowt-{}-{suffix}", std::process::id()));
+        std::fs::create_dir_all(&root).expect("plain dir");
+        let error = git_worktree_create(root.to_string_lossy().into_owned(), "wt-plain".to_owned())
+            .expect_err("non-repo must fail");
+        assert!(error.contains("failed"), "unexpected error: {error}");
+        let _ = std::fs::remove_dir_all(&root);
+    }
 }

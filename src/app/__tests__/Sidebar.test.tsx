@@ -4,24 +4,28 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const deleteConversation = vi.fn<(id: string) => Promise<void>>();
 
+const chatState = {
+  conversations: [
+    {
+      id: "conversation-1",
+      title: "产品讨论",
+      providerId: "provider-1",
+      modelId: "model-1",
+      createdAt: 1,
+      updatedAt: 1,
+    },
+  ],
+  currentConversationId: null as string | null,
+  selectConversation: vi.fn(),
+  deleteConversation,
+  renameConversation: vi.fn(),
+  togglePin: vi.fn(),
+  createConversation: vi.fn(),
+};
+
 vi.mock("../../features/chat/chat-store", () => ({
-  useChatStore: () => ({
-    conversations: [
-      {
-        id: "conversation-1",
-        title: "产品讨论",
-        providerId: "provider-1",
-        modelId: "model-1",
-        createdAt: 1,
-        updatedAt: 1,
-      },
-    ],
-    currentConversationId: null,
-    selectConversation: vi.fn(),
-    deleteConversation,
-    renameConversation: vi.fn(),
-    togglePin: vi.fn(),
-  }),
+  useChatStore: (selector?: (state: typeof chatState) => unknown) =>
+    selector ? selector(chatState) : chatState,
 }));
 
 vi.mock("../../features/projects/project-store", () => ({

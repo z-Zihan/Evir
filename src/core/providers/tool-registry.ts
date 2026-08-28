@@ -51,10 +51,11 @@ export type InteractionMode = "ask" | "plan" | "goal" | "agent";
 // derive from this tuple so a new mode cannot be added to the union alone.
 export const INTERACTION_MODES = ["ask", "plan", "goal", "agent"] as const;
 
-// Modes whose execution path issues tool calls to the provider; used as the
-// tool-calling capability gate. Plan mode also *runs* L1 tools, so the model
-// switch coordinator keeps its stricter "!== ask" check on purpose.
-export const MODES_REQUIRING_TOOL_CALLING = ["agent", "goal"] as const;
+// Modes whose execution path issues tool calls to the provider. Every special
+// mode runs tools (plan = L1 read-only, agent/goal = full loop), so they all
+// require a tool-calling model; text-only models are downgraded to ask by
+// effectiveModeForModel before reaching the stream.
+export const MODES_REQUIRING_TOOL_CALLING = ["plan", "goal", "agent"] as const;
 
 export function requiresToolCalling(mode: InteractionMode): boolean {
   return (MODES_REQUIRING_TOOL_CALLING as readonly string[]).includes(mode);
