@@ -8,12 +8,12 @@ Evir 不建设云端业务后端，但仍需要在用户电脑保存会话、消
 
 ## 2. 分层存储
 
-- Keychain/Credential Manager：API Key、Token、敏感 Header。
+- 加密 Secret Vault：API Key、Token、敏感 Header 存放于应用数据目录的 `secret-vault.json`（AES-256-GCM，条目绑定 key 名与 OS 用户，0600 权限、原子写）。**不使用 OS Keychain/Credential Manager**：开发期 ad-hoc 签名的重建二进制每次都会重新触发 macOS 钥匙串 ACL 弹窗，拒绝即等于丢失 Key；加密文件跨重建稳定且无任何系统弹窗。威胁模型如实声明：防随手翻看与误分享，不防能读取本开源派生方案的定向本地攻击者。
 - 轻量配置：语言、主题、窗口、功能开关。
 - SQLite Adapter：结构化记录和索引。
 - Artifact Store：附件、完整日志、Diff、快照、生成文件、备份。
 - Memory/Temporary Adapter：隐私会话与可丢弃数据。
-- Shared Provider Profile：Desktop/CLI 共用的版本化非敏感 `providers.json`；API Key 仍只在 Keychain/Credential Manager。
+- Shared Provider Profile：Desktop/CLI 共用的版本化非敏感 `providers.json`；API Key 仍只在加密 Secret Vault（Desktop）。
 - VS Code Extension Storage：独立保存扩展 Provider 元数据、会话和最后写入记录；API Key 进入 VS Code SecretStorage，不读取 Shared Provider Profile。
 
 UI、Agent Core、Skill 和 MCP 只能依赖 Storage Port，不得直接写 SQL。

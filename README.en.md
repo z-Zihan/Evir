@@ -43,7 +43,7 @@ Every project picks one of three levels: **Ask for Approval** (default; writes n
 
 ## Bring your own model
 
-Providers, protocols, and model capabilities are separate layers: 36 built-in presets for international and Chinese vendors, 7 implemented protocol adapters (OpenAI Chat Completions / Responses, Anthropic Messages, Gemini, Azure OpenAI, native Ollama, OpenAI-compatible), and custom compatible endpoints. API keys live in the OS credential store and never enter logs.
+Providers, protocols, and model capabilities are separate layers: 36 built-in presets for international and Chinese vendors, 7 implemented protocol adapters (OpenAI Chat Completions / Responses, Anthropic Messages, Gemini, Azure OpenAI, native Ollama, OpenAI-compatible), and custom compatible endpoints. API keys live in a local encrypted vault (AES-256-GCM, no OS keychain dependency) and never enter logs.
 
 ![Provider settings: multiple vendors, models, capability badges](assets/readme/provider-settings.png)
 
@@ -62,14 +62,14 @@ Capabilities (streaming, tool calling, vision, structured output) are shown befo
 
 - **Web**: a static-file chat client that talks straight from the browser to your providers, with no Evir backend; CORS-limited endpoints are detected and called out.
 - **VS Code** (Preview): a standalone VSIX with keys in VS Code SecretStorage; per-call approval for writes and commands plus diff/rollback for the last write. VS Code Web / Remote / MCP / Skills are not supported yet.
-- **CLI** (Preview): a standalone `evir` command (configure / doctor / ask / agent) that shares non-secret provider profiles and OS credentials with Desktop without requiring it to run.
+- **CLI** (Preview): a standalone `evir` command (configure / doctor / ask / agent) that shares non-secret provider profiles with Desktop (secrets are stored independently) without requiring it to run.
 
 ![Evir Web: multi-model chat with Markdown, tables, and code](assets/readme/web-chat.png)
 
 ## Local-first and diagnosable
 
 ```text
-API keys            → OS secure credential store
+API keys            → local encrypted vault (AES-256-GCM)
 Provider config     → versioned non-secret local files
 Chats / runs / memory → embedded local storage (SQLite / IndexedDB)
 Logs / diffs / snapshots → local artifact directory
@@ -86,7 +86,7 @@ Tauri 2 without a bundled Chromium; Skill bodies, MCP, and settings panels load 
 
 ## Current status
 
-Evir is under active development and **not released yet** (no LICENSE file yet — see License below). The core paths — chat, agent tools and approvals, Plan/Goal, permission levels, snapshot/rollback, MCP connections, logging and diagnostics export — are implemented and covered by 682 TypeScript tests + 37 Rust tests plus the E2E/visual/a11y matrix, with real-provider (GLM) and native macOS multi-tool runs verified on hardware; the 2026-08-28 native pass re-verified provider setup, CJK/space project paths, plan confirmation, L3 per-action approval writing to real disk, and restart persistence. The per-item verification status (including the NOT RUN list — Windows, 30–60 min agent tasks, upgrade/downgrade, and more) lives in [Release Readiness](docs/release-readiness.md); VS Code and CLI are Preview. Installers are ad-hoc signed by default (they run fine, but after each rebuild the first access to a previously stored API Key asks for Keychain re-authorization — this disappears with proper release signing); Developer ID signing/notarization is an optional enhancement.
+Evir is under active development and **not released yet** (no LICENSE file yet — see License below). The core paths — chat, agent tools and approvals, Plan/Goal, permission levels, snapshot/rollback, MCP connections, logging and diagnostics export — are implemented and covered by 682 TypeScript tests + 43 Rust tests plus the E2E/visual/a11y matrix, with real-provider (GLM) and native macOS multi-tool runs verified on hardware; the 2026-08-28 native pass re-verified provider setup, CJK/space project paths, plan confirmation, L3 per-action approval writing to real disk, and restart persistence. The per-item verification status (including the NOT RUN list — Windows, 30–60 min agent tasks, upgrade/downgrade, and more) lives in [Release Readiness](docs/release-readiness.md); VS Code and CLI are Preview. API keys live in a local encrypted vault, so rebuilds no longer trigger OS keychain re-authorization. Installers are ad-hoc signed by default (they run fine); Developer ID signing/notarization is an optional enhancement.
 
 ## Development
 

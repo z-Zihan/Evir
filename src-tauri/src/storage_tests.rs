@@ -110,7 +110,8 @@ fn legacy_provider_api_keys_are_scrubbed_on_init() {
     let conn = init_db(&directory).expect("database must re-initialize");
     let rows = execute_query(&conn, "SELECT api_key FROM providers WHERE id = 'p1'", &[])
         .expect("provider row must be readable");
-    // The secret lives in the keychain; the table must never retain it.
+    // The secret lives in the encrypted secret vault; the table must never
+    // retain it.
     assert_eq!(rows[0]["api_key"], json!(""));
 
     drop(conn);

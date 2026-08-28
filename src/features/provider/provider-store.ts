@@ -138,9 +138,9 @@ async function syncSharedProfiles(
 async function hydrateProviderSecret(provider: ProviderRecord): Promise<ProviderRecord> {
   if (!isNativeDesktopRuntime()) return provider;
   try {
-    // Keychain reads can block on a macOS ACL prompt for a rebuilt binary;
-    // never let that hang provider loading — a missing key only means the
-    // next request asks for the key again.
+    // Secure-store reads are local file operations (encrypted vault), but
+    // keep a defensive timeout so provider loading can never hang on slow
+    // storage — a missing key only means the next request asks for it again.
     const apiKey = await Promise.race([
       getRuntime().storage?.keychainGet(providerSecretKey(provider.id)),
       new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 1_500)),

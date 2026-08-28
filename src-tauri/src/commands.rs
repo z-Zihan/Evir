@@ -11,12 +11,14 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use keyring::Entry;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{AppHandle, Manager};
 
-use crate::storage::{self, DatabaseState};
+use crate::{
+    secret_vault,
+    storage::{self, DatabaseState},
+};
 
 // Keep in sync with EntityName in src/core/storage/storage-port.ts (the web
 // adapter intentionally supports only the Dexie-backed subset).
@@ -375,35 +377,29 @@ fn validate_key(key: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Backed by the local encrypted vault (`secret_vault.rs`), never the OS
+/// keychain: ad-hoc-signed rebuilds kept re-triggering the macOS keychain ACL
+/// prompt, which could silently lose the key. The command names stay stable
+/// for the TS storage bridge.
 #[tauri::command(async)]
-pub(crate) fn keychain_set(key: String, value: String) -> Result<(), String> {
+pub(crate) fn keychain_set(app: AppHandle, key: String, value: String) -> Result<(), String> {
     validate_key(&key)?;
-    let entry = Entry::new("evir", &key).map_err(|error| error.to_string())?;
-    entry
-        .set_password(&value)
-        .map_err(|error| error.to_string())
+    let path = secret_vault::vault_path(&app_data_dir(&app)?);
+    secret_vault::set(&path, &key, &value)
 }
 
 #[tauri::command(async)]
-pub(crate) fn keychain_get(key: String) -> Result<Option<String>, String> {
+pub(crate) fn keychain_get(app: AppHandle, key: String) -> Result<Option<String>, String> {
     validate_key(&key)?;
-    let entry = Entry::new("evir", &key).map_err(|error| error.to_string())?;
-    match entry.get_password() {
-        Ok(value) => Ok(Some(value)),
-        Err(keyring::Error::NoEntry) => Ok(None),
-        Err(error) => Err(error.to_string()),
-    }
+    let path = secret_vault::vault_path(&app_data_dir(&app)?);
+    secret_vault::get(&path, &key)
 }
 
 #[tauri::command(async)]
-pub(crate) fn keychain_delete(key: String) -> Result<(), String> {
+pub(crate) fn keychain_delete(app: AppHandle, key: String) -> Result<(), String> {
     validate_key(&key)?;
-    let entry = Entry::new("evir", &key).map_err(|error| error.to_string())?;
-    match entry.delete_credential() {
-        Ok(()) => Ok(()),
-        Err(keyring::Error::NoEntry) => Ok(()),
-        Err(error) => Err(error.to_string()),
-    }
+    let path = secret_vault::vault_path(&app_data_dir(&app)?);
+    secret_vault::delete(&path, &key)
 }
 
 fn shared_provider_path(app: &AppHandle) -> Result<PathBuf, String> {
@@ -1638,30 +1634,6 @@ mod tests {
 
         assert_eq!(consumed.load(Ordering::SeqCst), 16);
         assert_eq!(output, "xxxxxxxxxxxxxxxx");
-    }
-
-    #[test]
-    #[cfg(target_os = "macos")]
-    fn keyring_uses_native_macos_backend() {
-        let entry = keyring::Entry::new("evir-backend-test", "provider-test")
-            .expect("native Keychain entry should be constructible");
-        assert!(
-            entry.get_credential().is::<keyring::macos::MacCredential>(),
-            "keyring must not silently fall back to the in-memory mock backend"
-        );
-    }
-
-    #[test]
-    #[cfg(windows)]
-    fn keyring_uses_native_windows_backend() {
-        let entry = keyring::Entry::new("evir-backend-test", "provider-test")
-            .expect("native Credential Manager entry should be constructible");
-        assert!(
-            entry
-                .get_credential()
-                .is::<keyring::windows::WinCredential>(),
-            "keyring must not silently fall back to the in-memory mock backend"
-        );
     }
 
     #[test]

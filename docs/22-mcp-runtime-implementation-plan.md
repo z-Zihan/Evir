@@ -59,7 +59,7 @@ The list shows transport, state, tool count, last successful connection, and a s
 ## 5. Security and trust decisions
 
 - New servers remain disabled. Starting a local executable or contacting a new remote destination requires explicit user intent.
-- Rust clears the inherited environment and restores only an allowlisted operational baseline plus values resolved from Keychain references. Secrets never cross persistence or logs as plain configuration.
+- Rust clears the inherited environment and restores only an allowlisted operational baseline plus values resolved from secure-store references (local encrypted vault). Secrets never cross persistence or logs as plain configuration.
 - Each discovered tool uses source `mcp-local` or `mcp-remote`, required capability `localMcp`, and a conservative risk level. Later per-tool policy can narrow risk; server claims cannot lower it.
 - Remote calls are subject to network destination and local-data-upload policy. Tool Registry and ToolExecutor remain authoritative; prompts cannot bypass them.
 - Wire messages, schemas, descriptions, cursors, content blocks, headers, and errors are untrusted. Validate types, cap sizes/counts, and redact before logging.

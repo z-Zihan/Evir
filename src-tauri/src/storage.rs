@@ -75,8 +75,8 @@ pub fn init_db(app_data_dir: &Path) -> Result<Connection> {
         "#,
     )?;
     // Migration 3: pre-entity-storage builds could leave plaintext API keys in
-    // the legacy providers table; current code always stores '' (the keychain
-    // holds the secret). Scrub any leftover once, idempotently.
+    // the legacy providers table; current code always stores '' (the encrypted
+    // secret vault holds the secret). Scrub any leftover once, idempotently.
     conn.execute_batch(
         r#"
         UPDATE providers SET api_key = '' WHERE api_key != '';

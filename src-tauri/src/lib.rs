@@ -6,6 +6,9 @@ mod mcp_stdio;
 mod mcp_stdio_process;
 #[cfg(all(test, unix))]
 mod mcp_stdio_process_tests;
+mod secret_vault;
+#[cfg(test)]
+mod secret_vault_tests;
 mod storage;
 
 #[cfg(test)]

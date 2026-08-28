@@ -16,7 +16,7 @@
 - Validation：Zod
 - Web storage：IndexedDB（Dexie）
 - Desktop structured storage：嵌入式 SQLite（默认 Adapter，无独立数据库服务）
-- Secrets：系统 Keychain/Credential Manager
+- Secrets：本地加密 Vault（AES-256-GCM `secret-vault.json`；不使用 OS Keychain，见 docs/09 §2）
 - Markdown：react-markdown + remark-gfm；Shiki 按需加载
 - Test：Vitest + Testing Library + Playwright；Desktop 补充 Rust tests 和 Tauri E2E
 
@@ -289,11 +289,11 @@ Desktop Provider Store ─┐
                         ├─ providers.json（非敏感、版本化）
 CLI Config Store ───────┘
 
-Desktop Keychain Adapter ─┐
-                          ├─ OS Credential Store
-CLI Credential Adapter ───┘   service=evir
-                              account=provider:<id>:api-key
+Desktop Secure Store ──── secret-vault.json（AES-256-GCM，条目=provider:<id>:api-key）
+CLI Credential Adapter ─ OS Credential Store   service=evir（CLI 面）
 ```
+
+Desktop 的 `keychain_*` Tauri 命令由本地加密 Vault 支持，完全不触碰 OS Keychain：重建/重打包不会触发 macOS 钥匙串弹窗，也不会丢失已存 Key。
 
 CLI 的凭据优先级为 `EVIR_API_KEY` → 系统安全凭据。Desktop 继续以 SQLite 保存完整结构化 Provider 记录，并在加载时按 `updatedAt` 合并共享 Profile；旧 CLI `config.json` 只读兼容，在下次 `configure` 时迁移。VS Code 扩展仍使用隔离的 SecretStorage，不读取这一桌面级共享文件。
 

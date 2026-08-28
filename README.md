@@ -51,7 +51,7 @@ Desktop 侧栏分为 **PROJECTS** 和 **CHATS** 两区。一个 Project 对应�
 
 ## 自带模型（BYOM）
 
-Provider、协议、模型能力三层分离：内置 36 家国内外厂商预设，已实现 7 种协议适配器（OpenAI Chat Completions / Responses、Anthropic Messages、Gemini、Azure OpenAI、Ollama 原生、OpenAI-compatible），支持自定义兼容端点。API Key 存系统安全凭据库，密钥永远不进日志。
+Provider、协议、模型能力三层分离：内置 36 家国内外厂商预设，已实现 7 种协议适配器（OpenAI Chat Completions / Responses、Anthropic Messages、Gemini、Azure OpenAI、Ollama 原生、OpenAI-compatible），支持自定义兼容端点。API Key 存本地加密 vault（AES-256-GCM，不依赖系统钥匙串），密钥永远不进日志。
 
 ![Provider 设置：多厂商、多模型、能力标记](assets/readme/provider-settings.png)
 
@@ -70,14 +70,14 @@ Provider、协议、模型能力三层分离：内置 36 家国内外厂商预�
 
 - **Web**：静态部署即用的聊天客户端，浏览器直连模型 API，无 Evir 后端；部分厂商限制浏览器 CORS 时会明确提示。
 - **VS Code**（Preview）：独立 VSIX，密钥存 VS Code SecretStorage；写入与命令逐次审批，最后一次写入支持 Diff 与回滚。VS Code Web / Remote / MCP / Skill 暂不支持。
-- **CLI**（Preview）：独立 `evir` 命令（configure / doctor / ask / agent），与 Desktop 共享非敏感 Provider 配置与系统凭据，不要求 Desktop 运行。
+- **CLI**（Preview）：独立 `evir` 命令（configure / doctor / ask / agent），与 Desktop 共享非敏感 Provider 配置（密钥各自独立存储），不要求 Desktop 运行。
 
 ![Evir Web：多模型聊天，Markdown / 表格 / 代码](assets/readme/web-chat.png)
 
 ## 本地优先与可诊断
 
 ```text
-API Key            → 系统安全凭据库
+API Key            → 本地加密 vault（AES-256-GCM）
 Provider 配置       → 版本化非敏感本地文件
 会话 / 任务 / 记忆  → 嵌入式本地存储（SQLite / IndexedDB）
 日志 / Diff / 快照  → 本地文件目录
@@ -94,7 +94,7 @@ Tauri 2，不内置完整 Chromium；Skill 正文、MCP、设置面板按需加�
 
 ## 当前状态
 
-Evir 仍在积极开发中，**尚未发布**（无 LICENSE 文件，见下方 License 说明）。核心链路（聊天、Agent 工具与审批、Plan/Goal、权限档位、快照回滚、MCP 连接、日志与诊断导出）已实现并有 682 个 TypeScript 测试 + 37 个 Rust 测试 + E2E/视觉/无障碍矩阵覆盖，真实 Provider（GLM）与 macOS 原生多工具任务已有历史实机验收；2026-08-28 原生复验通过配置 Provider、中文/空格路径项目、计划确认、L3 逐次审批写入真实磁盘与重启持久化。**逐项验证状态（含 NOT RUN 清单）以 [Release Readiness](docs/release-readiness.md) 为准**：Windows、30–60 分钟长任务、升级/降级等尚未验证；VS Code 与 CLI 为 Preview。安装包默认 ad-hoc 签名（可正常运行，但每次重建后首次访问旧 API Key 需在系统弹窗重新授权，正式签名后消失）；Developer ID 签名/公证为可选增强。
+Evir 仍在积极开发中，**尚未发布**（无 LICENSE 文件，见下方 License 说明）。核心链路（聊天、Agent 工具与审批、Plan/Goal、权限档位、快照回滚、MCP 连接、日志与诊断导出）已实现并有 682 个 TypeScript 测试 + 43 个 Rust 测试 + E2E/视觉/无障碍矩阵覆盖，真实 Provider（GLM）与 macOS 原生多工具任务已有历史实机验收；2026-08-28 原生复验通过配置 Provider、中文/空格路径项目、计划确认、L3 逐次审批写入真实磁盘与重启持久化。**逐项验证状态（含 NOT RUN 清单）以 [Release Readiness](docs/release-readiness.md) 为准**：Windows、30–60 分钟长任务、升级/降级等尚未验证；VS Code 与 CLI 为 Preview。API Key 存本地加密 vault，重建后无需重新授权系统钥匙串。安装包默认 ad-hoc 签名（可正常运行）；Developer ID 签名/公证为可选增强。
 
 ## 本地开发
 

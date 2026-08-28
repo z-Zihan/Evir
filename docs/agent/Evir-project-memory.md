@@ -22,7 +22,7 @@
 - 依赖方向：Types → Config → Repository → Service → Runtime → UI。UI 不得直接调用 Provider SDK、Tauri 命令、SQLite、Shell、Keychain、MCP 进程或日志文件（走 Port/Adapter）。
 - 存储：Feature stores 统一经 `StoragePort`；Web = IndexedDB（Dexie），Desktop = SQLite（`app_entities` 结构化实体，位于 `~/Library/Application Support/com.zihan.evir/evir.db`；providers/projects/conversations/messages/run 系列等）。
 - 工作目录单一真相：`core/workspace/active-root`；Run 期压栈，整跑与审批续跑绑定 originating root，切项目不污染活动 Run。
-- Provider 三层分离：Preset（36 家）→ Protocol Adapter（7 种已实现：OpenAI Chat Completions / Responses、Anthropic Messages、Gemini、Azure OpenAI、Ollama 原生、OpenAI-compatible）→ Model Profile。API Key 存系统凭据库，永不入日志。
+- Provider 三层分离：Preset（36 家）→ Protocol Adapter（7 种已实现：OpenAI Chat Completions / Responses、Anthropic Messages、Gemini、Azure OpenAI、Ollama 原生、OpenAI-compatible）→ Model Profile。API Key 存本地加密 vault（Rust `secret_vault.rs`，AES-256-GCM + OS 用户绑定派生密钥；不再使用 OS 钥匙串——ad-hoc 重建会触发 ACL 弹窗），永不入日志。
 - Harness 中间件（规范化/模式策略/能力门/上下文预算/Skill 路由/工具策略/循环检测/检查点/验证/可观测）各自可独立测试与移除；Tool Policy 是宿主保护项。
 
 ## 4. Runtime / Agent Model
@@ -49,7 +49,7 @@
 ## 6. Current Test Baseline（2026-08-28，门禁当日全绿）
 
 - `pnpm check`（format + ESLint + strict TS + vitest + release workflow 校验 + VS Code + CLI）：**682 TS** 用例 / **8 VS Code** / **8 CLI** 全过。
-- `pnpm test:rust`：**37 Rust** 用例全过；cargo fmt / clippy 干净。
+- `pnpm test:rust`：**43 Rust** 用例全过（含 7 个 secret vault 用例）；cargo fmt / clippy 干净。
 - E2E core（fixture，web+desktop）：40 过 / 10 能力跳过；UI 矩阵 2/2、视觉 6/6、a11y 18/18（2026-08-28 上午批次）。
 - Benchmark 预算全过：Web 初始 gzip 290.3 KiB、桌面前端 2.69 MiB（`docs/benchmarks/latest.json`）。
 - 原生 macOS arm64 实测（release 构建）：冷启动 0.84s、空闲内存 ~71 MB、空闲 CPU 0%。
@@ -62,7 +62,7 @@
 3. VS Code Marketplace publisher 与 CLI npm 发布通道未配置。
 4. 30–60 分钟 Agent 长任务、20–50 轮长对话原生实测 NOT RUN。
 
-已知非阻塞行为：ad-hoc 重建二进制首次访问旧 API Key 会弹 macOS 钥串授权框（provider-store.ts 有 1.5s 超时缓解；正式 Developer ID 签名后消失）。已知未修小缺陷：Provider“设为默认”被系统弹窗拒绝后可能出现双 `isDefault=true`（低概率，建议补事务性修复）。
+已知非阻塞事项：密钥自 2026-08-28 起存本地加密 vault（重建无弹窗）；既有钥匙串旧密钥不自动迁移，用户需重新输入一次。已知未修小缺陷：Provider“设为默认”被系统弹窗拒绝后可能出现双 `isDefault=true`（低概率，建议补事务性修复）。
 
 ## 8. Canonical Documentation
 
