@@ -4,11 +4,12 @@
 
 ## 当前状态与基线
 
-| 要找什么                         | 去哪里                                                                                           |
-| -------------------------------- | ------------------------------------------------------------------------------------------------ |
-| 项目是什么、安装使用             | 根目录 `README.md` / `README.en.md`                                                              |
-| 当前门禁基线、实现状态、已知缺口 | [`agent/Evir-project-memory.md`](agent/Evir-project-memory.md)（高密度索引，细节以原始文档为准） |
-| Coding Agent 规范                | 根目录 `AGENTS.md`                                                                               |
+| 要找什么                                      | 去哪里                                                                               |
+| --------------------------------------------- | ------------------------------------------------------------------------------------ |
+| 项目是什么、安装使用                          | 根目录 `README.md` / `README.en.md`                                                  |
+| 当前高密度事实索引（产品模型/架构/能力/约束） | [`agent/Evir-project-memory.md`](agent/Evir-project-memory.md)（索引，不创建新事实） |
+| 当前逐项验证状态（PASS/NOT RUN/BLOCKED）      | [`release-readiness.md`](release-readiness.md)                                       |
+| Coding Agent 规范                             | 根目录 `AGENTS.md`                                                                   |
 
 ## 正式文档（当前规范）
 
@@ -36,15 +37,15 @@
 | CLI 产品与技术规格                                            | [`20-cli-product-and-technical-specification.md`](20-cli-product-and-technical-specification.md)                                         |
 | Component Runtime                                             | [`21-composable-component-runtime.md`](21-composable-component-runtime.md)                                                               |
 | MCP Runtime 实现（§9 为当前状态）                             | [`22-mcp-runtime-implementation-plan.md`](22-mcp-runtime-implementation-plan.md)                                                         |
-| 全项目测试用例与执行记录                                      | [`23-full-project-test-cases.md`](23-full-project-test-cases.md)                                                                         |
+| 测试策略（层级/触发/通过标准）                                | [`testing.md`](testing.md)                                                                                                               |
+| 全项目测试用例目录                                            | [`23-full-project-test-cases.md`](23-full-project-test-cases.md)                                                                         |
 | 高级 Agent 能力清单与边界                                     | [`advanced-agent-capabilities-plan.md`](advanced-agent-capabilities-plan.md)                                                             |
 
 ## 参考与历史（不是规范）
 
-| 位置                                               | 内容                                                        |
-| -------------------------------------------------- | ----------------------------------------------------------- |
-| [`references/`](references/)                       | Harness Engineering 外部资料原文                            |
-| [`reviews/`](reviews/)                             | 2026-08-06/07/11 QA 快照与 VS Code/CLI 评审（均带历史标记） |
-| [`archive/`](archive/)                             | 根目录一次性报告与已被取代的设计文档（2026-08-28 移入）     |
-| `../prompts/`                                      | 项目启动期历史 Prompt                                       |
-| [`benchmarks/latest.json`](benchmarks/latest.json) | 最近一次产物体积基准                                        |
+| 位置                                               | 内容                                                                         |
+| -------------------------------------------------- | ---------------------------------------------------------------------------- |
+| [`references/`](references/)                       | Harness Engineering 外部资料原文                                             |
+| [`reviews/`](reviews/)                             | 2026-08-06/07/11 QA 快照与 VS Code/CLI 评审（均带历史标记）                  |
+| [`archive/`](archive/)                             | 一次性报告、历史设计文档、项目记忆历次版本、启动期 Prompt 与历史测试执行记录 |
+| [`benchmarks/latest.json`](benchmarks/latest.json) | 最近一次产物体积基准                                                         |

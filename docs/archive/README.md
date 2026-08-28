@@ -14,6 +14,9 @@
 | 文件                                      | 内容                                                                                  |
 | ----------------------------------------- | ------------------------------------------------------------------------------------- |
 | `project-chat-agent-redesign.md`          | 2026-08-27 Project/Chat/Agent 重构实现设计（历史方案；当前信息架构以 `docs/01` 为准） |
+| `project-memory-history.md`               | 项目记忆历次版本全文（含发展史与逐轮 Changelog；当前索引在 `docs/agent/`）            |
+| `prompts-coding-agent-master-prompt.md`   | 项目启动期（2026-08-05）Codex 引导 Prompt                                             |
+| `test-execution-records-2026-08.md`       | docs/23 曾内嵌的 2026-08-25/26 真实 Provider/GUI 执行记录                             |
 | `ADVANCED_AGENT_BENCHMARK_REPORT.md`      | Single vs Multi-Agent 基准（诚实 NOT RUN 记录）                                       |
 | `ADVANCED_AGENT_CHANGELOG.md`             | 高级 Agent 能力升级变更记录                                                           |
 | `ADVANCED_AGENT_REGRESSION_REPORT.md`     | 高级 Agent 能力升级回归报告                                                           |

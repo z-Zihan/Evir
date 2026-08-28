@@ -1,21 +1,17 @@
 name: Quality
 
+# Daily quality gate for every PR targeting main and every push to main.
+# Packaging/signing/artifacts run only on release tags (release.yml); size
+# budgets run separately on main pushes (benchmark.yml). Commands reuse the
+# package scripts so local and CI run the identical gate.
 on:
+  pull_request:
+    branches: [main]
   push:
-    tags: ["v*.*.*"]
+    branches: [main]
 
 jobs:
-  validate-tag:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - run: node scripts/validate-release-tag.mjs "${{ github.ref_name }}"
-
-  frontend:
-    needs: validate-tag
+  quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,27 +20,11 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
       - run: pnpm install --no-frozen-lockfile
-      - run: pnpm check
-      - run: pnpm build:web
-      - run: pnpm build:vscode
-      - run: pnpm build:cli
-      - run: pnpm --dir packages/cli test:smoke
-
-  vscode-package:
-    needs: validate-tag
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm package:vscode
-      - run: xvfb-run -a pnpm --dir extensions/vscode test:host
-      - uses: actions/upload-artifact@v4
-        with:
-          name: evir-vscode-vsix
-          path: extensions/vscode/artifacts/evir.vsix
+      - name: Quality gate (format/lint/typecheck/unit+integration/Rust/VS Code/CLI/workflow validation)
+        run: pnpm check
+      - name: Web build sanity
+        run: pnpm build:web

@@ -1,3 +1,6 @@
+> **Status: Historical / Archived — Not a source of truth.**
+> 项目启动期（2026-08-05）的 Codex 引导 Prompt，早已不是当前开发流程。当前 Agent 入口：根目录 `AGENTS.md`。
+
 # Evir Coding Agent 续建总 Prompt（V6）
 
 > **Historical（2026-08-05 项目启动总 Prompt）**：本文件是初始工程引导材料，仅作历史参考。当前 Coding Agent 入口是根目录 `AGENTS.md` 与 `docs/agent/Evir-project-memory.md`；本文的行数上限等工程参数以 `docs/05-engineering-standards.md` 现行版为准。

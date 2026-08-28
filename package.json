@@ -23,6 +23,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
+    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
     "test:e2e": "playwright test --project=web-e2e --project=desktop-e2e e2e/core.spec.ts",
     "test:ui": "playwright test --project=web-ui --project=desktop-ui e2e/ui-matrix.spec.ts",
     "test:visual": "playwright test --project=web-visual --project=desktop-visual e2e/visual.spec.ts",
@@ -30,7 +31,7 @@
     "test:a11y": "playwright test --project=web-a11y --project=desktop-a11y e2e/accessibility.spec.ts",
     "test:stress": "playwright test --project=web-e2e --project=desktop-e2e e2e/stress-boundary.spec.ts",
     "benchmark": "node scripts/benchmark.mjs",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm release:validate-workflow && pnpm --dir extensions/vscode check && pnpm --dir packages/cli check",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:rust && pnpm release:validate-workflow && pnpm --dir extensions/vscode check && pnpm --dir packages/cli check",
     "tauri": "tauri",
     "dev": "tauri dev"
   },

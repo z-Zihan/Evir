@@ -1,0 +1,395 @@
+> **Status: Historical / Archived — Not a source of truth.**
+> 本文件是项目记忆的历次版本全文归档（含发展历史、逐轮 Changelog 与阶段性状态），仅作历史证据。
+> 当前事实来源：`docs/agent/Evir-project-memory.md`（高密度当前事实索引）与 `docs/` 正式文档。
+
+# Evir Project Memory
+
+> Scope: This memory applies only to the Evir repository.
+> Repository: git@github.com:z-Zihan/Evir.git
+> Last reviewed baseline: 3e8bebd + 2026-08-27 working tree
+> Last updated: 2026-08-28
+
+## 1. Product Identity
+
+Evir 是本地优先、BYOM 的多模型 AI 客户端与通用 Agent。同一代码库产出 Web（静态聊天客户端）、Desktop（Tauri 2 Agent）、Evir for VS Code（独立 VSIX）和 Evir CLI（独立 `evir` 命令）。无账号、无积分、无广告、无强制业务后端。接入一个支持 Tool Calling 的模型即可开始 Desktop/VS Code/CLI Agent；后三者有各自宿主权限与存储边界。
+
+## 2. Non-Negotiable Product Principles
+
+- 操作简单、方便、快捷；性能快、稳定、轻量
+- UI 干净、克制、去 AI 模板感；主交互路径不复杂
+- 高级能力按需出现，不污染主界面
+- 数据默认本地；用户可停止 Agent；高风险操作必须审批
+- 不得用 Mock、Port、类型或静态 UI 冒充功能完成
+- 文档优先级：用户要求 > AGENTS.md > docs/18 > docs/01 > docs/12 > 专项文档 > 架构 > 设计 > 工程 > 开发计划 > README > references/
+
+## 3. Primary User Flow
+
+添加 Provider → 输入 API Key → 选择模型 → 测试连接 → Web Ask 或 Desktop Ask/Agent → 输入任务 → 必要时授权 → 执行
+
+主页面只保留：当前模型、Web Ask 或 Desktop Ask/Agent、会话、输入框、发送/停止、任务状态和审批。Plan 是 Agent 内部只读阶段。
+
+## 4. Product Surface Boundaries
+
+- Web：浏览器直连 API，受 CORS 限制；无本地工具/Shell/MCP
+- Desktop：Tauri 2 + Rust；Agent、文件系统、终端、Git、Skill，以及 MCP Runtime（stdio + Streamable HTTP 已实现，见 docs/22 §9）
+- Web API Key 默认仅内存；Desktop 存本地加密 Vault（`secret-vault.json`，AES-256-GCM；勿改回 OS 钥匙串——ad-hoc 重建会反复弹 ACL 授权框）
+- VS Code：独立 Extension Host/Webview；密钥仅存 VS Code SecretStorage，不读取 Desktop/CLI 共享配置；首版只支持本地受信任 Workspace
+- CLI：独立 Node 进程；与 Desktop 共享版本化非敏感 Provider Profile 和 OS Credential account，不要求 Desktop 安装或运行
+
+## 5. Architecture and Dependency Direction
+
+Types → Config → Repository/Port → Service/Use Case → Runtime/Adapter → UI
+
+- UI 不直接访问数据库、Provider SDK、Tauri Command、Shell
+- Port 必须有真实 Adapter 和用户入口才算功能完成
+- Feature stores 统一经 `StoragePort`；Web 使用 IndexedDB Adapter，真实 Tauri Desktop 使用 SQLite-backed structured storage，浏览器 Desktop Runtime 回退 IndexedDB
+
+## 6. Runtime and Capability Rules
+
+- EvirRuntime 区分 Web/Desktop，按 Capability 注册工具
+- Ask 不主动操作本地资源；Plan 只读检查；Agent 权限控制执行
+- Tool Registry 按模式和风险过滤，非仅 Prompt 约束
+- Web/Desktop Runtime 通过可信内置 Component Runtime 组装工具与 Harness Middleware；Manifest 依赖不授予权限，Tool Policy 是宿主保护项，Tool Registry、审批和 Tauri 边界继续强制执行
+
+## 7. Provider and Protocol Rules
+
+- Provider Preset → Protocol Adapter → Model Profile 三层分离
+- 真实流式输出（fetch + SSE），禁止假打字机
+- 错误统一映射 12 种 ProviderErrorType
+- Agent 模式要求模型支持 Tool Calling
+- 模型切换经 ModelSwitchCoordinator + 安全检查点
+- 不默认跨 Provider 自动降级
+
+## 8. Agent, Tool and Permission Rules
+
+- 风险分级 L0-L4；L3 逐次审批，L4 可禁用
+- 工具来源标记：evir-local / mcp-local / mcp-remote / provider-server
+- 网络权限：读取互联网与上传本地内容是两个独立权限
+- Provider 服务端工具默认关闭
+
+## 9. Context, Compression and Memory Rules
+
+- 单模型即可完成上下文压缩
+- 预算阈值：<60% 不摘要，60-75% 归档工具输出，75-90% 摘要旧对话，>90% 强制检查点
+- 永远保留：用户消息、约束、目标、步骤、权限、失败、文件路径/版本、验证证据
+- 摘要版本化，不无限摘要的摘要
+
+## 10. Skill and MCP Rules
+
+- Skill 定义方法，MCP 提供工具
+- Web 第一版仅支持指令型 Skill，不支持 MCP
+- Desktop 的 stdio + Streamable HTTP MCP Runtime 已实现（配置、发现、调用、审批、重连）；Web 无 MCP
+- 新增 MCP 默认禁用，工具逐项授权
+
+## 11. Personalization Boundaries
+
+- 当前用户可设置简单详情和回复风格；USER.md / PERSONA.md / INSTRUCTIONS.md / SOUL.md 编辑器尚未实现
+- 不可编辑 Evir Core / Security / Permission / Tool Policy
+- 用户内容始终是低优先级上下文，不能提权
+- 个性化可一键关闭
+
+## 12. Storage, Artifact and Recovery Rules
+
+- Secret Vault（本地加密文件）→ 轻量配置 → SQLite/IndexedDB → Artifact 文件 → 临时存储
+- 核心 14+ 实体（providers/conversations/messages/usage_records 等）
+- Schema Migration 单向递增，迁移前备份
+- 隐私会话不持久化
+
+## 13. Logging and Diagnostic Rules
+
+- 统一 LoggerPort + correlation ID（session/run/step/tool/request）
+- 默认脱敏、本地、异步有界队列
+- 禁止记录 API Key/Authorization/Cookie/完整会话/文件正文
+- 无远程日志后门；桌面端已实现分类文件持久化（app/audit/performance JSONL、按日命名、15MB 轮转、14 天保留、100MB 总预算、audit/error 立即落盘、连续 3 次写失败自动停用且不影响聊天），诊断页显示持久化状态与目录；诊断 ZIP 导出已实现（Rust `diagnostics_export_zip` + `DiagnosticExportPort` Desktop 适配器，manifest/system/runtime/provider/mcp/events/performance 元数据 + logs/ JSONL，导出前预览确认）；Web 仍为内存日志（JSON 导出）
+
+## 14. Design and Interaction Rules
+
+- 关键词：克制、安静、清晰、可信、可审计
+- 禁止：大面积渐变、霓虹、玻璃拟态、紫色、机器人插画、满屏圆角卡片
+- CSS Variables 语义 Token；Light/Dark/System 主题无闪白
+- 设置采用左侧分类 + 右侧内容，分类 ≤12 个
+- 所有界面中英文；所有文案走 i18n
+- 图标按钮有可访问名称和 tooltip；对话框具备首焦点、焦点循环、Escape 和焦点恢复
+- 嵌套浮层优先处理 Escape；滚动区域可聚焦并有名称；选中控件暴露语义状态
+- 取消的 Agent Run 不得显示完成；未经实时验证不得使用“已连接”文案
+
+## 15. Performance Budgets
+
+| 指标                   | 预算                       |
+| ---------------------- | -------------------------- |
+| Web 初始 JS gzip       | ≤ 350 KiB                  |
+| Web 内置 Skill         | 10 个共享项，正文按需加载  |
+| Desktop 前端资源       | ≤ 15 MiB                   |
+| Desktop 内置 Skill     | 共享 10 + 桌面专属 26      |
+| 流式首 Token 显示      | ≤ 100ms                    |
+| Desktop 冷启动 P50     | < 2s                       |
+| 空闲内存               | ≤ 150 MB                   |
+| 空闲 CPU               | < 1%                       |
+| Desktop 安装产物目标   | ≤ 120 MiB                  |
+| 安装产物回归警戒线     | 180 MiB                    |
+| 当前实际 Web 初始 gzip | 320.38 KiB（2026-08-27）✅ |
+| 当前 Desktop 前端资源  | 2.94 MiB（2026-08-27）✅   |
+
+## 16. Engineering Standards
+
+- React 组件 ≤600 行；Hook/Store ≤600 行；TS 模块 ≤600 行；函数 ≤200 行
+- TypeScript strict；禁止 any；禁止空 catch；禁止万能 Store
+- 外部输入用 Zod 验证
+- 所有长任务支持 AbortSignal
+- PR 门禁：format + ESLint + strict TS + tests + build
+- 当前 636 TS tests + 25 Rust tests pass（2026-08-27）
+
+## 17. Current Implementation Status
+
+**已真实实现：**
+
+- StoragePort 分层存储：Web IndexedDB；真实 Tauri Desktop SQLite structured entities
+- OpenAI Chat Completions Adapter（真实 fetch + SSE 流式）
+- OpenAI Compatible Chat Adapter
+- Provider Store（Zod 验证 + IndexedDB + 测试连接）
+- Chat Store + Chat Stream（真实流式、停止生成、32ms 批量 UI、Usage 记录）
+- Sidebar（会话列表、新建/删除/选择）
+- ChatView（Markdown 渲染、流式实时显示、停止生成、错误展示）
+- ProviderSettings（添加/删除/设默认/测试连接表单）
+- SettingsModal
+- i18n 中英文完整
+- Light/Dark/System 主题
+- 架构结构测试（8 项依赖方向检查 + i18n key 完整性）
+- Adapter 测试（10 项）
+- 重新生成 / 编辑重试
+- Agent Loop + Tool Registry（read_file, list_directory, write_file）
+- Component Runtime（Manifest、依赖拓扑、幂等 LIFO EffectScope、定向重载、配置启停与失败回滚）；filesystem/terminal/git 工具已迁移为三个内置组件
+- L3 工具审批流（Approve/Deny 按钮接线）
+- 会话分支（从任意消息 fork）
+- 模型切换 UI（inline dropdown）
+- Skill 系统（Registry + Store + Settings UI + Prompt 注入）
+- 共享 helpers（chat-helpers.ts）
+- MCP Server 配置（Store + Settings UI）；页面明确不代表已连接
+- Context Budget Manager + Tool Output 压缩
+- Sidebar 会话列表（新建/删除/选择/置顶/重命名；会话搜索已在 R4-T3 重构中移除）
+- Shortcuts 设置面板（平台感知格式化）
+- Privacy 设置面板（清除本地数据 + 事务保护）
+- 共享 platform.ts（isMac + currentPlatform）
+
+**阶段 2 新增：**
+
+- 工作区系统（WorkspaceSelector + Runtime 封装的 Tauri directory picker）
+- 13 个本地工具（read/write/list/search/patch/stat/mkdir/snapshot/restore + run_command + git_status/diff）
+- 符号链接逃逸检测 + workspace 边界验证
+- 文件快照与回滚（FNV-1a Hash + 冲突检测）
+- Agent Loop 循环检测（6 次警告 / 12 次停止）
+- 验证循环（自动检测项目类型 → 运行 check/test/build）
+- AgentRunSummary UI（文件变更/命令结果/验证/Diff/错误）
+- Tauri capabilities（dialog/fs/shell/store 权限）
+- Desktop 已启动验证（pnpm dev:desktop ✅）
+
+**阶段 3 新增：**
+
+- LLM 对话摘要（>75% 自动用模型压缩旧消息，保留目标/约束/文件路径/命令/错误）
+- 记忆系统（会话/工作区/全局 + pinned + 隐私会话 + Dexie 持久化）
+- MemorySettings UI（设置面板 memory tab，增删改查+置顶）
+- Checkpoint（>90% 自动保存 + 崩溃恢复检测 + clearCheckpoint）
+- 模型切换 Handoff（buildHandoffMessage 保留目标/步骤/错误）
+- crash-recovery.ts（findUnfinishedRuns 扫描中断的 checkpoint）
+- 隐私会话 toggle（Sidebar 🔒/🔓 按钮，跳过记忆注入）
+
+**阶段 4 新增：**
+
+- Skill 创建/删除/导入（skill-store: importSkill/createSkill/deleteSkill）
+- Skill 路由器（中英文精选触发词 + 相关性排序 + 每轮最多 3 个 + 匹配原因）
+- SkillSettings UI 升级（创建表单 + 删除按钮 + 源标记）
+- 路由接入 stream-response（<skill_routing> XML 注入）
+- About 面板（版本号、描述、GitHub 链接、许可证）
+- 对话置顶 + 内联重命名（双击/按钮，Enter/Escape/blur）
+- Markdown 导出（单对话 .md，角色标签 + 附件列表）
+- 自动标题生成（首条消息截断 30 字）
+- 删除对话确认弹窗
+- 消息复制按钮（clipboard + 1.5s 反馈）
+- 会话列表按 updatedAt 降序排序
+
+**2026-08-27 新增：**
+
+- 日志文件持久化（Logger LogSink 批量异步队列 + FileLogSink，桌面 appData/logs 分类分文件；误脱敏白名单修复 firstTokenMs/tokensPerSecond；工具执行与 Agent Run durationMs 全链路补齐并在 UI 展示）
+- Markdown 渲染升级（MarkdownContent.tsx：无语言代码块也带复制按钮、表格滚动容器、图片点击 Lightbox、视频链接内联播放、KaTeX 数学公式按需懒加载）
+- 聊天 UI 收敛（用户气泡 fit-content 自适应宽度、消息区去横向滚动条、AgentActivity 卡片 640px 上限 + 每步耗时展示）
+- 底层网络库 src/core/net/http-client.ts（超时/重试/错误归一/认证头注入/路径级日志，为将来后端接口预留，未接业务）
+
+**部分实现：**
+
+- 智能任务编排已具备 Task Brief、自适应澄清、结构化 Planner、DAG/资源锁 Scheduler、事件持久化、六个内置子图、同模型受限子 Agent 和任务工作台；确定性自动化已接入，真实 Provider + 原生 Desktop 完整任务尚未验收，不能标为发布完成
+- ModelSwitchCoordinator、ContextBuilder、Logger、StoragePort 和 Harness 各层已有实现/测试；完整中间件注册与执行编排已接入，真实跨 Provider 和文件日志仍需继续验证或实现
+- Personalization 目前是简单偏好；Notification 和命令面板未实现
+- VS Code 已有配置、Ask、停止、Workspace Agent、审批、Diff/最后写入回滚与真实 Host/Light/Dark 证据；Agent step/tool/verification/completion Activity、High Contrast 和完整本地化未完成
+- CLI 已有 configure/doctor/ask/agent、stdin、SIGINT、工作区边界、逐次审批、共享 Profile/Keyring、smoke/tarball；友好配置错误、中英文、JSON/JSONL、稳定退出码和 Agent 运行证据未完成
+
+**2026-08-27 重构新增：** Project 实体与 Sidebar Projects/Chats、Permission Profiles（ask/workspace/full + Additional Access Roots）、Plan/Goal 一等模式、active-root 运行隔离。详见 docs/archive/project-chat-agent-redesign.md。
+
+**2026-08-27 文档轮新增：**
+
+- 诊断 ZIP 导出：Rust `diagnostics_logs_overview`/`diagnostics_export_zip` 命令（zip crate，deflate），`DiagnosticExportPort` 首个真实适配器 `DesktopDiagnosticsExport`（runtime 层），`buildDiagnosticsMetadataFiles` 纯构建器（system/runtime/provider/mcp/events/performance 元数据，全部经 redactLogValue 递归脱敏），诊断页新增"导出诊断包 (ZIP)"（桌面专属，导出前预览文件数/体积并确认，取消与失败有独立文案与日志事件）；诊断包结构 manifest.json + 元数据 + logs/*.jsonl（+可选 crash/）
+
+**未实现：**
+
+- MCP Agent 会话内审批取证、HTTP 传输 WebView CORS 策略、外部真实 Server 与 Windows 验收（Runtime 本体已实现）
+- 通知、命令面板、应用内帮助/反馈和高级 Markdown 个性化编辑器
+- GitHub Issue 诊断包预填流程（docs/17 §11）
+- 更多 Provider 协议（15 种 ID 中 8 种待实现：Bedrock、Mistral Native、Cohere v2、Vertex 等）
+
+## 18. Current Development Stage
+
+阶段 0 ✅ 完成
+阶段 1（Provider 与纯净聊天 MVP）🔧 92% — 确定性自动化完成，真实多 Provider 网络验收未重复
+阶段 2（Desktop Agent 与本地工具）🔧 78% — 12 工具+快照+循环检测+验证+UI，原生真实任务未验收
+阶段 3（上下文压缩与记忆）✅ 完成 — LLM 摘要+记忆系统+Checkpoint+Handoff+隐私会话+崩溃恢复
+阶段 4（Skill 系统）🔧 核心完成 — 路由+创建/删除/导入；Web 10 个共享社区精选 Skill，Desktop 额外 26 个扩展 Skill；支持分类搜索与下一条消息显式选择，正文按需懒加载
+阶段 S（稳定性与体验整改）✅ 仓库内确定性范围完成；真实原生/外部发布门槛未全部通过
+
+## 19. Verified User Capabilities
+
+用户当前可以：添加 Provider（7 种协议适配器已实现）→ 测试连接 → 获取模型列表 → 新建会话/创建 Project → 发送消息/附件 → 看到流式回复 → 停止生成 → 刷新恢复 → 快捷键操作 → 查看 Usage 统计 → 分类错误展示 → 拖拽上传图片/文本附件 → 历史附件参与多轮对话 → 会话导出/导入 → Web Ask / Desktop Project Thread（默认 Project Task 按需使用 Agent 工具，Plan/Goal 显式特殊模式 + Execute Plan）/ Standalone Chat（恒 Ask）→ 项目级 Permission Profile（ask/workspace/full）→ 个性化设置 → 切换中英文/主题 → 重新生成/编辑消息 → 会话分支 → 模型切换 → Agent 工具审批 → Skill 启用/禁用 → 导出诊断 ZIP（桌面）。
+
+2026-08-07 自动化证据：338 TypeScript tests、7 Rust tests、24 E2E pass + 6 Web capability skips、358 UI screenshots、6 visual baselines、16 accessibility tests。macOS debug 原生应用已启动；本轮 Mac 锁屏，未声明原生窗口交互通过。
+
+## 20. Known Gaps and Risks
+
+1. MCP Runtime 已实现（stdio 持久子进程 + Streamable HTTP、发现、调用、重连、审批，见 docs/22 原生物证）；剩余缺口：模型发起的 Agent 会话内 MCP 审批事实待取证、HTTP 传输依赖端点 CORS 策略（浏览器 WebView fetch 限制）
+2. Desktop Agent 原生真实端到端验收待完成（工作区修改、验证、Diff、回滚和系统权限）
+3. macOS Developer ID 签名未配置（可选增强，非发布门禁）；`signingIdentity: "-"` 已使 ad-hoc 非签名包可正常产出（Evir.app + DMG 实测通过，DMG 6.2 MiB）；Windows 未验证
+4. Web 主包已完成拆分（入口 + vendor 分包 + 13 个设置面板/TaskWorkbench 懒加载），初始 JS gzip 277.5 KiB；懒加载首开在高负载下需显式等待（e2e 已修）
+5. 真实付费 Provider、跨 Provider 网络和超时条件未在本轮自动化执行
+6. Desktop 冷启动分位、空闲 CPU/内存和大输出性能未正式测量
+7. 手工 VoiceOver/屏幕阅读器验收未完成
+8. VS Code Marketplace/Open VSX 的 Publisher、许可证、隐私、安装升级与 High Contrast 尚未验收
+9. CLI macOS/Windows/Linux Keyring 与安装升级未验收；当前缺参数 configure 会输出原始 Zod JSON
+10. Release workflow 已显式拆分 macOS Apple Silicon `aarch64-apple-darwin` 与 Intel `x86_64-apple-darwin`；真实 Tag 构建、非签名包两类实体机安装仍需验收（签名/公证为可选增强）
+
+## 21. Active Decisions
+
+- 完成 2026-08-12 社区 Skill 精选库后，当前优先级回到阶段 S 真实验收；不继续无边界扩张 Provider、Skill、MCP 或 Computer Use
+- Web 使用 IndexedDB；真实 Tauri Desktop 的结构化实体走 SQLite Adapter
+- Web 只提供聊天/附件；Desktop 信息架构为 Sidebar PROJECTS/CHATS + 默认 Project Task（按需使用 Agent 工具）+ Composer 显式 Plan/Goal，Standalone Chat 恒为 Ask
+- Tool Registry 与 Tauri 命令双层强制工作区边界；清除工作区立即撤销本地工具范围
+- 流式 UI 使用 animation frame 批量刷新
+
+## 22. Next Vertical Slice
+
+1. 使用测试工作区完成原生 Desktop 多工具任务和回滚验收
+2. 使用真实 Provider 验证聊天、错误、超时与跨 Provider 数据去向
+3. 补测 Desktop 冷启动、空闲 CPU/内存、长会话和大输出
+4. 在 Windows Runner 环境完成非签名包安装包验收（macOS ad-hoc 包已可本地产出）
+5. 在 Agent 会话内取证模型发起的 MCP 工具审批闭环（设置页工具测试已验证），并决定 HTTP CORS 兼容策略
+
+## 23. Relevant Source Documents
+
+- [AGENTS.md](../../AGENTS.md)
+- [docs/01-product-requirements.md](../01-product-requirements.md)
+- [docs/02-technical-architecture.md](../02-technical-architecture.md)
+- [docs/04-design-specification.md](../04-design-specification.md)
+- [docs/05-engineering-standards.md](../05-engineering-standards.md)
+- [docs/06-development-plan.md](../06-development-plan.md)
+- [docs/10-streaming-and-performance.md](../10-streaming-and-performance.md)
+- [docs/13-provider-and-protocol-matrix.md](../13-provider-and-protocol-matrix.md)
+- [docs/15-final-experience-model-switching-and-context.md](../15-final-experience-model-switching-and-context.md)
+- [docs/16-harness-engineering-for-evir.md](../16-harness-engineering-for-evir.md)
+- [docs/17-local-logging-and-diagnostics.md](../17-local-logging-and-diagnostics.md)
+- [docs/18-final-product-review-v6.md](../18-final-product-review-v6.md)
+- [docs/19-vscode-extension-and-editor-roadmap.md](../19-vscode-extension-and-editor-roadmap.md)
+- [docs/20-cli-product-and-technical-specification.md](../20-cli-product-and-technical-specification.md)
+- [docs/21-composable-component-runtime.md](../21-composable-component-runtime.md)
+- [docs/reviews/vscode-cli-product-ui-review.md](../reviews/vscode-cli-product-ui-review.md)
+
+## 24. Update Log
+
+- 2026-08-28 | working tree | Secret 存储改为纯本地加密 Vault（用户决策：无存量用户，不做任何 OS Keychain 迁移）：新增 `src-tauri/src/secret_vault.rs`（AES-256-GCM，`secret-vault.json` 于 app data dir，HKDF 派生密钥绑定固定 pepper+OS 用户，条目 key 名作 AAD 防密文互换，0600 权限+tmp+rename 原子写，值上限 64KiB，进程内 Mutex 串行化）；`keychain_set/get/delete` 三个 Tauri 命令由 Vault 支撑（命令名与 TS 桥接不变，UI 零改动），**移除 keyring 依赖**，应用完全不触碰 OS Keychain。动机与竞品结论：Cherry Studio/ChatBox/LobeChat 客户端均本地明文存储（零弹窗）；ad-hoc 重建二进制每次触发 macOS ACL 授权框（真机实测：拒绝后 Provider key 丢失）且拒绝即丢 key。文档同步：docs/09 §2、docs/02（Secrets 行+共享图）、docs/23 PRO-019、docs/22 §5、本记忆 §4/§12。新增 7 个 vault 测试（roundtrip/密文非明文/0600/AAD 防换/跨用户不可解/重启持久/值上限）；真机验收：release 重建后启动，旧项目/会话/Provider 配置完整、零系统弹窗，API key 在 UI 重输一次后入 vault（旧 Keychain 条目成为孤儿，可手动删除）。已知限制：两实例并发写 vault 为 last-writer-wins；OS 用户改名后旧密文不可解（表现为要求重输 key）。
+
+- 2026-08-28 | working tree | 发布前收口轮（仓库治理 + 原生复验）：根目录 17 个一次性报告与 project-chat-agent-redesign.md 归档至 docs/archive/（带 Status 横幅，引用全部更新）；design/ 过程稿入 docs/archive/design/，help/ 移至 docs/help/；新增 docs/README.md 主题→权威文档导航；AGENTS.md 必读从 9 份减为 2 份（项目记忆 + docs/README 路由）；删除死代码 WorkspaceSelector（组件+专属 CSS+测试），补 chat.modes.goalDesc 双语 key 并纳入架构测试必查；fixture 服务器（e2e/fixtures/provider-server.mjs）新增 [agent-task]/[agent-recovery] 脚本化 tool_calls 支持（零配额原生 Agent 验证）；README 数字实测校正（36 家预设/682 TS+37 Rust/Web gzip 290.3KiB/桌面前端 2.69MiB/原生冷启动 0.84s/空闲内存 71MB/CPU 0%）+ VS Code/CLI 标注 Preview。原生实测（com.zihan.evir release 构建）：配置 Provider→测试连接→中文空格路径建项目→计划确认门→只读 inspect 节点真实读盘→只读分类下 write_file 被步骤权限诚实拒绝→change 分类任务走 计划确认→L3 审批卡（拒绝/本次允许）→批准后真实写盘 fixture-report.md→读回验证→重启持久化；钥匙串发现：ad-hoc 重建二进制首访旧 Provider 密钥会弹系统授权框（provider-store.ts 已有注释与 1.5s 超时缓解；拒绝后切换诚实报"操作失败"）；发现"设为默认"被拒绝后可出现双 isDefault=true（低概率数据一致性，未修，报告已记）。测试数据已全部还原（DB 备份 /tmp/evir-db-backup-20260828/）。门禁：682 TS + 8 VSCode + 8 CLI + 37 Rust + fmt/clippy + E2E 40 过/10 能力跳过 全绿。NOT RUN：Goal 长时任务、回滚按钮点击（用户在桌前主动停止 GUI）、Windows。
+
+- 2026-08-27 | working tree | 文档体系审计 + 诊断 ZIP 导出 + README 重写（见 docs/archive/DOCUMENTATION_AUDIT_REPORT.md / docs/archive/README_REFRESH_REPORT.md）：实现诊断 ZIP（Rust diagnostics_* 命令 + zip crate、DiagnosticExportPort Desktop 适配器、诊断页导出按钮含预览确认，636 TS + 25 Rust 全绿）；修正全仓 14 处重构前旧产品模型残留（README/docs01-23/help/AGENTS.md/memory 自身矛盾）；MCP/文件日志"未实现"过时声明全部更正；reviews/ 与 prompts/ 标记历史快照；README 中英重写为 Projects/Chats + Agent/Plan/Goal 模型并配真实截图（assets/readme/）；删除文档 0（无候选满足安全删除条件）
+
+- 2026-08-27 | working tree | Project/Chat/Agent 信息架构重构（设计文档 docs/archive/project-chat-agent-redesign.md；变更 docs/archive/PROJECT_CHAT_AGENT_CHANGELOG.md；回归 docs/archive/PROJECT_CHAT_AGENT_REGRESSION_REPORT.md）：Project 成为稳定实体（UUID+realpath 去重+重绑保 ID/threads；projects 实体入 Dexie v8/SQLite/Rust allowlist，新增 fs_real_path 命令）；Conversation 显式 projectId（Standalone=ask-only，首个 Project 出现后 legacy workspace 永久退出解析）；Sidebar 重构为 PROJECTS/CHATS（Pin/Rename/Sort/Search/Locate/Remove+Folder-not-found）；Composer 移除 WorkspaceSelector，Mode（Agent/Plan/Goal）入 Composer 紧凑区且无 tool-calling 时禁用引导换模型；workspace 单一真相 core/workspace/active-root（run 期压栈，agent-loop/编排整跑/审批续跑均绑定 originating root，切项目不污染活动 Run）；Permission Profiles（ask/workspace/full，full 首开确认绝不默认；executor 层接入+词法 .. 防穿越+多根路径校验+Rust root==file 放宽+permission.auto-approved 审计）；Plan 一等模式（L1 只读 Registry 强制+Execute Plan 同线程转 Agent+run 记录持久化 mode）；Goal 模式（doneWhen 解析入 TaskBrief+TaskWorkbench 目标横幅，复用编排 pause/resume）；修复：answer-only run 被自动验证误标 failed（仅真实写变更触发）、AgentRunSummary 旧 workspace-store 依赖。回归：600 TS+19 cargo+35 e2e+UI 矩阵+视觉基线（侧栏有意更新）+a11y 18+web 277.5KiB/桌面前端 2691KiB 预算内；NOT RUN：新 Sidebar/Picker/重绑/Goal 的原生实机走查与真实 Provider 验证
+
+- 2026-08-27 | working tree | 签名降级为可选增强：`signingIdentity: "-"` 使 ad-hoc 非签名包可正常构建（Evir.app + DMG 6.2MiB 实测），全部文档把签名/公证从发布必要项改为 P2 可选；Web 主包拆分：manualChunks 分离 react/markdown/data vendor，13 个设置面板与 TaskWorkbench 改为懒加载，初始 JS gzip 320→277.5 KiB，基线已随仓库更新；needs_verification 根因治理：自动验证从 UI 层（AgentRunSummary useEffect）迁移到数据层 `finalizeAutomaticVerification`（run 持久化后立即触发，编排任务不再依赖摘要组件渲染），带 DI 注入与结构化日志 agent.auto-verification-*；MCP 项目记忆修正（Runtime 已实现，剩 Agent 会话审批取证与 CORS 决策两个缺口）
+
+- 2026-08-27 | working tree | 原生日志持久化落地并实测（com.zihan.evir/logs/app-YYYY-MM-DD.jsonl 真实事件落盘）；四端回归全绿（569 TS 测试、35 e2e、CLI/VSCode check、Web gzip 320.38KiB、桌面前端 2.94MiB）；原生 GUI 抽查通过：用户气泡自适应宽度、无横向滚动条、Skill 使用标记（本轮使用 + Architecture Decision Record）与连续 assistant 消息分组；修复 firstTokenMs 误脱敏、无语言代码块丢失复制按钮；新增 MarkdownContent（Lightbox/视频/KaTeX 懒加载）、HttpClient 网络库与压缩/Skill 路由日志触发测试；dev 构建无 bundle 身份导致 computer-use 坐标/键盘路径不可用（仅 AXPress 可用），系统 VPN 悬浮窗会拦截像素点击
+
+- 2026-08-26 | working tree | 原生桌面实测全链路（配置→计划确认→节点隔离→L3 审批→真实磁盘写入→验证器拒信模型文字→部分完成）；随后修复：工具被步骤权限拦截时改用"当前步骤未授权"文案（不再误称浏览器模式）；脏表单 Esc/背景点击先确认丢弃；Provider 输入关闭系统自动纠正；获取模型始终显示成功/失败反馈；新增结构化日志（tool-call-blocked / approval.requested|granted|denied / orchestration.node-started|node-finished|model-plan-rejected / provider.fetch-models-*）；任务步骤列表升级为时间线样式（连接线/完成态划线/运行态高亮），澄清卡片改为对话式轻样式
+- 2026-08-26 | working tree | 全功能 GUI 点击审查后收口：移除未接线的 `command-palette`（⌘K）与 `open-workspace`（⌘⇧O）死快捷键及其文案/分组（展示层与实际能力一致，均为 6 个已接线快捷键）；清理 sidebar 搜索与 shortcuts 残留 i18n 死键；项目记忆更正"侧栏搜索"过时声明（该功能已在 R4-T3 移除）
+
+- 2026-08-13 | working tree | 新增智能任务理解与多 Agent 编排：结构化 Brief/Plan、关键澄清、事件优先存储、DAG/资源锁、检查点暂停恢复、同模型受限 Worker、内置子图和聊天内任务工作台；真实 Provider/原生 Desktop 闭环仍待外部验收
+- 2026-08-12 | working tree | Harness Middleware 接入 Component Runtime：新增固定顺序 Registry；Input/Mode/Capability/Context/Skill/Memory/Loop/Checkpoint/Verification/Observability 均以可卸载组件运行；Tool Policy 为宿主 protected 项；执行路径、独立禁用和失败回滚有回归测试
+- 2026-08-12 | working tree | 新增可信内置 Component Runtime；Desktop filesystem/terminal/git 工具从静态循环迁移为可配置组件，支持依赖拓扑、幂等 LIFO 卸载、定向重载和失败回滚；第三方任意代码加载与组件管理 UI 不在第一阶段范围
+- 2026-08-12 | working tree | Web/Desktop 性能与 Skill 构建边界拆分：Web 保留 10 个共享 Skill 和 350KiB 初始 JS gzip 门禁；Desktop 提供 26 个桌面扩展 Skill、3MiB 前端资源预算和 120/180MiB 安装包目标/警戒；产物分别输出到 `dist/web`、`dist/desktop`
+- 2026-08-12 | working tree | Desktop 精选库扩展为 36 个 Skill；新增分类/搜索、用户自定义分类、输入框按消息显式选择、Ask 能力过滤、上下文预算与 Trigger 冲突测试；全部默认关闭，不设固定自动激活数量上限
+- 2026-08-12 | working tree | 内置 Skill 重构为 10 个社区精选 Evir 适配版；移除 3 个依赖缺失旁文件、外部状态目录或多 Agent 集群的旧项；新增作者/仓库/许可证/上游 Commit 元数据、第三方声明、中英文触发和正文懒加载
+
+- 2026-08-11 | working tree | Release workflow 增加 macOS arm64/x64 双 target 与架构化 Artifact，文档补充 M 芯片/Intel 下载选择和双架构发布门禁；真实 Tag、签名、公证和实体机安装仍待外部验收
+- 2026-08-11 | working tree | 补齐 VS Code/CLI 的核心 PRD、技术架构、设计、工程、开发、发布和专项规格；基于真实 VS Code Light/Dark 截图及 CLI 输出完成产品/UI 评审，明确运行证据、能力验证、CLI 错误/语言/机器输出等发布前缺口
+
+- 2026-08-07 | working tree | 全量 UI/UX/产品逻辑整改：P0/P1 开放项 0；338 TS + 7 Rust tests；24 E2E + 358 screenshots + 6 visual + 16 a11y；补充 390×844 与 900×500 紧凑布局，Desktop SQLite structured storage、Agent 证据持久化、工作区 Runtime 边界、对话框/键盘/取消态和文档真实性收口
+
+- 2026-08-06 | working tree | 阶段 S 自动化与体验整改：298 TS + 5 Rust tests；9 E2E + 48 UI screenshots + 6 visual + 4 a11y；工作区 P0 边界、Web/Desktop 能力、确认对话框、对比度、设置键盘与 Desktop 文案修复；Web gzip 271.08 KB
+
+- 2026-08-05 | 5b5bcbd | 创建项目记忆；阶段0完成 + 聊天垂直切片完成 + P0/P1 修复完成；22 tests pass；Web gzip 184.96 KB
+- 2026-08-05 | 82f20f3 | Anthropic Messages Adapter + 模型发现 + 快捷键监听 + review 修复；30 tests pass；Web gzip 186.94 KB
+- 2026-08-05 | 1e7b804 | Usage 统计面板 + 会话搜索 + 错误分类展示（12 种 ProviderErrorType）；30 tests pass；Web gzip 189.05 KB
+- 2026-08-05 | e915a22 | 附件支持（图片/文本/拖拽/4 协议多模态）+ Gemini Adapter + OpenAI Responses Adapter + review 修复；63 tests pass；Web gzip 192.04 KB
+- 2026-08-05 | 2046d54 | 历史附件参与多轮请求 + 会话导出/导入 + 模式切换 + 个性化设置；65 tests pass；阶段1 完成
+- 2026-08-05 | 57eee0c | Desktop Tauri Rust 端基础（SQLite/Keychain/文件系统）；1 Rust test + 65 TS tests pass；review 发现 5 P0（安全）+ 7 P1
+- 2026-08-06 | c535f0a | 重新生成 + 编辑重试（stream-response.ts 共享 helper, send-message 重构, ChatMessage 组件）；79 tests pass
+- 2026-08-06 | 797e4ac | Agent Loop + Tool Registry（tool-registry-impl, tool-executor, local-file-tools, agent-loop, ToolCallCard UI）；91 tests pass
+- 2026-08-06 | dcfe3c9 | Agent Loop P0+P1 review 修复（路径遍历防护, L3 权限, DI, onDelta 修复）；92 tests pass
+- 2026-08-06 | 8601edf | Agent Loop P2 review 修复（draft sync, modeHint i18n, Approve/Deny 按钮 UI）；92 tests pass
+- 2026-08-06 | 698f10c | 会话分支（parentConversationId, branchConversation, ChatMessage branch 按钮）；100 tests pass
+- 2026-08-06 | b8492c7 | 分支 review 修复（toolCalls/toolResults ID remap, bulkAdd, i18n）；101 tests pass
+- 2026-08-06 | cada526 | 模型切换 UI（ModelSwitcher dropdown, provider-store switchProvider）；105 tests pass
+- 2026-08-06 | 8f527cd | Skill 系统（Registry + Store + Settings UI + Prompt 注入）；114 tests pass
+- 2026-08-06 | 3f4a11a | Skill review P0+P1 修复（类型安全, prompt 注入防护, 竞态, 双状态源）；114 tests pass
+- 2026-08-06 | 3fe30d4 | ToolCallCard Approve/Deny 接线（tool-approval.ts, continueAgentLoop, pendingToolApproval 状态）；114 tests pass
+- 2026-08-06 | d1949a6 | Tool approval review P0+P1 修复（CSS 损坏, 静态 import, chat-helpers.ts, 消息去重）；114 tests pass
+- 2026-08-06 | e7c47d0 | Review P1 修复（TOOL_DENIED 常量, for...of 循环, NOTE 注释恢复）；114 tests pass；Web gzip 208.11 KB
+- 2026-08-06 | 21dd361 | 项目记忆更新（13 commits, 114 tests, 208 KB gzip）
+- 2026-08-06 | 5208513 | Sidebar 搜索 + Cmd+Shift+F 快捷键（i18n + CSS + ref-based focus）；114 tests pass
+- 2026-08-06 | de6cde5 | Sidebar 搜索 P0 修复（CustomEvent → ref-based focus）
+- 2026-08-06 | 9fa7073 | MCP Server 配置（Store + Settings UI + DB schema v3）；119 tests pass
+- 2026-08-06 | 1f89692 | MCP review P0+P1 修复（DB-first writes, 类型收窄, headers, try/catch）；119 tests pass
+- 2026-08-06 | 0dd6540 | Context Budget Manager + Tool Output 压缩（token 估算, 4 级压缩, 按比例截断）；135 tests pass
+- 2026-08-06 | ef4b5e9 | Context budget review P0+P1 修复（token 估算修正, 比例截断, 阈值常量）；135 tests pass
+- 2026-08-06 | 36c2d5a | Shortcuts 设置面板（9 个快捷键展示 + 平台感知格式化）；139 tests pass
+- 2026-08-06 | f27e7be | Shortcuts review P1 修复（共享 platform.ts, Mac 格式化, 平台过滤）；139 tests pass
+- 2026-08-06 | a4a3a48 | Privacy 设置面板（5 个清除按钮 + 确认对话框 + 事务保护）；143 tests pass
+- 2026-08-06 | 1a5bb0f | Privacy review P0+P1 修复（事务原子性, 禁用态, role=alert, CSS class）；143 tests pass
+- 2026-08-06 | e36a99e | 项目记忆更新（23 commits, 143 tests）
+- 2026-08-06 | b33d1f8 | About 面板（版本号 from package.json, GitHub 链接, 许可证）；145 tests pass
+- 2026-08-06 | 9ee398c | About review P1 修复（package.json import, SettingsTab 类型提取）；145 tests pass
+- 2026-08-06 | 0c5436e | 对话置顶 + 内联重命名（pinned 字段, 双击重命名, Pin 按钮）；149 tests pass
+- 2026-08-06 | 3bf32c4 | Markdown 导出（.md 文件, 角色标签, 附件列表）+ lint 修复；153 tests pass
+- 2026-08-06 | 0440c79 | Pin/Rename review P0+P1 修复（guard ref, Pencil 图标, 错误处理, maxLength）；153 tests pass
+- 2026-08-06 | 37d435c | 自动标题生成（首条消息截断 30 字 + …）；153 tests pass
+- 2026-08-06 | 68efbb0 | Combined review P1 修复（export 错误处理, escapeMd 完善, DRY 重构）；153 tests pass
+- 2026-08-06 | e61e459 | 删除确认弹窗 + 消息复制按钮（clipboard + 1.5s 反馈）；153 tests pass
+- 2026-08-06 | 29195a1 | 会话列表按 updatedAt 降序排序；153 tests pass
+- 2026-08-06 | 5c2f531 | 项目记忆更新（33 commits, 153 tests）
+- 2026-08-06 | 34aea6a | 技术债：tool-approval + chat-store 拆分到行数限制内；153 tests
+- 2026-08-06 | 5d24a45 | 消息时间戳 + Token 计数显示；153 tests
+- 2026-08-06 | 98a9379 | 快捷键帮助面板 (⌘/)；153 tests
+- 2026-08-06 | a3bfc27 | 代码块复制按钮；153 tests
+- 2026-08-06 | bf379e6 | 错误重试按钮；153 tests
+- 2026-08-06 | 5bc5697 | 输入框自动调整高度 + ChatView 拆分；153 tests
+- 2026-08-06 | 8db190c | 行数限制 200/250→600；函数 50→200
+- 2026-08-06 | 0440c79→68efbb0 | Pin/rename + Markdown export review 修复；153 tests
+- 2026-08-06 | e61e459 | 删除确认弹窗 + 消息复制按钮；153 tests
+- 2026-08-06 | 0963630 | CSS 变量别名 + 测试连接修复；153 tests
+- 2026-08-06 | 3de1594 | 设置弹窗不再因背景点击关闭
+- 2026-08-06 | 3dd3b81 | 测试连接/获取模型不要求 name 字段
+- 2026-08-06 | 5829a1b | URL 自动补 /v1
+- 2026-08-06 | 0cd01d1 | API Key 默认持久化
+- 2026-08-06 | 24035bb | 移除自动弹出设置 + 修复时间戳
+- 2026-08-06 | ca362aa | 阶段 2：workspace + file tools + terminal + git（5 Rust commands, 5 TS tools）
+- 2026-08-06 | bffc2e7 | WorkspaceSelector UI + i18n + CSS
+- 2026-08-06 | a18591d | 符号链接防护 + 快照回滚 + 循环检测 + 4 新工具
+- 2026-08-06 | 8bb132e | 验证循环 + AgentRunSummary UI
+- 2026-08-06 | 027ac75 | 21 新测试（工具/path/mode isolation）；184 tests
+- 2026-08-06 | 35142bc | Desktop layout 修复（WorkspaceSelector 不再破坏 grid）
+- 2026-08-06 | ccc8226 | Tauri capabilities（dialog/fs/shell 权限）
+- 2026-08-06 | 332e2d3 | Agent 模式系统提示加强（显式列出工具）；184 tests
+- 2026-08-06 | 1a5bb0f | Privacy review P0+P1 修复（事务保护, disabled 状态, 无障碍）；143 tests pass

@@ -86,7 +86,7 @@ Tauri 2 without a bundled Chromium; Skill bodies, MCP, and settings panels load 
 
 ## Current status
 
-Evir is under active development and **not released yet**. The core paths — chat, agent tools and approvals, Plan/Goal, permission levels, snapshot/rollback, MCP connections, logging and diagnostics export — are implemented and covered by 682 TypeScript tests + 37 Rust tests plus the E2E/visual/a11y matrix, with real-provider (GLM) and native macOS multi-tool runs verified on hardware; the 2026-08-28 native pass re-verified provider setup, CJK/space project paths, plan confirmation, L3 per-action approval writing to real disk, and restart persistence. Not yet verified: Windows, long-duration/stress agent runs, VS Code Marketplace and CLI npm publishing. Installers are ad-hoc signed by default (they run fine, but after each rebuild the first access to a previously stored API Key asks for Keychain re-authorization — this disappears with proper release signing); Developer ID signing/notarization is an optional enhancement.
+Evir is under active development and **not released yet** (no LICENSE file yet — see License below). The core paths — chat, agent tools and approvals, Plan/Goal, permission levels, snapshot/rollback, MCP connections, logging and diagnostics export — are implemented and covered by 682 TypeScript tests + 37 Rust tests plus the E2E/visual/a11y matrix, with real-provider (GLM) and native macOS multi-tool runs verified on hardware; the 2026-08-28 native pass re-verified provider setup, CJK/space project paths, plan confirmation, L3 per-action approval writing to real disk, and restart persistence. The per-item verification status (including the NOT RUN list — Windows, 30–60 min agent tasks, upgrade/downgrade, and more) lives in [Release Readiness](docs/release-readiness.md); VS Code and CLI are Preview. Installers are ad-hoc signed by default (they run fine, but after each rebuild the first access to a previously stored API Key asks for Keychain re-authorization — this disappears with proper release signing); Developer ID signing/notarization is an optional enhancement.
 
 ## Development
 
@@ -94,7 +94,7 @@ Evir is under active development and **not released yet**. The core paths — ch
 pnpm install
 pnpm dev:web        # web dev server
 pnpm dev:desktop    # Tauri desktop (requires Rust + Tauri 2 deps)
-pnpm check          # format + lint + strict TS + unit tests + release validation
+pnpm check          # format + lint + strict TS + unit tests + Rust tests + release validation
 pnpm test:e2e       # Playwright E2E (web + desktop modes)
 pnpm benchmark      # bundle-size gates
 node scripts/capture-readme-screenshots.mjs  # regenerate README screenshots

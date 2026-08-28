@@ -8,10 +8,10 @@ Evir is a clean, local-first, BYOM AI client and desktop agent. One tool-capable
 
 Before modifying code, read:
 
-1. `docs/agent/Evir-project-memory.md` — current implementation status, gate baseline, and known gaps (high-density index).
+1. `docs/agent/Evir-project-memory.md` — high-density index of current facts (product model, architecture boundaries, capability matrix, constraints). It is an index only: product logic is authoritative in `docs/01-product-requirements.md`, and per-item verification status lives in `docs/release-readiness.md`.
 2. `docs/README.md` — topic → authoritative-doc map. From it, pick only the document(s) directly relevant to your task.
 
-Do not load the full doc set for a small change; one task-relevant architecture/spec document plus the memory index is enough. Historical material lives in `docs/archive/`, `docs/reviews/`, and `docs/references/` and is not a source of truth. The current information architecture (Sidebar Projects/Chats, Project Task default with Plan/Goal as explicit modes, Permission Profiles) is specified in `docs/01-product-requirements.md`.
+Do not load the full doc set for a small change; one task-relevant architecture/spec document plus the memory index is enough. Historical material lives in `docs/archive/`, `docs/reviews/`, and `docs/references/` and is not a source of truth.
 
 ## Architecture dependency direction
 

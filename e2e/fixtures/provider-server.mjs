@@ -68,14 +68,23 @@ function lastUserText(body) {
 const AGENT_SCRIPT = [
   { tool: "list_directory", args: { path: "." } },
   { tool: "read_file", args: { path: "notes.txt" } },
-  { tool: "write_file", args: { path: "fixture-report.md", content: "# Fixture report\n\nwritten by the scripted agent fixture\n" } },
+  {
+    tool: "write_file",
+    args: {
+      path: "fixture-report.md",
+      content: "# Fixture report\n\nwritten by the scripted agent fixture\n",
+    },
+  },
   { tool: "read_file", args: { path: "fixture-report.md" } },
 ];
 
 const AGENT_RECOVERY_SCRIPT = [
   { tool: "list_directory", args: { path: "." } },
   { tool: "read_file", args: { path: "missing-on-purpose.txt" } },
-  { tool: "write_file", args: { path: "recovery-note.md", content: "recovered after a failed read\n" } },
+  {
+    tool: "write_file",
+    args: { path: "recovery-note.md", content: "recovered after a failed read\n" },
+  },
 ];
 
 function scriptedToolTurn(body, script, finalText) {
