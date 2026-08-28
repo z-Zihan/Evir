@@ -22,13 +22,13 @@
 1. **证据分级**：Unit/Integration 证明逻辑；Fixture E2E 证明 UI 行为；Native/Real Provider 证明真实产品。上层不得由下层冒充（浏览器 Desktop 页面 ≠ 原生宿主；fixture ≠ 真实 Provider）。
 2. **零配额优先**：能用本地 fixture 服务器（`e2e/fixtures/provider-server.mjs`，支持 `[agent-task]`/`[agent-recovery]` 脚本化 tool_calls 与错误注入）验证的，不用真实 API。
 3. **不伪造 PASS**：没有执行就是 NOT RUN；`docs/release-readiness.md` 是唯一当前状态来源。
-4. **本地 = CI**：日常质量统一走 `pnpm check` + `pnpm test:rust`（package scripts 单一来源）；打包/签名只在 tag 阶段（release.yml）；体积预算独立在 push main（benchmark.yml）。
+4. **本地 = CI**：日常质量统一走 `pnpm check`（已包含 Rust 测试，勿重复执行 `test:rust`）；打包/签名只在 tag 阶段（release.yml）；体积预算独立在 push main（benchmark.yml）。
 
 ## 命令速查
 
 ```bash
-pnpm check                 # format + lint + strict TS + vitest + workflow 校验 + VS Code + CLI
-pnpm test:rust             # cargo test（src-tauri）
+pnpm check                 # format + lint + strict TS + vitest + cargo test + workflow 校验 + VS Code + CLI（日常唯一入口）
+pnpm test:rust             # 同上中的 Rust 部分，单独重跑时用
 pnpm test:e2e              # core E2E（web + desktop）
 pnpm test:ui / test:visual / test:a11y / test:stress
 pnpm benchmark             # 产物体积门禁（更新 docs/benchmarks/latest.json）

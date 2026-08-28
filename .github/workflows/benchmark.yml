@@ -14,7 +14,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm install --frozen-lockfile
       # Snapshot the committed baseline before scripts/benchmark.mjs overwrites
       # docs/benchmarks/latest.json. The baseline is versioned with the repo:
       # intentional performance changes must update it in the same PR.

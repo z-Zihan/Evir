@@ -27,7 +27,7 @@
 
 ## 4. Runtime / Agent Model
 
-- EvirRuntime 区分 Web/Desktop，按 Capability 注册工具；内置 13 个本地工具（read/write/list/search/patch/stat/mkdir/snapshot/restore + run_command + git_status/diff）。
+- EvirRuntime 区分 Web/Desktop，按 Capability 注册工具；内置 13 个本地工具（read_file / write_file / list_directory / search_files / search_docs / apply_patch / file_stat / create_directory / create_snapshot / restore_snapshot / run_command / git_status / git_diff）。
 - 风险分级 L0–L4；L3 逐次审批，L4 可禁用；工具来源标记 evir-local / mcp-local / mcp-remote / provider-server。
 - 任务编排：task-intake 将目标分类为 answer / inspect / change / execute / mixed（中英文关键词，change 词优先于 inspect 词）；change 类生成 inspect→approval→execute→verify 计划图，**步骤级工具允许集**强制只读/可写边界（只读步骤内 write_file 会被诚实拒绝并反馈模型）。
 - 循环检测 6 次警告 / 12 次停止；模型回合 120s 超时；上下文预算：<60% 不摘要，60–75% 归档工具输出，75–90% 摘要旧对话，>90% 强制检查点；摘要版本化。

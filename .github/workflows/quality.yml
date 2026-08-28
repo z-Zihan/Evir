@@ -23,7 +23,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm install --frozen-lockfile
       - name: Quality gate (format/lint/typecheck/unit+integration/Rust/VS Code/CLI/workflow validation)
         run: pnpm check
       - name: Web build sanity

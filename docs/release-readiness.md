@@ -1,7 +1,7 @@
 # Evir Release Readiness — 当前验证状态
 
 > 本文档是**当前版本验证程度的唯一来源**。状态只允许基于实际代码、测试、运行记录、CI 与真机验证填写。
-> 基线：2026-08-28（第二轮收口，当日门禁全绿）。上一轮完整整改记录：`docs/archive/`。
+> 基线：2026-08-28（RC 轮；vault 健壮性 + 单实例加固已入库）。上一轮完整整改记录：`docs/archive/`。
 > 状态语义：`PASS`（有当期证据）· `PARTIAL`（部分证据/部分场景）· `NOT RUN`（未执行）· `BLOCKED`（被外部条件阻塞）· `FAIL`。
 
 ## 构建与静态质量
@@ -28,17 +28,17 @@
 
 ## 原生 Desktop
 
-| 项                             | 状态    | 证据                                                                                                                               |
-| ------------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| macOS arm64：构建 + DMG        | PASS    | Evir.app + DMG 6.47 MiB（2026-08-28，ad-hoc）                                                                                      |
-| macOS arm64：实机核心旅程      | PASS    | Provider 配置→测试连接→中文/空格路径建项目→计划确认→L3 审批→真实写盘→读回验证→重启持久化（2026-08-28）                             |
-| macOS arm64：性能              | PASS    | 冷启动 0.84s、空闲内存 ~71 MB、空闲 CPU 0%（2026-08-28）                                                                           |
-| macOS x64：构建                | PASS    | x64 DMG 可产出（2026-08-26 本地）                                                                                                  |
-| macOS x64：实机安装            | NOT RUN | 无 Intel 实机证据                                                                                                                  |
-| Windows：全部                  | NOT RUN | MSI 可产出；安装/路径/Shell/凭据/升级未验                                                                                          |
+| 项                             | 状态    | 证据                                                                                                                                                    |
+| ------------------------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| macOS arm64：构建 + DMG        | PASS    | Evir.app + DMG 6.47 MiB（2026-08-28，ad-hoc）                                                                                                           |
+| macOS arm64：实机核心旅程      | PASS    | Provider 配置→测试连接→中文/空格路径建项目→计划确认→L3 审批→真实写盘→读回验证→重启持久化（2026-08-28）                                                  |
+| macOS arm64：性能              | PASS    | 冷启动 0.84s、空闲内存 ~71 MB、空闲 CPU 0%（2026-08-28）                                                                                                |
+| macOS x64：构建                | PASS    | x64 DMG 可产出（2026-08-26 本地）                                                                                                                       |
+| macOS x64：实机安装            | NOT RUN | 无 Intel 实机证据                                                                                                                                       |
+| Windows：全部                  | NOT RUN | MSI 可产出；安装/路径/Shell/凭据/升级未验                                                                                                               |
 | 正式签名 / 公证                | NOT RUN | 可选增强（ad-hoc 为默认交付）。密钥已改存本地加密 vault（AES-256-GCM），重建不再触发钥匙串授权框（2026-08-28 实机复验：重建后启动零弹窗、既有配置完整） |
-| 升级 / 降级 / 迁移             | NOT RUN | —                                                                                                                                  |
-| Crash Recovery（真实崩溃场景） | NOT RUN | 检测逻辑有单测，未做真实崩溃取证                                                                                                   |
+| 升级 / 降级 / 迁移             | NOT RUN | —                                                                                                                                                       |
+| Crash Recovery（真实崩溃场景） | NOT RUN | 检测逻辑有单测，未做真实崩溃取证                                                                                                                        |
 
 ## 真实 Provider 与长任务
 
@@ -63,6 +63,11 @@
 | Web                   | 稳定               | 静态部署、预算内、无后端依赖                                   |
 | VS Code               | **PREVIEW**        | 功能子集可用；Marketplace/High Contrast/完整本地化未验收       |
 | CLI                   | **PREVIEW**        | configure/doctor/ask/agent 可用；错误友好度/退出码/i18n 未收口 |
+
+## Security Decisions
+
+- **Secret Storage（Release Security Decision）**：正式版继续使用本地 AES-256-GCM vault（`secret-vault.json`），不切 OS 钥匙串。原因：ad-hoc/频繁重建二进制会触发 macOS ACL 弹窗并可能丢失密钥；vault 满足"非明文、防误分享、绑定 OS 用户"的目标。它不是抵御本地文件读取攻击者的硬件级存储（威胁模型见 `src-tauri/src/secret_vault.rs` 头注释与 docs/09）。若未来启用稳定签名的正式分发，可再评估 OS-backed（Keychain/DPAPI/Secret Service）作为首选、vault 作为回退——本轮不实施，避免高风险迁移。
+- **单实例**：`tauri-plugin-single-instance` 强制（二次启动聚焦既有窗口），vault/SQLite 不再存在跨进程写竞争；进程内另有互斥锁。
 
 ## Blocking Issues
 

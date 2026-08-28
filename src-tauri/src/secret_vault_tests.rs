@@ -1,5 +1,6 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use serde_json::Value;
 
 use crate::secret_vault;
@@ -133,5 +134,130 @@ fn oversized_values_are_rejected() {
     let oversized = "x".repeat(64 * 1024 + 1);
     assert!(secret_vault::set(&path, "provider:p1:api-key", &oversized).is_err());
     assert_eq!(secret_vault::get(&path, "provider:p1:api-key"), Ok(None));
+    cleanup(&path);
+}
+
+#[test]
+fn invalid_nonce_length_returns_error() {
+    let path = temp_vault_path("nonce-length");
+    secret_vault::set(&path, "provider:p1:api-key", "sk-value").expect("vault set must succeed");
+    let raw = std::fs::read_to_string(&path).expect("vault file must be readable");
+    let mut document: Value =
+        serde_json::from_str(&raw).expect("vault file must be a JSON document");
+    // Valid base64, wrong length (11 and 13 bytes instead of 12).
+    for wrong_nonce in [
+        BASE64.encode([0u8; 11]),
+        BASE64.encode([0u8; 13]),
+        String::new(),
+    ] {
+        document["entries"]["provider:p1:api-key"]["nonce"] = Value::String(wrong_nonce);
+        std::fs::write(&path, serde_json::to_string(&document).unwrap())
+            .expect("tampered vault must be written");
+        let result = secret_vault::get(&path, "provider:p1:api-key");
+        assert!(
+            result.is_err(),
+            "wrong-length nonce must return an error, got {result:?}"
+        );
+    }
+    cleanup(&path);
+}
+
+#[test]
+fn corrupted_vault_does_not_panic() {
+    let path = temp_vault_path("corrupt");
+    secret_vault::set(&path, "provider:p1:api-key", "sk-value").expect("vault set must succeed");
+    let raw = std::fs::read_to_string(&path).expect("vault file must be readable");
+
+    let damaged_variants: Vec<(&str, String)> = vec![
+        ("invalid base64 nonce", {
+            let mut doc: Value = serde_json::from_str(&raw).unwrap();
+            doc["entries"]["provider:p1:api-key"]["nonce"] =
+                Value::String("!!!not-base64!!!".into());
+            serde_json::to_string(&doc).unwrap()
+        }),
+        ("invalid base64 ciphertext", {
+            let mut doc: Value = serde_json::from_str(&raw).unwrap();
+            doc["entries"]["provider:p1:api-key"]["ciphertext"] =
+                Value::String("%%%%not-base64%%%%".into());
+            serde_json::to_string(&doc).unwrap()
+        }),
+        ("flipped ciphertext tag byte", {
+            let mut doc: Value = serde_json::from_str(&raw).unwrap();
+            let ciphertext = doc["entries"]["provider:p1:api-key"]["ciphertext"]
+                .as_str()
+                .unwrap()
+                .to_owned();
+            let mut bytes = BASE64.decode(ciphertext).unwrap();
+            let last = bytes.len() - 1;
+            bytes[last] ^= 0xff;
+            doc["entries"]["provider:p1:api-key"]["ciphertext"] =
+                Value::String(BASE64.encode(bytes));
+            serde_json::to_string(&doc).unwrap()
+        }),
+        ("truncated ciphertext", {
+            let mut doc: Value = serde_json::from_str(&raw).unwrap();
+            let ciphertext = doc["entries"]["provider:p1:api-key"]["ciphertext"]
+                .as_str()
+                .unwrap()
+                .to_owned();
+            let mut bytes = BASE64.decode(ciphertext).unwrap();
+            bytes.truncate(bytes.len() / 2);
+            doc["entries"]["provider:p1:api-key"]["ciphertext"] =
+                Value::String(BASE64.encode(bytes));
+            serde_json::to_string(&doc).unwrap()
+        }),
+        ("corrupted json", "{ not json at all".to_owned()),
+        ("empty file", String::new()),
+    ];
+
+    for (label, damaged) in damaged_variants {
+        std::fs::write(&path, &damaged).expect("damaged vault must be written");
+        // Every damage mode must surface as Err (or Ok(None) for the empty
+        // file, which is treated as a fresh vault) — never a panic.
+        let result = secret_vault::get(&path, "provider:p1:api-key");
+        match label {
+            "empty file" => assert_eq!(result, Ok(None), "{label} must read as empty vault"),
+            _ => assert!(
+                result.is_err(),
+                "{label} must return an error, got {result:?}"
+            ),
+        }
+        // set() must never panic. File-level damage (corrupt JSON) blocks
+        // writes with a clean error; entry-level damage leaves the document
+        // valid, so writes succeed and the damaged entry simply stays
+        // unreadable until its owner re-enters the key.
+        let write_result = secret_vault::set(&path, "provider:new:api-key", "sk-new");
+        if label == "corrupted json" {
+            assert!(write_result.is_err(), "{label}: set must fail cleanly");
+        } else {
+            assert!(
+                write_result.is_ok(),
+                "{label}: set must succeed, got {write_result:?}"
+            );
+        }
+    }
+    cleanup(&path);
+}
+
+#[test]
+fn damaged_entry_does_not_block_other_keys() {
+    let path = temp_vault_path("partial");
+    secret_vault::set(&path, "provider:good:api-key", "sk-good").expect("vault set must succeed");
+    secret_vault::set(&path, "provider:bad:api-key", "sk-bad").expect("vault set must succeed");
+    let raw = std::fs::read_to_string(&path).expect("vault file must be readable");
+    let mut doc: Value = serde_json::from_str(&raw).unwrap();
+    doc["entries"]["provider:bad:api-key"]["nonce"] = Value::String(BASE64.encode([0u8; 5]));
+    std::fs::write(&path, serde_json::to_string(&doc).unwrap())
+        .expect("tampered vault must be written");
+
+    assert!(
+        secret_vault::get(&path, "provider:bad:api-key").is_err(),
+        "the damaged entry must error"
+    );
+    assert_eq!(
+        secret_vault::get(&path, "provider:good:api-key").expect("good entry must still read"),
+        Some("sk-good".to_owned()),
+        "an unrelated intact entry must remain readable"
+    );
     cleanup(&path);
 }

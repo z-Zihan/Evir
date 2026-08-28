@@ -58,9 +58,9 @@ impl VaultDocument {
 }
 
 // The Tauri async commands run on a thread pool; read-modify-write of the
-// whole file must be serialized within this process. Two app instances racing
-// on the file remains a documented limitation (last writer wins) — Evir is a
-// single-user, effectively single-instance desktop app.
+// whole file must be serialized within this process (this mutex). A second app
+// instance is prevented by tauri-plugin-single-instance (see lib.rs), so the
+// vault file is only ever written by one Evir process.
 fn vault_lock() -> &'static Mutex<()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     LOCK.get_or_init(|| Mutex::new(()))
@@ -148,10 +148,18 @@ fn seal(context: &str, key: &str, value: &str) -> Result<VaultEntry, String> {
     })
 }
 
+// AES-256-GCM standard nonce size. `Nonce::from_slice` panics on any other
+// length, so a corrupted or hand-edited vault file must be rejected here —
+// vault damage may never take the desktop app down.
+const NONCE_SIZE: usize = 12;
+
 fn unseal(context: &str, key: &str, entry: &VaultEntry) -> Result<String, String> {
     let nonce_bytes = BASE64
         .decode(&entry.nonce)
         .map_err(|_| "secret vault entry has an invalid nonce".to_owned())?;
+    if nonce_bytes.len() != NONCE_SIZE {
+        return Err("secret vault entry has an invalid nonce".to_owned());
+    }
     let ciphertext = BASE64
         .decode(&entry.ciphertext)
         .map_err(|_| "secret vault entry has invalid ciphertext".to_owned())?;

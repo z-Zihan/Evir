@@ -24,6 +24,7 @@ base64 = "0.22"
 tauri-plugin-store = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
+tauri-plugin-single-instance = "2"
 tauri-plugin-shell = "2"
 libc = "0.2"
 zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
