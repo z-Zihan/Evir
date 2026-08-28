@@ -10,6 +10,8 @@ interface ModelSwitcherProps {
   activeProvider?: ProviderRecord | null | undefined;
   /** Model id the active conversation currently uses. */
   activeModelId?: string | undefined;
+  /** Bump this counter to open the dropdown programmatically (e.g. /model). */
+  openSignal?: number | undefined;
   onSwitch: (provider: ProviderRecord) => void;
   /** Switch the given provider to a specific model id. */
   onSwitchModel: (provider: ProviderRecord, modelId: string) => void;
@@ -41,6 +43,7 @@ function writeKnownModels(providerId: string, models: string[]): void {
 export function ModelSwitcher({
   activeProvider,
   activeModelId,
+  openSignal,
   onSwitch,
   onSwitchModel,
 }: ModelSwitcherProps) {
@@ -87,6 +90,12 @@ export function ModelSwitcher({
       document.removeEventListener("keydown", handleKey);
     };
   }, [open, current]);
+
+  useEffect(() => {
+    if (!openSignal) return;
+    setOpen(true);
+    triggerRef.current?.focus();
+  }, [openSignal]);
 
   useEffect(() => {
     if (!open || !current || fetchedProviderRef.current === current.id) return;

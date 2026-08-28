@@ -941,5 +941,17 @@
     "savedGlobal": "已保存为全局偏好。",
     "savedProject": "已保存为项目偏好。",
     "noProject": "当前没有打开的项目"
+  },
+  "slash": {
+    "paletteLabel": "命令面板",
+    "commandsGroup": "命令",
+    "skillsGroup": "技能",
+    "commandPlan": "切换到计划模式",
+    "commandGoal": "切换到目标模式",
+    "commandAgent": "切回默认任务模式",
+    "commandModel": "切换模型",
+    "skillSelected": "已为本条消息选中（再次执行取消）",
+    "noMatches": "没有匹配的命令或技能",
+    "hint": "↑↓ 选择，Enter 执行，Esc 关闭"
   }
 }

@@ -941,5 +941,17 @@
     "savedGlobal": "Saved as a global preference.",
     "savedProject": "Saved as a project preference.",
     "noProject": "No project is open"
+  },
+  "slash": {
+    "paletteLabel": "Command palette",
+    "commandsGroup": "Commands",
+    "skillsGroup": "Skills",
+    "commandPlan": "Switch to Plan mode",
+    "commandGoal": "Switch to Goal mode",
+    "commandAgent": "Switch back to the default task mode",
+    "commandModel": "Switch model",
+    "skillSelected": "Selected for this message (run again to deselect)",
+    "noMatches": "No matching commands or skills",
+    "hint": "↑↓ to choose, Enter to run, Esc to close"
   }
 }

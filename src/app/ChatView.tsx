@@ -45,6 +45,7 @@ import { useOrchestrationStore } from "../features/orchestration/orchestration-s
 import { allowsProjectModes, effectiveModeForModel } from "../features/projects/conversation-mode";
 import { useProjectStore } from "../features/projects/project-store";
 import { PermissionSwitcher } from "./PermissionSwitcher";
+import { SlashPalette, type SlashPaletteHandle, type SlashCommandId } from "./SlashPalette";
 // The orchestration workbench (plan DAG, node timeline, clarifications) only
 // appears in desktop Agent runs; keep it and its store graph out of the entry
 // chunk.
@@ -272,6 +273,11 @@ export function ChatView({
   const streamElapsedSeconds = useElapsedSeconds(
     isCurrentConversationStreaming ? activeStreamStartedAt : null,
   );
+  // "/" command palette state: hidden until the user retypes after Escape.
+  const slashPaletteRef = useRef<SlashPaletteHandle>(null);
+  const [slashDismissed, setSlashDismissed] = useState(false);
+  const [modelSwitchSignal, setModelSwitchSignal] = useState(0);
+  const slashOpen = input.startsWith("/") && !slashDismissed && !isCurrentConversationStreaming;
   const rememberMessage = useCallback(
     async (message: MessageRecord) => {
       const content = message.content.trim().slice(0, 4_000);
@@ -352,16 +358,46 @@ export function ChatView({
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // 输入法组词中的 Enter 是确认候选词，不是发送
-    if (
-      e.key === "Enter" &&
-      !e.nativeEvent.isComposing &&
-      !e.shiftKey &&
-      !e.metaKey &&
-      !e.ctrlKey
-    ) {
+    const composing = e.nativeEvent.isComposing;
+    if (slashOpen && !composing) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        slashPaletteRef.current?.move(1);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        slashPaletteRef.current?.move(-1);
+        return;
+      }
+      if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        if (slashPaletteRef.current?.execute()) return;
+        // 无匹配项时按普通文本发送
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setSlashDismissed(true);
+        return;
+      }
+    }
+    if (e.key === "Enter" && !composing && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
       e.preventDefault();
       onSendMessage();
     }
+  };
+
+  useEffect(() => {
+    if (!input.startsWith("/")) setSlashDismissed(false);
+  }, [input]);
+
+  const handleSlashCommand = (id: SlashCommandId) => {
+    if (id === "plan") setMode("plan");
+    if (id === "goal") setMode("goal");
+    if (id === "agent") setMode("agent");
+    if (id === "model") setModelSwitchSignal((signal) => signal + 1);
+    onInputChange("");
+    setSlashDismissed(false);
   };
 
   const handleFileSelect = async (files: FileList | null) => {
@@ -479,6 +515,7 @@ export function ChatView({
         <ModelSwitcher
           activeProvider={effectiveProvider}
           activeModelId={effectiveModelId}
+          openSignal={modelSwitchSignal}
           onSwitch={handleModelSwitch}
           onSwitchModel={(switchProviderRecord, modelId) =>
             handleModelSwitch({ ...switchProviderRecord, modelId })
@@ -661,6 +698,18 @@ export function ChatView({
                   );
                 })}
             </div>
+          )}
+          {slashOpen && (
+            <SlashPalette
+              ref={slashPaletteRef}
+              query={input.slice(1)}
+              projectScoped={projectScoped && runtime.target !== "web"}
+              onCommand={handleSlashCommand}
+              onDone={() => {
+                onInputChange("");
+                setSlashDismissed(false);
+              }}
+            />
           )}
           <textarea
             ref={textareaRef}

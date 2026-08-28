@@ -1464,7 +1464,75 @@
   padding: 10px 0 12px;
 }
 
+/* "/" command palette above the composer */
+.slash-palette {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-elevated, var(--surface));
+  box-shadow: 0 10px 30px color-mix(in srgb, black 16%, transparent);
+}
+
+.slash-item {
+  display: flex;
+  width: 100%;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+  text-align: left;
+}
+
+.slash-item.active {
+  background: var(--surface-hover);
+}
+
+.slash-item-label {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 5px;
+  color: var(--foreground);
+  font-size: 12.5px;
+  font-weight: 620;
+}
+
+.slash-item-description {
+  overflow: hidden;
+  min-width: 0;
+  flex: 1;
+  color: var(--muted-foreground);
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slash-empty,
+.slash-hint {
+  padding: 7px 10px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+
+.slash-hint {
+  border-top: 1px solid var(--border);
+  margin-top: 5px;
+  padding-top: 6px;
+}
+
 .composer {
+  position: relative;
   overflow: visible;
   border-radius: 14px;
   box-shadow:
