@@ -1,6 +1,6 @@
 # Evir 产品闭环审查（V6）
 
-> **Historical（2026-08-06 决策记录）**：本文记录阶段 S 前后的产品闭环方法论与决策史，保留作历史依据。当前产品模型（Sidebar Projects/Chats、Composer Agent/Plan/Goal、Permission Profiles）以 `docs/project-chat-agent-redesign.md` 与 `docs/agent/Evir-project-memory.md` 为准；本文涉及模式、工作区与 MCP 状态的段落是当时的快照。
+> **Historical（2026-08-06 决策记录）**：本文记录阶段 S 前后的产品闭环方法论与决策史，保留作历史依据。当前产品模型（Sidebar Projects/Chats、Composer Agent/Plan/Goal、Permission Profiles）以 `docs/01-product-requirements.md` 与 `docs/agent/Evir-project-memory.md` 为准；本文涉及模式、工作区与 MCP 状态的段落是当时的快照。
 
 ## 1. 审查目标
 

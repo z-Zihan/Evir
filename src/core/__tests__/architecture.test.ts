@@ -118,6 +118,7 @@ describe("architecture dependency direction", () => {
       "chat.modes.agent",
       "chat.modes.askDesc",
       "chat.modes.planDesc",
+      "chat.modes.goalDesc",
       "chat.modes.agentDesc",
       "chat.modeHints.agent",
       "chat.modeHints.plan",

@@ -1,3 +1,7 @@
+> **Status: Archived（历史执行产物）**
+> 本文件是某一次工作轮的一次性执行/测试/审计记录，仅作历史证据，不代表当前产品状态，也不是规范来源。
+> 当前事实来源：根目录 `AGENTS.md`、`docs/agent/Evir-project-memory.md` 与 `docs/` 正式文档。
+
 # Evir 文档体系审计报告
 
 > 审计日期：2026-08-27 · 基线：main 分支 3e8bebd 工作树

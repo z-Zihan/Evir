@@ -51,7 +51,7 @@ Desktop 侧栏分为 **PROJECTS** 和 **CHATS** 两区。一个 Project 对应�
 
 ## 自带模型（BYOM）
 
-Provider、协议、模型能力三层分离：内置约 30 家国内外厂商预设，已实现 7 种协议适配器（OpenAI Chat Completions / Responses、Anthropic Messages、Gemini、Azure OpenAI、Ollama 原生、OpenAI-compatible），支持自定义兼容端点。API Key 存系统安全凭据库，密钥永远不进日志。
+Provider、协议、模型能力三层分离：内置 36 家国内外厂商预设，已实现 7 种协议适配器（OpenAI Chat Completions / Responses、Anthropic Messages、Gemini、Azure OpenAI、Ollama 原生、OpenAI-compatible），支持自定义兼容端点。API Key 存系统安全凭据库，密钥永远不进日志。
 
 ![Provider 设置：多厂商、多模型、能力标记](assets/readme/provider-settings.png)
 
@@ -69,8 +69,8 @@ Provider、协议、模型能力三层分离：内置约 30 家国内外厂商�
 | MCP（stdio + Streamable HTTP） | ✅               | —              | —                  | —                |
 
 - **Web**：静态部署即用的聊天客户端，浏览器直连模型 API，无 Evir 后端；部分厂商限制浏览器 CORS 时会明确提示。
-- **VS Code**：独立 VSIX，密钥存 VS Code SecretStorage；写入与命令逐次审批，最后一次写入支持 Diff 与回滚。VS Code Web / Remote / MCP / Skill 暂不支持。
-- **CLI**：独立 `evir` 命令（configure / doctor / ask / agent），与 Desktop 共享非敏感 Provider 配置与系统凭据，不要求 Desktop 运行。
+- **VS Code**（Preview）：独立 VSIX，密钥存 VS Code SecretStorage；写入与命令逐次审批，最后一次写入支持 Diff 与回滚。VS Code Web / Remote / MCP / Skill 暂不支持。
+- **CLI**（Preview）：独立 `evir` 命令（configure / doctor / ask / agent），与 Desktop 共享非敏感 Provider 配置与系统凭据，不要求 Desktop 运行。
 
 ![Evir Web：多模型聊天，Markdown / 表格 / 代码](assets/readme/web-chat.png)
 
@@ -90,11 +90,11 @@ Provider 配置       → 版本化非敏感本地文件
 
 ## 性能预算
 
-Tauri 2，不内置完整 Chromium；Skill 正文、MCP、设置面板按需加载；流式增量批量渲染。工程预算：Web 初始 JS gzip ≤ 350 KiB（当前 320.38 KiB）、桌面前端 ≤ 15 MiB（当前 2.94 MiB）、冷启动 P50 < 2s、空闲内存 ≤ 150 MB。带“当前”的数字来自 [最近一次基准](docs/benchmarks/latest.json)，其余为尚未正式测量的目标值，不以目标冒充结果。
+Tauri 2，不内置完整 Chromium；Skill 正文、MCP、设置面板按需加载；流式增量批量渲染。工程预算：Web 初始 JS gzip ≤ 350 KiB（当前 290.3 KiB）、桌面前端 ≤ 15 MiB（当前 2.69 MiB）、冷启动 P50 < 2s（原生实测 0.84s）、空闲内存 ≤ 150 MB（原生实测约 71 MB）。带“当前”的数字来自 [最近一次基准](docs/benchmarks/latest.json)与 2026-08-28 原生实测，其余为尚未正式测量的目标值，不以目标冒充结果。
 
 ## 当前状态
 
-Evir 仍在积极开发中，**尚未发布**。核心链路（聊天、Agent 工具与审批、Plan/Goal、权限档位、快照回滚、MCP 连接、日志与诊断导出）已实现并有 647 个 TypeScript 测试 + 31 个 Rust 测试 + E2E/视觉/无障碍矩阵覆盖，真实 Provider（GLM）与 macOS 原生多工具任务已有历史实机验收。仍未验收：Windows、正式冷启动/内存/CPU 测量、VS Code Marketplace 与 CLI npm 发布。安装包默认 ad-hoc 签名（可正常运行），Developer ID 签名/公证为可选增强。
+Evir 仍在积极开发中，**尚未发布**。核心链路（聊天、Agent 工具与审批、Plan/Goal、权限档位、快照回滚、MCP 连接、日志与诊断导出）已实现并有 682 个 TypeScript 测试 + 37 个 Rust 测试 + E2E/视觉/无障碍矩阵覆盖，真实 Provider（GLM）与 macOS 原生多工具任务已有历史实机验收；2026-08-28 原生复验通过配置 Provider、中文/空格路径项目、计划确认、L3 逐次审批写入真实磁盘与重启持久化。仍未验收：Windows、长时任务与多压力场景、VS Code Marketplace 与 CLI npm 发布。安装包默认 ad-hoc 签名（可正常运行，但每次重建后首次访问旧 API Key 需在系统弹窗重新授权，正式签名后消失）；Developer ID 签名/公证为可选增强。
 
 ## 本地开发
 
@@ -112,10 +112,10 @@ node scripts/capture-readme-screenshots.mjs  # 重新生成 README 截图
 
 ## 文档
 
-- 产品与架构：[产品需求](docs/01-product-requirements.md) · [技术架构](docs/02-technical-architecture.md) · [当前信息架构设计](docs/project-chat-agent-redesign.md)
+- 产品与架构：[产品需求（当前信息架构）](docs/01-product-requirements.md) · [技术架构](docs/02-technical-architecture.md)
 - 规范：[设计](docs/04-design-specification.md) · [工程](docs/05-engineering-standards.md) · [Agent 安全与质量](docs/07-agent-security-and-quality.md) · [Harness](docs/16-harness-engineering-for-evir.md) · [日志与诊断](docs/17-local-logging-and-diagnostics.md)
 - 专项：[Skill 与 MCP](docs/08-skill-and-mcp.md) · [Provider 矩阵](docs/13-provider-and-protocol-matrix.md) · [VS Code 路线](docs/19-vscode-extension-and-editor-roadmap.md) · [CLI 规格](docs/20-cli-product-and-technical-specification.md)
-- 测试与证据：[全项目测试用例](docs/23-full-project-test-cases.md) · [自动化质量报告](docs/reviews/automated-quality-report.md) · [MCP 实现状态](docs/22-mcp-runtime-implementation-plan.md)
+- 测试与证据：[全项目测试用例](docs/23-full-project-test-cases.md) · [当前门禁基线](docs/agent/Evir-project-memory.md) · [MCP 实现状态](docs/22-mcp-runtime-implementation-plan.md)
 
 ## License
 

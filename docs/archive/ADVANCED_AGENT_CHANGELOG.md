@@ -1,3 +1,7 @@
+> **Status: Archived（历史执行产物）**
+> 本文件是某一次工作轮的一次性执行/测试/审计记录，仅作历史证据，不代表当前产品状态，也不是规范来源。
+> 当前事实来源：根目录 `AGENTS.md`、`docs/agent/Evir-project-memory.md` 与 `docs/` 正式文档。
+
 # 高级 Agent 能力升级 — 变更记录
 
 > 2026-08-27 · 基线 5b7fbbe。审计结论见 `docs/advanced-agent-capabilities-plan.md`：Task Intake / 动态澄清 / Plan DAG / 只读并行 / Sub Agent / Supervisor / Trace / 节点级 Verification / Recovery 在代码中已完整存在，本轮只补真实缺口，未引入第二套运行时。

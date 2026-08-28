@@ -8,16 +8,10 @@ Evir is a clean, local-first, BYOM AI client and desktop agent. One tool-capable
 
 Before modifying code, read:
 
-1. `docs/18-final-product-review-v6.md`
-2. `docs/01-product-requirements.md`
-3. `docs/02-technical-architecture.md`
-4. `docs/04-design-specification.md`
-5. `docs/05-engineering-standards.md`
-6. `docs/15-final-experience-model-switching-and-context.md`
-7. `docs/16-harness-engineering-for-evir.md`
-8. `docs/17-local-logging-and-diagnostics.md`
-9. `docs/project-chat-agent-redesign.md` — the current information architecture: Sidebar Projects/Chats, Composer Agent/Plan/Goal modes, Permission Profiles.
-10. The task-relevant documents under `docs/`
+1. `docs/agent/Evir-project-memory.md` — current implementation status, gate baseline, and known gaps (high-density index).
+2. `docs/README.md` — topic → authoritative-doc map. From it, pick only the document(s) directly relevant to your task.
+
+Do not load the full doc set for a small change; one task-relevant architecture/spec document plus the memory index is enough. Historical material lives in `docs/archive/`, `docs/reviews/`, and `docs/references/` and is not a source of truth. The current information architecture (Sidebar Projects/Chats, Project Task default with Plan/Goal as explicit modes, Permission Profiles) is specified in `docs/01-product-requirements.md`.
 
 ## Architecture dependency direction
 

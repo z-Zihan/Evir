@@ -1,3 +1,6 @@
+> **Status: Historical / Archived — Not a source of truth.**
+> 本文件是 2026-08-27 Project/Chat/Agent 重构的实现设计记录（历史方案，含大量"旧状态 → 新状态"对照）。当前信息架构的权威来源是 `docs/01-product-requirements.md`。
+
 # Project / Chat / Agent 交互重构设计
 
 > 2026-08-27 · 本文档是本次 Desktop 核心产品体验重构的实现设计。事实来源：db3f225 时的真实代码。

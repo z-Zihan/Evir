@@ -61,6 +61,61 @@ function lastUserText(body) {
   return typeof user?.content === "string" ? user.content : "";
 }
 
+// Scripted tool-calling turns so the real agent loop (registry, permissions,
+// approval, execution) can be validated against this server without a paid
+// provider. The step index is derived from how many tool results the loop has
+// already sent back, so the sequence survives pauses and approvals.
+const AGENT_SCRIPT = [
+  { tool: "list_directory", args: { path: "." } },
+  { tool: "read_file", args: { path: "notes.txt" } },
+  { tool: "write_file", args: { path: "fixture-report.md", content: "# Fixture report\n\nwritten by the scripted agent fixture\n" } },
+  { tool: "read_file", args: { path: "fixture-report.md" } },
+];
+
+const AGENT_RECOVERY_SCRIPT = [
+  { tool: "list_directory", args: { path: "." } },
+  { tool: "read_file", args: { path: "missing-on-purpose.txt" } },
+  { tool: "write_file", args: { path: "recovery-note.md", content: "recovered after a failed read\n" } },
+];
+
+function scriptedToolTurn(body, script, finalText) {
+  const messages = Array.isArray(body?.messages) ? body.messages : [];
+  const toolResults = messages.filter((message) => message?.role === "tool").length;
+  const step = script[toolResults];
+  if (step) {
+    return {
+      chunks: [
+        JSON.stringify({
+          id: "fixture-agent-response",
+          choices: [
+            {
+              index: 0,
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: `fixture-call-${toolResults + 1}`,
+                    type: "function",
+                    function: { name: step.tool, arguments: JSON.stringify(step.args) },
+                  },
+                ],
+              },
+              finish_reason: null,
+            },
+          ],
+        }),
+        JSON.stringify({
+          id: "fixture-agent-response",
+          choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }],
+          usage: { prompt_tokens: 40, completion_tokens: 20, total_tokens: 60 },
+        }),
+        "[DONE]",
+      ],
+    };
+  }
+  return { chunks: textChunks(finalText) };
+}
+
 const server = createServer((request, response) => {
   if (request.method === "OPTIONS") {
     response.writeHead(204, cors);
@@ -138,6 +193,22 @@ const server = createServer((request, response) => {
     }
     if (prompt.includes("[invalid-sse]")) {
       return sse(response, ["{invalid-json", "[DONE]"]);
+    }
+    if (prompt.includes("[agent-task]")) {
+      const { chunks } = scriptedToolTurn(
+        body,
+        AGENT_SCRIPT,
+        "Agent task complete: fixture-report.md written and read back. [agent-task]",
+      );
+      return sse(response, chunks);
+    }
+    if (prompt.includes("[agent-recovery]")) {
+      const { chunks } = scriptedToolTurn(
+        body,
+        AGENT_RECOVERY_SCRIPT,
+        "Recovered from the missing file and wrote recovery-note.md. [agent-recovery]",
+      );
+      return sse(response, chunks);
     }
     const reply = prompt.includes("[slow]")
       ? "This response is deliberately streamed slowly so cancellation can be verified without a paid API. ".repeat(

@@ -73,7 +73,8 @@
       "askDesc": "Chat with the model without local tools",
       "planDesc": "Read-only tools for analysis and planning",
       "agentDesc": "Full tool access with permission controls",
-      "goal": "Goal"
+      "goal": "Goal",
+      "goalDesc": "Drive a stated objective forward and verify each completion condition"
     },
     "modeHints": {
       "agent": "You are in Agent mode. You have access to local file system tools, terminal commands, and git operations. When the user asks you to read, modify, or analyze files, you MUST use the available tools rather than saying you cannot. Available tools include: read_file, list_directory, search_files, write_file, apply_patch, run_command, git_status, git_diff. Always use tools to accomplish tasks — never say you cannot access the file system.",

@@ -43,7 +43,7 @@ Every project picks one of three levels: **Ask for Approval** (default; writes n
 
 ## Bring your own model
 
-Providers, protocols, and model capabilities are separate layers: ~30 built-in presets for international and Chinese vendors, 7 implemented protocol adapters (OpenAI Chat Completions / Responses, Anthropic Messages, Gemini, Azure OpenAI, native Ollama, OpenAI-compatible), and custom compatible endpoints. API keys live in the OS credential store and never enter logs.
+Providers, protocols, and model capabilities are separate layers: 36 built-in presets for international and Chinese vendors, 7 implemented protocol adapters (OpenAI Chat Completions / Responses, Anthropic Messages, Gemini, Azure OpenAI, native Ollama, OpenAI-compatible), and custom compatible endpoints. API keys live in the OS credential store and never enter logs.
 
 ![Provider settings: multiple vendors, models, capability badges](assets/readme/provider-settings.png)
 
@@ -61,8 +61,8 @@ Capabilities (streaming, tool calling, vision, structured output) are shown befo
 | MCP (stdio + Streamable HTTP) | ✅                     | —                      | —                      | —                       |
 
 - **Web**: a static-file chat client that talks straight from the browser to your providers, with no Evir backend; CORS-limited endpoints are detected and called out.
-- **VS Code**: a standalone VSIX with keys in VS Code SecretStorage; per-call approval for writes and commands plus diff/rollback for the last write. VS Code Web / Remote / MCP / Skills are not supported yet.
-- **CLI**: a standalone `evir` command (configure / doctor / ask / agent) that shares non-secret provider profiles and OS credentials with Desktop without requiring it to run.
+- **VS Code** (Preview): a standalone VSIX with keys in VS Code SecretStorage; per-call approval for writes and commands plus diff/rollback for the last write. VS Code Web / Remote / MCP / Skills are not supported yet.
+- **CLI** (Preview): a standalone `evir` command (configure / doctor / ask / agent) that shares non-secret provider profiles and OS credentials with Desktop without requiring it to run.
 
 ![Evir Web: multi-model chat with Markdown, tables, and code](assets/readme/web-chat.png)
 
@@ -86,7 +86,7 @@ Tauri 2 without a bundled Chromium; Skill bodies, MCP, and settings panels load 
 
 ## Current status
 
-Evir is under active development and **not released yet**. The core paths — chat, agent tools and approvals, Plan/Goal, permission levels, snapshot/rollback, MCP connections, logging and diagnostics export — are implemented and covered by 636 TypeScript tests + 25 Rust tests plus the E2E/visual/a11y matrix, with real-provider (GLM) and native macOS multi-tool runs verified on hardware. Not yet verified: Windows, formal performance measurements (cold start/memory/CPU/installer size), VS Code Marketplace and CLI npm publishing. Installers are ad-hoc unsigned by default (they run fine); Developer ID signing/notarization is an optional enhancement.
+Evir is under active development and **not released yet**. The core paths — chat, agent tools and approvals, Plan/Goal, permission levels, snapshot/rollback, MCP connections, logging and diagnostics export — are implemented and covered by 682 TypeScript tests + 37 Rust tests plus the E2E/visual/a11y matrix, with real-provider (GLM) and native macOS multi-tool runs verified on hardware; the 2026-08-28 native pass re-verified provider setup, CJK/space project paths, plan confirmation, L3 per-action approval writing to real disk, and restart persistence. Not yet verified: Windows, long-duration/stress agent runs, VS Code Marketplace and CLI npm publishing. Installers are ad-hoc signed by default (they run fine, but after each rebuild the first access to a previously stored API Key asks for Keychain re-authorization — this disappears with proper release signing); Developer ID signing/notarization is an optional enhancement.
 
 ## Development
 
@@ -104,10 +104,10 @@ Builds and releases (macOS arm64/x64 DMGs, Windows x64 MSI, VSIX, CLI tarball) a
 
 ## Documentation
 
-- Product & architecture: [Product Requirements](docs/01-product-requirements.md) · [Technical Architecture](docs/02-technical-architecture.md) · [Current IA Design](docs/project-chat-agent-redesign.md)
+- Product & architecture: [Product Requirements (current IA)](docs/01-product-requirements.md) · [Technical Architecture](docs/02-technical-architecture.md)
 - Standards: [Design](docs/04-design-specification.md) · [Engineering](docs/05-engineering-standards.md) · [Agent Security & Quality](docs/07-agent-security-and-quality.md) · [Harness](docs/16-harness-engineering-for-evir.md) · [Logging & Diagnostics](docs/17-local-logging-and-diagnostics.md)
 - Deep dives: [Skills & MCP](docs/08-skill-and-mcp.md) · [Provider Matrix](docs/13-provider-and-protocol-matrix.md) · [VS Code Roadmap](docs/19-vscode-extension-and-editor-roadmap.md) · [CLI Spec](docs/20-cli-product-and-technical-specification.md)
-- Testing & evidence: [Full Test Cases](docs/23-full-project-test-cases.md) · [Automated Quality Report](docs/reviews/automated-quality-report.md) · [MCP Implementation Status](docs/22-mcp-runtime-implementation-plan.md)
+- Testing & evidence: [Full Test Cases](docs/23-full-project-test-cases.md) · [Current gate baseline](docs/agent/Evir-project-memory.md) · [MCP Implementation Status](docs/22-mcp-runtime-implementation-plan.md)
 
 ## License
 

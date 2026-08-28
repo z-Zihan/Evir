@@ -51,8 +51,8 @@ Mode(Plan 只读) × Permission(ask/workspace/full) × Role(Primary/SubAgent/Sup
 
 ## Testing
 
-新增：done-when 解析/评估（含否定式跳过、无工作区跳过、崩溃→failed、manual 不阻塞）、goalBudgetExceeded 边界、编排集成（doneWhen 通过→completed / 失败→failed + 事件）、子代理天花板安全测试。回归见 ADVANCED_AGENT_REGRESSION_REPORT.md。
+新增：done-when 解析/评估（含否定式跳过、无工作区跳过、崩溃→failed、manual 不阻塞）、goalBudgetExceeded 边界、编排集成（doneWhen 通过→completed / 失败→failed + 事件）、子代理天花板安全测试。回归见 docs/archive/ADVANCED_AGENT_REGRESSION_REPORT.md。
 
 ## Benchmark
 
-Single vs Multi-Agent 数值对比需要真实 Provider 长任务（fixture 无法模拟真实 token/延迟差异），本轮**不做伪造数字**：设计上 subagent 节点由 planner 仅在大上下文独立子任务时生成（小任务单 Agent），多 Agent 是按需而非默认。见 ADVANCED_AGENT_BENCHMARK_REPORT.md（诚实 NOT RUN）。
+Single vs Multi-Agent 数值对比需要真实 Provider 长任务（fixture 无法模拟真实 token/延迟差异），本轮**不做伪造数字**：设计上 subagent 节点由 planner 仅在大上下文独立子任务时生成（小任务单 Agent），多 Agent 是按需而非默认。见 docs/archive/ADVANCED_AGENT_BENCHMARK_REPORT.md（诚实 NOT RUN）。

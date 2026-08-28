@@ -5,7 +5,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const clearUsage = vi.fn<() => Promise<void>>();
 const loadRecords = vi.fn<() => Promise<void>>();
 const clearLogs = vi.fn();
-const clearWorkspace = vi.fn();
 
 vi.mock("../../core/storage/db", () => ({
   db: { usage_records: { clear: clearUsage } },
@@ -37,16 +36,6 @@ vi.mock("../../core/logging/logger", () => ({
     subscribe: vi.fn(() => () => undefined),
     persistenceStatus: vi.fn(() => ({ active: false, directory: null })),
   },
-}));
-
-vi.mock("../../features/workspace/workspace-store", () => ({
-  useWorkspaceStore: () => ({
-    currentWorkspace: "/Users/example/project",
-    recentWorkspaces: ["/Users/example/project"],
-    setWorkspace: vi.fn(),
-    clearWorkspace,
-    loadWorkspace: vi.fn(),
-  }),
 }));
 
 vi.mock("react-i18next", () => ({
@@ -111,17 +100,5 @@ describe("data clearing confirmations", () => {
       screen.getByText("/Users/example/Library/Application Support/com.zihan.evir/logs"),
     ).toBeTruthy();
     expect(screen.getByRole("button", { name: "diagnostics.copyLogDirectory" })).toBeTruthy();
-  });
-
-  it("guards workspace unlinking", async () => {
-    const { WorkspaceSelector } = await import("../WorkspaceSelector");
-    render(<WorkspaceSelector />);
-
-    fireEvent.click(screen.getByRole("button", { name: "workspace.clear" }));
-    expect(clearWorkspace).not.toHaveBeenCalled();
-    fireEvent.click(
-      within(screen.getByRole("alertdialog")).getByRole("button", { name: "workspace.clear" }),
-    );
-    await waitFor(() => expect(clearWorkspace).toHaveBeenCalledOnce());
   });
 });

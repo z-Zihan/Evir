@@ -109,16 +109,16 @@
 - Composer 移除 WorkspaceSelector 与 Agent 选择器；Project Thread 默认任务按需使用工具，Plan/Goal 为显式特殊模式；Standalone Chat 恒为 Ask
 - Permission Profiles（ask/workspace/full + Additional Access Roots，full 首开确认）接入 Tool Executor
 - active-root 运行隔离：Run 绑定 originating root，切项目不污染活动 Run
-- 设计文档 `docs/project-chat-agent-redesign.md`；回归 `PROJECT_CHAT_AGENT_REGRESSION_REPORT.md`
+- 设计文档 `docs/archive/project-chat-agent-redesign.md`；回归 `docs/archive/PROJECT_CHAT_AGENT_REGRESSION_REPORT.md`
 
 ### 2026-08-27 高级 Agent 能力轮 ✅
 
 - Goal 管线修复与 doneWhen 真实验证闭环、Goal 预算护栏（节点/时长/token）、自动 Re-plan、worktree 并行写、`search_docs` 工具、偏好候选
-- 实机 GLM 全链路绿灯；变更 `ADVANCED_AGENT_CHANGELOG.md`；回归 `ADVANCED_AGENT_REGRESSION_REPORT.md`
+- 实机 GLM 全链路绿灯；变更 `docs/archive/ADVANCED_AGENT_CHANGELOG.md`；回归 `docs/archive/ADVANCED_AGENT_REGRESSION_REPORT.md`
 
 ### 2026-08-27 文档体系审计与诊断 ZIP ✅
 
-- 全仓文档审计与漂移修正（`DOCUMENTATION_AUDIT_REPORT.md`）；README 中英重写 + 真实产品截图
+- 全仓文档审计与漂移修正（`docs/archive/DOCUMENTATION_AUDIT_REPORT.md`）；README 中英重写 + 真实产品截图
 - 诊断 ZIP 导出实现（Rust `diagnostics_export_zip` + `DiagnosticExportPort` Desktop 适配器 + 预览确认 UI）
 
 ## 阶段 2：Desktop Agent 与内置工具
