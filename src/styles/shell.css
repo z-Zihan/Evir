@@ -1143,7 +1143,11 @@
   color: var(--foreground);
 }
 
-.permission-switcher-dropdown {
+/* Higher specificity than .model-switcher-dropdown (shared base) so the
+   composer-area dropdown opens upward instead of off-screen. */
+.permission-switcher .permission-switcher-dropdown {
+  top: auto;
+  bottom: calc(100% + 8px);
   right: 0;
   left: auto;
   min-width: 240px;
@@ -1246,6 +1250,9 @@
   top: calc(100% + 7px);
   right: 0;
   min-width: 250px;
+  max-height: min(420px, calc(100vh - 120px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 5px;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -1266,6 +1273,23 @@
   color: var(--foreground);
   cursor: pointer;
   text-align: left;
+}
+
+/* Single-line option rows (model list): name ellipsizes, check sits right. */
+.model-switcher-item-row {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+}
+
+.model-switcher-item-row .model-switcher-item-name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .model-switcher-item:hover,

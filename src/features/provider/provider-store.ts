@@ -137,8 +137,18 @@ async function syncSharedProfiles(
 
 async function hydrateProviderSecret(provider: ProviderRecord): Promise<ProviderRecord> {
   if (!isNativeDesktopRuntime()) return provider;
-  const apiKey = await getRuntime().storage?.keychainGet(providerSecretKey(provider.id));
-  return { ...provider, apiKey: apiKey ?? "" };
+  try {
+    // Keychain reads can block on a macOS ACL prompt for a rebuilt binary;
+    // never let that hang provider loading — a missing key only means the
+    // next request asks for the key again.
+    const apiKey = await Promise.race([
+      getRuntime().storage?.keychainGet(providerSecretKey(provider.id)),
+      new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 1_500)),
+    ]);
+    return { ...provider, apiKey: apiKey ?? "" };
+  } catch {
+    return { ...provider, apiKey: "" };
+  }
 }
 
 function replaceProvider(
@@ -185,6 +195,7 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
     const providers = await Promise.all(storedProviders.map(hydrateProviderSecret));
     await syncSharedProfiles(providers);
     set({ providers: providers.sort((a, b) => b.updatedAt - a.updatedAt) });
+    logger.info("provider", "provider.store-loaded", { count: providers.length });
   },
 
   addProvider: async (input) => {

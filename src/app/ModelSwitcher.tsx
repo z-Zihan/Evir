@@ -191,7 +191,7 @@ export function ModelSwitcher({
                 type="button"
                 role="option"
                 aria-selected={selected}
-                className={`model-switcher-item${selected ? " active" : ""}`}
+                className={`model-switcher-item model-switcher-item-row${selected ? " active" : ""}`}
                 onClick={() => {
                   setOpen(false);
                   if (!selected) onSwitchModel(current, modelId);
