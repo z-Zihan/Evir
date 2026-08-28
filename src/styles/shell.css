@@ -725,11 +725,24 @@
 /* Sidebar */
 
 .sidebar {
+  display: flex;
   min-height: 0;
   height: 100dvh;
+  flex-direction: column;
+  overflow: hidden;
   padding: 14px 12px 12px;
   background: var(--sidebar);
   border-right: 1px solid var(--border);
+}
+
+/* Single scroll region between the pinned search header and the pinned
+   identity/settings footer, so long project/chat lists never push the
+   footer out of the viewport. */
+.sidebar-scroll {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .brand-row {
@@ -788,33 +801,6 @@
   font-size: 10px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-}
-
-.new-chat-button {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  min-height: 38px;
-  gap: 8px;
-  padding: 0 10px;
-  border: 1px solid var(--border-strong);
-  border-radius: 9px;
-  background: var(--surface);
-  color: var(--foreground);
-  box-shadow: 0 1px 2px color-mix(in srgb, black 4%, transparent);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 590;
-  transition:
-    border-color 120ms ease,
-    background 120ms ease,
-    transform 120ms ease;
-}
-
-.new-chat-button:hover {
-  border-color: color-mix(in srgb, var(--primary) 38%, var(--border));
-  background: var(--surface-elevated);
-  transform: translateY(-1px);
 }
 
 .new-chat-shortcut,
@@ -3812,6 +3798,8 @@
   color: var(--muted-foreground);
   cursor: pointer;
   font-size: 10.5px;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition:
     background var(--motion-fast) ease,
     color var(--motion-fast) ease;

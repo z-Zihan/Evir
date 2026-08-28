@@ -32,9 +32,13 @@ function classifyMessage(message: string): ProviderErrorType | undefined {
   if (normalized.includes("context") && normalized.includes("length")) {
     return ProviderErrorType.CONTEXT_OVERFLOW;
   }
+  const cjkBalance =
+    /余额不足|账户欠费|账号欠费|请充值|资源包/.test(message) ||
+    /配额.*用完|额度.*(不足|用完)/.test(message);
   if (
-    normalized.includes("insufficient") &&
-    (normalized.includes("quota") || normalized.includes("balance"))
+    cjkBalance ||
+    (normalized.includes("insufficient") &&
+      (normalized.includes("quota") || normalized.includes("balance")))
   ) {
     return ProviderErrorType.INSUFFICIENT_BALANCE;
   }
@@ -87,11 +91,25 @@ export function mapHttpError(
   };
 }
 
-export function mapThrownError(error: unknown, signal?: AbortSignal): ProviderError {
+export function mapThrownError(
+  error: unknown,
+  signal?: AbortSignal,
+  streamStarted = false,
+): ProviderError {
   if (signal?.aborted || (error instanceof DOMException && error.name === "AbortError")) {
     return { type: ProviderErrorType.CANCELLED, message: "Request cancelled", retryable: false };
   }
   if (error instanceof TypeError) {
+    // Browsers surface mid-stream drops and CORS failures as the same TypeError.
+    // Once response data has already arrived, a CORS preflight rejection is no
+    // longer possible — classify as a lost connection instead.
+    if (streamStarted) {
+      return {
+        type: ProviderErrorType.NETWORK_ERROR,
+        message: "Connection lost while receiving the response",
+        retryable: true,
+      };
+    }
     return { type: ProviderErrorType.CORS_BLOCKED, message: error.message, retryable: false };
   }
   return {

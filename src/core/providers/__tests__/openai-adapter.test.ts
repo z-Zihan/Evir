@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createConfiguredAdapter, getAdapter, listModelsForProtocol } from "../adapter-registry";
 import { OpenAIChatCompletionsAdapter } from "../adapters/openai-chat-completions";
-import { chatEndpoint } from "../adapters/openai-chat-utils";
+import { chatEndpoint, mapHttpError, mapThrownError } from "../adapters/openai-chat-utils";
 import {
   ProviderErrorType,
   type ProtocolAdapter,
@@ -236,6 +236,118 @@ describe("OpenAIChatCompletionsAdapter", () => {
     const start = events.find((event) => event.type === "response-start");
 
     expect(start?.type === "response-start" ? start.responseId : undefined).toMatch(/^\d+-\w+$/);
+  });
+
+  it("parses a plain JSON completion when the provider ignores stream:true", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: "json-response",
+              choices: [
+                {
+                  index: 0,
+                  message: {
+                    role: "assistant",
+                    content: "Deterministic non-stream response.",
+                    tool_calls: [
+                      {
+                        id: "call-json-1",
+                        type: "function",
+                        function: { name: "read_file", arguments: '{"path":"/tmp/a"}' },
+                      },
+                    ],
+                  },
+                  finish_reason: "tool_calls",
+                },
+              ],
+              usage: { prompt_tokens: 4, completion_tokens: 4, total_tokens: 8 },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
+        ),
+      ),
+    );
+
+    const events = await collect(new OpenAIChatCompletionsAdapter({ apiKey: "test-key" }));
+
+    expect(events.some((event) => event.type === "error")).toBe(false);
+    expect(events.filter((event) => event.type === "text-delta")).toEqual([
+      { type: "text-delta", text: "Deterministic non-stream response." },
+    ]);
+    expect(events.filter((event) => event.type === "tool-call-start")).toEqual([
+      { type: "tool-call-start", toolCallId: "call-json-1", toolName: "read_file" },
+    ]);
+    expect(events.filter((event) => event.type === "tool-call-end")).toHaveLength(1);
+    expect(events.find((event) => event.type === "usage")).toEqual({
+      type: "usage",
+      usage: { inputTokens: 4, outputTokens: 4, totalTokens: 8 },
+    });
+    expect(events.at(-1)).toEqual({
+      type: "response-complete",
+      responseId: "json-response",
+      finishReason: "tool_calls",
+    });
+  });
+
+  it("reports a lost connection instead of CORS when a stream drops mid-flight", async () => {
+    const encoder = new TextEncoder();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Response(
+            new ReadableStream<Uint8Array>({
+              start(controller) {
+                controller.enqueue(
+                  encoder.encode('data: {"choices":[{"delta":{"content":"partial"}}]}\n\n'),
+                );
+                controller.error(new TypeError("network error"));
+              },
+            }),
+            { status: 200, headers: { "Content-Type": "text/event-stream" } },
+          ),
+      ),
+    );
+
+    const events = await collect(new OpenAIChatCompletionsAdapter({ apiKey: "test-key" }));
+    const error = events.find((event) => event.type === "error");
+
+    expect(
+      error?.type === "error"
+        ? [error.error.type, error.error.message, error.error.retryable]
+        : undefined,
+    ).toEqual([
+      ProviderErrorType.NETWORK_ERROR,
+      "Connection lost while receiving the response",
+      true,
+    ]);
+  });
+
+  it("classifies Chinese insufficient-balance provider messages as billing errors", () => {
+    expect(mapHttpError(429, "余额不足或无可用资源包,请充值。")).toMatchObject({
+      type: ProviderErrorType.INSUFFICIENT_BALANCE,
+      retryable: false,
+    });
+    expect(mapHttpError(429, "账户欠费，请充值后重试")).toMatchObject({
+      type: ProviderErrorType.INSUFFICIENT_BALANCE,
+    });
+    expect(mapHttpError(429, "Requests per minute limit reached")).toMatchObject({
+      type: ProviderErrorType.RATE_LIMITED,
+    });
+  });
+
+  it("keeps CORS classification for pre-response TypeErrors but not mid-stream ones", () => {
+    const typeError = new TypeError("Failed to fetch");
+    expect(mapThrownError(typeError)).toMatchObject({
+      type: ProviderErrorType.CORS_BLOCKED,
+    });
+    expect(mapThrownError(typeError, undefined, true)).toMatchObject({
+      type: ProviderErrorType.NETWORK_ERROR,
+    });
+    expect(mapThrownError(typeError, undefined, true).retryable).toBe(true);
   });
 });
 

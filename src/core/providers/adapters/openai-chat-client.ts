@@ -106,6 +106,7 @@ export class OpenAIChatClient implements ProtocolAdapter {
     let responseId: string = uuid();
     let finishReason = "stop";
     let hasFinished = false;
+    let streamStarted = false;
     const openToolCalls = new Set<string>();
     const toolCallIds = new Map<number, string>();
     try {
@@ -140,6 +141,59 @@ export class OpenAIChatClient implements ProtocolAdapter {
         modelId: params.modelId,
         providerId: this.connection.providerId,
       };
+      streamStarted = true;
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!contentType.includes("text/event-stream")) {
+        // Provider answered with a plain JSON completion instead of SSE
+        // (some gateways ignore `stream: true`). Parse it as one shot.
+        let payload: unknown;
+        try {
+          payload = await response.json();
+        } catch {
+          yield {
+            type: "error",
+            error: {
+              type: ProviderErrorType.PROTOCOL_INCOMPATIBLE,
+              message: "Provider returned invalid JSON",
+              retryable: false,
+            },
+          };
+          return;
+        }
+        const root = record(payload);
+        responseId = string(root?.id) ?? responseId;
+        const choice = Array.isArray(root?.choices) ? record(root.choices[0]) : undefined;
+        const message = record(choice?.message);
+        const content = string(message?.content);
+        if (content) yield { type: "text-delta", text: content };
+        const completedCalls = Array.isArray(message?.tool_calls) ? message.tool_calls : [];
+        for (const rawCall of completedCalls) {
+          const call = record(rawCall);
+          const toolCallId = string(call?.id) ?? uuid();
+          const fn = record(call?.function);
+          yield { type: "tool-call-start", toolCallId, toolName: string(fn?.name) ?? "unknown" };
+          const args = string(fn?.arguments);
+          if (args) yield { type: "tool-call-arguments-delta", toolCallId, argumentsDelta: args };
+          yield { type: "tool-call-end", toolCallId };
+        }
+        const usage = record(root?.usage);
+        if (usage) {
+          const inputTokens = number(usage.prompt_tokens);
+          const outputTokens = number(usage.completion_tokens);
+          const totalTokens = number(usage.total_tokens);
+          yield {
+            type: "usage",
+            usage: {
+              ...(inputTokens !== undefined ? { inputTokens } : {}),
+              ...(outputTokens !== undefined ? { outputTokens } : {}),
+              ...(totalTokens !== undefined ? { totalTokens } : {}),
+            },
+          };
+        }
+        finishReason = string(choice?.finish_reason) ?? "stop";
+        yield { type: "response-complete", responseId, finishReason };
+        return;
+      }
       for await (const data of dataLines(response.body)) {
         if (data === "[DONE]") {
           for (const toolCallId of openToolCalls) yield { type: "tool-call-end", toolCallId };
@@ -215,7 +269,7 @@ export class OpenAIChatClient implements ProtocolAdapter {
         };
       }
     } catch (error) {
-      yield { type: "error", error: mapThrownError(error, params.signal) };
+      yield { type: "error", error: mapThrownError(error, params.signal, streamStarted) };
     }
   }
 

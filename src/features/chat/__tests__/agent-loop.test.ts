@@ -141,12 +141,17 @@ describe("runAgentLoop", () => {
     expect(result.turns.at(-1)?.stream.errorMessage).toBe("tools.maxIterations");
   });
 
-  it("explains step-scoped tool blocks instead of claiming browser mode", async () => {
-    vi.mocked(streamAssistant).mockResolvedValueOnce({
-      content: "",
-      status: "complete",
-      toolCalls: [{ id: "call-1", toolName: "write_file", arguments: "{}" }],
-    });
+  it("feeds step-scoped tool blocks back as tool results so the model can adapt", async () => {
+    vi.mocked(streamAssistant)
+      .mockResolvedValueOnce({
+        content: "",
+        status: "complete",
+        toolCalls: [{ id: "call-1", toolName: "write_file", arguments: "{}" }],
+      })
+      .mockResolvedValueOnce({
+        content: "Planned the change for the execute step",
+        status: "complete",
+      });
     // 只授予 read 工具，write_file 应被 tool-policy 以 tool-not-allowed 拦截
     const runtime = setupRuntime(() => Promise.resolve({ success: true, output: "ok" }));
     const readRuntime: EvirRuntime = {
@@ -179,10 +184,67 @@ describe("runAgentLoop", () => {
       onDelta: vi.fn(),
     });
 
-    const blockedTurn = result.turns.at(-1);
-    expect(blockedTurn?.stream.status).toBe("error");
-    expect(blockedTurn?.stream.errorMessage).toBe("tools.notAllowedByStep");
-    expect(blockedTurn?.stream.content).toContain("Tool not allowed: write_file");
+    // The denial is surfaced, the model gets a tool-result explanation, and the
+    // loop continues instead of failing the whole node/run.
+    expect(result.turns).toHaveLength(2);
+    expect(result.turns[0]?.stream.content).toContain("Tool not allowed: write_file");
+    expect(result.turns[0]?.toolResults?.[0]).toMatchObject({
+      success: false,
+      error: "tool_not_allowed",
+    });
+    expect(result.turns[1]?.stream.content).toBe("Planned the change for the execute step");
+    expect(result.maxIterationsReached).toBe(false);
+    expect(vi.mocked(streamAssistant)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(streamAssistant).mock.calls[1]?.[2]).toEqual(
+      expect.arrayContaining([expect.objectContaining({ role: "tool", tool_call_id: "call-1" })]),
+    );
+    const feedback = vi
+      .mocked(streamAssistant)
+      .mock.calls[1]?.[2].find((message) => message.role === "tool");
+    expect(typeof feedback?.content).toBe("string");
+    expect(String(feedback?.content)).toContain("Do not retry this tool");
+  });
+
+  it("blocks the run after repeated step-scoped denials", async () => {
+    vi.mocked(streamAssistant).mockResolvedValue({
+      content: "",
+      status: "complete",
+      toolCalls: [{ id: "call-denied", toolName: "write_file", arguments: "{}" }],
+    });
+    const runtime = setupRuntime(() => Promise.resolve({ success: true, output: "ok" }));
+    const readRuntime: EvirRuntime = {
+      ...runtime,
+      toolRegistry: (() => {
+        const registry = createToolRegistry();
+        registry.register({
+          id: "read_file",
+          name: "read_file",
+          description: "Read",
+          source: "evir-local",
+          riskLevel: "L1",
+          schema: { type: "object" },
+          execute: () => Promise.resolve({ success: true, output: "" }),
+        });
+        return registry;
+      })(),
+    };
+    const harnessMiddlewareRegistry = new HarnessMiddlewareRegistry();
+    harnessMiddlewareRegistry.registerProtected(
+      createProtectedToolPolicyMiddleware(),
+      "evir.host.tool-policy",
+    );
+
+    const result = await runAgentLoop({
+      provider,
+      conversationId: "conversation-1",
+      messages: [{ role: "user", content: "Write it" }],
+      runtime: { ...readRuntime, harnessMiddlewareRegistry },
+      onDelta: vi.fn(),
+    });
+
+    const lastTurn = result.turns.at(-1);
+    expect(lastTurn?.stream.status).toBe("error");
+    expect(lastTurn?.stream.errorMessage).toBe("tools.notAllowedByStep");
   });
 });
 

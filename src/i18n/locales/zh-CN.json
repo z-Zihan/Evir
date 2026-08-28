@@ -3,6 +3,7 @@
     "loading": "加载中",
     "save": "保存",
     "cancel": "取消",
+    "close": "关闭",
     "yes": "是",
     "no": "否"
   },
@@ -191,8 +192,8 @@
       "description": "请检查 API Key、Base URL 和模型服务权限。"
     },
     "CORS_BLOCKED": {
-      "title": "浏览器阻止了请求",
-      "description": "目标服务未允许浏览器跨域访问，请使用支持 CORS 的端点或桌面版。"
+      "title": "浏览器无法连接到端点",
+      "description": "请检查 Base URL 与服务是否在运行；若服务正常，通常是未允许浏览器跨域（CORS）访问，可改用支持 CORS 的端点或桌面版。"
     },
     "RATE_LIMITED": {
       "title": "请求过于频繁",

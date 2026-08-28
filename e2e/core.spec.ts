@@ -30,6 +30,31 @@ test("first run and runtime capability boundaries", async ({ page }, testInfo) =
   expect(consoleErrors).toEqual([]);
 });
 
+test("sidebar scrolls internally and keeps the settings footer visible", async ({ page }) => {
+  await configurePage(page);
+  await seedFixture(page);
+  // Force overflow: an extremely short viewport leaves no room for even one
+  // list row, so the scroll region must absorb it while the footer stays put.
+  await page.setViewportSize({ width: 1100, height: 240 });
+  await expect(page.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
+  const layout = await page.evaluate(() => {
+    const scroll = document.querySelector<HTMLElement>(".sidebar-scroll");
+    const footer = document.querySelector<HTMLElement>(".sidebar-footer");
+    if (!scroll || !footer) return null;
+    const footerRect = footer.getBoundingClientRect();
+    return {
+      scrollable: scroll.scrollHeight > scroll.clientHeight,
+      contained: scroll.scrollHeight > scroll.clientHeight + 4,
+      footerInsideViewport: footerRect.bottom <= window.innerHeight + 1 && footerRect.height > 0,
+      sidebarOverflow: getComputedStyle(document.querySelector<HTMLElement>(".sidebar")!).overflow,
+    };
+  });
+  expect(layout).not.toBeNull();
+  expect(layout?.footerInsideViewport).toBe(true);
+  expect(layout?.contained).toBe(true);
+  expect(layout?.sidebarOverflow).toBe("hidden");
+});
+
 test("shows the platform-specific built-in Skill catalog", async ({ page }, testInfo) => {
   await configurePage(page);
   await page.getByRole("button", { name: "Settings", exact: true }).click();
@@ -440,7 +465,8 @@ test("failed provider connection is visible in redacted diagnostic logs", async 
 
   expect(failure).toMatchObject({
     data: {
-      errorType: "RATE_LIMITED",
+      // 余额不足 is a billing problem: retrying (RATE_LIMITED advice) cannot help.
+      errorType: "INSUFFICIENT_BALANCE",
       providerResponse: {
         status: 429,
         code: "quota_exhausted",

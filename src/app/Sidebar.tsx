@@ -283,123 +283,134 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
           <ChevronDown size={12} aria-hidden="true" />
         </button>
 
-        {getRuntime().target === "desktop" && (
-          <section className="sidebar-section" aria-label={t("sidebar.projects")}>
+        <div className="sidebar-scroll">
+          {getRuntime().target === "desktop" && (
+            <section className="sidebar-section" aria-label={t("sidebar.projects")}>
+              <div className="section-label-row">
+                <div className="section-label">{t("sidebar.projects")}</div>
+                <button
+                  className="section-add"
+                  type="button"
+                  onClick={() => void handleAddProject()}
+                  aria-label={t("sidebar.addProject")}
+                  title={t("sidebar.addProject")}
+                >
+                  <FolderPlus size={13} />
+                </button>
+              </div>
+              {visibleProjects.length === 0 ? (
+                <div className="empty-list">{t("sidebar.noProjects")}</div>
+              ) : (
+                visibleProjects.map((project) => {
+                  const isOpen = expanded.has(project.id);
+                  const threads = threadsOf(project.id);
+                  return (
+                    <div key={project.id} className="project-group">
+                      <SidebarProjectItem
+                        project={project}
+                        expanded={isOpen}
+                        active={currentProjectId === project.id}
+                        folderMissing={folderMissing[project.id] ?? false}
+                        onToggleExpand={() => {
+                          const next = new Set(expandedRef.current);
+                          if (next.has(project.id)) next.delete(project.id);
+                          else next.add(project.id);
+                          persistExpanded(next);
+                        }}
+                        onSelect={() => selectProject(project.id)}
+                        onNewTask={() => handleNewTask(project)}
+                        onTogglePin={() => void togglePinProject(project.id)}
+                        onRename={(name) => void renameProject(project.id, name)}
+                        onLocate={() => handleLocate(project)}
+                        onPermission={() => setPermissionProjectId(project.id)}
+                        onRemove={() => handleRemoveProject(project)}
+                      />
+                      {isOpen &&
+                        (threads.length > 0 ? (
+                          <div className="project-thread-list">
+                            {threads.map((conversation) => (
+                              <SidebarConversationItem
+                                key={conversation.id}
+                                conversation={conversation}
+                                variant="thread"
+                                isActive={conversation.id === currentConversationId}
+                                onSelect={() =>
+                                  handleSelectConversation(project.id)(conversation.id)
+                                }
+                                onRename={(title) =>
+                                  void renameConversation(conversation.id, title)
+                                }
+                                onTogglePin={() => void togglePin(conversation.id)}
+                                onDelete={() =>
+                                  requestConfirmation(
+                                    {
+                                      title: t("confirmation.deleteTitle"),
+                                      description: t("confirmation.deleteDescription", {
+                                        item: conversation.title || t("chat.title"),
+                                      }),
+                                      confirmLabel: t("provider.delete"),
+                                    },
+                                    () => deleteConversation(conversation.id),
+                                  )
+                                }
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="empty-list project-empty">
+                            {t("sidebar.emptyProject")}
+                          </div>
+                        ))}
+                    </div>
+                  );
+                })
+              )}
+            </section>
+          )}
+
+          <section className="sidebar-section" aria-label={t("sidebar.chats")}>
             <div className="section-label-row">
-              <div className="section-label">{t("sidebar.projects")}</div>
+              <div className="section-label">{t("sidebar.chats")}</div>
               <button
                 className="section-add"
                 type="button"
-                onClick={() => void handleAddProject()}
-                aria-label={t("sidebar.addProject")}
-                title={t("sidebar.addProject")}
+                onClick={handleNewChat}
+                aria-label={t("sidebar.newChat")}
+                title={`${t("sidebar.newChat")} (${shortcutModifier}N)`}
               >
-                <FolderPlus size={13} />
+                <MessageSquarePlus size={13} />
               </button>
             </div>
-            {visibleProjects.length === 0 ? (
-              <div className="empty-list">{t("sidebar.noProjects")}</div>
+            {standaloneChats.length === 0 ? (
+              <div className="empty-list">{t("sidebar.noConversations")}</div>
             ) : (
-              visibleProjects.map((project) => {
-                const isOpen = expanded.has(project.id);
-                const threads = threadsOf(project.id);
-                return (
-                  <div key={project.id} className="project-group">
-                    <SidebarProjectItem
-                      project={project}
-                      expanded={isOpen}
-                      active={currentProjectId === project.id}
-                      folderMissing={folderMissing[project.id] ?? false}
-                      onToggleExpand={() => {
-                        const next = new Set(expandedRef.current);
-                        if (next.has(project.id)) next.delete(project.id);
-                        else next.add(project.id);
-                        persistExpanded(next);
-                      }}
-                      onSelect={() => selectProject(project.id)}
-                      onNewTask={() => handleNewTask(project)}
-                      onTogglePin={() => void togglePinProject(project.id)}
-                      onRename={(name) => void renameProject(project.id, name)}
-                      onLocate={() => handleLocate(project)}
-                      onPermission={() => setPermissionProjectId(project.id)}
-                      onRemove={() => handleRemoveProject(project)}
-                    />
-                    {isOpen &&
-                      (threads.length > 0 ? (
-                        <div className="project-thread-list">
-                          {threads.map((conversation) => (
-                            <SidebarConversationItem
-                              key={conversation.id}
-                              conversation={conversation}
-                              variant="thread"
-                              isActive={conversation.id === currentConversationId}
-                              onSelect={() => handleSelectConversation(project.id)(conversation.id)}
-                              onRename={(title) => void renameConversation(conversation.id, title)}
-                              onTogglePin={() => void togglePin(conversation.id)}
-                              onDelete={() =>
-                                requestConfirmation(
-                                  {
-                                    title: t("confirmation.deleteTitle"),
-                                    description: t("confirmation.deleteDescription", {
-                                      item: conversation.title || t("chat.title"),
-                                    }),
-                                    confirmLabel: t("provider.delete"),
-                                  },
-                                  () => deleteConversation(conversation.id),
-                                )
-                              }
-                            />
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="empty-list project-empty">{t("sidebar.emptyProject")}</div>
-                      ))}
-                  </div>
-                );
-              })
+              <div className="conversation-list">
+                {standaloneChats.map((conversation) => (
+                  <SidebarConversationItem
+                    key={conversation.id}
+                    conversation={conversation}
+                    isActive={conversation.id === currentConversationId}
+                    onSelect={() => handleSelectConversation(null)(conversation.id)}
+                    onRename={(title) => void renameConversation(conversation.id, title)}
+                    onTogglePin={() => void togglePin(conversation.id)}
+                    onDelete={() =>
+                      requestConfirmation(
+                        {
+                          title: t("confirmation.deleteTitle"),
+                          description: t("confirmation.deleteDescription", {
+                            item: conversation.title || t("chat.title"),
+                          }),
+                          confirmLabel: t("provider.delete"),
+                        },
+                        () => deleteConversation(conversation.id),
+                      )
+                    }
+                  />
+                ))}
+              </div>
             )}
           </section>
-        )}
-
-        <section className="sidebar-section" aria-label={t("sidebar.chats")}>
-          <div className="section-label-row">
-            <div className="section-label">{t("sidebar.chats")}</div>
-          </div>
-          <button className="new-chat-button" type="button" onClick={handleNewChat}>
-            <MessageSquarePlus size={16} /> {t("sidebar.newChat")}
-            <span className="new-chat-shortcut" aria-hidden="true">
-              {shortcutModifier}N
-            </span>
-          </button>
-          {standaloneChats.length === 0 ? (
-            <div className="empty-list">{t("sidebar.noConversations")}</div>
-          ) : (
-            <div className="conversation-list">
-              {standaloneChats.map((conversation) => (
-                <SidebarConversationItem
-                  key={conversation.id}
-                  conversation={conversation}
-                  isActive={conversation.id === currentConversationId}
-                  onSelect={() => handleSelectConversation(null)(conversation.id)}
-                  onRename={(title) => void renameConversation(conversation.id, title)}
-                  onTogglePin={() => void togglePin(conversation.id)}
-                  onDelete={() =>
-                    requestConfirmation(
-                      {
-                        title: t("confirmation.deleteTitle"),
-                        description: t("confirmation.deleteDescription", {
-                          item: conversation.title || t("chat.title"),
-                        }),
-                        confirmLabel: t("provider.delete"),
-                      },
-                      () => deleteConversation(conversation.id),
-                    )
-                  }
-                />
-              ))}
-            </div>
-          )}
-        </section>
+        </div>
 
         <div className="sidebar-footer">
           <button

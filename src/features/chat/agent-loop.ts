@@ -275,6 +275,8 @@ async function runAgentLoopBound(
   const tools = providerTools(definitions);
   const allowedToolIds = new Set(definitions.map(({ id }) => id));
   const maximum = options.maxIterations ?? MAX_AGENT_ITERATIONS;
+  const MAX_TOOL_NOT_ALLOWED_FEEDBACKS = 2;
+  let notAllowedFeedbackCount = 0;
   const agentRun = options.runtime.agentRun ?? {
     id: crypto.randomUUID(),
     snapshots: [],
@@ -338,6 +340,15 @@ async function runAgentLoopBound(
             : "failed",
       );
     }
+    // Step-scoped denials are fed back as tool results so the model can adapt
+    // (for example, describe the change for the Execute node instead of
+    // attempting the write inside a read-only node). Loop-style blocks stay
+    // hard stops, and repeated denials fall back to blocking the run.
+    const disallowedCalls: Array<{
+      rawCall: NonNullable<StreamResult["toolCalls"]>[number];
+      args: Record<string, unknown>;
+      summary: string;
+    }> = [];
     for (const rawCall of stream.toolCalls) {
       rawCall.toolName = normalizeToolCallName(rawCall.toolName, allowedToolIds);
       const args = parseArguments(rawCall.arguments) ?? {};
@@ -353,16 +364,18 @@ async function runAgentLoopBound(
         allowedToolIds,
         blocked: false,
       });
-      if (policy.blocked) {
-        const summary = policy.loopSignal?.summary ?? `Tool not allowed: ${rawCall.toolName}`;
+      if (!policy.blocked) continue;
+      const summary = policy.loopSignal?.summary ?? `Tool not allowed: ${rawCall.toolName}`;
+      if (
+        policy.loopSignal?.type === "repeated-failed-call" ||
+        policy.blockReason !== "tool-not-allowed"
+      ) {
         const errorMessageKey =
           policy.loopSignal?.type === "repeated-failed-call"
             ? "tools.repeatedFailures"
             : policy.blockReason === "loop-detected"
               ? "tools.maxIterations"
-              : policy.blockReason === "tool-not-allowed"
-                ? "tools.notAllowedByStep"
-                : "tools.notAvailable";
+              : "tools.notAvailable";
         logger.warn("tool", "agent.tool-call-blocked", {
           conversationId: options.conversationId,
           runId: agentRun.id,
@@ -389,6 +402,66 @@ async function runAgentLoopBound(
           "blocked",
         );
       }
+      logger.warn("tool", "agent.tool-call-blocked", {
+        conversationId: options.conversationId,
+        runId: agentRun.id,
+        toolName: rawCall.toolName,
+        blockReason: policy.blockReason ?? "unknown",
+        mode,
+        allowedToolIds: [...allowedToolIds],
+      });
+      disallowedCalls.push({ rawCall, args, summary });
+    }
+    if (disallowedCalls.length > 0) {
+      notAllowedFeedbackCount += 1;
+      const blockedRecords: ToolCallRecord[] = [];
+      const blockedResults: ToolResultRecord[] = [];
+      for (const { rawCall, args, summary } of disallowedCalls) {
+        blockedRecords.push({ id: rawCall.id, toolName: rawCall.toolName, arguments: args });
+        const now = Date.now();
+        blockedResults.push({
+          toolCallId: rawCall.id,
+          toolName: rawCall.toolName,
+          success: false,
+          output: `${summary}. Do not retry this tool in the current step; continue the task using only the tools allowed here.`,
+          error: "tool_not_allowed",
+          startedAt: now,
+          completedAt: now,
+          durationMs: 0,
+        });
+      }
+      const deniedSummary = disallowedCalls.map(({ summary }) => summary).join("；");
+      turns.push({
+        stream: {
+          ...stream,
+          content: `${stream.content}\n\n⚠️ ${deniedSummary}`,
+        },
+        toolCalls: blockedRecords,
+        toolResults: blockedResults,
+      });
+      messages.push(
+        assistantToolCallWireMessage(
+          stream.content,
+          disallowedCalls.map(({ rawCall }) => ({
+            id: rawCall.id,
+            toolName: rawCall.toolName,
+            arguments: rawCall.arguments,
+          })),
+        ),
+      );
+      messages.push(...toolResultWireMessages(blockedResults));
+      if (notAllowedFeedbackCount > MAX_TOOL_NOT_ALLOWED_FEEDBACKS) {
+        turns.push({
+          stream: {
+            ...stream,
+            status: "error",
+            errorMessage: "tools.notAllowedByStep",
+            content: `${stream.content}\n\n⚠️ ${deniedSummary}`,
+          },
+        });
+        return finish({ turns, maxIterationsReached: false, messages, agentRun }, "blocked");
+      }
+      continue;
     }
     const { calls, results } = await executeCalls(
       stream,

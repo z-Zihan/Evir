@@ -3,6 +3,7 @@
     "loading": "Loading",
     "save": "Save",
     "cancel": "Cancel",
+    "close": "Close",
     "yes": "Yes",
     "no": "No"
   },
@@ -191,8 +192,8 @@
       "description": "Check the API key, base URL, and access granted by your model provider."
     },
     "CORS_BLOCKED": {
-      "title": "Request blocked by the browser",
-      "description": "The endpoint does not allow cross-origin requests. Use a CORS-enabled endpoint or the desktop app."
+      "title": "Could not reach the endpoint",
+      "description": "Check the base URL and that the service is running. If it is up, it likely does not allow browser (CORS) access — use a CORS-enabled endpoint or the desktop app."
     },
     "RATE_LIMITED": {
       "title": "Too many requests",
