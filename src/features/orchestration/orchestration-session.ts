@@ -255,6 +255,12 @@ export async function submitClarifications(
 ): Promise<PreparationResult> {
   const current = useOrchestrationStore.getState().current;
   if (!current || current.phase !== "clarification") return "not-applicable";
+  // Claim the clarification slot synchronously: rapid re-clicks each read
+  // phase === "clarification" before the first submission finishes and would
+  // run the whole plan pipeline in parallel (RC battery: 12 clicks in 3s
+  // produced 4 duplicate plan-created events). Moving the phase first also
+  // unmounts the form, so later clicks have no button to hit.
+  useOrchestrationStore.getState().setCurrent({ ...current, phase: "planning" });
   const startedAt = Date.now();
   let brief = answerClarifications(current.brief, answers);
   const workspace = runtime.getWorkspaceRoot?.() ?? null;
@@ -327,7 +333,22 @@ export async function submitClarifications(
     useOrchestrationStore.getState().setCurrent(next);
     return "clarification";
   }
-  const plan = await buildValidatedPlan(brief, workspace, runtime, planner);
+  let plan;
+  try {
+    plan = await buildValidatedPlan(brief, workspace, runtime, planner);
+  } catch (error) {
+    // Plan generation failed after the slot was claimed — put the form back
+    // so the user can retry instead of being stuck on the planning phase.
+    logger.error("agent", "orchestration.plan-generation-failed", {
+      runId: current.runId,
+      conversationId: current.conversationId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    useOrchestrationStore
+      .getState()
+      .setCurrent({ ...current, brief, events: [...current.events, answered] });
+    return "clarification";
+  }
   const created = createRunEvent(
     "plan.created",
     current.runId,
@@ -375,11 +396,14 @@ export async function approveCurrentPlan(
     plan,
     events: [...current.events, event],
   };
+  // Flip the in-memory phase before the async persist: a rapid second click
+  // on "confirm and start" would otherwise pass the phase guard above and
+  // schedule the run twice.
+  useOrchestrationStore.getState().setCurrent(next);
   if (!privateSession) {
     const repository = new OrchestrationRepository(runtime.structuredStorage!);
     await repository.persistPlanWithEvents(plan, [event]);
   }
-  useOrchestrationStore.getState().setCurrent(next);
   logger.info("agent", "orchestration.plan-confirmed", {
     runId: current.runId,
     conversationId: current.conversationId,
@@ -532,16 +556,18 @@ export async function resumeCurrentRun(
     "Run resumed at a safe node boundary",
   );
   const plan: PlanGraph = { ...current.plan, status: "ready", updatedAt: Date.now() };
-  if (!privateSession) {
-    const repository = new OrchestrationRepository(runtime.structuredStorage!);
-    await repository.persistPlanWithEvents(plan, [event]);
-  }
+  // Claim the slot synchronously (rapid double-click guard, same as the
+  // clarification submit) before the async persistence and stream kickoff.
   useOrchestrationStore.getState().setCurrent({
     ...current,
     phase: "execution",
     plan,
     events: [...current.events, event],
   });
+  if (!privateSession) {
+    const repository = new OrchestrationRepository(runtime.structuredStorage!);
+    await repository.persistPlanWithEvents(plan, [event]);
+  }
   return true;
 }
 
@@ -581,16 +607,17 @@ export async function retryCurrentRun(
     status: "ready",
     updatedAt: Date.now(),
   };
-  if (!privateSession) {
-    const repository = new OrchestrationRepository(runtime.structuredStorage!);
-    await repository.persistPlanWithEvents(plan, [event]);
-  }
+  // Claim the slot synchronously (rapid double-click guard) before persisting.
   useOrchestrationStore.getState().setCurrent({
     ...current,
     phase: "execution",
     plan,
     events: [...current.events, event],
   });
+  if (!privateSession) {
+    const repository = new OrchestrationRepository(runtime.structuredStorage!);
+    await repository.persistPlanWithEvents(plan, [event]);
+  }
   return true;
 }
 
