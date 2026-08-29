@@ -220,7 +220,12 @@ test("model switcher exposes keyboard listbox navigation and focus return", asyn
   await page.keyboard.press("ArrowDown");
   const listbox = page.getByRole("listbox", { name: "Switch model" });
   await expect(listbox).toBeVisible();
-  await expect(listbox.getByRole("option", { name: /Local Fixture/ })).toBeFocused();
+  // Wait for the async model fetch to settle so option re-renders do not
+  // steal focus mid-navigation, then drive the list purely by keyboard.
+  await expect(listbox.getByRole("option", { name: "evir-fixture-model" })).toBeVisible();
+  await trigger.focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(listbox.getByRole("option", { name: "evir-fixture-model" })).toBeFocused();
   await page.keyboard.press("ArrowDown");
   await expect(listbox.getByRole("option", { name: /Second Fixture/ })).toBeFocused();
   await page.keyboard.press("Escape");

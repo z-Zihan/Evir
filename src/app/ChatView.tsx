@@ -762,6 +762,7 @@ export function ChatView({
               <button
                 type="button"
                 className="send-button"
+                aria-label={t("chat.send")}
                 disabled={isStreaming || (!input.trim() && pendingAttachments.length === 0)}
                 onClick={onSendMessage}
                 data-tip={

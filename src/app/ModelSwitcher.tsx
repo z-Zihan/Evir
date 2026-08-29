@@ -160,6 +160,7 @@ export function ModelSwitcher({
         type="button"
         className="model-switcher-button"
         data-tip={t("chat.switchModel")}
+        aria-label={[current.name, shownModelId].filter(Boolean).join(" ")}
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
@@ -167,6 +168,16 @@ export function ModelSwitcher({
           if (event.key === "ArrowDown" || event.key === "ArrowUp") {
             event.preventDefault();
             setOpen(true);
+            // Move focus into the list so the container-level Arrow handlers
+            // take over; without this the trigger keeps focus and the listbox
+            // never receives the navigation keys (a11y keyboard trap test).
+            requestAnimationFrame(() => {
+              const options =
+                listRef.current?.querySelectorAll<HTMLButtonElement>('[role="option"]') ?? [];
+              const target =
+                event.key === "ArrowDown" ? options[0] : options[Math.max(0, options.length - 1)];
+              target?.focus();
+            });
           }
         }}
       >

@@ -40,6 +40,25 @@ function tipHostFrom(node: EventTarget | null): HTMLElement | null {
   return host instanceof HTMLElement ? host : null;
 }
 
+/**
+ * The CSS tooltip renders through ::after, which screen readers do not
+ * announce, so icon-only hosts need a real accessible name. Mirroring
+ * data-tip onto aria-label here keeps the ~50 call sites single-sourced;
+ * hosts that already expose visible text are left untouched.
+ */
+function applyAccessibleName(host: HTMLElement): void {
+  if (host.hasAttribute("aria-label")) return;
+  if (host.textContent?.trim()) return;
+  const tip = host.getAttribute("data-tip");
+  if (tip) host.setAttribute("aria-label", tip);
+}
+
+function syncAccessibleNames(root: ParentNode): void {
+  for (const el of root.querySelectorAll<HTMLElement>("[data-tip]")) {
+    applyAccessibleName(el);
+  }
+}
+
 /** Delegated listeners; returns a cleanup function. */
 export function installTooltipDirection(): () => void {
   const onOver = (event: PointerEvent): void => {
@@ -52,8 +71,21 @@ export function installTooltipDirection(): () => void {
   };
   document.addEventListener("pointerover", onOver);
   document.addEventListener("focusin", onFocus);
+  syncAccessibleNames(document);
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      for (const node of mutation.addedNodes) {
+        if (node instanceof HTMLElement) {
+          applyAccessibleName(node);
+          if (node.childElementCount > 0) syncAccessibleNames(node);
+        }
+      }
+    }
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
   return () => {
     document.removeEventListener("pointerover", onOver);
     document.removeEventListener("focusin", onFocus);
+    observer.disconnect();
   };
 }

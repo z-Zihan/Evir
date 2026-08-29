@@ -76,6 +76,7 @@ export function PermissionSwitcher({ project }: PermissionSwitcherProps) {
         type="button"
         className="permission-switcher-button"
         aria-haspopup="listbox"
+        aria-label={t("chat.permissionPickerTitle")}
         aria-expanded={open}
         data-tip={t("chat.permissionPickerTitle")}
         onClick={() => setOpen((value) => !value)}

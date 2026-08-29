@@ -160,3 +160,45 @@ describe("installTooltipDirection", () => {
     expect(UPWARD_CLEARANCE).toBeGreaterThan(0);
   });
 });
+
+describe("accessible name mirroring", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("mirrors data-tip onto aria-label for icon-only hosts", () => {
+    const button = document.createElement("button");
+    button.setAttribute("data-tip", "复制");
+    document.body.appendChild(button);
+    const cleanup = installTooltipDirection();
+    expect(button.getAttribute("aria-label")).toBe("复制");
+    cleanup();
+  });
+
+  it("does not override hosts that expose visible text", () => {
+    const button = document.createElement("button");
+    button.setAttribute("data-tip", "切换模型");
+    button.textContent = "Local Fixture model-x";
+    document.body.appendChild(button);
+    const cleanup = installTooltipDirection();
+    expect(button.getAttribute("aria-label")).toBeNull();
+    cleanup();
+  });
+
+  it("labels hosts added after install", () => {
+    const cleanup = installTooltipDirection();
+    const button = document.createElement("button");
+    button.setAttribute("data-tip", "置顶");
+    document.body.appendChild(button);
+    return new Promise((resolve) => {
+      new MutationObserver(() => {
+        // MutationObserver callbacks run as microtasks; wait one tick.
+      }).observe(document.body, { childList: true });
+      setTimeout(() => {
+        expect(button.getAttribute("aria-label")).toBe("置顶");
+        cleanup();
+        resolve(undefined);
+      }, 50);
+    });
+  });
+});
