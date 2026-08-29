@@ -176,6 +176,55 @@ describe("runOrchestratedAgent", () => {
     expect(result.turns.at(-1)?.stream.content).toContain("Verify");
   });
 
+  it("completes a node that exhausts its iteration budget with tool evidence instead of failing it", async () => {
+    const runtime = {
+      target: "desktop",
+      capabilities: new Set(["chat"]),
+      has: (capability: string) => capability === "chat",
+      toolRegistry: createToolRegistry(),
+    } satisfies EvirRuntime;
+    vi.mocked(runAgentLoop).mockImplementation((options) =>
+      Promise.resolve({
+        turns: [
+          {
+            stream: { content: "", status: "complete" },
+            toolResults: [
+              {
+                toolCallId: "call-1",
+                toolName: "read_file",
+                success: true,
+                output: "fixture evidence",
+              },
+            ],
+          },
+        ],
+        maxIterationsReached: true,
+        messages: options.messages,
+        agentRun: options.runtime.agentRun!,
+      }),
+    );
+
+    const result = await runOrchestratedAgent({
+      provider,
+      conversationId: "conversation-1",
+      messages: [{ role: "user", content: brief.objective }],
+      runtime,
+      privateSession: true,
+      onDelta: vi.fn(),
+    });
+
+    const current = useOrchestrationStore.getState().current;
+    expect(current?.events.some(({ type }) => type === "node.failed")).toBe(false);
+    expect(current?.plan?.status).toBe("completed");
+    expect(
+      current?.events.some(
+        (event) =>
+          event.type === "agent.completed" &&
+          event.summary.includes("Iteration budget reached before a final summary"),
+      ),
+    ).toBe(true);
+  });
+
   it("keeps recent dialogue context when a follow-up task references the previous result", async () => {
     const runtime = {
       target: "desktop",

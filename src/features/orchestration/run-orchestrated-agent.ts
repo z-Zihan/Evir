@@ -126,12 +126,21 @@ function loopStatus(result: AgentLoopResult): NodeExecutionResult["status"] {
   const last = result.turns.at(-1);
   if (last?.pendingApproval) return "blocked";
   if (last?.stream.status === "stopped") return "cancelled";
-  if (result.maxIterationsReached || last?.stream.status === "error") return "failed";
+  if (last?.stream.status === "error") return "failed";
+  // An exhausted iteration budget is not by itself a failure: genuine stuck
+  // loops surface as stream errors from the loop-detection middleware above.
+  // Here the model kept making distinct tool calls until the cap — let the
+  // node complete with whatever evidence it produced so downstream nodes
+  // (and the user) can act on it instead of discarding the whole run.
   return "completed";
 }
 
 function loopSummary(result: AgentLoopResult): string {
-  return result.turns.at(-1)?.stream.content.trim() || "Node completed without a text summary";
+  const text = result.turns.at(-1)?.stream.content.trim();
+  if (text) return text;
+  return result.maxIterationsReached
+    ? "Iteration budget reached before a final summary (tool evidence preserved)"
+    : "Node completed without a text summary";
 }
 
 function reportFromLoop(assignment: AgentAssignment, result: AgentLoopResult): WorkerReport {

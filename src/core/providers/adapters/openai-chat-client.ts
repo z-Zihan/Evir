@@ -106,9 +106,11 @@ export class OpenAIChatClient implements ProtocolAdapter {
     let responseId: string = uuid();
     let finishReason = "stop";
     let hasFinished = false;
-    let streamStarted = false;
     const openToolCalls = new Set<string>();
     const toolCallIds = new Map<number, string>();
+    const toolCallNames = new Map<number, string>();
+    const bufferedArguments = new Map<number, string>();
+    let streamStarted = false;
     try {
       const response = await this.request(
         {
@@ -169,9 +171,13 @@ export class OpenAIChatClient implements ProtocolAdapter {
         const completedCalls = Array.isArray(message?.tool_calls) ? message.tool_calls : [];
         for (const rawCall of completedCalls) {
           const call = record(rawCall);
-          const toolCallId = string(call?.id) ?? uuid();
+          const toolCallId = string(call?.id) || uuid();
           const fn = record(call?.function);
-          yield { type: "tool-call-start", toolCallId, toolName: string(fn?.name) ?? "unknown" };
+          yield {
+            type: "tool-call-start",
+            toolCallId,
+            toolName: string(fn?.name) || "unknown",
+          };
           const args = string(fn?.arguments);
           if (args) yield { type: "tool-call-arguments-delta", toolCallId, argumentsDelta: args };
           yield { type: "tool-call-end", toolCallId };
@@ -224,16 +230,33 @@ export class OpenAIChatClient implements ProtocolAdapter {
         for (const rawCall of toolCalls) {
           const call = record(rawCall);
           const index = number(call?.index) ?? 0;
-          const toolCallId = string(call?.id) ?? toolCallIds.get(index) ?? `tool-${index}`;
-          toolCallIds.set(index, toolCallId);
+          const fragmentId = string(call?.id);
           const fn = record(call?.function);
+          const fragmentName = string(fn?.name);
+          if (fragmentId) toolCallIds.set(index, fragmentId);
+          if (fragmentName) toolCallNames.set(index, fragmentName);
+          const argumentsDelta = string(fn?.arguments);
+          if (argumentsDelta) {
+            bufferedArguments.set(index, (bufferedArguments.get(index) ?? "") + argumentsDelta);
+          }
+          // Providers may split a call across fragments where the id arrives
+          // before the name (or vice versa). Only open the call once the name
+          // is known — a nameless fragment must never surface as an
+          // executable tool call — and replay any arguments that arrived
+          // while the identity was still incomplete.
+          const toolName = toolCallNames.get(index);
+          if (!toolName) continue;
+          const toolCallId = toolCallIds.get(index) ?? `tool-${index}`;
           if (!openToolCalls.has(toolCallId)) {
             openToolCalls.add(toolCallId);
-            yield { type: "tool-call-start", toolCallId, toolName: string(fn?.name) ?? "unknown" };
-          }
-          const argumentsDelta = string(fn?.arguments);
-          if (argumentsDelta)
+            yield { type: "tool-call-start", toolCallId, toolName };
+            const buffered = bufferedArguments.get(index);
+            if (buffered) {
+              yield { type: "tool-call-arguments-delta", toolCallId, argumentsDelta: buffered };
+            }
+          } else if (argumentsDelta) {
             yield { type: "tool-call-arguments-delta", toolCallId, argumentsDelta };
+          }
         }
         const nextFinishReason = string(choice?.finish_reason);
         if (nextFinishReason) {

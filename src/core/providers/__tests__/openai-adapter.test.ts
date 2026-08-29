@@ -203,6 +203,60 @@ describe("OpenAIChatCompletionsAdapter", () => {
     ]);
   });
 
+  it("waits for the name fragment before opening a call and replays buffered arguments", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          sseResponse([
+            'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call-9","function":{"name":"","arguments":"{\\"path\\":"}}]}}]}\n\n',
+            'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\\"/tmp/b\\"}"}}]}}]}\n\n',
+            'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"name":"search_files"}}]}}]}\n\n',
+            'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{}"}}]},"finish_reason":"tool_calls"}]}\n\n',
+            "data: [DONE]\n\n",
+          ]),
+        ),
+      ),
+    );
+
+    const events = await collect(new OpenAIChatCompletionsAdapter({ apiKey: "test-key" }));
+
+    // The call must not open on the id-only/empty-name fragments; once the
+    // name arrives, the arguments buffered meanwhile are replayed (as one
+    // combined delta), then later fragments stream normally.
+    const starts = events.filter((event) => event.type === "tool-call-start");
+    expect(starts).toEqual([
+      { type: "tool-call-start", toolCallId: "call-9", toolName: "search_files" },
+    ]);
+    const deltas = events
+      .filter((event) => event.type === "tool-call-arguments-delta")
+      .map((event) => (event as { argumentsDelta: string }).argumentsDelta);
+    expect(deltas).toEqual(['{"path":"/tmp/b"}', "{}"]);
+    expect(events.filter((event) => event.type === "tool-call-end")).toEqual([
+      { type: "tool-call-end", toolCallId: "call-9" },
+    ]);
+  });
+
+  it("drops a call whose name never arrives instead of yielding a nameless tool call", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          sseResponse([
+            'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call-x","function":{"name":"","arguments":"{}"}}]}}]}\n\n',
+            'data: {"choices":[{"delta":{},"finish_reason":"tool_calls"}]}\n\n',
+            "data: [DONE]\n\n",
+          ]),
+        ),
+      ),
+    );
+
+    const events = await collect(new OpenAIChatCompletionsAdapter({ apiKey: "test-key" }));
+
+    expect(events.filter((event) => event.type === "tool-call-start")).toEqual([]);
+    expect(events.filter((event) => event.type === "tool-call-end")).toEqual([]);
+  });
+
   it("completes when finish_reason is received without a DONE event", async () => {
     vi.stubGlobal(
       "fetch",
