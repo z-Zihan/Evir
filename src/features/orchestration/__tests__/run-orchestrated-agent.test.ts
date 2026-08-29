@@ -176,6 +176,49 @@ describe("runOrchestratedAgent", () => {
     expect(result.turns.at(-1)?.stream.content).toContain("Verify");
   });
 
+  it("fails a verification node whose summary states the evidence did not support completion", async () => {
+    const runtime = {
+      target: "desktop",
+      capabilities: new Set(["chat"]),
+      has: (capability: string) => capability === "chat",
+      toolRegistry: createToolRegistry(),
+    } satisfies EvirRuntime;
+    vi.mocked(runAgentLoop).mockImplementation((options) => {
+      const content = String(options.messages.at(-1)?.content);
+      const isVerify = content.includes("Collect deterministic completion evidence");
+      return Promise.resolve({
+        turns: [
+          {
+            stream: {
+              content: isVerify
+                ? "Verification Result: **FAILED** — task was not completed, nothing was written."
+                : "Done inspecting",
+              status: "complete",
+            },
+          },
+        ],
+        maxIterationsReached: false,
+        messages: options.messages,
+        agentRun: options.runtime.agentRun!,
+      });
+    });
+
+    await runOrchestratedAgent({
+      provider,
+      conversationId: "conversation-1",
+      messages: [{ role: "user", content: brief.objective }],
+      runtime,
+      privateSession: true,
+      onDelta: vi.fn(),
+    });
+
+    const current = useOrchestrationStore.getState().current;
+    // A verification that ran but concluded FAILED must not complete the run.
+    const terminal = current?.events.filter(({ type }) => type.startsWith("run."));
+    expect(terminal?.some(({ type }) => type === "run.completed")).toBeFalsy();
+    expect(current?.plan?.status).not.toBe("completed");
+  });
+
   it("completes a node that exhausts its iteration budget with tool evidence instead of failing it", async () => {
     const runtime = {
       target: "desktop",

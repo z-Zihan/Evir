@@ -444,6 +444,17 @@ async function runOrchestratedAgentBound(input: OrchestratedRunInput): Promise<A
         };
       }
       if (node.kind === "verification") verificationEvidence.add(node.id);
+      // The verify prompt asks the model to state "Verification Result:
+      // FAILED" when the evidence does not support completion. A node that
+      // merely *ran* must not let a failed verification sail through as a
+      // completed run — downgrade it so the scheduler fails the run.
+      if (
+        node.kind === "verification" &&
+        loopStatus(result) === "completed" &&
+        /verification result:?\s*\*{0,2}failed/i.test(summary)
+      ) {
+        return { status: "failed", summary };
+      }
       return { status: loopStatus(result), summary };
     }
 
