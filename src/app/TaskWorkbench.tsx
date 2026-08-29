@@ -602,7 +602,11 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
               <EditableStep key={node.id} node={node} />
             ))}
           </ol>
-          {snapshot.phase === "confirmation" && (
+          {(snapshot.phase === "confirmation" ||
+            (snapshot.phase === "paused" &&
+              plan.nodes.some(
+                (node) => node.kind === "approval" && node.status === "blocked",
+              ))) && (
             <div className="task-actions">
               <button ref={rejectPlanRef} type="button" className="secondary-button" onClick={stop}>
                 {t("common.cancel")}

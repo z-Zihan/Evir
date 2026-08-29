@@ -358,7 +358,10 @@ export async function approveCurrentPlan(
   privateSession: boolean,
 ): Promise<boolean> {
   const current = useOrchestrationStore.getState().current;
-  if (!current?.plan || current.phase !== "confirmation") return false;
+  // "paused" runs still waiting on the plan-level approval node must accept
+  // the confirmation too — otherwise the approve node deadlocks with no UI
+  // able to unblock it (seen in the RC Feature battery follow-up run).
+  if (!current?.plan || !["confirmation", "paused"].includes(current.phase)) return false;
   const plan = confirmPlan(current.plan);
   const event = createRunEvent(
     "plan.confirmed",
