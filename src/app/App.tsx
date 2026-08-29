@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import { initializeRuntimeStorage } from "../runtime/initialize-storage";
 import { installWorkspaceResolver } from "../features/workspace/workspace-bridge";
 import { installTooltipDirection } from "./tooltipDirection";
+import { useSidebarResize } from "./useSidebarResize";
 import { useProjectStore } from "../features/projects/project-store";
 import { useChatStore } from "../features/chat/chat-store";
 import {
@@ -92,6 +93,7 @@ export function App() {
   }, [initializeApplication]);
 
   useEffect(() => installTooltipDirection(), []);
+  const sidebarResize = useSidebarResize();
 
   const dismissRecovery = async (run: UnfinishedRun) => {
     await clearCheckpoint(run.conversationId);
@@ -115,12 +117,30 @@ export function App() {
   }, []);
 
   return (
-    <div className={`app-shell${sidebarVisible ? " sidebar-visible" : ""}`}>
+    <div
+      className={`app-shell${sidebarVisible ? " sidebar-visible" : ""}${sidebarResize.resizing ? " sidebar-resizing" : ""}`}
+      style={
+        sidebarVisible
+          ? ({ "--sidebar-width": `${sidebarResize.width}px` } as React.CSSProperties)
+          : undefined
+      }
+    >
       {sidebarVisible && (
         <Sidebar
           onOpenSettings={openSettings}
           onNewConversation={handleNewConversation}
           onClose={() => setSidebarVisible(false)}
+        />
+      )}
+      {sidebarVisible && (
+        <div
+          className="sidebar-resizer"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={t("sidebar.resize")}
+          onPointerDown={sidebarResize.handleProps.onPointerDown}
+          ref={sidebarResize.handleProps.ref}
+          onDoubleClick={() => window.localStorage.setItem("evir-sidebar-width", "252")}
         />
       )}
       {sidebarVisible && (

@@ -36,7 +36,8 @@
     "sortName": "Name",
     "sortToggle": "Sort order",
     "expandProject": "Expand project",
-    "collapseProject": "Collapse project"
+    "collapseProject": "Collapse project",
+    "resize": "Resize sidebar"
   },
   "confirmation": {
     "deleteTitle": "Delete this item?",

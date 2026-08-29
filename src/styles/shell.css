@@ -651,7 +651,45 @@
 }
 
 .app-shell.sidebar-visible {
-  grid-template-columns: 252px minmax(0, 1fr);
+  grid-template-columns: var(--sidebar-width, 252px) minmax(0, 1fr);
+}
+
+/* Drag handle between the sidebar and the main area. Kept invisible until
+ * hover so it does not add visual noise to the default layout. */
+.sidebar-resizer {
+  position: relative;
+  z-index: 5;
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: end;
+  align-self: stretch;
+  width: 7px;
+  margin-right: -7px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.sidebar-resizer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 2px;
+  bottom: 0;
+  width: 3px;
+  border-radius: 3px;
+  background: transparent;
+  transition: background var(--motion-fast) var(--ease-out);
+}
+
+.sidebar-resizer:hover::after,
+.sidebar-resizer:focus-visible::after,
+.app-shell.sidebar-resizing .sidebar-resizer::after {
+  background: color-mix(in srgb, var(--primary) 45%, transparent);
+}
+
+.app-shell.sidebar-resizing {
+  cursor: col-resize;
+  user-select: none;
 }
 
 .startup-notice {
@@ -749,6 +787,9 @@
   min-height: 0;
   max-height: 45%;
   flex: 0 1 auto;
+  /* Hover action buttons can temporarily exceed the column width; clipping
+   * them horizontally avoids a spurious horizontal scrollbar. */
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -764,6 +805,7 @@
 .sidebar-section-chats .empty-list {
   min-height: 0;
   flex: 1 1 auto;
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
 }

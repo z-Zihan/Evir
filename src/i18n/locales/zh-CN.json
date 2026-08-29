@@ -36,7 +36,8 @@
     "sortName": "名称",
     "sortToggle": "排序方式",
     "expandProject": "展开项目",
-    "collapseProject": "折叠项目"
+    "collapseProject": "折叠项目",
+    "resize": "调整侧边栏宽度"
   },
   "confirmation": {
     "deleteTitle": "确认删除？",
