@@ -9,6 +9,7 @@ import { ShortcutHelpOverlay } from "./ShortcutHelpOverlay";
 import { useTranslation } from "react-i18next";
 import { initializeRuntimeStorage } from "../runtime/initialize-storage";
 import { installWorkspaceResolver } from "../features/workspace/workspace-bridge";
+import { installTooltipDirection } from "./tooltipDirection";
 import { useProjectStore } from "../features/projects/project-store";
 import { useChatStore } from "../features/chat/chat-store";
 import {
@@ -89,6 +90,8 @@ export function App() {
   useEffect(() => {
     void initializeApplication();
   }, [initializeApplication]);
+
+  useEffect(() => installTooltipDirection(), []);
 
   const dismissRecovery = async (run: UnfinishedRun) => {
     await clearCheckpoint(run.conversationId);

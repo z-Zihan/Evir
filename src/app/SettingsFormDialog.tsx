@@ -99,7 +99,7 @@ export function SettingsFormDialog({
             type="button"
             onClick={requestClose}
             aria-label={title}
-            title={title}
+            data-tip={title}
           >
             <X size={17} />
           </button>

@@ -80,7 +80,7 @@
 
 ## Security Decisions
 
-- **Secret Storage（Release Security Decision）**：正式版继续使用本地 AES-256-GCM vault（`secret-vault.json`），不切 OS 钥匙串。原因：ad-hoc/频繁重建二进制会触发 macOS ACL 弹窗并可能丢失密钥；vault 满足"非明文、防误分享、绑定 OS 用户"的目标。它不是抵御本地文件读取攻击者的硬件级存储（威胁模型见 `src-tauri/src/secret_vault.rs` 头注释与 docs/09）。若未来启用稳定签名的正式分发，可再评估 OS-backed（Keychain/DPAPI/Secret Service）作为首选、vault 作为回退——本轮不实施，避免高风险迁移。
+- **Secret Storage（Release Security Decision）**：正式版继续使用本地 AES-256-GCM vault（`secret-vault.json`），不切 OS 钥匙串。原因：ad-hoc/频繁重建二进制会触发 macOS ACL 弹窗并可能丢失密钥；vault 满足"非明文、防误分享、用户名派生加密上下文绑定"的目标。它不是抵御本地文件读取攻击者的硬件级存储（威胁模型见 `src-tauri/src/secret_vault.rs` 头注释与 docs/09）。若未来启用稳定签名的正式分发，可再评估 OS-backed（Keychain/DPAPI/Secret Service）作为首选、vault 作为回退——本轮不实施，避免高风险迁移。
 - **单实例**：`tauri-plugin-single-instance` 强制（二次启动聚焦既有窗口），vault/SQLite 不再存在跨进程写竞争；进程内另有互斥锁。
 
 ## Blocking Issues

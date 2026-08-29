@@ -64,7 +64,7 @@ export const SidebarConversationItem = memo(function SidebarConversationItem({
           onClick={(event) => event.stopPropagation()}
         />
       ) : (
-        <span className="conversation-title" title={conversation.title || t("chat.title")}>
+        <span className="conversation-title" data-tip={conversation.title || t("chat.title")}>
           {conversation.title || t("chat.title")}
         </span>
       )}
@@ -74,7 +74,7 @@ export const SidebarConversationItem = memo(function SidebarConversationItem({
             className="conversation-action-btn"
             type="button"
             aria-label={conversation.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
-            title={conversation.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
+            data-tip={conversation.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
             onClick={onTogglePin}
           >
             <Pin size={13} />
@@ -83,7 +83,7 @@ export const SidebarConversationItem = memo(function SidebarConversationItem({
             className="conversation-action-btn"
             type="button"
             aria-label={t("sidebar.rename")}
-            title={t("sidebar.rename")}
+            data-tip={t("sidebar.rename")}
             onClick={() => {
               setRenaming(true);
               setValue(conversation.title);
@@ -95,7 +95,7 @@ export const SidebarConversationItem = memo(function SidebarConversationItem({
             className="conversation-action-btn conversation-delete"
             type="button"
             aria-label={t("provider.delete")}
-            title={t("provider.delete")}
+            data-tip={t("provider.delete")}
             onClick={onDelete}
           >
             <Trash2 size={14} />

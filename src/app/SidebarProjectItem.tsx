@@ -95,7 +95,7 @@ export const SidebarProjectItem = memo(function SidebarProjectItem({
             onClick={(event) => event.stopPropagation()}
           />
         ) : (
-          <span className="project-name" title={`${project.displayName}\n${project.rootPath}`}>
+          <span className="project-name" data-tip={`${project.displayName}\n${project.rootPath}`}>
             {project.displayName}
           </span>
         )}
@@ -109,7 +109,7 @@ export const SidebarProjectItem = memo(function SidebarProjectItem({
                 className="conversation-action-btn"
                 type="button"
                 aria-label={t("sidebar.locateFolder")}
-                title={t("sidebar.locateFolder")}
+                data-tip={t("sidebar.locateFolder")}
                 onClick={onLocate}
               >
                 <FolderSearch size={13} />
@@ -119,7 +119,7 @@ export const SidebarProjectItem = memo(function SidebarProjectItem({
               className="conversation-action-btn"
               type="button"
               aria-label={t("sidebar.newTask")}
-              title={t("sidebar.newTask")}
+              data-tip={t("sidebar.newTask")}
               onClick={onNewTask}
             >
               <Plus size={13} />
@@ -128,7 +128,7 @@ export const SidebarProjectItem = memo(function SidebarProjectItem({
               className="conversation-action-btn"
               type="button"
               aria-label={t("sidebar.permission")}
-              title={t("sidebar.permission")}
+              data-tip={t("sidebar.permission")}
               onClick={onPermission}
             >
               <ShieldCheck size={13} />
@@ -137,7 +137,7 @@ export const SidebarProjectItem = memo(function SidebarProjectItem({
               className="conversation-action-btn"
               type="button"
               aria-label={project.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
-              title={project.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
+              data-tip={project.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
               onClick={onTogglePin}
             >
               <Pin size={13} />
@@ -146,7 +146,7 @@ export const SidebarProjectItem = memo(function SidebarProjectItem({
               className="conversation-action-btn"
               type="button"
               aria-label={t("sidebar.rename")}
-              title={t("sidebar.rename")}
+              data-tip={t("sidebar.rename")}
               onClick={() => {
                 setRenaming(true);
                 setValue(project.displayName);
@@ -158,7 +158,7 @@ export const SidebarProjectItem = memo(function SidebarProjectItem({
               className="conversation-action-btn conversation-delete"
               type="button"
               aria-label={t("sidebar.removeProject")}
-              title={t("sidebar.removeProject")}
+              data-tip={t("sidebar.removeProject")}
               onClick={onRemove}
             >
               <Trash2 size={14} />

@@ -212,22 +212,19 @@ fn corrupted_vault_does_not_panic() {
 
     for (label, damaged) in damaged_variants {
         std::fs::write(&path, &damaged).expect("damaged vault must be written");
-        // Every damage mode must surface as Err (or Ok(None) for the empty
-        // file, which is treated as a fresh vault) — never a panic.
+        // Every damage mode must surface as Err — a present-but-empty file
+        // is treated as a truncated vault, not a fresh one — never a panic.
         let result = secret_vault::get(&path, "provider:p1:api-key");
-        match label {
-            "empty file" => assert_eq!(result, Ok(None), "{label} must read as empty vault"),
-            _ => assert!(
-                result.is_err(),
-                "{label} must return an error, got {result:?}"
-            ),
-        }
-        // set() must never panic. File-level damage (corrupt JSON) blocks
-        // writes with a clean error; entry-level damage leaves the document
-        // valid, so writes succeed and the damaged entry simply stays
-        // unreadable until its owner re-enters the key.
+        assert!(
+            result.is_err(),
+            "{label} must return an error, got {result:?}"
+        );
+        // set() must never panic. File-level damage (corrupt or empty JSON)
+        // blocks writes with a clean error; entry-level damage leaves the
+        // document valid, so writes succeed and the damaged entry simply
+        // stays unreadable until its owner re-enters the key.
         let write_result = secret_vault::set(&path, "provider:new:api-key", "sk-new");
-        if label == "corrupted json" {
+        if matches!(label, "corrupted json" | "empty file") {
             assert!(write_result.is_err(), "{label}: set must fail cleanly");
         } else {
             assert!(

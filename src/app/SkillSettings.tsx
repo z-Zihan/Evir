@@ -367,7 +367,7 @@ export function SkillSettings() {
                         type="button"
                         className="skill-delete-button"
                         aria-label={t("skill.uninstall")}
-                        title={t("skill.uninstall")}
+                        data-tip={t("skill.uninstall")}
                         onClick={() =>
                           requestConfirmation(
                             {

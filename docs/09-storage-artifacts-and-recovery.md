@@ -8,7 +8,7 @@ Evir 不建设云端业务后端，但仍需要在用户电脑保存会话、消
 
 ## 2. 分层存储
 
-- 加密 Secret Vault：API Key、Token、敏感 Header 存放于应用数据目录的 `secret-vault.json`（AES-256-GCM，条目绑定 key 名与 OS 用户，0600 权限、原子写）。**不使用 OS Keychain/Credential Manager**：开发期 ad-hoc 签名的重建二进制每次都会重新触发 macOS 钥匙串 ACL 弹窗，拒绝即等于丢失 Key；加密文件跨重建稳定且无任何系统弹窗。威胁模型如实声明：防随手翻看与误分享，不防能读取本开源派生方案的定向本地攻击者。
+- 加密 Secret Vault：API Key、Token、敏感 Header 存放于应用数据目录的 `secret-vault.json`（AES-256-GCM，条目绑定 key 名与用户名派生加密上下文（username-derived encryption context；基于 USER/USERNAME 的名称级隔离，非 OS 凭据隔离），0600 权限、原子写）。**不使用 OS Keychain/Credential Manager**：开发期 ad-hoc 签名的重建二进制每次都会重新触发 macOS 钥匙串 ACL 弹窗，拒绝即等于丢失 Key；加密文件跨重建稳定且无任何系统弹窗。威胁模型如实声明：防随手翻看与误分享，不防能读取本开源派生方案的定向本地攻击者。损坏语义：文件缺失=新 vault；存在但为空/损坏 JSON=明确报错（疑似截断），不静默当作空 vault 导致所有 Key"消失"。
 - 轻量配置：语言、主题、窗口、功能开关。
 - SQLite Adapter：结构化记录和索引。
 - Artifact Store：附件、完整日志、Diff、快照、生成文件、备份。

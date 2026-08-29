@@ -324,7 +324,7 @@ export function ProviderSettings() {
                   <button
                     type="button"
                     aria-label={t("provider.delete")}
-                    title={t("provider.delete")}
+                    data-tip={t("provider.delete")}
                     onClick={() =>
                       requestConfirmation(
                         {

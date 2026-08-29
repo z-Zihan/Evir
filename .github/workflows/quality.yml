@@ -28,3 +28,22 @@ jobs:
         run: pnpm check
       - name: Web build sanity
         run: pnpm build:web
+
+  # Windows-specific compile/test sanity on every PR/main so Windows-only
+  # breakage is not discovered at release-tag time. Physical-device Windows
+  # validation remains a separate, manual release gate.
+  windows-sanity:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - run: pnpm install --frozen-lockfile
+      - name: Rust tests (Windows)
+        run: pnpm test:rust
+      - name: Typecheck + web build (Windows)
+        run: pnpm typecheck && pnpm build:web

@@ -159,7 +159,7 @@ export function ModelSwitcher({
         ref={triggerRef}
         type="button"
         className="model-switcher-button"
-        title={t("chat.switchModel")}
+        data-tip={t("chat.switchModel")}
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
@@ -222,7 +222,7 @@ export function ModelSwitcher({
               disabled={!customModel.trim()}
               onClick={commitCustomModel}
               aria-label={t("chat.modelPickerUse")}
-              title={t("chat.modelPickerUse")}
+              data-tip={t("chat.modelPickerUse")}
             >
               {t("chat.modelPickerUse")}
             </button>

@@ -231,7 +231,7 @@ export function MemorySettings({ conversationId, workspacePath }: MemorySettings
                         type="button"
                         onClick={() => void toggleEnabled(memory.id).catch(() => undefined)}
                         aria-label={memory.enabled ? t("memory.disable") : t("memory.enable")}
-                        title={memory.enabled ? t("memory.disable") : t("memory.enable")}
+                        data-tip={memory.enabled ? t("memory.disable") : t("memory.enable")}
                         aria-pressed={memory.enabled}
                       >
                         {memory.enabled ? <Eye size={14} /> : <EyeOff size={14} />}
@@ -240,7 +240,7 @@ export function MemorySettings({ conversationId, workspacePath }: MemorySettings
                         type="button"
                         onClick={() => void togglePin(memory.id).catch(() => undefined)}
                         aria-label={memory.pinned ? t("memory.unpin") : t("memory.pin")}
-                        title={memory.pinned ? t("memory.unpin") : t("memory.pin")}
+                        data-tip={memory.pinned ? t("memory.unpin") : t("memory.pin")}
                         aria-pressed={memory.pinned}
                       >
                         {memory.pinned ? <PinOff size={14} /> : <Pin size={14} />}
@@ -248,7 +248,7 @@ export function MemorySettings({ conversationId, workspacePath }: MemorySettings
                       <button
                         type="button"
                         aria-label={t("memory.edit")}
-                        title={t("memory.edit")}
+                        data-tip={t("memory.edit")}
                         onClick={() => {
                           setEditingId(memory.id);
                           setEditContent(memory.content);
@@ -271,7 +271,7 @@ export function MemorySettings({ conversationId, workspacePath }: MemorySettings
                           )
                         }
                         aria-label={t("memory.delete")}
-                        title={t("memory.delete")}
+                        data-tip={t("memory.delete")}
                       >
                         <Trash2 size={14} />
                       </button>

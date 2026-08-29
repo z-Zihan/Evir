@@ -250,7 +250,7 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
             type="button"
             onClick={onClose}
             aria-label={t("sidebar.hide")}
-            title={t("sidebar.hide")}
+            data-tip={t("sidebar.hide")}
           >
             <X size={17} />
           </button>
@@ -277,7 +277,7 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
           type="button"
           onClick={() => setSortOrder(sortOrder === "recent" ? "name" : "recent")}
           aria-label={t("sidebar.sortToggle")}
-          title={t("sidebar.sortToggle")}
+          data-tip={t("sidebar.sortToggle")}
         >
           {sortOrder === "recent" ? t("sidebar.sortRecent") : t("sidebar.sortName")}
           <ChevronDown size={12} aria-hidden="true" />
@@ -296,7 +296,7 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
                   type="button"
                   onClick={() => void handleAddProject()}
                   aria-label={t("sidebar.addProject")}
-                  title={t("sidebar.addProject")}
+                  data-tip={t("sidebar.addProject")}
                 >
                   <FolderPlus size={13} />
                 </button>
@@ -382,7 +382,7 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
                 type="button"
                 onClick={handleNewChat}
                 aria-label={t("sidebar.newChat")}
-                title={`${t("sidebar.newChat")} (${shortcutModifier}N)`}
+                data-tip={`${t("sidebar.newChat")} (${shortcutModifier}N)`}
               >
                 <MessageSquarePlus size={13} />
               </button>

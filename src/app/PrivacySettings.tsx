@@ -140,7 +140,7 @@ export function PrivacySettings() {
           className={`grid place-items-center w-8 h-8 rounded-lg text-muted hover:bg-surface-hover hover:text-foreground transition${privateSession ? " active" : ""}`}
           onClick={togglePrivateSession}
           aria-label={t("chat.privateSession")}
-          title={t("chat.privateSession")}
+          data-tip={t("chat.privateSession")}
           aria-pressed={privateSession}
         >
           {privateSession ? <LockKeyhole size={15} /> : <UnlockKeyhole size={15} />}

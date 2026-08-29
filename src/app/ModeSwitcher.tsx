@@ -55,7 +55,7 @@ export function ModeSwitcher({
           aria-pressed={mode === candidate}
           className={mode === candidate ? "active" : ""}
           onClick={() => onModeChange(mode === candidate ? "agent" : candidate)}
-          title={t(`chat.modes.${candidate}Desc`)}
+          data-tip={t(`chat.modes.${candidate}Desc`)}
         >
           <Icon size={13} aria-hidden="true" />
           <span>{t(labelKey)}</span>

@@ -84,11 +84,82 @@
   --motion-fast: 140ms;
   --motion-standard: 220ms;
   --signal: var(--primary);
+
+  /* Elevation scale — one shadow language for tooltips / popovers / dialogs */
+  --shadow-tooltip: 0 2px 8px rgb(0 0 0 / 0.08);
+  --shadow-popover: 0 4px 16px rgb(0 0 0 / 0.1), 0 1px 4px rgb(0 0 0 / 0.06);
+  --shadow-dialog: 0 12px 40px rgb(0 0 0 / 0.16), 0 2px 8px rgb(0 0 0 / 0.08);
 }
 
 :root.dark {
+  --shadow-tooltip: 0 2px 8px rgb(0 0 0 / 0.45);
+  --shadow-popover: 0 4px 16px rgb(0 0 0 / 0.5), 0 1px 4px rgb(0 0 0 / 0.4);
+  --shadow-dialog: 0 12px 40px rgb(0 0 0 / 0.6), 0 2px 8px rgb(0 0 0 / 0.45);
   color-scheme: dark;
 }
+
+/*
+ * Lightweight in-app tooltips ([data-tip]). Replaces native title tooltips,
+ * which render as heavy OS bubbles outside the design system and cannot be
+ * themed. Pure CSS: no portal, no collision logic — hosts are small controls,
+ * so a bottom-anchored bubble with a small offset is enough; overflow along
+ * the long edge is clamped by max-width and wrapping.
+ */
+[data-tip] {
+  position: relative;
+}
+
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%) translateY(2px);
+  z-index: 90;
+  /* Abspos with only `left` set shrink-to-fits into the button's right half;
+   * max-content lays the text out fully so translateX(-50%) can center it. */
+  width: max-content;
+  max-width: 280px;
+  padding: 4px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface-elevated);
+  box-shadow: var(--shadow-tooltip);
+  color: var(--color-foreground);
+  font-size: 11.5px;
+  line-height: 1.45;
+  font-weight: 400;
+  text-align: center;
+  white-space: pre-line;
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    opacity var(--motion-fast) var(--ease-out) 240ms,
+    transform var(--motion-fast) var(--ease-out) 240ms;
+}
+
+[data-tip]:hover::after,
+[data-tip]:focus-visible::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* tooltipDirection.ts measures upward clearance inside the nearest clipping
+ * ancestor and flags hosts that must open downward (scroll-list top rows,
+ * window-top header buttons). */
+[data-tip][data-tip-dir="below"]::after {
+  bottom: auto;
+  top: calc(100% + 6px);
+  transform: translateX(-50%) translateY(-2px);
+}
+
+[data-tip][data-tip-dir="below"]:hover::after,
+[data-tip][data-tip-dir="below"]:focus-visible::after {
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Native title fallback is intentionally gone; keyboard users get the same
+ * tooltip on focus-visible above. */
 
 /* Base */
 html,
@@ -128,17 +199,26 @@ select:focus-visible {
   outline-offset: 2px;
 }
 
-/* Scrollbar */
+/* Scrollbar — low-interference, discoverable, identical geometry in both themes */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border-strong);
+  background: color-mix(in srgb, var(--color-border-strong) 72%, transparent);
   border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted);
+  background-clip: content-box;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* Code blocks */

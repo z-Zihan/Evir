@@ -449,7 +449,7 @@ export function McpSettings() {
                         disabled={testingServerId === server.id}
                         onClick={() => void runConnectionTest(server.id)}
                         aria-label={t("mcp.testConnection")}
-                        title={t("mcp.testConnection")}
+                        data-tip={t("mcp.testConnection")}
                       >
                         <Play size={14} />
                       </button>
@@ -461,7 +461,7 @@ export function McpSettings() {
                             void restartServer(server.id);
                           }}
                           aria-label={t("mcp.restart")}
-                          title={t("mcp.restart")}
+                          data-tip={t("mcp.restart")}
                         >
                           <RefreshCw size={14} />
                         </button>
@@ -470,7 +470,7 @@ export function McpSettings() {
                         type="button"
                         onClick={() => openEdit(server)}
                         aria-label={t("mcp.edit")}
-                        title={t("mcp.edit")}
+                        data-tip={t("mcp.edit")}
                       >
                         <Pencil size={14} />
                       </button>
@@ -489,7 +489,7 @@ export function McpSettings() {
                           )
                         }
                         aria-label={t("mcp.delete")}
-                        title={t("mcp.delete")}
+                        data-tip={t("mcp.delete")}
                       >
                         <Trash2 size={14} />
                       </button>

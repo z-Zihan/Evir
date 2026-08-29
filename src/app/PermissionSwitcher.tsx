@@ -77,7 +77,7 @@ export function PermissionSwitcher({ project }: PermissionSwitcherProps) {
         className="permission-switcher-button"
         aria-haspopup="listbox"
         aria-expanded={open}
-        title={t("chat.permissionPickerTitle")}
+        data-tip={t("chat.permissionPickerTitle")}
         onClick={() => setOpen((value) => !value)}
       >
         <ShieldCheck size={13} aria-hidden="true" />

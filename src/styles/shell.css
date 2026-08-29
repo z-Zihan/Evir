@@ -669,7 +669,7 @@
   border: 1px solid var(--border-strong);
   border-radius: 10px;
   background: var(--surface);
-  box-shadow: 0 12px 36px color-mix(in srgb, black 14%, transparent);
+  box-shadow: var(--shadow-dialog);
   transform: translateX(-50%);
 }
 
@@ -779,7 +779,7 @@
   height: 30px;
   border-radius: 9px;
   background: #14171b;
-  box-shadow: 0 2px 7px color-mix(in srgb, black 12%, transparent);
+  box-shadow: var(--shadow-popover);
 }
 
 .brand-mark img {
@@ -997,7 +997,6 @@
 
 .workspace-heading {
   flex: 1 1 auto;
-  overflow: hidden;
   gap: 11px;
 }
 
@@ -1257,7 +1256,7 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface-elevated);
-  box-shadow: 0 14px 34px color-mix(in srgb, black 15%, transparent);
+  box-shadow: var(--shadow-dialog);
 }
 
 .model-switcher-item {
@@ -1334,7 +1333,7 @@
   border-radius: 13px;
   background: var(--surface);
   color: var(--primary);
-  box-shadow: 0 8px 24px color-mix(in srgb, black 6%, transparent);
+  box-shadow: var(--shadow-popover);
 }
 
 .empty-eyebrow {
@@ -1429,7 +1428,7 @@
 .suggestion-item:hover {
   border-color: color-mix(in srgb, var(--primary) 34%, var(--border));
   background: var(--surface);
-  box-shadow: 0 8px 24px color-mix(in srgb, black 6%, transparent);
+  box-shadow: var(--shadow-popover);
   transform: translateY(-2px);
 }
 
@@ -1501,7 +1500,7 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface-elevated, var(--surface));
-  box-shadow: 0 10px 30px color-mix(in srgb, black 16%, transparent);
+  box-shadow: var(--shadow-dialog);
 }
 
 .slash-item {

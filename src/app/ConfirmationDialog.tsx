@@ -93,7 +93,7 @@ export function ConfirmationDialog({
           className="confirmation-close"
           type="button"
           aria-label={t("confirmation.close")}
-          title={t("confirmation.close")}
+          data-tip={t("confirmation.close")}
           disabled={busy}
           onClick={onCancel}
         >

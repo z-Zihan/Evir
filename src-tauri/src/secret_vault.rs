@@ -8,8 +8,8 @@
 //!
 //! Threat model, stated honestly: the file is encrypted at rest so secrets are
 //! not exposed by casually opening the file or leaking it into a backup, and
-//! entries are cryptographically bound to both their key name and the current
-//! OS user. It does NOT defend against a dedicated local attacker who can read
+//! entries are cryptographically bound to both their key name and a
+//! username-derived encryption context. It does NOT defend against a dedicated local attacker who can read
 //! this open-source derivation scheme — that matches the BYOM client
 //! ecosystem's posture (docs/09-storage-artifacts-and-recovery.md).
 
@@ -66,8 +66,10 @@ fn vault_lock() -> &'static Mutex<()> {
     LOCK.get_or_init(|| Mutex::new(()))
 }
 
-/// OS-user binding: a vault file copied to another account cannot be decrypted
-/// (reads then surface as errors, which callers treat as "re-enter the key").
+/// Username-derived encryption context: a vault file copied to another
+/// account (different USER/USERNAME) cannot be decrypted (reads then surface
+/// as errors, which callers treat as "re-enter the key"). This is name-based
+/// separation, NOT OS-backed credential isolation.
 fn vault_context() -> String {
     let user = std::env::var("USER")
         .or_else(|_| std::env::var("USERNAME"))
@@ -95,8 +97,13 @@ fn load_document(path: &Path) -> Result<VaultDocument, String> {
         }
         Err(error) => return Err(format!("secret vault is unreadable: {error}")),
     };
-    if raw.trim().is_empty() {
-        return Ok(VaultDocument::empty());
+    // A missing file is a fresh vault, but a PRESENT yet empty file is most
+    // likely a truncated write (crash mid-save). Treating it as fresh would
+    // silently report every stored key as gone; surface it as corruption so
+    // the user can restore from backup instead of re-entering blindly.
+    // (Whitespace-only files fall through and fail JSON parsing as corrupt.)
+    if raw.is_empty() {
+        return Err("secret vault file is empty (possibly truncated)".to_owned());
     }
     serde_json::from_str(&raw).map_err(|error| format!("secret vault is corrupt: {error}"))
 }

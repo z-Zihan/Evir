@@ -97,7 +97,7 @@ export function AvatarCropDialog({ imageUrl, onCancel, onSave }: AvatarCropDialo
             onClick={onCancel}
             disabled={saving}
             aria-label={t("personalization.closeCrop")}
-            title={t("personalization.closeCrop")}
+            data-tip={t("personalization.closeCrop")}
           >
             <X size={17} />
           </button>

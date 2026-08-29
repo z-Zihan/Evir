@@ -253,7 +253,7 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
             type="button"
             onClick={onClose}
             aria-label={t("settings.close")}
-            title={t("settings.close")}
+            data-tip={t("settings.close")}
           >
             <X size={17} />
           </button>

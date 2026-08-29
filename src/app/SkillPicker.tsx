@@ -92,7 +92,7 @@ export function SkillPicker({ mode, disabled }: SkillPickerProps) {
         onClick={() => setOpen((value) => !value)}
         disabled={disabled}
         aria-label={t("skill.chooseForMessage")}
-        title={t("skill.chooseForMessage")}
+        data-tip={t("skill.chooseForMessage")}
         aria-expanded={open}
       >
         <Sparkles size={16} aria-hidden="true" />
@@ -130,7 +130,7 @@ export function SkillPicker({ mode, disabled }: SkillPickerProps) {
                         className={selected ? "selected" : ""}
                         disabled={incompatible}
                         onClick={() => toggleSelectedSkill(skill.manifest.id)}
-                        title={incompatible ? t("skill.requiresAgentMode") : undefined}
+                        data-tip={incompatible ? t("skill.requiresAgentMode") : undefined}
                         aria-pressed={selected}
                       >
                         <span>

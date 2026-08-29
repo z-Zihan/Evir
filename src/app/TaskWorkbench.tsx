@@ -138,7 +138,7 @@ function EditableStep({ node }: { node: PlanNode }) {
           type="button"
           onClick={() => setEditing(true)}
           aria-label={t("orchestration.editStep")}
-          title={t("orchestration.editStep")}
+          data-tip={t("orchestration.editStep")}
         >
           <Pencil size={13} />
         </button>
@@ -248,7 +248,7 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
               cancelTaskPreparation(preparing.conversationId);
             }}
             aria-label={t("orchestration.stop")}
-            title={t("orchestration.stop")}
+            data-tip={t("orchestration.stop")}
           >
             <X size={14} aria-hidden="true" />
             <span>{t("chat.stop")}</span>
@@ -336,7 +336,7 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
                     <span>{result.label}</span>
                     {result.status === "manual" && <small>{t("goal.manualCondition")}</small>}
                     {result.status === "failed" && result.evidence && (
-                      <small title={result.evidence}>{t("goal.conditionFailed")}</small>
+                      <small data-tip={result.evidence}>{t("goal.conditionFailed")}</small>
                     )}
                   </li>
                 ))
@@ -373,7 +373,7 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
               type="button"
               className="secondary-button"
               disabled={!projectRootForPreference}
-              title={!projectRootForPreference ? t("preference.noProject") : undefined}
+              data-tip={!projectRootForPreference ? t("preference.noProject") : undefined}
               onClick={() => void savePreference("project")}
             >
               {t("preference.rememberProject")}
@@ -448,7 +448,7 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
               aria-label={t(
                 showFinishedDetails ? "orchestration.hideDetails" : "orchestration.showDetails",
               )}
-              title={t(
+              data-tip={t(
                 showFinishedDetails ? "orchestration.hideDetails" : "orchestration.showDetails",
               )}
               onClick={() => setShowFinishedDetails((value) => !value)}

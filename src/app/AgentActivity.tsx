@@ -162,7 +162,7 @@ export function AgentActivity({
               </span>
               <span className="execution-copy">
                 <strong>{toolName}</strong>
-                {summary && <span title={summary}>{summary}</span>}
+                {summary && <span data-tip={summary}>{summary}</span>}
               </span>
               <span className="execution-status">
                 {running

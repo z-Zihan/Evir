@@ -498,7 +498,7 @@ export function ChatView({
           type="button"
           onClick={onToggleSidebar}
           aria-label={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")}
-          title={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")}
+          data-tip={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")}
         >
           <PanelLeft size={18} aria-hidden="true" />
         </button>
@@ -655,7 +655,7 @@ export function ChatView({
                       type="button"
                       onClick={() => removeAttachment(att.id)}
                       aria-label={t("chat.removeAttachment")}
-                      title={t("chat.removeAttachment")}
+                      data-tip={t("chat.removeAttachment")}
                     >
                       <X size={12} />
                     </button>
@@ -667,7 +667,7 @@ export function ChatView({
                       type="button"
                       onClick={() => removeAttachment(att.id)}
                       aria-label={t("chat.removeAttachment")}
-                      title={t("chat.removeAttachment")}
+                      data-tip={t("chat.removeAttachment")}
                     >
                       <X size={12} />
                     </button>
@@ -728,7 +728,7 @@ export function ChatView({
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isCurrentConversationStreaming}
                 aria-label={t("chat.attachFile")}
-                title={t("chat.attachFile")}
+                data-tip={t("chat.attachFile")}
               >
                 <Paperclip size={16} />
               </button>
@@ -764,7 +764,7 @@ export function ChatView({
                 className="send-button"
                 disabled={isStreaming || (!input.trim() && pendingAttachments.length === 0)}
                 onClick={onSendMessage}
-                title={
+                data-tip={
                   isStreaming && !isCurrentConversationStreaming
                     ? t("chat.streamInProgress")
                     : undefined

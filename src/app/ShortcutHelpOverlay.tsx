@@ -95,7 +95,7 @@ export function ShortcutHelpOverlay({ open, onClose }: ShortcutHelpOverlayProps)
             className="bg-transparent border-0 text-xl cursor-pointer text-muted hover:text-foreground px-1 leading-none"
             onClick={onClose}
             aria-label={t("settings.close")}
-            title={t("settings.close")}
+            data-tip={t("settings.close")}
           >
             ×
           </button>

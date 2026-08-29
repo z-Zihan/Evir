@@ -192,7 +192,7 @@ export function LocalIdentityPanel() {
                         role="radio"
                         aria-checked={form.avatarColor === color}
                         aria-label={t(`personalization.avatarColors.${color}`)}
-                        title={t(`personalization.avatarColors.${color}`)}
+                        data-tip={t(`personalization.avatarColors.${color}`)}
                         key={color}
                         onClick={() => update("avatarColor", color)}
                       />
