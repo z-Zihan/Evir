@@ -23,6 +23,7 @@ function readStoredWidth(): number {
 export function useSidebarResize(): {
   width: number;
   resizing: boolean;
+  reset: () => void;
   handleProps: {
     ref: React.RefObject<HTMLDivElement | null>;
     onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
@@ -76,5 +77,9 @@ export function useSidebarResize(): {
   }, [resizing]);
 
   const handleRef = useRef<HTMLDivElement | null>(null);
-  return { width, resizing, handleProps: { ref: handleRef, onPointerDown } };
+  const reset = useCallback(() => {
+    window.localStorage.setItem(STORAGE_KEY, String(SIDEBAR_DEFAULT_WIDTH));
+    setWidth(SIDEBAR_DEFAULT_WIDTH);
+  }, []);
+  return { width, resizing, reset, handleProps: { ref: handleRef, onPointerDown } };
 }

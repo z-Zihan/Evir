@@ -140,7 +140,7 @@ export function App() {
           aria-label={t("sidebar.resize")}
           onPointerDown={sidebarResize.handleProps.onPointerDown}
           ref={sidebarResize.handleProps.ref}
-          onDoubleClick={() => window.localStorage.setItem("evir-sidebar-width", "252")}
+          onDoubleClick={sidebarResize.reset}
         />
       )}
       {sidebarVisible && (

@@ -654,7 +654,21 @@
   grid-template-columns: var(--sidebar-width, 252px) minmax(0, 1fr);
 }
 
-/* Drag handle between the sidebar and the main area. Kept invisible until
+/* Explicit placement for every shell child: the resizer is explicitly
+ * positioned at (1,1), and without explicit slots the auto-placement
+ * algorithm would push the sidebar into column 2 and the main area out of
+ * row 1 (regression seen in the wild: sidebar filled the whole window). */
+.app-shell.sidebar-visible .sidebar {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.app-shell.sidebar-visible .main-area {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+/* Drag handle overlapping the sidebar's right edge. Kept invisible until
  * hover so it does not add visual noise to the default layout. */
 .sidebar-resizer {
   position: relative;

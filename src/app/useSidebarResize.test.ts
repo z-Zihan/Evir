@@ -89,3 +89,18 @@ describe("useSidebarResize", () => {
     expect(result.current.resizing).toBe(false);
   });
 });
+
+describe("useSidebarResize reset", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("restores the default width and persists it", () => {
+    localStorage.setItem("evir-sidebar-width", "380");
+    const { result } = renderHook(() => useSidebarResize());
+    expect(result.current.width).toBe(380);
+    act(() => result.current.reset());
+    expect(result.current.width).toBe(SIDEBAR_DEFAULT_WIDTH);
+    expect(localStorage.getItem("evir-sidebar-width")).toBe(String(SIDEBAR_DEFAULT_WIDTH));
+  });
+});
