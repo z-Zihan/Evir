@@ -951,6 +951,15 @@
   right: 5px;
   display: flex;
   gap: 1px;
+  /* Opaque floating toolbar: the row is often too narrow for the buttons and
+   * the title side by side, so without a solid background the title text
+   * shows through between the icons (looked like broken overlap). */
+  padding: 1px 3px;
+  border-radius: 7px;
+  background: var(--surface-elevated, var(--surface));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--border) 60%, transparent),
+    var(--shadow-popover);
   opacity: 0;
   pointer-events: none;
   transform: translateX(3px);
