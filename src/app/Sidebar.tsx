@@ -14,6 +14,7 @@ import { isMac } from "../core/shortcuts/platform";
 import type { ProjectRecord } from "../core/storage/db";
 import { useChatStore } from "../features/chat/chat-store";
 import { useProjectStore } from "../features/projects/project-store";
+import { useScrollNewProjectIntoView } from "./useScrollNewProjectIntoView";
 import { useProviderStore } from "../features/provider/provider-store";
 import { loadPersonalizationPreferences } from "../features/settings/personalization-settings";
 import { getRuntime } from "../runtime/use-runtime";
@@ -149,6 +150,8 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [projects, conversations, query, sortOrder],
   );
+
+  const projectsScrollRef = useScrollNewProjectIntoView(visibleProjects);
 
   const standaloneChats = useMemo(
     () => sortConversations(conversations.filter((c) => !c.projectId && matches(c.title))),
@@ -286,6 +289,7 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
         <div className="sidebar-scroll">
           {getRuntime().target === "desktop" && (
             <section
+              ref={projectsScrollRef}
               className="sidebar-section sidebar-section-projects"
               aria-label={t("sidebar.projects")}
             >
@@ -308,7 +312,7 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
                   const isOpen = expanded.has(project.id);
                   const threads = threadsOf(project.id);
                   return (
-                    <div key={project.id} className="project-group">
+                    <div key={project.id} className="project-group" data-project-id={project.id}>
                       <SidebarProjectItem
                         project={project}
                         expanded={isOpen}

@@ -146,7 +146,8 @@
     "previewImage": "Preview image",
     "noToolCalling": "This model can chat, but cannot use project tools.",
     "changeModel": "Change model",
-    "permissionPickerTitle": "Permission"
+    "permissionPickerTitle": "Permission",
+    "sendFailed": "Send failed — your draft was kept. Try again."
   },
   "runtime": {
     "agentReady": "Local agent runtime",

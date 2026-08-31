@@ -514,3 +514,29 @@ describe("send busy guard", () => {
     await first;
   });
 });
+
+describe("sendMessage draft-preservation contract (K)", () => {
+  it("returns false and keeps the message out of the thread when persistence fails", async () => {
+    const storage = getStructuredStorage();
+    const writeSpy = vi.spyOn(storage, "write").mockRejectedValueOnce(new Error("disk full"));
+
+    const accepted = await useChatStore.getState().sendMessage("precious draft");
+
+    expect(accepted).toBe(false);
+    expect(writeSpy).toHaveBeenCalled();
+    // The user message never reached the conversation — the composer keeps
+    // its draft (App layer) and the error line explains the failure.
+    expect(useChatStore.getState().messages).toHaveLength(0);
+    expect(useChatStore.getState().error).toBe("chat.sendFailed");
+    expect(useChatStore.getState().isStreaming).toBe(false);
+    writeSpy.mockRestore();
+  });
+
+  it("returns true once the user message is accepted", async () => {
+    const accepted = await useChatStore.getState().sendMessage("normal send");
+    expect(accepted).toBe(true);
+    expect(useChatStore.getState().messages.some(({ content }) => content === "normal send")).toBe(
+      true,
+    );
+  });
+});

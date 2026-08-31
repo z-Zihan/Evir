@@ -203,10 +203,9 @@ export function createLoopDetectionMiddleware(
       // feedback for the model (e.g. a TDD red run: `npm test` exiting 1 is
       // the expected observation, not a stuck loop). Only count results as
       // failures when the tool itself failed to execute or produce output.
-      const commandCompleted = typeof (event.result as { exitCode?: unknown }).exitCode === "number";
+      const commandCompleted = typeof event.result.exitCode === "number";
       const failed =
-        !commandCompleted &&
-        (Boolean(event.result.error) || event.result.success === false);
+        !commandCompleted && (Boolean(event.result.error) || event.result.success === false);
       if (event.toolName) {
         const key = `${event.toolName}:${JSON.stringify(event.arguments ?? {})}`;
         const failures = consecutiveFailuresByRun.get(runId) ?? new Map<string, number>();

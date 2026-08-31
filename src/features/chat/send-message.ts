@@ -6,6 +6,7 @@ import { providerReadinessError } from "./chat-stream";
 import { streamResponse } from "./stream-response";
 import { getRuntime } from "../../runtime/use-runtime";
 import { getStructuredStorage } from "../../runtime/structured-storage";
+import { logger } from "../../core/logging/logger";
 import { prepareTask } from "../orchestration/orchestration-session";
 import { ModelTaskIntakeAnalyzer } from "../orchestration/model-task-intake-analyzer";
 import { ModelPlanGenerator } from "../orchestration/model-plan-generator";
@@ -59,13 +60,19 @@ export async function sendChatMessage(
   set: ChatStoreSet,
   get: ChatStoreGet,
   rawText: string,
-): Promise<void> {
+): Promise<boolean> {
   const text = rawText.trim();
-  if ((!text && get().pendingAttachments.length === 0) || get().isStreaming) return;
+  if ((!text && get().pendingAttachments.length === 0) || get().isStreaming) return false;
   const provider = useProviderStore.getState().getDefaultProvider();
-  if (!provider) return set({ error: "chat.noProvider" });
+  if (!provider) {
+    set({ error: "chat.noProvider" });
+    return false;
+  }
   const readinessError = providerReadinessError(provider);
-  if (readinessError) return set({ error: readinessError });
+  if (readinessError) {
+    set({ error: readinessError });
+    return false;
+  }
 
   // Flip the busy flag synchronously, BEFORE the first await: agent/goal
   // preparation runs two LLM round trips before beginConversationStream fires,
@@ -73,6 +80,19 @@ export async function sendChatMessage(
   set({ isStreaming: true });
   try {
     await sendChatMessageInner(set, get, text, provider);
+  } catch (error) {
+    // Pre-acceptance failure: the user message never reached the conversation,
+    // so the caller must keep the draft on screen instead of silently
+    // discarding it.
+    logger.error("provider", "chat.send-failed", {
+      conversationId: get().currentConversationId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    set({
+      error: "chat.sendFailed",
+      isStreaming: get().activeStreamConversationId !== null ? get().isStreaming : false,
+    });
+    return false;
   } finally {
     // Early exits (cancelled/clarification/confirmation/preparation failure)
     // never open a stream slot — reset the flag so the composer re-enables.
@@ -81,6 +101,7 @@ export async function sendChatMessage(
       set({ isStreaming: false });
     }
   }
+  return true;
 }
 
 async function sendChatMessageInner(

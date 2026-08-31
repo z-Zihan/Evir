@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  applyVerificationVerdict,
-  verificationVerdict,
-} from "../verification-verdict";
+import { applyVerificationVerdict, verificationVerdict } from "../verification-verdict";
 
 function result(status: "completed" | "failed", summary: string) {
   return { status, summary } as const;
@@ -11,20 +8,18 @@ function result(status: "completed" | "failed", summary: string) {
 describe("verificationVerdict", () => {
   it("reads the structured VERIFICATION_STATUS marker in any case/bold", () => {
     expect(verificationVerdict("All good.\nVERIFICATION_STATUS: PASSED")).toBe("passed");
-    expect(verificationVerdict("VERIFICATION_STATUS: **FAILED**\nNothing written.")).toBe(
-      "failed",
-    );
+    expect(verificationVerdict("VERIFICATION_STATUS: **FAILED**\nNothing written.")).toBe("failed");
     expect(verificationVerdict("verification_status: Partial")).toBe("partial");
   });
 
   it("keeps the legacy natural-language regex only as fallback", () => {
-    expect(verificationVerdict("Verification Result: **FAILED** — not completed")).toBe(
-      "failed",
-    );
+    expect(verificationVerdict("Verification Result: **FAILED** — not completed")).toBe("failed");
   });
 
   it("returns null for prose without a marker or legacy phrase", () => {
-    expect(verificationVerdict("Verification failed. Acceptance criteria were not met.")).toBeNull();
+    expect(
+      verificationVerdict("Verification failed. Acceptance criteria were not met."),
+    ).toBeNull();
     expect(verificationVerdict("验证失败。")).toBeNull();
     expect(verificationVerdict("未满足验收条件。")).toBeNull();
     expect(verificationVerdict("部分完成。")).toBeNull();
@@ -76,12 +71,10 @@ describe("applyVerificationVerdict", () => {
 
   it("ignores non-verification nodes and non-completed results", () => {
     expect(
-      applyVerificationVerdict(taskNode, result("completed", "VERIFICATION_STATUS: FAILED"))
-        .status,
+      applyVerificationVerdict(taskNode, result("completed", "VERIFICATION_STATUS: FAILED")).status,
     ).toBe("completed");
     expect(
-      applyVerificationVerdict(verifyNode, result("failed", "VERIFICATION_STATUS: PASSED"))
-        .status,
+      applyVerificationVerdict(verifyNode, result("failed", "VERIFICATION_STATUS: PASSED")).status,
     ).toBe("failed");
   });
 });

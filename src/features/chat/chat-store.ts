@@ -65,7 +65,8 @@ export interface ChatState {
   renameConversation: (id: string, title: string) => Promise<void>;
   togglePin: (id: string) => Promise<void>;
   updateConversationProvider: (providerId: string, modelId: string) => Promise<void>;
-  sendMessage: (text: string) => Promise<void>;
+  /** Resolves true once the user message is accepted (persisted or private-accepted). */
+  sendMessage: (text: string) => Promise<boolean>;
   regenerate: () => Promise<void>;
   editMessage: (messageId: string, newContent: string) => Promise<void>;
   stopGeneration: () => void;

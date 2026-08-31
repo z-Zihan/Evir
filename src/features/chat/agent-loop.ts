@@ -319,8 +319,33 @@ async function runAgentLoopBound(
     return { ...result, startedAt, completedAt, durationMs: completedAt - startedAt };
   };
 
+  const MAX_STREAM_RETRIES = 2;
+
+  const isTransientStreamError = (stream: StreamResult): boolean =>
+    stream.status === "error" &&
+    !stream.toolCalls?.length &&
+    stream.content.length === 0 &&
+    (stream.errorType === "TIMEOUT" || stream.retryable === true);
+
+  const sleep = (ms: number, signal?: AbortSignal): Promise<void> =>
+    new Promise((resolve) => {
+      const timer = globalThis.setTimeout(resolve, ms);
+      signal?.addEventListener(
+        "abort",
+        () => {
+          globalThis.clearTimeout(timer);
+          resolve();
+        },
+        { once: true },
+      );
+    });
+
   for (let iteration = 0; iteration < maximum; iteration += 1) {
-    const stream = await streamAssistant(
+    // Transient transport failures (timeout / network / rate limit / 5xx)
+    // are retried while nothing has been emitted yet: replaying a request
+    // with no consumed deltas or tool calls cannot duplicate side effects.
+    // Once any output exists the failure is surfaced to the user instead.
+    let stream = await streamAssistant(
       options.provider,
       options.conversationId,
       messages,
@@ -329,6 +354,29 @@ async function runAgentLoopBound(
       options.signal,
       AGENT_TURN_TIMEOUT_MS,
     );
+    for (let retry = 0; isTransientStreamError(stream) && retry < MAX_STREAM_RETRIES; retry += 1) {
+      if (options.signal?.aborted) break;
+      const backoffMs = 1_000 * 2 ** retry;
+      logger.warn("provider", "agent.stream-retry", {
+        conversationId: options.conversationId,
+        runId: agentRun.id,
+        attempt: retry + 1,
+        maxRetries: MAX_STREAM_RETRIES,
+        errorType: stream.errorType ?? null,
+        backoffMs,
+      });
+      options.onDelta(`\n\n⚠️ 连接暂时失败，正在重试 ${retry + 1}/${MAX_STREAM_RETRIES}…\n`);
+      await sleep(backoffMs, options.signal);
+      stream = await streamAssistant(
+        options.provider,
+        options.conversationId,
+        messages,
+        options.onDelta,
+        tools,
+        options.signal,
+        AGENT_TURN_TIMEOUT_MS,
+      );
+    }
     if (stream.status !== "complete" || !stream.toolCalls?.length) {
       turns.push({ stream });
       return finish(

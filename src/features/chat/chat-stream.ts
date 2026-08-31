@@ -68,6 +68,10 @@ export interface StreamResult {
   content: string;
   status: "complete" | "stopped" | "error";
   errorMessage?: string;
+  /** Provider/provider-transport error classification for retry policy. */
+  errorType?: string;
+  /** Adapter-judged transient failure (timeout / network / rate limit). */
+  retryable?: boolean;
   toolCalls?: { id: string; toolName: string; arguments: string }[];
 }
 
@@ -109,6 +113,7 @@ export async function streamAssistant(
   let status: StreamResult["status"] = "complete";
   let errorMessage: string | undefined;
   let errorType: ProviderErrorType | "TIMEOUT" | "INCOMPLETE_STREAM" | undefined;
+  let lastRetryable = false;
   let completed = false;
   const toolCalls = new Map<string, { id: string; toolName: string; arguments: string }>();
   const startTime = Date.now();
@@ -150,6 +155,7 @@ export async function streamAssistant(
       } else if (event.type === "usage") {
         reportedUsage = event.usage;
       } else if (event.type === "error") {
+        lastRetryable = Boolean(event.error.retryable);
         status = timedOut
           ? "error"
           : controller.signal.aborted || event.error.type === ProviderErrorType.CANCELLED
@@ -160,6 +166,7 @@ export async function streamAssistant(
           : status === "error"
             ? formatProviderError(event.error.type, event.error.message)
             : undefined;
+        lastRetryable = timedOut ? true : lastRetryable;
         errorType = timedOut
           ? "TIMEOUT"
           : status === "stopped"
@@ -245,6 +252,8 @@ export async function streamAssistant(
     content,
     status,
     ...(errorMessage !== undefined ? { errorMessage } : {}),
+    ...(errorType !== undefined ? { errorType } : {}),
+    ...(lastRetryable ? { retryable: true } : {}),
     ...(toolCalls.size > 0 ? { toolCalls: [...toolCalls.values()] } : {}),
   } satisfies StreamResult;
 }

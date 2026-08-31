@@ -62,6 +62,7 @@ export interface ToolResultRecord {
   success: boolean;
   output: string;
   error?: string;
+  exitCode?: number;
   startedAt?: number;
   completedAt?: number;
   durationMs?: number;

@@ -146,7 +146,8 @@
     "previewImage": "预览图片",
     "noToolCalling": "此模型可以聊天，但不能使用项目工具。",
     "changeModel": "更换模型",
-    "permissionPickerTitle": "权限"
+    "permissionPickerTitle": "权限",
+    "sendFailed": "发送失败，请重试（草稿已保留）"
   },
   "runtime": {
     "agentReady": "本地 Agent Runtime",

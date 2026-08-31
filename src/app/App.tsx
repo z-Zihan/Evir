@@ -61,8 +61,16 @@ export function App() {
 
   const handleSendMessage = useCallback(() => {
     if (!messageInput.trim() || isStreaming) return;
-    void sendMessage(messageInput);
-    setMessageInput("");
+    // Clear the draft only after the message is accepted (persisted or
+    // private-accepted); on pre-acceptance failure the draft stays editable
+    // and the chat-error line explains the failure.
+    void sendMessage(messageInput)
+      .then((accepted) => {
+        if (accepted) setMessageInput("");
+      })
+      .catch(() => {
+        /* error surfaced via chat error line; draft preserved */
+      });
   }, [isStreaming, messageInput, sendMessage]);
 
   useShortcuts({

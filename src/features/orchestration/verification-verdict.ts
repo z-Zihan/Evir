@@ -13,7 +13,7 @@ export type VerificationVerdict = "passed" | "failed" | "partial";
  */
 export function verificationVerdict(summary: string): VerificationVerdict | null {
   const marker = summary.match(/VERIFICATION_STATUS:\s*\*{0,2}(PASSED|FAILED|PARTIAL)\b/i);
-  if (marker) return marker[1].toLowerCase() as VerificationVerdict;
+  if (marker?.[1]) return marker[1].toLowerCase() as VerificationVerdict;
   if (/verification result:?\s*\*{0,2}failed/i.test(summary)) return "failed";
   return null;
 }
@@ -28,7 +28,6 @@ export function applyVerificationVerdict(
   // PARTIAL is not a pass either (same convention as reportFromLoop, which
   // maps worker "partial" to failed): the run cannot claim completion with
   // explicit unresolved gaps.
-  if (verdict === "failed" || verdict === "partial")
-    return { ...result, status: "failed" };
+  if (verdict === "failed" || verdict === "partial") return { ...result, status: "failed" };
   return result;
 }

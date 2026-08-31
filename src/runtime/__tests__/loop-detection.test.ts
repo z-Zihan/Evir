@@ -108,3 +108,44 @@ describe("loop detection stopFailedRetries", () => {
     expect(third.blocked).toBe(true);
   });
 });
+
+describe("loop detection treats completed commands as feedback, not failure", () => {
+  it("does not stop a run_command repeated with non-zero exit codes (TDD red)", async () => {
+    const harness = registry();
+    // TDD red: the same test command exits 1 repeatedly — the exit code is
+    // honest data for the model, not a stuck loop. The generic repeated-call
+    // counter (12) remains the backstop for true infinite loops.
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const before = await harness.dispatch(beforeExecute("run_command"));
+      expect(before.blocked).toBe(false);
+      const after = await harness.dispatch({
+        ...beforeExecute("run_command"),
+        phase: "after-execute",
+        result: {
+          id: "t1",
+          toolCallId: "call-1",
+          toolName: "run_command",
+          success: false,
+          output: "exit_code: 1\n--- stdout ---\ntests failed",
+          exitCode: 1,
+          startedAt: 1,
+          endedAt: 2,
+        },
+      } as HarnessToolCallEvent);
+      expect(after.blocked).toBe(false);
+    }
+  });
+
+  it("still stops a read_file that fails repeatedly", async () => {
+    const harness = registry();
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await harness.dispatch(beforeExecute("read_file"));
+      const after = await harness.dispatch(
+        afterExecute("read_file", { success: false, error: "tool_error" }),
+      );
+      if (attempt === 0) expect(after.blocked).toBe(false);
+    }
+    const third = await harness.dispatch(beforeExecute("read_file"));
+    expect(third.blocked).toBe(true);
+  });
+});
