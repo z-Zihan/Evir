@@ -94,7 +94,7 @@ Tauri 2，不内置完整 Chromium；Skill 正文、MCP、设置面板按需加�
 
 ## 当前状态
 
-Evir 仍在积极开发中，**尚未发布**（无 LICENSE 文件，见下方 License 说明）。核心链路（聊天、Agent 工具与审批、Plan/Goal、权限档位、快照回滚、MCP 连接、日志与诊断导出）已实现并有 682 个 TypeScript 测试 + 43 个 Rust 测试 + E2E/视觉/无障碍矩阵覆盖，真实 Provider（GLM）与 macOS 原生多工具任务已有历史实机验收；2026-08-28 原生复验通过配置 Provider、中文/空格路径项目、计划确认、L3 逐次审批写入真实磁盘与重启持久化。**逐项验证状态（含 NOT RUN 清单）以 [Release Readiness](docs/release-readiness.md) 为准**：Windows、30–60 分钟长任务、升级/降级等尚未验证；VS Code 与 CLI 为 Preview。API Key 存本地加密 vault，重建后无需重新授权系统钥匙串。安装包默认 ad-hoc 签名（可正常运行）；Developer ID 签名/公证为可选增强。
+Evir 仍在积极开发中，**尚未发布**（无 LICENSE 文件，见下方 License 说明）。核心链路（聊天、Agent 工具与审批、Plan/Goal、权限档位、快照回滚、MCP 连接、日志与诊断导出）已实现并有 728 个 TypeScript 测试 + 46 个 Rust 测试 + E2E/视觉/无障碍矩阵覆盖，真实 Provider（GLM）与 macOS 原生多工具任务已有历史实机验收；2026-08-28 原生复验通过配置 Provider、中文/空格路径项目、计划确认、L3 逐次审批写入真实磁盘与重启持久化。**逐项验证状态（含 NOT RUN 清单）以 [Release Readiness](docs/release-readiness.md) 为准**：Windows、30–60 分钟长任务、升级/降级等尚未验证；VS Code 与 CLI 为 Preview。API Key 存本地加密 vault，重建后无需重新授权系统钥匙串。安装包默认 ad-hoc 签名（可正常运行）；Developer ID 签名/公证为可选增强。
 
 ## 本地开发
 
