@@ -21,16 +21,21 @@ function sse(response, chunks, delay = 18) {
     connection: "keep-alive",
   });
   let index = 0;
+  let closed = false;
+  response.on("close", () => {
+    closed = true;
+    clearInterval(timer);
+  });
   const timer = setInterval(() => {
     const chunk = chunks[index++];
     if (chunk === undefined) {
       clearInterval(timer);
-      response.end();
+      if (!closed) response.end();
       return;
     }
+    if (closed) return;
     response.write(`data: ${chunk}\n\n`);
   }, delay);
-  response.on("close", () => clearInterval(timer));
 }
 
 function textChunks(text) {
@@ -61,6 +66,36 @@ function lastUserText(body) {
   return typeof user?.content === "string" ? user.content : "";
 }
 
+function messagesInclude(body, needle) {
+  const messages = Array.isArray(body?.messages) ? body.messages : [];
+  return messages.some(
+    (message) => typeof message?.content === "string" && message.content.includes(needle),
+  );
+}
+
+// Verification requests are detected on the LAST message only: nodeMessages
+// always appends the node system prompt last, and prior verify summaries in
+// the conversation history must not misroute later task-node turns.
+function lastMessageIncludes(body, needle) {
+  const messages = Array.isArray(body?.messages) ? body.messages : [];
+  const last = messages[messages.length - 1];
+  return typeof last?.content === "string" && last.content.includes(needle);
+}
+
+// Robust node-kind discriminator: verification nodes offer the read-only tool
+// set (no write tools), task nodes offer the write-capable set. Message order
+// cannot be used because tool results are appended after the node system
+// prompt inside a loop.
+function isVerificationNodeRequest(body) {
+  const names = (Array.isArray(body?.tools) ? body.tools : [])
+    .map((tool) => tool?.function?.name)
+    .filter(Boolean);
+  return names.length > 0 && names.includes("file_stat") && !names.includes("write_file");
+}
+
+// Transient-outage injection counter; reset by restarting the fixture server.
+let flakyHits = 0;
+
 // Scripted tool-calling turns so the real agent loop (registry, permissions,
 // approval, execution) can be validated against this server without a paid
 // provider. The step index is derived from how many tool results the loop has
@@ -86,6 +121,151 @@ const AGENT_RECOVERY_SCRIPT = [
     args: { path: "recovery-note.md", content: "recovered after a failed read\n" },
   },
 ];
+
+const FLAKY_SCRIPT = [
+  {
+    tool: "write_file",
+    args: { path: "flaky-note.md", content: "written after a transient stream failure\n" },
+  },
+  { tool: "read_file", args: { path: "flaky-note.md" } },
+];
+
+const G2_SCRIPT = [
+  {
+    tool: "write_file",
+    args: { path: "g2-report.md", content: "# g2 verdict end-to-end\n" },
+  },
+  { tool: "read_file", args: { path: "g2-report.md" } },
+];
+
+// Tag → { artifact, nodeScript, verify } for desktop orchestration runs.
+// Every agent-mode send in the desktop app flows through intake → plan →
+// node loops, so the fixture answers each structured protocol in turn.
+const ORCH_TAGS = [
+  { tag: "[agent-task]", artifact: "fixture-report.md", script: AGENT_SCRIPT, verify: "PASSED" },
+  { tag: "[agent-recovery]", artifact: "recovery-note.md", script: AGENT_RECOVERY_SCRIPT, verify: "PASSED" },
+  { tag: "[flaky-1]", artifact: "flaky-note.md", script: FLAKY_SCRIPT, flaky: 1, verify: "PASSED" },
+  { tag: "[flaky-2]", artifact: "flaky-note.md", script: FLAKY_SCRIPT, flaky: 2, verify: "PASSED" },
+  { tag: "[flaky-3]", artifact: "flaky-note.md", script: FLAKY_SCRIPT, flaky: 3, verify: "PASSED" },
+  { tag: "[g2-pass]", artifact: "g2-report.md", script: G2_SCRIPT, verify: "PASSED" },
+  { tag: "[g2-fail]", artifact: "g2-report.md", script: G2_SCRIPT, verify: "FAILED" },
+  { tag: "[g2-partial]", artifact: "g2-report.md", script: G2_SCRIPT, verify: "PARTIAL" },
+];
+
+function findOrchTag(prompt) {
+  return ORCH_TAGS.find(({ tag }) => prompt.includes(tag)) ?? null;
+}
+
+function toolCallChunks(id, name, args) {
+  return [
+    JSON.stringify({
+      id: "fixture-structured-response",
+      choices: [
+        {
+          index: 0,
+          delta: {
+            tool_calls: [
+              {
+                index: 0,
+                id,
+                type: "function",
+                function: { name, arguments: JSON.stringify(args) },
+              },
+            ],
+          },
+          finish_reason: null,
+        },
+      ],
+    }),
+    JSON.stringify({
+      id: "fixture-structured-response",
+      choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }],
+      usage: { prompt_tokens: 30, completion_tokens: 30, total_tokens: 60 },
+    }),
+    "[DONE]",
+  ];
+}
+
+function intakeTurn(prompt) {
+  return toolCallChunks("fixture-intake-1", "submit_task_brief", {
+    goalKind: "change",
+    objective: prompt,
+    constraints: [],
+    deliverables: ["artifact written in the project workspace"],
+    acceptanceCriteria: ["artifact written and read back successfully"],
+    requiredCapabilities: ["filesystem"],
+    assumptions: ["fixture-driven deterministic task"],
+    unknowns: [],
+    risk: "low",
+  });
+}
+
+function planTurn(prompt, spec) {
+  // Valid plan shape per plan-validator: a write node must depend on an
+  // approval node (approval boundary) and change-kind plans must end with a
+  // verification node.
+  const nodes = [
+    {
+      id: "fixture-approve",
+      kind: "approval",
+      title: "Confirm fixture write",
+      objective: "Approve the scripted write before it runs.",
+      dependencies: [],
+      requiredCapabilities: ["chat"],
+      resourceScopes: [],
+      expectedArtifacts: [],
+      successCriteria: ["write approved"],
+    },
+    {
+      id: "fixture-write",
+      kind: "task",
+      title: "Fixture write node",
+      objective: prompt,
+      dependencies: ["fixture-approve"],
+      requiredCapabilities: ["filesystem"],
+      resourceScopes: [{ kind: "workspace", value: ".", access: "write" }],
+      expectedArtifacts: [spec.artifact],
+      successCriteria: [`${spec.artifact} written and read back`],
+    },
+    {
+      id: "fixture-verify",
+      kind: "verification",
+      title: "Verify fixture artifact",
+      objective: `Confirm ${spec.artifact} exists and matches the expected content.`,
+      dependencies: ["fixture-write"],
+      requiredCapabilities: ["filesystem"],
+      resourceScopes: [],
+      expectedArtifacts: [],
+      successCriteria: [`${spec.artifact} present with expected content`],
+    },
+  ];
+  const edges = [
+    { from: "fixture-approve", to: "fixture-write", when: "success" },
+    { from: "fixture-write", to: "fixture-verify", when: "success" },
+  ];
+  return toolCallChunks("fixture-plan-1", "submit_plan_graph", { nodes, edges });
+}
+
+function verifyTurn(body, spec) {
+  const messages = Array.isArray(body?.messages) ? body.messages : [];
+  const toolResults = messages.filter((message) => message?.role === "tool").length;
+  if (toolResults === 0) {
+    return {
+      chunks: toolCallChunks("fixture-verify-tool-1", "read_file", { path: spec.artifact }),
+    };
+  }
+  const summary =
+    spec.verify === "PASSED"
+      ? `${spec.artifact} exists and contains the expected heading.`
+      : spec.verify === "PARTIAL"
+        ? `${spec.artifact} exists but the acceptance heading is only partly present.`
+        : `${spec.artifact} is missing the expected content; acceptance criteria are not met.`;
+  return {
+    chunks: textChunks(
+      `Verification evidence collected. ${summary}\nVERIFICATION_STATUS: ${spec.verify}`,
+    ),
+  };
+}
 
 function scriptedToolTurn(body, script, finalText) {
   const messages = Array.isArray(body?.messages) ? body.messages : [];
@@ -162,6 +342,14 @@ const server = createServer((request, response) => {
   });
   request.on("end", () => {
     const body = JSON.parse(raw);
+    const messages = Array.isArray(body?.messages) ? body.messages : [];
+    console.error(
+      "[fixture] req roles:",
+      messages
+        .map((m) => `${m?.role ?? "?"}${typeof m?.content === "string" && m.content.includes("VERIFICATION_STATUS:") ? "*VERIFY*" : ""}`)
+        .join(","),
+      "| tools:", (body?.tools ?? []).map((t) => t?.function?.name).join("/"),
+    );
     const prompt = lastUserText(body);
     if (prompt.includes("[auth-error]")) {
       return json(response, 401, { error: { message: "Fixture API key rejected" } });
@@ -203,20 +391,33 @@ const server = createServer((request, response) => {
     if (prompt.includes("[invalid-sse]")) {
       return sse(response, ["{invalid-json", "[DONE]"]);
     }
-    if (prompt.includes("[agent-task]")) {
-      const { chunks } = scriptedToolTurn(
-        body,
-        AGENT_SCRIPT,
-        "Agent task complete: fixture-report.md written and read back. [agent-task]",
-      );
-      return sse(response, chunks);
+    // Desktop orchestration protocols: agent-mode sends run intake → plan →
+    // node loops, dispatched by which tool the caller offered.
+    const orch = findOrchTag(prompt);
+    const offeredTools = Array.isArray(body?.tools) ? body.tools : [];
+    const offered = offeredTools[0]?.function?.name ?? "";
+    if (orch && offered === "submit_task_brief") {
+      return sse(response, intakeTurn(prompt));
     }
-    if (prompt.includes("[agent-recovery]")) {
-      const { chunks } = scriptedToolTurn(
-        body,
-        AGENT_RECOVERY_SCRIPT,
-        "Recovered from the missing file and wrote recovery-note.md. [agent-recovery]",
-      );
+    if (orch && offered === "submit_plan_graph") {
+      return sse(response, planTurn(prompt, orch));
+    }
+    if (orch?.verify && isVerificationNodeRequest(body)) {
+      return sse(response, verifyTurn(body, orch).chunks);
+    }
+    if (orch) {
+      // Transient-failure injection counts node-loop requests only, so the
+      // structured intake/plan round trips always succeed.
+      if (orch.flaky) {
+        flakyHits += 1;
+        if (flakyHits <= orch.flaky) {
+          return json(response, 503, { error: { message: "Fixture transient outage" } });
+        }
+      }
+      const finalText = orch.verify
+        ? `Task node complete: ${orch.artifact} written and read back. ${orch.tag}`
+        : `Agent task complete: ${orch.artifact} written and read back. ${orch.tag}`;
+      const { chunks } = scriptedToolTurn(body, orch.script, finalText);
       return sse(response, chunks);
     }
     const reply = prompt.includes("[slow]")
@@ -230,6 +431,11 @@ const server = createServer((request, response) => {
       prompt.includes("[slow]") ? 80 : prompt.includes("[burst]") ? 1 : 18,
     );
   });
+});
+
+// A stray aborted SSE connection must not take the fixture down mid-test.
+process.on("uncaughtException", (error) => {
+  console.error("[fixture] recovered from:", error.message);
 });
 
 server.listen(port, "127.0.0.1");

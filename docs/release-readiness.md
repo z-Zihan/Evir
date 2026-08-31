@@ -49,7 +49,7 @@
 | 其他协议真机（Anthropic/Gemini/OpenAI 原生等） | NOT RUN | 适配器有测试，未真机取证                                                                          |
 | 回滚（原生点击）                               | PARTIAL | 磁盘级验证 3/3（修改恢复/新建删除/删重命名恢复）通过；原生 UI 点击回滚按钮待补                    |
 | 30 分钟 Agent 任务                             | PARTIAL | BugFix ✅ 独立核验通过；Refactor ✅（跟进后完成）；Feature ⚠️ 验证器诚实判 FAILED（修复后待重跑） |
-| 60 分钟 Agent 任务                             | PARTIAL | #1 chorus 36min run completed 0 写盘（分析瘫痪）；#2 阻断于 UI 输入。修复后待重跑                 |
+| 60 分钟 Agent 任务                             | PARTIAL | #1（test-docs-site，2026-08-31）真模型全链路 2h：5 文件真实写盘（含 README-BUGFIX.md 缺陷报告+校验工具链），逐次审批/退出码/诚实终态全部按设计；终态 needs_verification（auto-verification `pnpm check` 在纯文档项目不适用）。有效样本 0→1，第二样本待补 |
 | 20–50 轮长对话（真实需求变更）                 | PASS    | 20 轮 + 30 轮（含需求变化）各 100% 完成，上下文保持（2026-08-31）                                 |
 | 超长工具输出 / Context 压缩实机                | PARTIAL | 压缩层级单测过；原生长输出场景未取证                                                              |
 | MCP：Agent 会话内审批取证                      | NOT RUN | Runtime 与设置页已验证                                                                            |
@@ -96,10 +96,10 @@
 
 | 项                | 说明                                                     |
 | ----------------- | -------------------------------------------------------- |
-| D 审批卡点击失效  | N 修复后预期缓解，需独立 5/5 复测                        |
-| G2 补充           | verify 自然语言措辞不匹配时仍可能漏判 → 结构化 schema    |
-| F 状态一致性      | agent_runs vs run_events 终态偶发不同步，需 5 run 核验   |
-| 60min ×2 有效样本 | 模型"分析瘫痪"（只读不写盘）需 prompt 引导或迭代预算调整 |
+| D 审批卡点击失效  | ✅ fixture 真实编排 5/5 通过（2026-08-31）                |
+| G2 补充           | ✅ 结构化 VERIFICATION_STATUS 全链路 ×3 通过（PASS/FAIL/PARTIAL） |
+| F 状态一致性      | ✅ 20+ 轮 UI↔DB↔磁盘三方比对无一不一致                   |
+| 60min 第二有效样本 | #1 已完成（真实写盘 5 文件）；第二样本因 ask profile 逐次审批墙钟 2h 未跑，按需补 |
 | 30min #3 重跑     | Feature 任务修复后待重跑                                 |
 
 ## Blocking Issues
