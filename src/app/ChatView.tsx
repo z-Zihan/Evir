@@ -20,12 +20,11 @@ import {
   Play,
   X,
 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { useChatStore, type ChatState } from "../features/chat/chat-store";
 import { useShallow } from "zustand/react/shallow";
 import { useProviderStore } from "../features/provider/provider-store";
 import { ChatMessage } from "./ChatMessage";
+import { MarkdownContent } from "./MarkdownContent";
 import { ChatEmptyState } from "./ChatEmptyState";
 import { ModeSwitcher } from "./ModeSwitcher";
 import { ModelSwitcher } from "./ModelSwitcher";
@@ -619,7 +618,7 @@ export function ChatView({
                   </header>
                   <div className="message-content stream-surface">
                     {streamingContent ? (
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamingContent}</ReactMarkdown>
+                      <MarkdownContent content={streamingContent} streaming />
                     ) : (
                       <div className="stream-waiting">
                         <div className="stream-placeholder" aria-hidden="true">

@@ -39,6 +39,19 @@ function getArgumentSummary(call: ToolCallRecord): string {
       ...(Array.isArray(args) ? args.filter((arg): arg is string => typeof arg === "string") : []),
     ].join(" ");
   }
+
+  // Browser tools: surface the URL / ref / key the agent acted on.
+  if (call.toolName.startsWith("browser_")) {
+    const url = call.arguments["url"];
+    if (typeof url === "string") return url.replace(/^https?:\/\//, "").slice(0, 60);
+    const elementRef = call.arguments["element_ref"];
+    if (typeof elementRef === "string") {
+      const text = call.arguments["text"] ?? call.arguments["value"];
+      return typeof text === "string" ? `${elementRef} → ${text.slice(0, 24)}` : elementRef;
+    }
+    const key = call.arguments["key"] ?? call.arguments["direction"] ?? call.arguments["target_id"];
+    if (typeof key === "string") return key;
+  }
   return "";
 }
 

@@ -1,3 +1,10 @@
+mod ax_snapshot;
+mod browser_commands;
+mod browser_runtime;
+mod browser_workbench;
+#[cfg(test)]
+mod browser_workbench_tests;
+mod cdp;
 mod commands;
 mod diagnostics;
 #[cfg(test)]
@@ -6,6 +13,7 @@ mod mcp_stdio;
 mod mcp_stdio_process;
 #[cfg(all(test, unix))]
 mod mcp_stdio_process_tests;
+mod preview_sandbox;
 mod secret_vault;
 #[cfg(test)]
 mod secret_vault_tests;
@@ -29,6 +37,7 @@ pub fn run() {
             let _ = window.set_focus();
         }
     }));
+    let builder = preview_sandbox::register_preview_scheme(builder);
     builder
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_dialog::init())
@@ -49,6 +58,9 @@ pub fn run() {
             })?;
             app.manage(storage::DatabaseState::new(conn));
             app.manage(mcp_stdio::McpStdioState::default());
+            app.manage(preview_sandbox::PreviewArtifactState::default());
+            app.manage(browser_workbench::BrowserWorkbenchState::default());
+            app.manage(browser_commands::BrowserAgentState::default());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -94,7 +106,58 @@ pub fn run() {
             mcp_stdio::mcp_stdio_stop,
             diagnostics::diagnostics_logs_overview,
             diagnostics::diagnostics_export_zip,
+            preview_sandbox::preview_artifact_register,
+            preview_sandbox::preview_artifact_revoke,
+            browser_workbench::browser_workbench_open,
+            browser_workbench::browser_tab_new,
+            browser_workbench::browser_tab_activate,
+            browser_workbench::browser_tab_close,
+            browser_workbench::browser_tab_navigate,
+            browser_workbench::browser_tab_history,
+            browser_workbench::browser_tab_list,
+            browser_workbench::browser_layout_update,
+            browser_workbench::browser_clear_site_data,
+            browser_commands::browser_agent_status,
+            browser_commands::browser_agent_start,
+            browser_commands::browser_agent_stop,
+            browser_commands::browser_open,
+            browser_commands::browser_navigate,
+            browser_commands::browser_history,
+            browser_commands::browser_snapshot,
+            browser_commands::browser_click,
+            browser_commands::browser_fill,
+            browser_commands::browser_select,
+            browser_commands::browser_press,
+            browser_commands::browser_scroll,
+            browser_commands::browser_get_text,
+            browser_commands::browser_url,
+            browser_commands::browser_screenshot,
+            browser_commands::browser_tabs,
+            browser_commands::browser_switch_tab,
+            browser_commands::browser_close_tab,
+            browser_commands::browser_wait,
+            browser_commands::browser_wait_for_load,
         ])
+        .on_window_event(|window, event| {
+            if matches!(event, tauri::WindowEvent::Destroyed) {
+                let app = window.app_handle();
+                if window.label() == "browser-workbench" {
+                    // Content webviews belong to the workbench window; close
+                    // them all so no orphan remote webview survives.
+                    let labels: Vec<String> = app
+                        .webviews()
+                        .keys()
+                        .filter(|label| label.starts_with("browser-content-"))
+                        .cloned()
+                        .collect();
+                    for label in labels {
+                        if let Some(webview) = app.get_webview(&label) {
+                            let _ = webview.close();
+                        }
+                    }
+                }
+            }
+        })
         .run(tauri::generate_context!())
         .expect("error while running Evir");
 }

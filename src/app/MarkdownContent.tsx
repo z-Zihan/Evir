@@ -1,12 +1,14 @@
 import { isValidElement, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Copy, X } from "lucide-react";
+import { X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
+import { CodeBlockView } from "../features/preview/CodeBlockView";
 
 const MATH_PATTERN = /\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)|\$[^$\n]+\$/;
 const VIDEO_HREF_PATTERN = /\.(mp4|webm|mov|m4v|mkv)([?#].*)?$/i;
+const AUDIO_HREF_PATTERN = /\.(mp3|wav|ogg|m4a|aac|flac)([?#].*)?$/i;
 
 type RehypeKatexPlugin = (typeof import("rehype-katex"))["default"];
 
@@ -18,31 +20,31 @@ function extractText(node: ReactNode): string {
   return "";
 }
 
-function CodeBlock({ children }: { children?: ReactNode }) {
-  const { t } = useTranslation();
-  const [copied, setCopied] = useState(false);
+/** Pulls `language-x` off the fenced code element rendered inside <pre>. */
+function extractLanguage(node: ReactNode): string {
+  if (Array.isArray(node)) {
+    const children = node as readonly ReactNode[];
+    for (const child of children) {
+      const found = extractLanguage(child);
+      if (found) return found;
+    }
+    return "";
+  }
+  if (isValidElement(node)) {
+    const props: unknown = node.props;
+    const className = (props as { className?: unknown }).className;
+    if (typeof className === "string") {
+      const match = /language-([\w+#-]+)/.exec(className);
+      if (match?.[1]) return match[1];
+    }
+  }
+  return "";
+}
+
+function CodeBlock({ children, streaming }: { children?: ReactNode; streaming: boolean }) {
   const code = extractText(children);
-  return (
-    <div className="code-block">
-      <button
-        type="button"
-        className="code-block-copy"
-        onClick={() => {
-          void navigator.clipboard.writeText(code).then(() => {
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
-          });
-        }}
-        aria-label={t("chat.copyCode")}
-      >
-        <Copy size={13} />
-        {copied ? t("chat.copied") : t("chat.copyCode")}
-      </button>
-      <pre>
-        <code>{children}</code>
-      </pre>
-    </div>
-  );
+  const language = extractLanguage(children);
+  return <CodeBlockView code={code.replace(/\n$/, "")} language={language} streaming={streaming} />;
 }
 
 function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
@@ -77,7 +79,13 @@ function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClos
   );
 }
 
-export function MarkdownContent({ content }: { content: string }) {
+export function MarkdownContent({
+  content,
+  streaming = false,
+}: {
+  content: string;
+  streaming?: boolean;
+}) {
   const { t } = useTranslation();
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
   const hasMath = useMemo(() => MATH_PATTERN.test(content), [content]);
@@ -107,7 +115,7 @@ export function MarkdownContent({ content }: { content: string }) {
         rehypePlugins={katexPlugin !== null && hasMath ? [katexPlugin] : undefined}
         components={{
           pre({ children }) {
-            return <CodeBlock>{children}</CodeBlock>;
+            return <CodeBlock streaming={streaming}>{children}</CodeBlock>;
           },
           table({ children }) {
             return (
@@ -145,6 +153,17 @@ export function MarkdownContent({ content }: { content: string }) {
                       {target}
                     </a>
                   </video>
+                </span>
+              );
+            }
+            if (AUDIO_HREF_PATTERN.test(target)) {
+              return (
+                <span className="markdown-audio">
+                  <audio controls preload="metadata" src={target}>
+                    <a href={target} target="_blank" rel="noreferrer">
+                      {target}
+                    </a>
+                  </audio>
                 </span>
               );
             }

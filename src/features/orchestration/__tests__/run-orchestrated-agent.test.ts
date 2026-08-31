@@ -247,7 +247,7 @@ describe("runOrchestratedAgent", () => {
       }),
     );
 
-    const result = await runOrchestratedAgent({
+    await runOrchestratedAgent({
       provider,
       conversationId: "conversation-1",
       messages: [{ role: "user", content: brief.objective }],

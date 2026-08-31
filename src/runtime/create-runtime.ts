@@ -67,7 +67,16 @@ export function createRuntime(options: CreateRuntimeOptions = {}): EvirRuntime {
   );
   const capabilities: Capability[] =
     target === "desktop"
-      ? ["chat", "attachments", "filesystem", "terminal", "git", "localMcp", "backgroundTasks"]
+      ? [
+          "chat",
+          "attachments",
+          "filesystem",
+          "terminal",
+          "git",
+          "localMcp",
+          "backgroundTasks",
+          "browserAutomation",
+        ]
       : ["chat", "attachments"];
   const runtime = buildRuntime(target, capabilities);
   const componentRuntime = new ComponentRuntime({

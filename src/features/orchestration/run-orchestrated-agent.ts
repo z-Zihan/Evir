@@ -67,10 +67,16 @@ function scopedRuntime(runtime: EvirRuntime, allowedToolIds: readonly string[]) 
 function toolsForNode(node: PlanNode, runtime: EvirRuntime): string[] {
   const writes = node.resourceScopes.some(({ access }) => access === "write");
   return (runtime.toolRegistry?.list() ?? [])
-    .filter(
-      (tool) =>
-        !tool.requiredCapability || node.requiredCapabilities.includes(tool.requiredCapability),
-    )
+    .filter((tool) => {
+      if (!tool.requiredCapability || node.requiredCapabilities.includes(tool.requiredCapability)) {
+        return true;
+      }
+      // Read-only browsing (browser_open/snapshot/screenshot/…) is L1 — the
+      // same tier as read_file — so inspection and verification nodes may
+      // offer it without declaring a browser capability. Mutating browser
+      // actions (L2+) still require the node's explicit capability set.
+      return !writes && (tool.riskLevel === "L0" || tool.riskLevel === "L1");
+    })
     .filter(
       (tool) =>
         writes ||

@@ -56,6 +56,9 @@ const ProviderSettings = lazy(() =>
   import("./ProviderSettings").then((m) => ({ default: m.ProviderSettings })),
 );
 const UsagePanel = lazy(() => import("./UsagePanel").then((m) => ({ default: m.UsagePanel })));
+const BrowserSettings = lazy(() =>
+  import("./BrowserSettings").then((m) => ({ default: m.BrowserSettings })),
+);
 import { downloadBlob, exportConversations } from "../features/chat/conversation-export";
 import { importConversations } from "../features/chat/conversation-import";
 import { getRuntime } from "../runtime/use-runtime";
@@ -63,6 +66,7 @@ import { useChatStore } from "../features/chat/chat-store";
 import { useWorkspaceStore } from "../features/workspace/workspace-store";
 
 export type SettingsTab =
+  | "browser"
   | "providers"
   | "identity"
   | "personalization"
@@ -103,6 +107,7 @@ const SETTINGS_GROUPS: Array<{ labelKey: string; items: SettingsNavItem[] }> = [
     items: [
       { tab: "skills", labelKey: "settings.skills", icon: Braces },
       { tab: "mcp", labelKey: "settings.mcp", icon: Boxes },
+      { tab: "browser", labelKey: "settings.browser", icon: Globe2 },
       { tab: "memory", labelKey: "memory.title", icon: Brain },
     ],
   },
@@ -315,6 +320,7 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
                 {activeTab === "shortcuts" && <ShortcutsSettings />}
                 {activeTab === "skills" && <SkillSettings />}
                 {activeTab === "mcp" && <McpSettings />}
+                {activeTab === "browser" && <BrowserSettings />}
                 {activeTab === "usage" && <UsagePanel />}
                 {activeTab === "privacy" && (
                   <div className="data-privacy-settings">

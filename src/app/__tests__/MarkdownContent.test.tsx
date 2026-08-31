@@ -22,7 +22,7 @@ describe("MarkdownContent code blocks", () => {
     const copyButton = screen.getByRole("button", { name: "chat.copyCode" });
     fireEvent.click(copyButton);
 
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith("plain fenced code\n"));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("plain fenced code"));
     expect(screen.getByText("chat.copied")).toBeTruthy();
   });
 
@@ -33,7 +33,7 @@ describe("MarkdownContent code blocks", () => {
     render(<MarkdownContent content={"```ts\nconst x = 1;\n```"} />);
     fireEvent.click(screen.getByRole("button", { name: "chat.copyCode" }));
 
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith("const x = 1;\n"));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("const x = 1;"));
   });
 
   it("does not render a copy button for inline code", () => {

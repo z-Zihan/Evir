@@ -39,7 +39,8 @@ function sse(response, chunks, delay = 18) {
 }
 
 function textChunks(text) {
-  const parts = text.match(/.{1,12}/gu) ?? [];
+  // [\s\S] keeps newlines — fenced markdown artifacts must survive chunking.
+  const parts = text.match(/[\s\S]{1,12}/gu) ?? [];
   return [
     ...parts.map((content, index) =>
       JSON.stringify({
@@ -122,6 +123,20 @@ const AGENT_RECOVERY_SCRIPT = [
   },
 ];
 
+const BROWSER_SCRIPT = [
+  { tool: "browser_open", args: { url: "http://127.0.0.1:8765" } },
+  { tool: "browser_snapshot", args: {} },
+  { tool: "browser_get_text", args: {} },
+  { tool: "browser_screenshot", args: {} },
+  {
+    tool: "write_file",
+    args: {
+      path: "browser-report.md",
+      content: "# Browser agent report\n\nopened localhost:8765, snapshotted, screenshotted\n",
+    },
+  },
+];
+
 const FLAKY_SCRIPT = [
   {
     tool: "write_file",
@@ -143,7 +158,12 @@ const G2_SCRIPT = [
 // node loops, so the fixture answers each structured protocol in turn.
 const ORCH_TAGS = [
   { tag: "[agent-task]", artifact: "fixture-report.md", script: AGENT_SCRIPT, verify: "PASSED" },
-  { tag: "[agent-recovery]", artifact: "recovery-note.md", script: AGENT_RECOVERY_SCRIPT, verify: "PASSED" },
+  {
+    tag: "[agent-recovery]",
+    artifact: "recovery-note.md",
+    script: AGENT_RECOVERY_SCRIPT,
+    verify: "PASSED",
+  },
   { tag: "[flaky-1]", artifact: "flaky-note.md", script: FLAKY_SCRIPT, flaky: 1, verify: "PASSED" },
   { tag: "[flaky-2]", artifact: "flaky-note.md", script: FLAKY_SCRIPT, flaky: 2, verify: "PASSED" },
   { tag: "[flaky-3]", artifact: "flaky-note.md", script: FLAKY_SCRIPT, flaky: 3, verify: "PASSED" },
@@ -305,6 +325,49 @@ function scriptedToolTurn(body, script, finalText) {
   return { chunks: textChunks(finalText) };
 }
 
+// Preview-system fixtures: multi-artifact markdown streamed through the real
+// chat pipeline so CodeBlock/Preview renderers can be validated on device.
+function previewArtifactReply(prompt) {
+  if (prompt.includes("[preview-all]")) {
+    return [
+      "Here are artifacts in every preview family:\n",
+      "```html\n<!DOCTYPE html>\n<html><head><style>body{font-family:sans-serif;background:#f6f8fa;padding:16px}h1{color:#0969da}</style></head>",
+      '<body><h1>Hello Evir</h1><button onclick=\'document.getElementById("out").textContent="clicked"\'>Click me</button><p id=out></p></body></html>\n```\n',
+      '```svg\n<svg xmlns="http://www.w3.org/2000/svg" width="220" height="90"><rect width="220" height="90" rx="12" fill="#5865f2"/><text x="110" y="52" text-anchor="middle" fill="white" font-size="18">Evir SVG</text></svg>\n```\n',
+      "```mermaid\nflowchart TD\n  A[User asks] --> B{Tool needed?}\n  B -->|yes| C[Approval gate]\n  B -->|no| D[Direct answer]\n  C --> E[Execute + verify]\n```\n",
+      "```dot\ndigraph G { rankdir=LR; a -> b -> c; a -> d; }\n```\n",
+      '```json\n{"name":"evir","version":2,"features":["preview","browser"],"meta":{"local":true}}\n```\n',
+      "```csv\nname,role,risk\nbrowser_open,read,L1\nbrowser_click,interact,L2\nwrite_file,mutate,L3\n```\n",
+      '```vega-lite\n{"mark":"bar","data":{"values":[{"x":"A","y":28},{"x":"B","y":55},{"x":"C","y":43}]}}\n```\n',
+      "```diff\n--- a/theme.css\n+++ b/theme.css\n@@ -1,3 +1,3 @@\n .btn {\n-  color: gray;\n+  color: rebeccapurple;\n }\n```\n",
+      "And math: $E = mc^2$ plus a table:\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n",
+    ].join("");
+  }
+  if (prompt.includes("[preview-stream-code]")) {
+    const lines = [
+      "// Streaming highlight fixture — watch tokens arrive",
+      "export function fibonacci(limit) {",
+      "  const out = [0, 1];",
+      "  while (out.length < limit) {",
+      "    out.push(out.at(-1) + out.at(-2));",
+      "  }",
+      "  return out;",
+      "}",
+      "console.log(fibonacci(10).join(', '));",
+    ];
+    return ["```js\n", ...lines.map((line) => `${line}\n`), "```\n"].join("");
+  }
+  if (prompt.includes("[preview-malformed]")) {
+    return [
+      "Malformed artifacts must degrade gracefully:\n",
+      '```json\n{"broken": [1, 2,\n```\n',
+      "```mermaid\nflowchart TD\n  A ->> > B broken syntax\n```\n",
+      '```svg\n<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><circle r="4"/></svg>\n```\n',
+    ].join("");
+  }
+  return null;
+}
+
 const server = createServer((request, response) => {
   if (request.method === "OPTIONS") {
     response.writeHead(204, cors);
@@ -346,9 +409,13 @@ const server = createServer((request, response) => {
     console.error(
       "[fixture] req roles:",
       messages
-        .map((m) => `${m?.role ?? "?"}${typeof m?.content === "string" && m.content.includes("VERIFICATION_STATUS:") ? "*VERIFY*" : ""}`)
+        .map(
+          (m) =>
+            `${m?.role ?? "?"}${typeof m?.content === "string" && m.content.includes("VERIFICATION_STATUS:") ? "*VERIFY*" : ""}`,
+        )
         .join(","),
-      "| tools:", (body?.tools ?? []).map((t) => t?.function?.name).join("/"),
+      "| tools:",
+      (body?.tools ?? []).map((t) => t?.function?.name).join("/"),
     );
     const prompt = lastUserText(body);
     if (prompt.includes("[auth-error]")) {
@@ -420,11 +487,14 @@ const server = createServer((request, response) => {
       const { chunks } = scriptedToolTurn(body, orch.script, finalText);
       return sse(response, chunks);
     }
-    const reply = prompt.includes("[slow]")
-      ? "This response is deliberately streamed slowly so cancellation can be verified without a paid API. ".repeat(
-          8,
-        )
-      : "Deterministic fixture response. Streaming, persistence, and usage all use the production chat pipeline.";
+    const previewReply = previewArtifactReply(prompt);
+    const reply = previewReply
+      ? previewReply
+      : prompt.includes("[slow]")
+        ? "This response is deliberately streamed slowly so cancellation can be verified without a paid API. ".repeat(
+            8,
+          )
+        : "Deterministic fixture response. Streaming, persistence, and usage all use the production chat pipeline.";
     return sse(
       response,
       textChunks(reply),
