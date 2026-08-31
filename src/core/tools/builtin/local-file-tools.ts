@@ -367,7 +367,15 @@ async function runCommand(
       parsed.data.timeout_ms,
     );
     const output = `exit_code: ${result.exit_code ?? "N/A"}\n--- stdout ---\n${result.stdout}\n--- stderr ---\n${result.stderr}`;
-    return { success: result.success, output };
+    return {
+      success: result.success,
+      output,
+      // The command ran and reported a programmatic outcome; keep the honest
+      // exit code so consumers can tell "command failed" from "tool failed".
+      ...(result.exit_code !== null && result.exit_code !== undefined
+        ? { exitCode: result.exit_code }
+        : {}),
+    };
   } catch (error) {
     return toolError(error);
   }

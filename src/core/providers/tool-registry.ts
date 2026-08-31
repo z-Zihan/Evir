@@ -10,6 +10,13 @@ export interface ToolResult {
   success: boolean;
   output: string;
   error?: string;
+  /**
+   * Set when the tool ran an external process that completed and reported a
+   * programmatic outcome. The command's exit code is honest data for the
+   * model (success stays false on non-zero); it is distinct from the tool
+   * itself failing to execute.
+   */
+  exitCode?: number;
 }
 
 export interface ToolApprovalDetails {

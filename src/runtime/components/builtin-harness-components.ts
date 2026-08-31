@@ -199,7 +199,14 @@ export function createLoopDetectionMiddleware(
       }
     }
     if (event.phase === "after-execute" && event.result) {
-      const failed = Boolean(event.result.error) || event.result.success === false;
+      // A command that executed and reported its exit code produced real
+      // feedback for the model (e.g. a TDD red run: `npm test` exiting 1 is
+      // the expected observation, not a stuck loop). Only count results as
+      // failures when the tool itself failed to execute or produce output.
+      const commandCompleted = typeof (event.result as { exitCode?: unknown }).exitCode === "number";
+      const failed =
+        !commandCompleted &&
+        (Boolean(event.result.error) || event.result.success === false);
       if (event.toolName) {
         const key = `${event.toolName}:${JSON.stringify(event.arguments ?? {})}`;
         const failures = consecutiveFailuresByRun.get(runId) ?? new Map<string, number>();

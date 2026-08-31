@@ -14,6 +14,7 @@ import type {
   WorkerReport,
 } from "../../core/orchestration/types";
 import { ToolRegistryImpl } from "../../core/tools/tool-registry-impl";
+import { applyVerificationVerdict } from "./verification-verdict";
 import { ToolExecutor } from "../../core/tools/tool-executor";
 import type { ProviderRecord } from "../../core/storage/db";
 import type { EvirRuntime } from "../../runtime/types";
@@ -115,6 +116,15 @@ function nodeMessages(
         node.successCriteria.length ? `Success criteria: ${node.successCriteria.join("; ")}` : "",
         dependencies.length ? `Dependency results:\n${dependencies.join("\n")}` : "",
         "Do not create another agent. Return a concise result with observable evidence.",
+        ...(node.kind === "verification"
+          ? [
+              // Structured verdict line: the scheduler consumes this machine-
+              // readable status instead of parsing natural-language prose.
+              "End your reply with exactly one final line:",
+              "VERIFICATION_STATUS: PASSED | FAILED | PARTIAL",
+              "FAILED means acceptance criteria are not met; PARTIAL means some are met with explicit gaps.",
+            ]
+          : []),
       ]
         .filter(Boolean)
         .join("\n"),
@@ -443,19 +453,16 @@ async function runOrchestratedAgentBound(input: OrchestratedRunInput): Promise<A
           summary: "Verification produced no successful tool evidence",
         };
       }
-      if (node.kind === "verification") verificationEvidence.add(node.id);
-      // The verify prompt asks the model to state "Verification Result:
-      // FAILED" when the evidence does not support completion. A node that
-      // merely *ran* must not let a failed verification sail through as a
-      // completed run — downgrade it so the scheduler fails the run.
-      if (
-        node.kind === "verification" &&
-        loopStatus(result) === "completed" &&
-        /verification result:?\s*\*{0,2}failed/i.test(summary)
-      ) {
-        return { status: "failed", summary };
-      }
-      return { status: loopStatus(result), summary };
+      // Structured verdict first (VERIFICATION_STATUS marker), natural-
+      // language regex only as legacy fallback. A verification that ran but
+      // did not pass must not sail through as a completed run.
+      const judged = applyVerificationVerdict(node, {
+        status: loopStatus(result),
+        summary,
+      });
+      if (node.kind === "verification" && judged.status === "completed")
+        verificationEvidence.add(node.id);
+      return judged;
     }
 
     const parentTools = input.runtime.toolRegistry?.list().map(({ id }) => id) ?? [];
