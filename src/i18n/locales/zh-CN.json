@@ -735,6 +735,14 @@
       "crashed": "已崩溃",
       "confirmTitle": "启动开发服务器",
       "confirmDescription": "将在项目目录执行：{{command}}（目录：{{cwd}}）。该进程由 Evir 管理，应用退出时会一并停止。"
+    },
+    "annotate": "标注页面元素",
+    "annotation": {
+      "header": "【浏览器反馈】",
+      "url": "URL",
+      "element": "元素",
+      "box": "位置",
+      "comment": "请修改"
     }
   },
   "startup": {

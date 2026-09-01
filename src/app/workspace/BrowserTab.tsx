@@ -6,12 +6,14 @@ import {
   Globe,
   LoaderCircle,
   MonitorPlay,
+  MousePointerClick,
   Plus,
   RotateCw,
   Square,
   X,
 } from "lucide-react";
 import {
+  panelAnnotate,
   panelLayoutUpdate,
   panelTabActivate,
   panelTabClose,
@@ -19,11 +21,13 @@ import {
   panelTabList,
   panelTabNew,
   panelTabNavigate,
+  subscribePanelAnnotations,
   subscribePanelTabs,
   type PanelBrowserTab,
 } from "../../features/workspace/browser-panel-service";
 import {
   detectDevScript,
+  devServerList,
   devServerStart,
   devServerStop,
   subscribeDevServerStatus,
@@ -78,6 +82,7 @@ export function BrowserTab() {
   const outputs = useRunWorkspaceStore((state) => state.outputs);
   const [tabs, setTabs] = useState<PanelBrowserTab[]>([]);
   const [address, setAddress] = useState("");
+  const [annotating, setAnnotating] = useState(false);
   const [starting, setStarting] = useState(false);
   const [devPlan, setDevPlan] = useState<DevScriptPlan | null>(null);
   const [devServer, setDevServer] = useState<DevServerState | null>(null);
@@ -103,6 +108,31 @@ export function BrowserTab() {
       void unsubscribeStatus?.then((fn) => fn?.());
     };
   }, [project?.id]);
+
+  // Events are the primary channel; polling re-syncs when a push is missed
+  // (listener registered late, emit raced a reload) so "starting" can never
+  // wedge the card forever.
+  useEffect(() => {
+    if (!project) return;
+    let cancelled = false;
+    const sync = () => {
+      void devServerList()
+        .then((servers) => {
+          if (cancelled) return;
+          const match = servers.find((server) => server.projectId === project.id);
+          if (match) {
+            setDevServer((current) => (current?.status === match.status ? current : match));
+          }
+        })
+        .catch(() => undefined);
+    };
+    sync();
+    const timer = window.setInterval(sync, 2000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [project]);
 
   const activeTabUrl = activeTab?.url;
   useEffect(() => {
@@ -157,6 +187,19 @@ export function BrowserTab() {
   useEffect(() => {
     reportLayout(!overlayBlocked);
   }, [overlayBlocked, reportLayout]);
+
+  // Leaving the browser tab cancels an active picker; a picked element also
+  // ends annotate mode (one annotation per activation).
+  useEffect(() => {
+    if (!annotating) return;
+    const unsubscribe = subscribePanelAnnotations(() => setAnnotating(false)).catch(
+      () => undefined,
+    );
+    return () => {
+      void unsubscribe?.then((fn) => fn?.());
+      void panelAnnotate(false).catch(() => undefined);
+    };
+  }, [annotating]);
 
   const navigate = (url: string) => {
     const target = normalizeInput(url);
@@ -285,6 +328,21 @@ export function BrowserTab() {
           data-tip={t("workspace.newTab")}
         >
           <Plus size={14} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className={`workspace-icon-button${annotating ? " active" : ""}`}
+          disabled={!activeTab}
+          aria-pressed={annotating}
+          aria-label={t("workspace.annotate")}
+          data-tip={t("workspace.annotate")}
+          onClick={() => {
+            const next = !annotating;
+            setAnnotating(next);
+            void panelAnnotate(next).catch(() => setAnnotating(false));
+          }}
+        >
+          <MousePointerClick size={14} aria-hidden="true" />
         </button>
       </header>
       {tabs.length > 0 && (

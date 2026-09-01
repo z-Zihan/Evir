@@ -50,6 +50,8 @@ import { PermissionSwitcher } from "./PermissionSwitcher";
 import { SlashPalette, type SlashPaletteHandle, type SlashCommandId } from "./SlashPalette";
 import { useWorkspacePanelStore } from "../features/workspace/workspace-panel-store";
 import { workspaceResourceTitle } from "../features/workspace/resource-model";
+import { formatAnnotationDraft, parseAnnotationPayload } from "../features/workspace/annotation";
+import { subscribePanelAnnotations } from "../features/workspace/browser-panel-service";
 // The orchestration workbench (plan DAG, node timeline, clarifications) only
 // appears in desktop Agent runs; keep it and its store graph out of the entry
 // chunk.
@@ -312,6 +314,9 @@ export function ChatView({
   );
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Draft mirror for the annotation listener (avoids re-subscribing per keystroke).
+  const inputRef = useRef(input);
+  inputRef.current = input;
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Stickiness: streaming frames only auto-scroll while the user is already
   // at (near) the bottom, so reading earlier output is never yanked away.
@@ -363,6 +368,28 @@ export function ChatView({
     window.addEventListener("evir:focus-composer", focusComposer);
     return () => window.removeEventListener("evir:focus-composer", focusComposer);
   }, []);
+
+  // Browser Annotation (§37): a picked element arrives as a structured
+  // payload and becomes a Browser Feedback draft the user completes and
+  // sends — never an automatic message.
+  useEffect(() => {
+    const unsubscribe = subscribePanelAnnotations((raw) => {
+      const payload = parseAnnotationPayload(raw);
+      if (!payload) return;
+      const draft = formatAnnotationDraft(payload, {
+        header: t("workspace.annotation.header"),
+        url: t("workspace.annotation.url"),
+        element: t("workspace.annotation.element"),
+        box: t("workspace.annotation.box"),
+        comment: t("workspace.annotation.comment"),
+      });
+      onInputChange(`${inputRef.current ? `${inputRef.current}\n` : ""}${draft}`);
+      textareaRef.current?.focus();
+    }).catch(() => undefined);
+    return () => {
+      void unsubscribe.then((fn) => fn?.());
+    };
+  }, [onInputChange, t]);
 
   const localUserName = localDisplayName || t("chat.localUser");
 

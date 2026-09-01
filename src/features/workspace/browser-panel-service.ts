@@ -74,3 +74,13 @@ export function subscribePanelTabs(
 export function readScreenshotBase64(path: string): Promise<string> {
   return invoke("browser_screenshot_read", { path });
 }
+
+export function panelAnnotate(enable: boolean): Promise<void> {
+  return invoke("browser_panel_annotate", { enable });
+}
+
+export function subscribePanelAnnotations(
+  handler: (payload: unknown) => void,
+): Promise<() => void> {
+  return listen("browser-panel-annotation", (event) => handler(event.payload));
+}

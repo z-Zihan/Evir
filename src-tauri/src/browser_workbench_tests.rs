@@ -45,3 +45,41 @@ mod tests {
         assert!(normalize_input_url("   ").is_err());
     }
 }
+
+#[cfg(test)]
+mod annotation_tests {
+    use crate::browser_workbench::annotation_payload_from_title;
+
+    fn sample_payload() -> String {
+        // {"url":"http://localhost:5173/login","tag":"button","id":"login",
+        //  "text":"登录","selector":"button#login"}
+        let json = r#","url":"http://localhost:5173/login","tag":"button","id":"login","text":"登录","selector":"button#login"}"#;
+        let mut encoded = String::new();
+        // Percent-encode the non-ASCII and structural characters the way
+        // encodeURIComponent would for the JSON body.
+        for ch in json.chars() {
+            match ch {
+                'A'..='Z' | 'a'..='z' | '0'..='9' => encoded.push(ch),
+                _ => {
+                    let mut buf = [0u8; 4];
+                    for byte in ch.encode_utf8(&mut buf).as_bytes() {
+                        encoded.push_str(&format!("%{:02X}", byte));
+                    }
+                }
+            }
+        }
+        format!("EVIR_ANNOTATE:{{%22tag%22:%22button%22{}", encoded)
+    }
+
+    #[test]
+    fn decodes_annotation_titles_and_ignores_ordinary_titles() {
+        let payload = annotation_payload_from_title(&sample_payload())
+            .expect("annotation title should decode");
+        assert_eq!(payload["tag"], "button");
+        assert_eq!(payload["id"], "login");
+        assert_eq!(payload["text"], "登录");
+        assert_eq!(payload["url"], "http://localhost:5173/login");
+        assert!(annotation_payload_from_title("Regular tab title").is_none());
+        assert!(annotation_payload_from_title("EVIR_ANNOTATE:not-json").is_none());
+    }
+}

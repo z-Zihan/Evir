@@ -99,6 +99,10 @@ fn probe_port(port: u16) -> bool {
 }
 
 fn emit_status(app: &AppHandle, record: &DevServerRecord) {
+    eprintln!(
+        "[dev-server] project={} status={:?} port={:?}",
+        record.project_id, record.status, record.port
+    );
     let _ = app.emit("dev-server-status", record);
 }
 

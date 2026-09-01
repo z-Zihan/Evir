@@ -735,6 +735,14 @@
       "crashed": "Crashed",
       "confirmTitle": "Start dev server",
       "confirmDescription": "Evir will run {{command}} in {{cwd}}. The process is managed by Evir and stops when the app exits."
+    },
+    "annotate": "Annotate page element",
+    "annotation": {
+      "header": "[Browser Feedback]",
+      "url": "URL",
+      "element": "Element",
+      "box": "Box",
+      "comment": "Please change"
     }
   },
   "startup": {

@@ -8567,3 +8567,8 @@
   color: var(--text-secondary, #888);
   cursor: pointer;
 }
+
+.workspace-icon-button.active {
+  background: var(--accent-soft, rgba(139, 92, 246, 0.16));
+  color: var(--accent, #8b5cf6);
+}

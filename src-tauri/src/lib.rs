@@ -127,6 +127,7 @@ pub fn run() {
             browser_workbench::browser_panel_tab_history,
             browser_workbench::browser_panel_tab_list,
             browser_workbench::browser_panel_layout_update,
+            browser_workbench::browser_panel_annotate,
             browser_commands::browser_screenshot_read,
             dev_server::dev_server_start,
             dev_server::dev_server_stop,

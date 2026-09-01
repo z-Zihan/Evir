@@ -222,6 +222,13 @@ fn add_content_tab(
             } else {
                 Surface::Workbench
             };
+            // Annotation transport (§36–38): the injected picker reports the
+            // clicked element through the title channel we already watch.
+            // Those titles must never leak into the tab-title state.
+            if let Some(payload) = annotation_payload_from_title(&title) {
+                let _ = handle.emit("browser-panel-annotation", payload);
+                return;
+            }
             if let Some(state) = handle.try_state::<BrowserWorkbenchState>() {
                 state
                     .tab_titles
@@ -541,4 +548,134 @@ pub fn browser_panel_layout_update(
         }
     }
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Browser Annotation (§36–38)
+// ---------------------------------------------------------------------------
+
+pub const ANNOTATION_TITLE_PREFIX: &str = "EVIR_ANNOTATE:";
+
+/// Extract and decode an annotation payload from a document-title transport
+/// value. Returns None for ordinary titles.
+pub fn annotation_payload_from_title(title: &str) -> Option<serde_json::Value> {
+    let encoded = title.strip_prefix(ANNOTATION_TITLE_PREFIX)?;
+    let decoded = percent_encoding::percent_decode_str(encoded)
+        .decode_utf8()
+        .ok()?;
+    serde_json::from_str(&decoded).ok()
+}
+
+/// Picker injected into the active panel content webview. It never touches
+/// Tauri APIs (the webview holds zero capabilities) — the only outbound
+/// channel is `document.title`, which the title watcher above already
+/// observes. Click → payload; Escape → cancel; a second injection replaces
+/// the previous picker.
+const ANNOTATE_PICKER_SCRIPT: &str = r#"
+(function () {
+  if (window.__evirAnnotateCleanup) { window.__evirAnnotateCleanup(); }
+  var box = document.createElement('div');
+  box.setAttribute('data-evir-annotate', 'hover');
+  box.style.cssText = 'position:fixed;z-index:2147483646;pointer-events:none;border:2px solid #8b5cf6;background:rgba(139,92,246,.12);border-radius:4px;transition:all 40ms linear;';
+  var tip = document.createElement('div');
+  tip.style.cssText = 'position:absolute;left:0;top:-22px;font:11px -apple-system,sans-serif;background:#8b5cf6;color:#fff;padding:1px 6px;border-radius:3px;white-space:nowrap;';
+  box.appendChild(tip);
+  function place(el, r) {
+    box.style.left = r.x + 'px'; box.style.top = r.y + 'px';
+    box.style.width = r.width + 'px'; box.style.height = r.height + 'px';
+    tip.textContent = el.tagName.toLowerCase() + (el.id ? '#' + el.id : '');
+  }
+  function selectorFor(el) {
+    var parts = [], node = el, depth = 0;
+    while (node && node.nodeType === 1 && depth < 4) {
+      var s = node.tagName.toLowerCase();
+      if (node.id) { parts.unshift(s + '#' + node.id); break; }
+      if (node.classList && node.classList.length) {
+        s += '.' + Array.prototype.slice.call(node.classList, 0, 2).join('.');
+      }
+      var parent = node.parentElement;
+      if (parent) {
+        var same = Array.prototype.indexOf.call(parent.children, node) + 1;
+        s += ':nth-child(' + same + ')';
+      }
+      parts.unshift(s);
+      node = parent; depth++;
+    }
+    return parts.join(' > ');
+  }
+  function onMove(e) {
+    var el = e.target;
+    if (!el || el === box || box.contains(el)) { return; }
+    var r = el.getBoundingClientRect();
+    if (r.width < 2 || r.height < 2) { return; }
+    place(el, r);
+  }
+  function done() {
+    remove();
+    document.removeEventListener('mousemove', onMove, true);
+    document.removeEventListener('click', onClick, true);
+    document.removeEventListener('keydown', onKey, true);
+    window.__evirAnnotateCleanup = null;
+  }
+  function remove() { if (box.parentNode) { box.parentNode.removeChild(box); } }
+  function onClick(e) {
+    var el = e.target;
+    if (!el || el === box || box.contains(el)) { return; }
+    e.preventDefault();
+    e.stopPropagation();
+    var r = el.getBoundingClientRect();
+    var cls = (typeof el.className === 'string') ? el.className : '';
+    var payload = {
+      url: location.href,
+      tag: el.tagName.toLowerCase(),
+      id: el.id || null,
+      classes: cls || null,
+      role: el.getAttribute('role'),
+      ariaLabel: el.getAttribute('aria-label'),
+      name: el.getAttribute('name'),
+      text: (el.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 80),
+      box: {
+        x: Math.round(r.x), y: Math.round(r.y),
+        width: Math.round(r.width), height: Math.round(r.height)
+      },
+      selector: selectorFor(el)
+    };
+    document.title = 'EVIR_ANNOTATE:' + encodeURIComponent(JSON.stringify(payload));
+    done();
+  }
+  function onKey(e) { if (e.key === 'Escape') { done(); } }
+  document.addEventListener('mousemove', onMove, true);
+  document.addEventListener('click', onClick, true);
+  document.addEventListener('keydown', onKey, true);
+  (document.body || document.documentElement).appendChild(box);
+  window.__evirAnnotateCleanup = done;
+})();
+"#;
+
+const ANNOTATE_STOP_SCRIPT: &str =
+    "window.__evirAnnotateCleanup ? window.__evirAnnotateCleanup() : undefined;";
+
+/// Toggle the element picker on the active panel browser tab.
+#[tauri::command]
+pub fn browser_panel_annotate(app: AppHandle, enable: bool) -> Result<(), String> {
+    let active = app
+        .state::<BrowserWorkbenchState>()
+        .active_tabs
+        .lock()
+        .expect("active tab lock")
+        .get(Surface::Panel.window_label())
+        .copied();
+    let Some(id) = active else {
+        return Err("no active browser tab".into());
+    };
+    let Some(webview) = find_webview(&app, Surface::Panel, id) else {
+        return Err("tab not found".into());
+    };
+    webview
+        .eval(if enable {
+            ANNOTATE_PICKER_SCRIPT
+        } else {
+            ANNOTATE_STOP_SCRIPT
+        })
+        .map_err(|error| error.to_string())
 }
