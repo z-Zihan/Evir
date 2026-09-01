@@ -55,9 +55,15 @@ impl CdpClient {
     /// Connects to a browser-level `ws://127.0.0.1:<port>/devtools/browser/…`
     /// endpoint, spawns the reader task and wires the writer channel.
     pub async fn connect(url: &str) -> CdpResult<Self> {
-        let (ws, _response) = tokio_tungstenite::connect_async(url)
-            .await
-            .map_err(|error| format!("cdp connect failed: {error}"))?;
+        // A bounded handshake: a wedged or ghost endpoint must fail fast so
+        // callers surface an honest error instead of hanging the run.
+        let (ws, _response) = tokio::time::timeout(
+            Duration::from_secs(10),
+            tokio_tungstenite::connect_async(url),
+        )
+        .await
+        .map_err(|_| "cdp connect handshake timed out".to_string())?
+        .map_err(|error| format!("cdp connect failed: {error}"))?;
         let (mut sink, mut stream) = ws.split();
         let inner = Arc::new(CdpInner {
             writer: Mutex::new(None),
@@ -227,5 +233,55 @@ mod tests {
         assert!(!set.insert(CdpEventKind::LoadFired("s1".into())));
         assert!(set.insert(CdpEventKind::LoadFired("s2".into())));
         assert!(set.insert(CdpEventKind::TargetDestroyed("t1".into())));
+    }
+}
+
+#[cfg(test)]
+mod live_tests {
+    use super::*;
+
+    /// Live check against a running agent browser (started via Settings or a
+    /// browser_open run): reads the recorded port and performs a real
+    /// Target.getTargets round trip. Ignored in normal CI runs.
+    // Plain #[test] + explicit multi-thread runtime: the libtest-captured
+    // #[tokio::test] environment exhibited hung socket reads on this machine.
+    #[test]
+    #[ignore]
+    fn connects_and_lists_targets() {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+        rt.block_on(connects_and_lists_targets_inner());
+    }
+
+    async fn connects_and_lists_targets_inner() {
+        let home = std::env::var("HOME").unwrap();
+        let port_file = std::path::Path::new(&home).join(
+            "Library/Application Support/com.zihan.evir/browser-agent-profile/DevToolsActivePort",
+        );
+        let content = std::fs::read_to_string(port_file).expect("DevToolsActivePort present");
+        let port: u16 = content.lines().next().unwrap().trim().parse().unwrap();
+        let version_body = crate::browser_runtime::browser_runtime_probe_version(port)
+            .await
+            .expect("http version");
+        let info: serde_json::Value = serde_json::from_str(&version_body).unwrap();
+        let ws = info
+            .get("webSocketDebuggerUrl")
+            .and_then(|v| v.as_str())
+            .unwrap();
+        eprintln!("[live] http ok, connecting ws");
+        let client = CdpClient::connect(ws).await.expect("ws connect");
+        eprintln!("[live] ws connected, sending getTargets");
+        let targets = client
+            .send(
+                "Target.getTargets",
+                serde_json::Value::Null,
+                None,
+                Duration::from_secs(5),
+            )
+            .await
+            .expect("getTargets response");
+        assert!(targets.get("targetInfos").is_some());
     }
 }

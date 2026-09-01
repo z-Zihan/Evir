@@ -26,11 +26,29 @@ pub struct BrowserRuntimeStatus {
 }
 
 pub struct BrowserAgentRuntime {
-    child: Child,
+    /// None when an orphaned browser was adopted: the OS process is not ours.
+    child: Option<Child>,
     pub client: CdpClient,
     pub profile_dir: PathBuf,
     engine: String,
     path: String,
+    /// Set when an orphaned browser from a previous app session was adopted
+    /// instead of spawned; shutdown then relies on Browser.close over CDP.
+    adopted: bool,
+}
+
+fn stale_lock_files(profile: &std::path::Path) -> [PathBuf; 3] {
+    [
+        profile.join("SingletonLock"),
+        profile.join("SingletonSocket"),
+        profile.join("SingletonCookie"),
+    ]
+}
+
+/// Reads the recorded CDP port, if any.
+fn recorded_cdp_port(profile: &std::path::Path) -> Option<u16> {
+    let content = std::fs::read_to_string(profile.join("DevToolsActivePort")).ok()?;
+    content.lines().next()?.trim().parse::<u16>().ok()
 }
 
 fn candidate_paths() -> Vec<(String, PathBuf)> {
@@ -148,6 +166,11 @@ fn agent_profile_dir() -> PathBuf {
 }
 
 /// Plain-HTTP GET on the local CDP endpoint (no heavyweight HTTP client).
+#[cfg(test)]
+pub async fn browser_runtime_probe_version(port: u16) -> Result<String, String> {
+    cdp_http_get(port, "/json/version").await
+}
+
 async fn cdp_http_get(port: u16, path: &str) -> Result<String, String> {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     let mut stream = tokio::net::TcpStream::connect(("127.0.0.1", port))
@@ -175,6 +198,39 @@ impl BrowserAgentRuntime {
         };
         let profile = agent_profile_dir();
         std::fs::create_dir_all(&profile).map_err(|error| format!("profile dir: {error}"))?;
+
+        // An agent browser from a previous app session may still be alive and
+        // holding the profile lock. Adopt it when its CDP endpoint responds;
+        // otherwise a fresh spawn would be silently forwarded to that process
+        // (opening a visible window) and exit, leaving a stale port file.
+        if let Some(port) = recorded_cdp_port(&profile) {
+            if let Ok(version_body) = cdp_http_get(port, "/json/version").await {
+                if let Ok(info) = serde_json::from_str::<serde_json::Value>(&version_body) {
+                    if let Some(ws) = info
+                        .get("webSocketDebuggerUrl")
+                        .and_then(|url| url.as_str())
+                    {
+                        if let Ok(client) = CdpClient::connect(ws).await {
+                            return Ok(Self {
+                                child: None,
+                                client,
+                                profile_dir: profile,
+                                engine,
+                                path: path.display().to_string(),
+                                adopted: true,
+                            });
+                        }
+                    }
+                }
+            }
+            // Port recorded but dead: clear stale locks so the spawn below
+            // is not forwarded to a ghost process.
+            for lock in stale_lock_files(&profile) {
+                let _ = std::fs::remove_file(lock);
+            }
+            let _ = std::fs::remove_file(profile.join("DevToolsActivePort"));
+        }
+
         let child = Command::new(&path)
             .args([
                 format!("--user-data-dir={}", profile.display()),
@@ -214,18 +270,23 @@ impl BrowserAgentRuntime {
             .to_string();
         let client = CdpClient::connect(&browser_ws).await?;
         Ok(Self {
-            child,
+            child: Some(child),
             client,
             profile_dir: profile,
             engine,
             path: path.display().to_string(),
+            adopted: false,
         })
     }
 
     pub fn status(&self) -> BrowserRuntimeStatus {
         BrowserRuntimeStatus {
             available: true,
-            engine: self.engine.clone(),
+            engine: if self.adopted {
+                format!("{} (adopted)", self.engine)
+            } else {
+                self.engine.clone()
+            },
             path: format!("{} (profile: {})", self.path, self.profile_dir.display()),
             running: !self.client.is_closed(),
             version: None,
@@ -250,11 +311,15 @@ impl BrowserAgentRuntime {
         if !closed {
             self.kill();
         }
-        let _ = self.child.wait().await;
+        if let Some(child) = self.child.as_mut() {
+            let _ = child.wait().await;
+        }
     }
 
     pub fn kill(&mut self) {
-        let _ = self.child.start_kill();
+        if let Some(child) = self.child.as_mut() {
+            let _ = child.start_kill();
+        }
     }
 }
 

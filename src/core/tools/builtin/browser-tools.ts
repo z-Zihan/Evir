@@ -3,6 +3,7 @@ import type { ToolDefinition, ToolResult } from "../../providers/tool-registry";
 import type { EvirRuntime } from "../../../runtime/types";
 import { TOOL_NOT_AVAILABLE } from "../tool-executor";
 import { redactLogValue } from "../../logging/redaction";
+import { logger } from "../../logging/logger";
 
 /**
  * Browser agent tools backed by the Rust CDP runtime (desktop only).
@@ -33,6 +34,9 @@ function toolError(error: unknown): ToolResult {
         ? error
         : "Browser operation failed";
   const redacted = redactLogValue(rawMessage);
+  logger.warn("agent", "browser.tool-failed", {
+    message: typeof redacted === "string" ? redacted.slice(0, 300) : "redacted",
+  });
   return {
     success: false,
     output: typeof redacted === "string" ? redacted.slice(0, 500) : "Browser operation failed",

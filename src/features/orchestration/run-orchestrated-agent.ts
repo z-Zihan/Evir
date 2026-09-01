@@ -72,10 +72,10 @@ function toolsForNode(node: PlanNode, runtime: EvirRuntime): string[] {
         return true;
       }
       // Read-only browsing (browser_open/snapshot/screenshot/…) is L1 — the
-      // same tier as read_file — so inspection and verification nodes may
-      // offer it without declaring a browser capability. Mutating browser
-      // actions (L2+) still require the node's explicit capability set.
-      return !writes && (tool.riskLevel === "L0" || tool.riskLevel === "L1");
+      // same tier as read_file — so any node may offer it without declaring a
+      // browser capability. Mutating browser actions (L2+) still require the
+      // node's explicit capability set.
+      return tool.riskLevel === "L0" || tool.riskLevel === "L1";
     })
     .filter(
       (tool) =>
