@@ -13,6 +13,7 @@ import { permissionContextForRoot } from "../projects/run-permission";
 import type { AgentRunContext, EvirRuntime } from "../../runtime/types";
 import type { InteractionMode } from "../../core/providers/tool-registry";
 import { streamAssistant, type StreamResult } from "./chat-stream";
+import { emitWorkspaceToolEvent } from "../workspace/workspace-events";
 
 export const MAX_AGENT_ITERATIONS = 12;
 export const AGENT_TURN_TIMEOUT_MS = 120_000;
@@ -146,6 +147,7 @@ async function executeCalls(
       toolCallId: rawCall.id,
       toolName: rawCall.toolName,
     });
+    const snapshotsBefore = runtime.agentRun ? runtime.agentRun.snapshots.length : 0;
     const result = !allowedToolIds.has(rawCall.toolName)
       ? {
           success: false,
@@ -169,6 +171,15 @@ async function executeCalls(
       durationMs: completedAt - startedAt,
     };
     results.push(timedResult);
+    // Real-time workspace panels (Changes/Files/Outputs) subscribe to this
+    // in-process bus; a listener crash must never affect the loop itself.
+    emitWorkspaceToolEvent({
+      conversationId,
+      runId: runtime.agentRun?.id ?? null,
+      toolCall: record,
+      result: timedResult,
+      newSnapshots: runtime.agentRun ? runtime.agentRun.snapshots.slice(snapshotsBefore) : [],
+    });
     logger.info("tool", "agent.tool-completed", {
       conversationId,
       runId: runtime.agentRun?.id,

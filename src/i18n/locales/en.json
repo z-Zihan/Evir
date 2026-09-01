@@ -191,7 +191,15 @@
     "approveOnce": "Allow once",
     "inspectStep": "Inspect details",
     "denied": "Denied",
-    "deniedMessage": "Tool execution denied by user"
+    "deniedMessage": "Tool execution denied by user",
+    "group": {
+      "inspect": "Inspected project · {{count}} calls · {{files}} files",
+      "change": "Changed {{files}} files",
+      "command": "Ran {{count}} commands",
+      "browser": "Browser · {{count}} actions",
+      "other": "Other · {{count}} calls"
+    },
+    "failedCount": "{{count}} failed"
   },
   "errors": {
     "detail": "Details: {{message}}",
@@ -674,7 +682,60 @@
     "select": "Select Workspace",
     "change": "Change",
     "clear": "Clear workspace",
-    "recent": "Recent"
+    "recent": "Recent",
+    "title": "Workspace",
+    "changes": "Changes",
+    "files": "Files",
+    "preview": "Preview",
+    "browser": "Browser",
+    "close": "Close workspace",
+    "open": "Open workspace",
+    "changesCount": "{{count}} changes",
+    "changesTitle": "Changes",
+    "filesChanged": "{{count}} files changed",
+    "changesEmpty": "This task has not modified any files yet. Agent writes appear here in real time.",
+    "outputsTitle": "Task Outputs",
+    "outputsCount": "{{count}} outputs",
+    "projectFiles": "Project Files",
+    "loading": "Loading…",
+    "moreEntries": "{{count}} more entries not shown",
+    "filesNoProject": "Standalone chats have no project files. Open a project to browse its tree.",
+    "searchFiles": "Search project files",
+    "searchResults": "Search results",
+    "searchEmpty": "No matching files",
+    "refresh": "Refresh",
+    "previewEmpty": "Click a preview in chat or the file list to view it here.",
+    "artifactUnavailable": "This artifact's content is no longer available — re-open it from the chat message.",
+    "previewFailed": "Could not load this resource.",
+    "diffNoRepo": "This project is not a git repository, so no diff can be produced.",
+    "diffUnavailable": "No diff available.",
+    "back": "Back",
+    "forward": "Forward",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "resize": "Resize workspace",
+    "reviewChanges": "Review changes",
+    "browserAddress": "Enter address",
+    "newTab": "New tab",
+    "closeTab": "Close tab",
+    "browserTabs": "Browser tabs",
+    "browserEmpty": "Type a URL to browse, or start the project preview.",
+    "recentScreenshots": "Recent screenshots",
+    "screenshotChip": "Screenshot",
+    "contextLabel": "Current work context",
+    "removeContext": "Remove this context",
+    "devServer": {
+      "detect": "Detected dev script: {{script}}",
+      "run": "Run Preview",
+      "stop": "Stop",
+      "none": "No dev-server script detected for this project",
+      "starting": "Starting…",
+      "ready": "Ready",
+      "running": "Running (port unconfirmed)",
+      "crashed": "Crashed",
+      "confirmTitle": "Start dev server",
+      "confirmDescription": "Evir will run {{command}} in {{cwd}}. The process is managed by Evir and stops when the app exits."
+    }
   },
   "startup": {
     "failed": "Local data could not be initialized",
@@ -705,7 +766,16 @@
     "completedWithErrors": "Completed with errors",
     "rollback": "Roll back changes",
     "rollbackTitle": "Roll back this Agent run?",
-    "rollbackDescription": "Restore {{count}} changed file(s) to their pre-run state. Changes made after the run will be protected."
+    "rollbackDescription": "Restore {{count}} changed file(s) to their pre-run state. Changes made after the run will be protected.",
+    "runStatus": {
+      "awaiting_approval": "Awaiting approval",
+      "completed": "Done",
+      "needs_verification": "Needs verification",
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "rolled_back": "Rolled back"
+    },
+    "detailedEvidence": "Detailed evidence"
   },
   "memory": {
     "title": "Memory",
@@ -1006,7 +1076,8 @@
     "pdfPageIndicator": "{{current}} / {{total}}",
     "pdfGoToPage": "Go to page {{page}}",
     "svgImage": "SVG graphic",
-    "htmlPreviewTitle": "HTML preview"
+    "htmlPreviewTitle": "HTML preview",
+    "openInWorkspace": "Open in workspace"
   },
   "browser": {
     "toolbar": "Browser tools",

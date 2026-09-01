@@ -11,8 +11,11 @@ import {
 import { useTranslation } from "react-i18next";
 import {
   ArrowUp,
+  FileText,
+  Globe,
   KeyRound,
   PanelLeft,
+  PanelRight,
   Paperclip,
   Settings2,
   Sparkles,
@@ -45,6 +48,8 @@ import { allowsProjectModes, effectiveModeForModel } from "../features/projects/
 import { useProjectStore } from "../features/projects/project-store";
 import { PermissionSwitcher } from "./PermissionSwitcher";
 import { SlashPalette, type SlashPaletteHandle, type SlashCommandId } from "./SlashPalette";
+import { useWorkspacePanelStore } from "../features/workspace/workspace-panel-store";
+import { workspaceResourceTitle } from "../features/workspace/resource-model";
 // The orchestration workbench (plan DAG, node timeline, clarifications) only
 // appears in desktop Agent runs; keep it and its store graph out of the entry
 // chunk.
@@ -229,6 +234,12 @@ export function ChatView({
   const installedSkills = useSkillStore((state) => state.skills);
   const addMemory = useMemoryStore((state) => state.addMemory);
   const orchestrationSnapshot = useOrchestrationStore((state) => state.current);
+  const panelOpen = useWorkspacePanelStore((state) => state.open);
+  const togglePanel = useWorkspacePanelStore((state) => state.togglePanel);
+  const contextResource = useWorkspacePanelStore((state) =>
+    state.open && state.activeTab === "preview" ? state.activeResource : null,
+  );
+  const contextBrowserUrl = useWorkspacePanelStore((state) => state.browserContextUrl);
   const getDefaultProvider = useProviderStore((state) => state.getDefaultProvider);
   const switchProvider = useProviderStore((state) => state.switchProvider);
   const providers = useProviderStore((state) => state.providers);
@@ -511,6 +522,16 @@ export function ChatView({
         </div>
       </div>
       <div className="workspace-controls">
+        <button
+          className="header-icon-button workspace-toggle"
+          type="button"
+          onClick={() => togglePanel()}
+          aria-label={panelOpen ? t("workspace.close") : t("workspace.open")}
+          aria-pressed={panelOpen}
+          data-tip={panelOpen ? t("workspace.close") : t("workspace.open")}
+        >
+          <PanelRight size={18} aria-hidden="true" />
+        </button>
         <ModelSwitcher
           activeProvider={effectiveProvider}
           activeModelId={effectiveModelId}
@@ -709,6 +730,33 @@ export function ChatView({
                 setSlashDismissed(false);
               }}
             />
+          )}
+          {(contextResource || contextBrowserUrl) && (
+            <div className="composer-workspace-context" aria-label={t("workspace.contextLabel")}>
+              {contextResource && (
+                <span className="workspace-context-chip">
+                  <FileText size={12} aria-hidden="true" />
+                  <span className="workspace-context-chip-label">
+                    {workspaceResourceTitle(contextResource)}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={t("workspace.removeContext")}
+                    onClick={() => useWorkspacePanelStore.getState().closePanel()}
+                  >
+                    <X size={11} aria-hidden="true" />
+                  </button>
+                </span>
+              )}
+              {contextBrowserUrl && (
+                <span className="workspace-context-chip">
+                  <Globe size={12} aria-hidden="true" />
+                  <span className="workspace-context-chip-label">
+                    {contextBrowserUrl.replace(/^https?:\/\//, "").slice(0, 48)}
+                  </span>
+                </span>
+              )}
+            </div>
           )}
           <textarea
             ref={textareaRef}

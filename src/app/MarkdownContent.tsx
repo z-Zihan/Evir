@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { CodeBlockView } from "../features/preview/CodeBlockView";
+import { useOverlayBrowserGuard } from "./workspace/use-overlay-browser-guard";
 
 const MATH_PATTERN = /\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)|\$[^$\n]+\$/;
 const VIDEO_HREF_PATTERN = /\.(mp4|webm|mov|m4v|mkv)([?#].*)?$/i;
@@ -49,6 +50,7 @@ function CodeBlock({ children, streaming }: { children?: ReactNode; streaming: b
 
 function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
   const { t } = useTranslation();
+  useOverlayBrowserGuard("image-lightbox", true);
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();

@@ -26,6 +26,7 @@ import { routeSkill } from "../../core/skills/skill-router";
 import type { EvirRuntime } from "../../runtime/types";
 import { toApprovalRecord, type PendingToolApproval } from "./tool-approval";
 import { toMessage, sorted } from "./chat-helpers";
+import { collectWorkspaceContext } from "../workspace/workspace-context";
 import { createContextBudgetManager } from "../../core/context/context-budget-manager";
 import { compactToolOutputs } from "../../core/context/compact-tool-outputs";
 import {
@@ -725,6 +726,7 @@ async function runStreamResponse(
     memory: memoryContext,
     fileReferences,
     personalization,
+    workspaceContext: collectWorkspaceContext(),
   });
   if (systemPrompt) messages.unshift({ role: "system", content: systemPrompt });
 

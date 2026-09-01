@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CodeBlockView } from "../CodeBlockView";
+import { useWorkspacePanelStore } from "../../workspace/workspace-panel-store";
 
 vi.mock("react-i18next", () => ({
   initReactI18next: { type: "3rdParty", init: vi.fn() },
@@ -20,17 +21,22 @@ vi.mock("../use-shiki", async (importOriginal) => {
   };
 });
 
-vi.mock("../ArtifactPreview", () => ({
-  ArtifactPreview: ({ rendererId }: { rendererId: string }) => (
-    <div data-testid={`artifact-preview-${rendererId}`} />
-  ),
-}));
-
-vi.mock("../PreviewOverlay", () => ({
-  PreviewOverlay: () => <div data-testid="preview-overlay" />,
+vi.mock("../../workspace/workspace-services", () => ({
+  saveArtifact: vi.fn().mockResolvedValue(undefined),
 }));
 
 afterEach(cleanup);
+
+function resetPanelStore() {
+  useWorkspacePanelStore.setState({
+    open: false,
+    activeTab: "changes",
+    activeResource: null,
+    history: [],
+    historyIndex: -1,
+    viewMode: "preview",
+  });
+}
 
 describe("CodeBlockView", () => {
   it("shows the language label and copies the exact code", async () => {
@@ -42,42 +48,35 @@ describe("CodeBlockView", () => {
     await waitFor(() => expect(writeText).toHaveBeenCalledWith("const x = 1;"));
   });
 
-  it("offers a preview tab for previewable formats", () => {
+  it("offers an open-in-workspace action for previewable formats", () => {
+    resetPanelStore();
     render(<CodeBlockView code={"flowchart TD\n  A --> B"} language="mermaid" />);
-    expect(screen.getByRole("tab", { name: "preview.previewTab" })).toBeTruthy();
+    const button = screen.getByRole("button", { name: "preview.openInWorkspace" });
+    expect(button).toBeTruthy();
+    expect(button).toHaveProperty("disabled", false);
   });
 
-  it("does not offer preview for plain code", () => {
-    render(<CodeBlockView code={"fn main() {}"} language="rust" />);
-    expect(screen.queryByRole("tab", { name: "preview.previewTab" })).toBeNull();
-  });
-
-  it("disables HTML preview while streaming and enables after completion", () => {
-    const { rerender } = render(<CodeBlockView code={"<b>hi</b>"} language="html" streaming />);
-    expect(screen.getByRole("tab", { name: "preview.previewTab" })).toHaveProperty(
-      "disabled",
-      true,
-    );
-    rerender(<CodeBlockView code={"<b>hi</b>"} language="html" streaming={false} />);
-    expect(screen.getByRole("tab", { name: "preview.previewTab" })).toHaveProperty(
-      "disabled",
-      false,
-    );
-  });
-
-  it("auto-previews declarative formats after completion", () => {
+  it("never renders an inline artifact preview anymore", () => {
     render(<CodeBlockView code={"flowchart TD\n  A --> B"} language="mermaid" />);
-    expect(screen.getByTestId("artifact-preview-mermaid")).toBeTruthy();
+    expect(document.querySelector(".artifact-preview")).toBeNull();
+    expect(document.querySelector('[data-testid^="artifact-preview-"]')).toBeNull();
   });
 
-  it("never auto-previews untrusted HTML", () => {
-    render(<CodeBlockView code={"<script>alert(1)</script>"} language="html" />);
-    expect(screen.queryByTestId("artifact-preview-html")).toBeNull();
+  it("does not offer the workspace action while streaming", () => {
+    render(<CodeBlockView code={"<b>hi</b>"} language="html" streaming />);
+    expect(screen.queryByRole("button", { name: "preview.openInWorkspace" })).toBeNull();
   });
 
-  it("keeps code visible (no auto-preview) for diffs", () => {
-    render(<CodeBlockView code={"@@ -1 +1 @@\n-old\n+new"} language="diff" />);
-    expect(screen.queryByTestId("artifact-preview-diff")).toBeNull();
+  it("opening a previewable artifact routes the workspace panel to preview", async () => {
+    resetPanelStore();
+    render(<CodeBlockView code={"flowchart TD\n  A --> B"} language="mermaid" />);
+    fireEvent.click(screen.getByRole("button", { name: "preview.openInWorkspace" }));
+    // saveArtifact resolves asynchronously before openResource runs.
+    await waitFor(() => expect(useWorkspacePanelStore.getState().open).toBe(true));
+    const state = useWorkspacePanelStore.getState();
+    expect(state.activeTab).toBe("preview");
+    expect(state.activeResource?.kind).toBe("artifact");
+    expect(state.viewMode).toBe("preview");
   });
 
   it("toggles word wrap", () => {
@@ -87,14 +86,15 @@ describe("CodeBlockView", () => {
     expect(pre?.classList.contains("wrap")).toBe(true);
   });
 
-  it("exposes an expand button for previewable artifacts", () => {
-    render(<CodeBlockView code={"flowchart TD\n  A --> B"} language="mermaid" />);
-    fireEvent.click(screen.getByRole("button", { name: "preview.expand" }));
-    expect(screen.getByTestId("preview-overlay")).toBeTruthy();
+  it("keeps code visible as the only body (no inline preview of untrusted HTML)", () => {
+    render(<CodeBlockView code={"<script>alert(1)</script>"} language="html" />);
+    expect(document.querySelector('[data-testid^="artifact-preview-"]')).toBeNull();
+    expect(screen.getByRole("button", { name: "preview.openInWorkspace" })).toBeTruthy();
   });
 
-  it("keeps expand disabled for small plain code blocks", () => {
+  it("plain code blocks still get the workspace action after completion", () => {
+    resetPanelStore();
     render(<CodeBlockView code={"let a = 1"} language="js" />);
-    expect(screen.getByRole("button", { name: "preview.expand" })).toHaveProperty("disabled", true);
+    expect(screen.getByRole("button", { name: "preview.openInWorkspace" })).toBeTruthy();
   });
 });

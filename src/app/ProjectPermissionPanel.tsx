@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useOverlayBrowserGuard } from "./workspace/use-overlay-browser-guard";
 import { FolderPlus, ShieldCheck, X } from "lucide-react";
 import type { PermissionProfile, ProjectRecord } from "../core/storage/db";
 import { useProjectStore } from "../features/projects/project-store";
@@ -31,6 +32,7 @@ const PROFILES: Array<{ id: PermissionProfile; labelKey: string; hintKey: string
 
 export function ProjectPermissionPanel({ project, onClose }: ProjectPermissionPanelProps) {
   const { t } = useTranslation();
+  useOverlayBrowserGuard("project-permission", true);
   const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
   const setPermissionProfile = useProjectStore((state) => state.setPermissionProfile);
   const addAccessRoot = useProjectStore((state) => state.addAccessRoot);

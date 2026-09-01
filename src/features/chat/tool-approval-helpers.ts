@@ -36,6 +36,7 @@ import {
   finishConversationStream,
   visibleForConversation,
 } from "./stream-ownership";
+import { emitWorkspaceToolEvent } from "../workspace/workspace-events";
 
 export type ChatStoreSet = StoreApi<ChatState>["setState"];
 export type ChatStoreGet = StoreApi<ChatState>["getState"];
@@ -154,6 +155,7 @@ async function executeApprovedBound(
     toolName: pending.toolName,
     approved: true,
   });
+  const snapshotsBefore = runtime.agentRun ? runtime.agentRun.snapshots.length : 0;
   const approvedResult = await runtime.toolExecutor?.execute(
     pending.toolName,
     pending.args,
@@ -174,6 +176,19 @@ async function executeApprovedBound(
     completedAt,
     durationMs: completedAt - startedAt,
   };
+  // Approved executions drive the same real-time workspace updates as
+  // in-loop executions (write after approval must appear in Changes/Files).
+  emitWorkspaceToolEvent({
+    conversationId: pending.conversationId,
+    runId,
+    toolCall: {
+      id: pending.toolCallId,
+      toolName: pending.toolName,
+      arguments: pending.args,
+    },
+    result: replacement,
+    newSnapshots: runtime.agentRun ? runtime.agentRun.snapshots.slice(snapshotsBefore) : [],
+  });
   logger.info("tool", "agent.tool-completed", {
     conversationId: pending.conversationId,
     runId,

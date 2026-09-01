@@ -8,6 +8,11 @@ import type { FileContextReference } from "../../core/context/types";
 import { logger } from "../../core/logging/logger";
 import { getStructuredStorage } from "../../runtime/structured-storage";
 import type { AgentLoopResult } from "./agent-loop";
+import {
+  deriveTaskOutputs,
+  mergeTaskOutputs,
+  type TaskOutput,
+} from "../workspace/task-output-model";
 
 export type AgentRunStatus =
   "awaiting_approval" | "completed" | "needs_verification" | "failed" | "cancelled" | "rolled_back";
@@ -20,6 +25,9 @@ export interface AgentRunRecord {
   toolResults: ToolResultRecord[];
   snapshots: SnapshotResult[];
   fileReferences: FileContextReference[];
+  /** Final artifacts this run produced (created files, screenshots). Optional
+   * only because records persisted before the workspace round lack it. */
+  taskOutputs?: TaskOutput[];
   verificationEvidence: VerificationEvidence[];
   resolution: { complete: boolean; reason: string };
   maxIterationsReached: boolean;
@@ -83,6 +91,7 @@ export function mergeAgentRunRecords(
       [...previous.verificationEvidence, ...current.verificationEvidence],
       ({ type, toolName, summary }) => `${type}:${toolName}:${summary}`,
     ),
+    taskOutputs: mergeTaskOutputs(previous.taskOutputs ?? [], current.taskOutputs ?? []),
     createdAt: previous.createdAt,
   };
 }
@@ -131,14 +140,19 @@ export async function buildAgentRunRecord(
           : "needs_verification";
   const now = Date.now();
   const startedAt = options.previous?.startedAt ?? result.startedAt ?? now;
+  const runId = options.runId ?? result.agentRun.id;
   const current: AgentRunRecord = {
-    id: options.runId ?? result.agentRun.id,
+    id: runId,
     conversationId,
     status,
     toolCalls,
     toolResults,
     snapshots: [...result.agentRun.snapshots],
     fileReferences: [...result.agentRun.fileReferences],
+    taskOutputs: deriveTaskOutputs(toolCalls, toolResults, result.agentRun.snapshots, {
+      runId,
+      conversationId,
+    }),
     verificationEvidence,
     resolution,
     maxIterationsReached: result.maxIterationsReached,

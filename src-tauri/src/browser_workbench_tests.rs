@@ -1,6 +1,18 @@
 #[cfg(test)]
 mod tests {
-    use crate::browser_workbench::normalize_input_url;
+    use crate::browser_workbench::{normalize_input_url, Surface};
+
+    #[test]
+    fn surfaces_use_distinct_labels_and_windows() {
+        assert_eq!(Surface::Workbench.prefix(), "browser-content-");
+        assert_eq!(Surface::Panel.prefix(), "browser-panel-content-");
+        assert_eq!(Surface::Workbench.window_label(), "browser-workbench");
+        assert_eq!(Surface::Panel.window_label(), "main");
+        assert_ne!(
+            format!("{}1", Surface::Workbench.prefix()),
+            format!("{}1", Surface::Panel.prefix())
+        );
+    }
 
     #[test]
     fn normalizes_bare_hosts_to_https() {

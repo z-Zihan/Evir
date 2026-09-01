@@ -1,5 +1,6 @@
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useOverlayBrowserGuard } from "./workspace/use-overlay-browser-guard";
 import {
   BarChart3,
   Brain,
@@ -141,6 +142,7 @@ interface SettingsModalProps {
 export function SettingsModal({ open, onClose, initialTab = "providers" }: SettingsModalProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<SettingsTab>("providers");
+  useOverlayBrowserGuard("settings-modal", open);
   const [importResult, setImportResult] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);

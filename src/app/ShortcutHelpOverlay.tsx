@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { useOverlayBrowserGuard } from "./workspace/use-overlay-browser-guard";
 import { DEFAULT_SHORTCUTS } from "../core/shortcuts/default-shortcuts";
 import { isMac, currentPlatform } from "../core/shortcuts/platform";
 
@@ -10,6 +11,7 @@ interface ShortcutHelpOverlayProps {
 
 export function ShortcutHelpOverlay({ open, onClose }: ShortcutHelpOverlayProps) {
   const { t } = useTranslation();
+  useOverlayBrowserGuard("shortcut-help", open);
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);

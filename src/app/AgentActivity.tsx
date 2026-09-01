@@ -6,8 +6,13 @@ import {
   Circle,
   CircleDashed,
   CircleSlash2,
+  Eye,
+  FilePenLine,
+  Globe,
   LoaderCircle,
   ShieldAlert,
+  SquareTerminal,
+  Wrench,
   XCircle,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -18,6 +23,7 @@ import {
   TOOL_PERMISSION_REQUIRED,
 } from "../core/tools/tool-executor";
 import { useChatStore } from "../features/chat/chat-store";
+import { groupSummary, groupToolCalls, type ToolGroupKind } from "./agent-activity-groups";
 
 interface AgentActivityProps {
   toolCalls: ToolCallRecord[];
@@ -55,6 +61,21 @@ function getArgumentSummary(call: ToolCallRecord): string {
   return "";
 }
 
+function GroupIcon({ kind }: { kind: ToolGroupKind }) {
+  switch (kind) {
+    case "inspect":
+      return <Eye size={14} aria-hidden="true" />;
+    case "change":
+      return <FilePenLine size={14} aria-hidden="true" />;
+    case "command":
+      return <SquareTerminal size={14} aria-hidden="true" />;
+    case "browser":
+      return <Globe size={14} aria-hidden="true" />;
+    default:
+      return <Wrench size={14} aria-hidden="true" />;
+  }
+}
+
 export function AgentActivity({
   toolCalls,
   toolResults,
@@ -63,6 +84,7 @@ export function AgentActivity({
 }: AgentActivityProps) {
   const { t, i18n } = useTranslation();
   const [expanded, setExpanded] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Record<number, boolean>>({});
   const isStreaming = useChatStore((state) => state.isStreaming);
   // Approve/deny belong to THIS conversation's pending approval; a stream
   // running in another conversation must not disable them.
@@ -78,6 +100,7 @@ export function AgentActivity({
   const resultsByCallId = new Map(toolResults.map((result) => [result.toolCallId, result]));
   const approvalArguments = pendingApproval ? JSON.stringify(pendingApproval.args) : "";
 
+  const groups = groupToolCalls(toolCalls, toolResults);
   const completed = toolCalls.filter((call) => {
     const result = resultsByCallId.get(call.id);
     return result && result.error !== TOOL_PERMISSION_REQUIRED;
@@ -143,64 +166,106 @@ export function AgentActivity({
         {expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
       </button>
 
-      <div className="execution-timeline">
-        {(expanded ? toolCalls : toolCalls.slice(-3)).map((call) => {
-          const result = resultsByCallId.get(call.id);
-          const permissionRequired = result?.error === TOOL_PERMISSION_REQUIRED;
-          const running = isStreaming && !result;
-          const denied = result?.error === TOOL_DENIED;
-          const toolKey = `tools.${call.toolName}`;
-          const toolName = i18n.exists(toolKey) ? t(toolKey) : call.toolName;
-          const summary = getArgumentSummary(call);
-
+      <div className="execution-timeline tool-groups">
+        {groups.map((group, groupIndex) => {
+          const summary = groupSummary(group);
+          const groupOpen = expanded || expandedGroups[groupIndex] === true;
+          const runningCount = group.calls.filter(({ result }) => !result).length;
+          const failedCount = group.calls.filter(
+            ({ result }) => result && !result.success && result.error !== TOOL_PERMISSION_REQUIRED,
+          ).length;
           return (
-            <div
-              key={call.id}
-              className={`execution-step${running ? " is-running" : ""}${permissionRequired ? " is-pending" : ""}`}
-            >
-              <span className="execution-marker" aria-hidden="true">
-                {running ? (
-                  <LoaderCircle size={13} />
-                ) : permissionRequired ? (
-                  <ShieldAlert size={13} />
-                ) : result?.success ? (
-                  <CheckCircle2 size={13} />
-                ) : denied ? (
-                  <Circle size={13} />
-                ) : result ? (
-                  <XCircle size={13} />
+            <div key={groupIndex} className={`tool-group tool-group-${group.kind}`}>
+              <button
+                type="button"
+                className="tool-group-header"
+                onClick={() =>
+                  setExpandedGroups((current) => ({
+                    ...current,
+                    [groupIndex]: !(current[groupIndex] === true),
+                  }))
+                }
+                aria-expanded={groupOpen}
+              >
+                <span className="tool-group-icon" aria-hidden="true">
+                  {runningCount > 0 ? (
+                    <LoaderCircle size={14} className="spin" />
+                  ) : (
+                    <GroupIcon kind={group.kind} />
+                  )}
+                </span>
+                <span className="tool-group-copy">
+                  {t(summary.labelKey, { ...summary.values })}
+                  {failedCount > 0 && (
+                    <span className="tool-group-failed">
+                      {" "}
+                      · {t("tools.failedCount", { count: failedCount })}
+                    </span>
+                  )}
+                </span>
+                {groupOpen ? (
+                  <ChevronDown size={13} aria-hidden="true" />
                 ) : (
-                  <CircleDashed size={13} />
+                  <ChevronRight size={13} aria-hidden="true" />
                 )}
-              </span>
-              <span className="execution-copy">
-                <strong>{toolName}</strong>
-                {summary && <span data-tip={summary}>{summary}</span>}
-              </span>
-              <span className="execution-status">
-                {running
-                  ? t("tools.executing")
-                  : permissionRequired
-                    ? t("tools.permissionRequired")
-                    : denied
-                      ? t("tools.denied")
-                      : result?.success
-                        ? t("tools.success")
-                        : result
-                          ? t("tools.failed")
-                          : t("tools.queued")}
-                {result?.durationMs !== undefined && ` · ${(result.durationMs / 1000).toFixed(1)}s`}
-              </span>
+              </button>
+              {groupOpen && (
+                <div className="tool-group-calls">
+                  {group.calls.map(({ call, result }) => {
+                    const permissionRequired = result?.error === TOOL_PERMISSION_REQUIRED;
+                    const running = isStreaming && !result;
+                    const denied = result?.error === TOOL_DENIED;
+                    const toolKey = `tools.${call.toolName}`;
+                    const toolName = i18n.exists(toolKey) ? t(toolKey) : call.toolName;
+                    const summaryText = getArgumentSummary(call);
+                    return (
+                      <div
+                        key={call.id}
+                        className={`execution-step${running ? " is-running" : ""}${permissionRequired ? " is-pending" : ""}`}
+                      >
+                        <span className="execution-marker" aria-hidden="true">
+                          {running ? (
+                            <LoaderCircle size={13} />
+                          ) : permissionRequired ? (
+                            <ShieldAlert size={13} />
+                          ) : result?.success ? (
+                            <CheckCircle2 size={13} />
+                          ) : denied ? (
+                            <Circle size={13} />
+                          ) : result ? (
+                            <XCircle size={13} />
+                          ) : (
+                            <CircleDashed size={13} />
+                          )}
+                        </span>
+                        <span className="execution-copy">
+                          <strong>{toolName}</strong>
+                          {summaryText && <span data-tip={summaryText}>{summaryText}</span>}
+                        </span>
+                        <span className="execution-status">
+                          {running
+                            ? t("tools.executing")
+                            : permissionRequired
+                              ? t("tools.permissionRequired")
+                              : denied
+                                ? t("tools.denied")
+                                : result?.success
+                                  ? t("tools.success")
+                                  : result
+                                    ? t("tools.failed")
+                                    : t("tools.queued")}
+                          {result?.durationMs !== undefined &&
+                            ` · ${(result.durationMs / 1000).toFixed(1)}s`}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}
       </div>
-
-      {!expanded && toolCalls.length > 3 && (
-        <button type="button" className="activity-more" onClick={() => setExpanded(true)}>
-          {t("tools.showMore", { count: toolCalls.length - 3 })}
-        </button>
-      )}
 
       {hasPending && (
         <div className="approval-panel">

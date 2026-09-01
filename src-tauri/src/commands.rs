@@ -711,7 +711,10 @@ fn validate_component_id(kind: &str, value: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn validate_path_in_workspace(path: &str, workspace_root: &str) -> Result<PathBuf, String> {
+pub(crate) fn validate_path_in_workspace(
+    path: &str,
+    workspace_root: &str,
+) -> Result<PathBuf, String> {
     if workspace_root.is_empty() {
         return Err("no workspace is selected".to_owned());
     }
@@ -772,6 +775,26 @@ pub(crate) fn fs_read_file(path: String, workspace_root: String) -> Result<Strin
     let mut bytes = Vec::with_capacity(8192);
     let _ = (&mut file).take(MAX_READ_BYTES).read_to_end(&mut bytes);
     Ok(String::from_utf8_lossy(&bytes).into_owned())
+}
+
+/// Binary-safe read for preview renderers (images, PDFs) inside the
+/// workspace. Returns standard base64; 8 MiB cap keeps the IPC bounded.
+#[tauri::command(async)]
+pub(crate) fn fs_read_file_base64(path: String, workspace_root: String) -> Result<String, String> {
+    use base64::Engine as _;
+    use std::io::Read as _;
+    const MAX_READ_BYTES: u64 = 8 << 20;
+    let mut file = std::fs::File::open(validate_path_in_workspace(&path, &workspace_root)?)
+        .map_err(|error| error.to_string())?;
+    let mut bytes = Vec::with_capacity(8192);
+    (&mut file)
+        .take(MAX_READ_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| error.to_string())?;
+    if bytes.len() as u64 > MAX_READ_BYTES {
+        return Err("file too large for preview".into());
+    }
+    Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
 }
 
 #[tauri::command(async)]

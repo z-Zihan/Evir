@@ -6,6 +6,7 @@ mod browser_workbench;
 mod browser_workbench_tests;
 mod cdp;
 mod commands;
+mod dev_server;
 mod diagnostics;
 #[cfg(test)]
 mod diagnostics_tests;
@@ -61,6 +62,7 @@ pub fn run() {
             app.manage(preview_sandbox::PreviewArtifactState::default());
             app.manage(browser_workbench::BrowserWorkbenchState::default());
             app.manage(browser_commands::BrowserAgentState::default());
+            app.manage(dev_server::DevServerState::default());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -81,6 +83,7 @@ pub fn run() {
             commands::shared_provider_profiles_read,
             commands::shared_provider_profiles_write,
             commands::fs_read_file,
+            commands::fs_read_file_base64,
             commands::fs_write_file,
             commands::fs_list_dir,
             commands::fs_file_info,
@@ -117,6 +120,17 @@ pub fn run() {
             browser_workbench::browser_tab_list,
             browser_workbench::browser_layout_update,
             browser_workbench::browser_clear_site_data,
+            browser_workbench::browser_panel_tab_new,
+            browser_workbench::browser_panel_tab_activate,
+            browser_workbench::browser_panel_tab_close,
+            browser_workbench::browser_panel_tab_navigate,
+            browser_workbench::browser_panel_tab_history,
+            browser_workbench::browser_panel_tab_list,
+            browser_workbench::browser_panel_layout_update,
+            browser_commands::browser_screenshot_read,
+            dev_server::dev_server_start,
+            dev_server::dev_server_stop,
+            dev_server::dev_server_list,
             browser_commands::browser_agent_status,
             browser_commands::browser_agent_start,
             browser_commands::browser_agent_stop,
@@ -156,8 +170,29 @@ pub fn run() {
                         }
                     }
                 }
+                if window.label() == "main" {
+                    // Panel content webviews are children of the main window.
+                    let labels: Vec<String> = app
+                        .webviews()
+                        .keys()
+                        .filter(|label| label.starts_with("browser-panel-content-"))
+                        .cloned()
+                        .collect();
+                    for label in labels {
+                        if let Some(webview) = app.get_webview(&label) {
+                            let _ = webview.close();
+                        }
+                    }
+                }
             }
         })
-        .run(tauri::generate_context!())
-        .expect("error while running Evir");
+        .build(tauri::generate_context!())
+        .expect("error while building Evir")
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                // Dev servers are child process groups: Evir must not leave
+                // orphan `npm run dev` processes behind (§48).
+                dev_server::kill_all(app);
+            }
+        });
 }

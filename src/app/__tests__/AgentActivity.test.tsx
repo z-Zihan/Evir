@@ -101,7 +101,9 @@ describe("AgentActivity", () => {
       />,
     );
 
-    expect(screen.getAllByText("mcp__remote__publish")).toHaveLength(2);
+    // Summary-first groups (§40) hide per-call rows until expanded; the
+    // approval panel remains the always-visible surface for the tool name.
+    expect(screen.getAllByText("mcp__remote__publish")).toHaveLength(1);
     expect(screen.getByText("L4")).toBeDefined();
     expect(screen.getByText("Remote fixture · https://mcp.example.com")).toBeDefined();
     expect(screen.getByText("https://mcp.example.com")).toBeDefined();

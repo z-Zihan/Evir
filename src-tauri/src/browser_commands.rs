@@ -659,6 +659,45 @@ pub async fn browser_screenshot(
     }))
 }
 
+/// Read a saved agent-browser screenshot for the workspace preview. The
+/// path must live inside the managed browser-screenshots directory — never
+/// an arbitrary filesystem read.
+#[tauri::command(async)]
+pub async fn browser_screenshot_read(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, BrowserAgentState>,
+    path: String,
+) -> Result<String, String> {
+    use base64::Engine as _;
+    use std::io::Read as _;
+    state.inner().set_screenshot_dir(&app);
+    let dir = state
+        .screenshot_dir
+        .lock()
+        .expect("screenshot dir lock")
+        .clone()
+        .unwrap_or_else(std::env::temp_dir);
+    let canonical_dir = dir.canonicalize().unwrap_or(dir);
+    let requested = std::path::PathBuf::from(&path);
+    let canonical = requested
+        .canonicalize()
+        .map_err(|_| "screenshot not found")?;
+    if !canonical.starts_with(&canonical_dir) {
+        return Err("path outside screenshots directory".into());
+    }
+    const MAX: u64 = 16 << 20;
+    let mut file = std::fs::File::open(&canonical).map_err(|error| error.to_string())?;
+    let mut bytes = Vec::new();
+    (&mut file)
+        .take(MAX + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| error.to_string())?;
+    if bytes.len() as u64 > MAX {
+        return Err("screenshot too large".into());
+    }
+    Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
+}
+
 fn chrono_millis() -> u128 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

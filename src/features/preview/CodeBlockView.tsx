@@ -1,13 +1,12 @@
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Copy, Maximize2, WrapText } from "lucide-react";
+import { Copy, ExternalLink, WrapText } from "lucide-react";
 import { normalizeFenceLanguage, previewRegistry } from "./preview-registry";
 import { isHighlightable, useShikiHighlight } from "./use-shiki";
-import { ArtifactPreview } from "./ArtifactPreview";
-import { PreviewOverlay } from "./PreviewOverlay";
+import { useWorkspacePanelStore } from "../workspace/workspace-panel-store";
+import { saveArtifact } from "../workspace/workspace-services";
 
 export const COLLAPSED_CODE_BYTES = 40_000;
-const AUTO_PREVIEW_TRUST_LEVELS = new Set(["SAFE_TEXT", "SAFE_MEDIA", "DECLARATIVE_RENDER"]);
 
 export interface CodeBlockViewProps {
   code: string;
@@ -17,11 +16,21 @@ export interface CodeBlockViewProps {
   streaming?: boolean;
 }
 
+function artifactIdFor(code: string, language: string): string {
+  // Deterministic identity so re-clicking the same fence reuses storage.
+  let hash = 5381;
+  const key = `${language}::${code.length}`;
+  for (let index = 0; index < key.length; index += 1) {
+    hash = ((hash << 5) + hash + (key.charCodeAt(index) || 0)) | 0;
+  }
+  return `chat-artifact-${(hash >>> 0).toString(36)}-${code.length}`;
+}
+
 /**
- * Unified code block used by both the streaming and completed render paths:
- * Shiki highlighting (lazy, debounced during streaming), copy, wrap toggle,
- * opt-in artifact preview and fullscreen expansion. The rendered UI stays
- * identical before and after a message completes.
+ * Chat code block: Shiki highlighting, copy, wrap toggle, and — instead of
+ * expanding a giant inline preview — a single action that opens the artifact
+ * in the workspace panel (§6, §21). Small markdown/images stay inline via
+ * the markdown renderer; this is the large-artifact path.
  */
 export const CodeBlockView = memo(function CodeBlockView({
   code,
@@ -32,44 +41,38 @@ export const CodeBlockView = memo(function CodeBlockView({
   const normalized = normalizeFenceLanguage(language);
   const [copied, setCopied] = useState(false);
   const [wrap, setWrap] = useState(false);
-  const [previewing, setPreviewing] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const openResource = useWorkspacePanelStore((state) => state.openResource);
 
   const descriptor = useMemo(() => {
     const explicit = previewRegistry.forLanguage(language);
     if (explicit) return explicit;
-    return previewRegistry.detect({ content: code, language: "", streaming });
+    return streaming
+      ? null
+      : previewRegistry.detect({ content: code, language: "", streaming: false });
   }, [language, code, streaming]);
 
   const { html, error: highlightError } = useShikiHighlight(code, normalized, streaming);
-  const debouncedCode = useStreamDebounce(
-    code,
-    streaming && descriptor !== null && descriptor.supportsStreaming,
-  );
-  // UNTRUSTED_CODE never executes before the fence is complete (§28): while
-  // streaming, only declarative renderers may live-preview.
-  const previewAllowed =
-    descriptor !== null &&
-    (!streaming || (descriptor.supportsStreaming && descriptor.trustLevel !== "UNTRUSTED_CODE"));
   const large = code.length > COLLAPSED_CODE_BYTES;
-
-  useEffect(() => {
-    // Declarative/text artifacts auto-preview once the fence is complete;
-    // HTML (UNTRUSTED_CODE) and diffs stay on the code tab until opted in.
-    if (
-      !streaming &&
-      descriptor &&
-      AUTO_PREVIEW_TRUST_LEVELS.has(descriptor.trustLevel) &&
-      descriptor.id !== "diff"
-    ) {
-      setPreviewing(true);
-    }
-  }, [streaming, descriptor]);
 
   const copy = () => {
     void navigator.clipboard.writeText(code).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
+  const openInWorkspace = () => {
+    const artifactId = artifactIdFor(code, language);
+    void saveArtifact({
+      id: artifactId,
+      language: normalized || language || "text",
+      ...(descriptor ? { title: descriptor.label } : {}),
+      content: code,
+    }).finally(() => {
+      openResource(
+        { kind: "artifact", artifactId, language: normalized || language || "text" },
+        { viewMode: "preview" },
+      );
     });
   };
 
@@ -109,79 +112,21 @@ export const CodeBlockView = memo(function CodeBlockView({
             <Copy size={13} />
             <span>{copied ? t("chat.copied") : t("chat.copyCode")}</span>
           </button>
-          <button
-            type="button"
-            className="code-block-action"
-            onClick={() => setExpanded(true)}
-            aria-label={t("preview.expand")}
-            disabled={descriptor === null && !large}
-          >
-            <Maximize2 size={13} />
-          </button>
+          {!streaming && (
+            <button
+              type="button"
+              className="code-block-action workspace-open-action"
+              onClick={openInWorkspace}
+              aria-label={t("preview.openInWorkspace")}
+              data-tip={t("preview.openInWorkspace")}
+            >
+              <ExternalLink size={13} />
+              <span>{t("preview.previewTab")}</span>
+            </button>
+          )}
         </div>
       </div>
-      <div className="code-block-body-row">
-        {descriptor !== null && (
-          <div className="code-block-tabbar" role="tablist" aria-label={t("preview.viewMode")}>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={!previewing}
-              className={`code-block-tab${previewing ? "" : " active"}`}
-              onClick={() => setPreviewing(false)}
-            >
-              {t("preview.codeTab")}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={previewing}
-              className={`code-block-tab${previewing ? " active" : ""}`}
-              onClick={() => setPreviewing(true)}
-              disabled={!previewAllowed}
-            >
-              {t("preview.previewTab")}
-            </button>
-          </div>
-        )}
-        {previewing && descriptor !== null ? (
-          <div className="code-block-tabpanel" role="tabpanel">
-            <ArtifactPreview rendererId={descriptor.id} source={debouncedCode} />
-          </div>
-        ) : (
-          <div className={`code-block-body${large ? " collapsed" : ""}`}>{body}</div>
-        )}
-      </div>
-      {large && !previewing && (
-        <button type="button" className="code-block-expand" onClick={() => setExpanded(true)}>
-          {t("preview.showMore")}
-        </button>
-      )}
-      {expanded && (
-        <PreviewOverlay
-          {...(descriptor ? { rendererId: descriptor.id } : {})}
-          source={code}
-          title={`${descriptor?.label ?? ""} · ${normalized || t("preview.plainText")}`}
-          onClose={() => setExpanded(false)}
-        />
-      )}
+      <div className={`code-block-body${large ? " collapsed" : ""}`}>{body}</div>
     </div>
   );
 });
-
-/**
- * Streaming previews (mermaid/dot) must not re-parse on every token: hold the
- * latest content and only commit it after a quiet window.
- */
-function useStreamDebounce(value: string, enabled: boolean): string {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    if (!enabled) {
-      setDebounced(value);
-      return;
-    }
-    const timer = setTimeout(() => setDebounced(value), 400);
-    return () => clearTimeout(timer);
-  }, [value, enabled]);
-  return enabled ? debounced : value;
-}

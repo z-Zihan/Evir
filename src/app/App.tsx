@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useProviderStore } from "../features/provider/provider-store";
 import { useUsageStore } from "../features/usage/usage-store";
 import { Sidebar } from "./Sidebar";
@@ -6,7 +7,10 @@ import { ChatView } from "./ChatView";
 import { SettingsModal, type SettingsTab } from "./SettingsModal";
 import { useShortcuts } from "./useShortcuts";
 import { ShortcutHelpOverlay } from "./ShortcutHelpOverlay";
-import { useTranslation } from "react-i18next";
+import { WorkspacePanel } from "./workspace/WorkspacePanel";
+import { useWorkspaceResize } from "./workspace/useWorkspaceResize";
+import { useWorkspaceSync } from "./workspace/use-workspace-sync";
+import { useWorkspacePanelStore } from "../features/workspace/workspace-panel-store";
 import { initializeRuntimeStorage } from "../runtime/initialize-storage";
 import { installWorkspaceResolver } from "../features/workspace/workspace-bridge";
 import { installTooltipDirection } from "./tooltipDirection";
@@ -124,14 +128,33 @@ export function App() {
     return () => compact.removeEventListener("change", handleViewportChange);
   }, []);
 
+  // Workspace panel: third column with persisted width + per-thread state.
+  const workspaceResize = useWorkspaceResize();
+  const workspaceOpen = useWorkspacePanelStore((state) => state.open);
+  const workspaceWidth = useWorkspacePanelStore((state) => state.width);
+  const currentConversationId = useChatStore((state) => state.currentConversationId);
+  useWorkspaceSync(currentConversationId);
+
+  // Full-screen overlays register themselves via useOverlayBrowserGuard so
+  // the native browser webviews hide while any of them is open.
+
+  const shellClass =
+    `app-shell${sidebarVisible ? " sidebar-visible" : ""}` +
+    `${sidebarResize.resizing ? " sidebar-resizing" : ""}` +
+    `${workspaceOpen ? " workspace-visible" : ""}` +
+    `${workspaceResize.resizing ? " workspace-resizing" : ""}`;
+
   return (
     <div
-      className={`app-shell${sidebarVisible ? " sidebar-visible" : ""}${sidebarResize.resizing ? " sidebar-resizing" : ""}`}
-      style={
-        sidebarVisible
+      className={shellClass}
+      style={{
+        ...(sidebarVisible
           ? ({ "--sidebar-width": `${sidebarResize.width}px` } as React.CSSProperties)
-          : undefined
-      }
+          : {}),
+        ...(workspaceOpen
+          ? ({ "--workspace-width": `${workspaceWidth}px` } as React.CSSProperties)
+          : {}),
+      }}
     >
       {sidebarVisible && (
         <Sidebar
@@ -169,6 +192,23 @@ export function App() {
           sidebarVisible={sidebarVisible}
         />
       </div>
+      {workspaceOpen && (
+        <div
+          className="workspace-resizer"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={t("workspace.resize")}
+          onPointerDown={workspaceResize.handleProps.onPointerDown}
+          onDoubleClick={workspaceResize.reset}
+        />
+      )}
+      {workspaceOpen && (
+        <div
+          className="workspace-backdrop"
+          onClick={() => useWorkspacePanelStore.getState().closePanel()}
+        />
+      )}
+      <WorkspacePanel />
       <SettingsModal
         open={settingsOpen}
         initialTab={settingsTab}

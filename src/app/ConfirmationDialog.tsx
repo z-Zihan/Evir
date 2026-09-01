@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { AlertTriangle, RotateCcw, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useOverlayBrowserGuard } from "./workspace/use-overlay-browser-guard";
 
 export interface ConfirmationOptions {
   title: string;
@@ -23,6 +24,7 @@ export function ConfirmationDialog({
   onConfirm,
 }: ConfirmationDialogProps) {
   const { t } = useTranslation();
+  useOverlayBrowserGuard("confirmation", true);
   const titleId = useId();
   const descriptionId = useId();
   const cancelRef = useRef<HTMLButtonElement>(null);

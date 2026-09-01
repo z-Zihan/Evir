@@ -23,6 +23,8 @@ export interface ContextBuildSections {
   memory?: string;
   personalization?: string;
   fileReferences?: FileContextReference[];
+  /** Lightweight "what the user is looking at" lines (paths / URLs only). */
+  workspaceContext?: string[];
 }
 
 export class ContextBuilderImpl {
@@ -32,6 +34,11 @@ export class ContextBuilderImpl {
   } {
     const parts: string[] = [];
     if (sections.modeRules) parts.push(sections.modeRules);
+    if (sections.workspaceContext?.length) {
+      parts.push(
+        `<workspace_context>\n${sections.workspaceContext.join("\n")}\n</workspace_context>`,
+      );
+    }
     if (sections.runCapsule) parts.push(`<run_state>\n${sections.runCapsule}\n</run_state>`);
     if (sections.fileReferences?.length) {
       const references = sections.fileReferences

@@ -191,7 +191,11 @@ describe("ChatMessage actions", () => {
     );
 
     const body = document.body;
-    expect(body.textContent).toContain("read_file");
+    expect(body.textContent).toContain("tools.group.inspect");
+    // Tool rows live inside collapsed summary groups; open the group.
+    const groupHeader = document.querySelector(".tool-group-header");
+    expect(groupHeader).toBeTruthy();
+    fireEvent.click(groupHeader as HTMLElement);
     expect(body.textContent).toContain("read_file");
     expect(body.textContent).toContain("notes.txt");
     expect(body.textContent).toContain("agent.completed");

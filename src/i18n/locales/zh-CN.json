@@ -191,7 +191,15 @@
     "approveOnce": "本次允许",
     "inspectStep": "查看详情",
     "denied": "已拒绝",
-    "deniedMessage": "工具执行已被用户拒绝"
+    "deniedMessage": "工具执行已被用户拒绝",
+    "group": {
+      "inspect": "检查项目 · {{count}} 次调用 · {{files}} 个文件",
+      "change": "修改了 {{files}} 个文件",
+      "command": "运行了 {{count}} 条命令",
+      "browser": "浏览器操作 · {{count}} 次",
+      "other": "其他 · {{count}} 次"
+    },
+    "failedCount": "{{count}} 失败"
   },
   "errors": {
     "detail": "详情：{{message}}",
@@ -674,7 +682,60 @@
     "select": "选择工作区",
     "change": "切换",
     "clear": "清除工作区",
-    "recent": "最近"
+    "recent": "最近",
+    "title": "工作区",
+    "changes": "变更",
+    "files": "文件",
+    "preview": "预览",
+    "browser": "浏览器",
+    "close": "关闭工作区",
+    "open": "打开工作区",
+    "changesCount": "{{count}} 个变更",
+    "changesTitle": "变更",
+    "filesChanged": "{{count}} 个文件已修改",
+    "changesEmpty": "本次任务还没有修改任何文件。Agent 执行写入后会实时出现在这里。",
+    "outputsTitle": "任务产出",
+    "outputsCount": "{{count}} 个产出",
+    "projectFiles": "项目文件",
+    "loading": "加载中…",
+    "moreEntries": "还有 {{count}} 项未显示",
+    "filesNoProject": "独立聊天没有项目文件。打开一个项目即可查看文件树。",
+    "searchFiles": "搜索项目文件",
+    "searchResults": "搜索结果",
+    "searchEmpty": "没有匹配的文件",
+    "refresh": "刷新",
+    "previewEmpty": "在聊天或文件列表中点击预览，即可在这里查看。",
+    "artifactUnavailable": "此产物内容已不可用，请回到聊天消息重新打开。",
+    "previewFailed": "无法加载此资源。",
+    "diffNoRepo": "此项目不是 git 仓库，无法生成差异对比。",
+    "diffUnavailable": "没有可显示的差异。",
+    "back": "后退",
+    "forward": "前进",
+    "pin": "固定",
+    "unpin": "取消固定",
+    "resize": "调整工作区宽度",
+    "reviewChanges": "查看变更",
+    "browserAddress": "输入网址",
+    "newTab": "新建标签页",
+    "closeTab": "关闭标签页",
+    "browserTabs": "浏览器标签页",
+    "browserEmpty": "输入网址开始浏览，或启动项目预览。",
+    "recentScreenshots": "最近的截图",
+    "screenshotChip": "截图",
+    "contextLabel": "当前工作对象",
+    "removeContext": "移除此上下文",
+    "devServer": {
+      "detect": "检测到开发脚本：{{script}}",
+      "run": "启动预览",
+      "stop": "停止",
+      "none": "此项目未检测到开发服务器脚本",
+      "starting": "启动中…",
+      "ready": "已就绪",
+      "running": "运行中（未确认端口）",
+      "crashed": "已崩溃",
+      "confirmTitle": "启动开发服务器",
+      "confirmDescription": "将在项目目录执行：{{command}}（目录：{{cwd}}）。该进程由 Evir 管理，应用退出时会一并停止。"
+    }
   },
   "startup": {
     "failed": "本地数据初始化失败",
@@ -705,7 +766,16 @@
     "completedWithErrors": "完成但有错误",
     "rollback": "回滚本次修改",
     "rollbackTitle": "回滚这次 Agent 运行？",
-    "rollbackDescription": "将 {{count}} 个已修改文件恢复到运行前状态；运行后发生的新修改会受到保护。"
+    "rollbackDescription": "将 {{count}} 个已修改文件恢复到运行前状态；运行后发生的新修改会受到保护。",
+    "runStatus": {
+      "awaiting_approval": "等待审批",
+      "completed": "完成",
+      "needs_verification": "待验证",
+      "failed": "失败",
+      "cancelled": "已停止",
+      "rolled_back": "已回滚"
+    },
+    "detailedEvidence": "详细执行记录"
   },
   "memory": {
     "title": "记忆",
@@ -1006,7 +1076,8 @@
     "pdfPageIndicator": "{{current}} / {{total}}",
     "pdfGoToPage": "跳转到第 {{page}} 页",
     "svgImage": "SVG 图形",
-    "htmlPreviewTitle": "HTML 预览"
+    "htmlPreviewTitle": "HTML 预览",
+    "openInWorkspace": "在工作区打开"
   },
   "browser": {
     "toolbar": "浏览器工具",

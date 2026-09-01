@@ -15,6 +15,8 @@ export interface DesktopStorageAdapter {
     deletedIds?: string[],
   ): Promise<void>;
   readFile(path: string): Promise<string>;
+  /** Base64 content for binary preview (images, PDFs); 8 MiB cap on the Rust side. */
+  readFileBase64(path: string): Promise<string>;
   realPath(path: string): Promise<string>;
   gitWorktreeCreate(root: string, id: string): Promise<string>;
   gitWorktreeMerge(root: string, id: string): Promise<void>;
@@ -134,6 +136,8 @@ export const desktopStorage: DesktopStorageAdapter = {
   sharedProviderProfilesWrite: (profiles, deletedIds = []) =>
     invoke("shared_provider_profiles_write", { profiles, deletedIds }),
   readFile: (path) => invoke("fs_read_file", { path, workspaceRoot: rootForPath(path) }),
+  readFileBase64: (path) =>
+    invoke("fs_read_file_base64", { path, workspaceRoot: rootForPath(path) }),
   realPath: (path) => invoke("fs_real_path", { path }),
   gitWorktreeCreate: (root, id) => invoke("git_worktree_create", { root, id }),
   gitWorktreeMerge: (root, id) => invoke("git_worktree_merge", { root, id }),

@@ -1,14 +1,21 @@
-//! Browser Workbench: an Evir-managed browsing window.
+//! Browser surfaces: Evir-managed browsing views.
 //!
-//! Layout mirrors the required separation:
-//! - the *chrome* webview (label `browser-workbench`) loads the Evir frontend
-//!   (`#browser` route) and renders toolbar/tabs. It only gets the minimal
-//!   `browser-chrome` capability — never the main window's set.
-//! - *content* webviews (labels `browser-content-<n>`) load remote URLs and
-//!   are listed in **no** capability, so they hold zero Tauri permissions.
+//! Two surfaces share this module:
+//! - the *workbench window* (`browser-workbench`): standalone window whose
+//!   chrome webview loads the Evir frontend (`#browser` route);
+//! - the *workspace panel*: content webviews parented to the main window,
+//!   positioned over the workspace Browser tab area and hidden whenever the
+//!   panel is closed, another tab is active, or an overlay would be covered.
+//!
+//! Layout mirrors the required separation everywhere:
+//! - *content* webviews (`browser-content-<n>` / `browser-panel-content-<n>`)
+//!   load remote URLs and are listed in **no** capability, so they hold zero
+//!   Tauri permissions;
 //! - each content webview gets its own data directory, so site cookies never
-//!   mix with the main WebView storage.
-//! - popups opened by pages are denied by default.
+//!   mix with the main WebView storage;
+//! - popups opened by pages are denied by default;
+//! - the workbench chrome webview only gets the minimal `browser-chrome`
+//!   capability — never the main window's set.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -27,14 +34,42 @@ pub struct BrowserTab {
     pub active: bool,
 }
 
+/// Which browsing surface a tab belongs to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Surface {
+    Workbench,
+    Panel,
+}
+
+impl Surface {
+    pub fn prefix(self) -> &'static str {
+        match self {
+            Surface::Workbench => "browser-content-",
+            Surface::Panel => "browser-panel-content-",
+        }
+    }
+
+    pub fn window_label(self) -> &'static str {
+        match self {
+            Surface::Workbench => "browser-workbench",
+            Surface::Panel => "main",
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct BrowserWorkbenchState {
     next_tab_id: Mutex<u32>,
-    tab_titles: Mutex<HashMap<u32, String>>,
+    /// Tab titles keyed by content-webview label (both surfaces).
+    tab_titles: Mutex<HashMap<String, String>>,
+    /// Active tab per surface.
+    active_tabs: Mutex<HashMap<&'static str, u32>>,
+    /// Whether panel content webviews may be visible at all.
+    panel_visible: Mutex<bool>,
 }
 
-fn content_label(id: u32) -> String {
-    format!("browser-content-{id}")
+fn content_label(surface: Surface, id: u32) -> String {
+    format!("{}{}", surface.prefix(), id)
 }
 
 /// Bare hostnames go to https; localhost dev servers go to http.
@@ -77,12 +112,14 @@ fn ensure_workbench_window(app: &AppHandle) -> tauri::Result<tauri::WebviewWindo
         .build()
 }
 
-pub fn list_tabs(app: &AppHandle) -> Vec<BrowserTab> {
+pub fn list_surface_tabs(app: &AppHandle, surface: Surface) -> Vec<BrowserTab> {
     let state = app.state::<BrowserWorkbenchState>();
     let titles = state.tab_titles.lock().expect("tab title lock");
+    let active_tabs = state.active_tabs.lock().expect("active tab lock");
+    let active_id = active_tabs.get(surface.window_label()).copied();
     let mut tabs: Vec<BrowserTab> = Vec::new();
     for (label, webview) in app.webviews() {
-        let Some(id_part) = label.strip_prefix("browser-content-") else {
+        let Some(id_part) = label.strip_prefix(surface.prefix()) else {
             continue;
         };
         let Ok(id) = id_part.parse::<u32>() else {
@@ -91,41 +128,184 @@ pub fn list_tabs(app: &AppHandle) -> Vec<BrowserTab> {
         tabs.push(BrowserTab {
             id,
             url: webview.url().map(|url| url.to_string()).unwrap_or_default(),
-            title: titles.get(&id).cloned().unwrap_or_default(),
-            active: false,
+            title: titles.get(&label).cloned().unwrap_or_default(),
+            active: Some(id) == active_id,
         });
     }
     tabs.sort_by_key(|tab| tab.id);
-    if let Some(first) = tabs.first_mut() {
-        first.active = true;
+    // Workbench compat: callers treat the first tab as active when none was
+    // ever explicitly activated.
+    if active_id.is_none() {
+        if let Some(first) = tabs.first_mut() {
+            first.active = true;
+        }
     }
     tabs
 }
 
-fn emit_tabs(app: &AppHandle) {
-    let _ = app.emit("browser-workbench-tabs", list_tabs(app));
+fn emit_tabs(app: &AppHandle, surface: Surface) {
+    let event = match surface {
+        Surface::Workbench => "browser-workbench-tabs",
+        Surface::Panel => "browser-panel-tabs",
+    };
+    let _ = app.emit(event, list_surface_tabs(app, surface));
 }
 
-fn content_data_dir(app: &AppHandle, id: u32) -> Option<PathBuf> {
+fn content_data_dir(app: &AppHandle, surface: Surface, id: u32) -> Option<PathBuf> {
     let base = app.path().app_cache_dir().ok()?;
-    Some(base.join("browser-profiles").join(format!("content-{id}")))
+    Some(base.join("browser-profiles").join(format!(
+        "{}-{id}",
+        if surface == Surface::Panel {
+            "panel"
+        } else {
+            "content"
+        }
+    )))
 }
 
-fn activate_tab(app: &AppHandle, active_id: u32) {
+fn set_active_tab(app: &AppHandle, surface: Surface, active_id: u32) {
+    let state = app.state::<BrowserWorkbenchState>();
+    state
+        .active_tabs
+        .lock()
+        .expect("active tab lock")
+        .insert(surface.window_label(), active_id);
+    let panel_visible =
+        surface == Surface::Panel && *state.panel_visible.lock().expect("panel visible lock");
     for (label, webview) in app.webviews() {
-        let Some(id_part) = label.strip_prefix("browser-content-") else {
+        let Some(id_part) = label.strip_prefix(surface.prefix()) else {
             continue;
         };
         let Ok(id) = id_part.parse::<u32>() else {
             continue;
         };
-        let _ = if id == active_id {
-            webview.show()
-        } else {
-            webview.hide()
-        };
+        let show = id == active_id && (surface == Surface::Workbench || panel_visible);
+        let _ = if show { webview.show() } else { webview.hide() };
     }
 }
+
+/// Create a content webview for `surface` and make it the active tab.
+fn add_content_tab(
+    app: &AppHandle,
+    surface: Surface,
+    id: u32,
+    target: &str,
+) -> Result<BrowserTab, String> {
+    let window_label = surface.window_label();
+    let window = if surface == Surface::Workbench {
+        ensure_workbench_window(app)
+            .map_err(|error| error.to_string())?
+            .as_ref()
+            .window()
+            .clone()
+    } else {
+        app.get_webview_window(window_label)
+            .ok_or("main window not available")?
+            .as_ref()
+            .window()
+            .clone()
+    };
+    let parsed = tauri::Url::parse(target).map_err(|error| error.to_string())?;
+    let mut builder = tauri::webview::WebviewBuilder::new(
+        content_label(surface, id),
+        WebviewUrl::External(parsed),
+    );
+    if let Some(data_dir) = content_data_dir(app, surface, id) {
+        builder = builder.data_directory(data_dir);
+    }
+    builder = builder
+        .on_document_title_changed(move |webview, title| {
+            let handle = webview.app_handle().clone();
+            let label = webview.label().to_string();
+            let surface = if label.starts_with(Surface::Panel.prefix()) {
+                Surface::Panel
+            } else {
+                Surface::Workbench
+            };
+            if let Some(state) = handle.try_state::<BrowserWorkbenchState>() {
+                state
+                    .tab_titles
+                    .lock()
+                    .expect("tab title lock")
+                    .insert(label, title);
+            }
+            emit_tabs(&handle, surface);
+        })
+        .on_new_window(|_url, _features| tauri::webview::NewWindowResponse::Deny);
+    // Panel webviews start offscreen until the frontend reports a visible
+    // content rect; workbench webviews show immediately at a sane default.
+    let initial_position = if surface == Surface::Panel {
+        PhysicalPosition::new(-10_000, -10_000)
+    } else {
+        PhysicalPosition::new(0, 96)
+    };
+    let webview = window
+        .add_child(
+            builder,
+            initial_position,
+            PhysicalSize::new(
+                window.inner_size().map(|size| size.width).unwrap_or(1200),
+                600,
+            ),
+        )
+        .map_err(|error| error.to_string())?;
+    let tab = BrowserTab {
+        id,
+        url: webview
+            .url()
+            .map(|url| url.to_string())
+            .unwrap_or_else(|_| target.to_string()),
+        title: String::new(),
+        active: true,
+    };
+    set_active_tab(app, surface, id);
+    emit_tabs(app, surface);
+    Ok(tab)
+}
+
+fn next_tab_id(app: &AppHandle) -> u32 {
+    let state = app.state::<BrowserWorkbenchState>();
+    let mut next = state.next_tab_id.lock().expect("browser tab lock");
+    *next += 1;
+    *next
+}
+
+fn find_webview(app: &AppHandle, surface: Surface, id: u32) -> Option<tauri::Webview> {
+    app.get_webview(&content_label(surface, id))
+}
+
+fn close_tab(app: &AppHandle, surface: Surface, id: u32) {
+    if let Some(webview) = find_webview(app, surface, id) {
+        let _ = webview.close();
+    }
+    if let Some(state) = app.try_state::<BrowserWorkbenchState>() {
+        state
+            .tab_titles
+            .lock()
+            .expect("tab title lock")
+            .remove(&content_label(surface, id));
+    }
+    let remaining: Vec<u32> = app
+        .webviews()
+        .keys()
+        .filter_map(|label| label.strip_prefix(surface.prefix())?.parse::<u32>().ok())
+        .filter(|tab_id| *tab_id != id)
+        .collect();
+    if let Some(last) = remaining.iter().max() {
+        set_active_tab(app, surface, *last);
+    } else if let Some(state) = app.try_state::<BrowserWorkbenchState>() {
+        state
+            .active_tabs
+            .lock()
+            .expect("active tab lock")
+            .remove(surface.window_label());
+    }
+    emit_tabs(app, surface);
+}
+
+// ---------------------------------------------------------------------------
+// Workbench-window commands (pre-existing surface)
+// ---------------------------------------------------------------------------
 
 #[tauri::command]
 pub async fn browser_workbench_open(app: AppHandle) -> Result<(), String> {
@@ -139,68 +319,11 @@ pub async fn browser_workbench_open(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn browser_tab_new(
-    app: AppHandle,
-    state: tauri::State<'_, BrowserWorkbenchState>,
-    url: String,
-) -> Result<BrowserTab, String> {
+pub async fn browser_tab_new(app: AppHandle, url: String) -> Result<BrowserTab, String> {
     let target = normalize_input_url(&url)?;
-    let id = {
-        let mut next = state.next_tab_id.lock().expect("browser tab lock");
-        *next += 1;
-        *next
-    };
+    let id = next_tab_id(&app);
     tauri::async_runtime::spawn_blocking(move || {
-        let workbench = ensure_workbench_window(&app).map_err(|error| error.to_string())?;
-        let window = workbench.as_ref().window();
-        let parsed = tauri::Url::parse(&target).map_err(|error| error.to_string())?;
-        let mut builder =
-            tauri::webview::WebviewBuilder::new(content_label(id), WebviewUrl::External(parsed));
-        if let Some(data_dir) = content_data_dir(&app, id) {
-            builder = builder.data_directory(data_dir);
-        }
-        let title_app = app.clone();
-        builder = builder
-            .on_document_title_changed(move |webview, title| {
-                let handle = webview.app_handle().clone();
-                let tab_id = webview
-                    .label()
-                    .strip_prefix("browser-content-")
-                    .and_then(|part| part.parse::<u32>().ok())
-                    .unwrap_or(0);
-                if let Some(state) = handle.try_state::<BrowserWorkbenchState>() {
-                    state
-                        .tab_titles
-                        .lock()
-                        .expect("tab title lock")
-                        .insert(tab_id, title);
-                }
-                emit_tabs(&handle);
-            })
-            .on_new_window(|_url, _features| tauri::webview::NewWindowResponse::Deny);
-        let _ = title_app;
-        let webview = window
-            .add_child(
-                builder,
-                PhysicalPosition::new(0, 96),
-                PhysicalSize::new(
-                    window.inner_size().map(|size| size.width).unwrap_or(1200),
-                    600,
-                ),
-            )
-            .map_err(|error| error.to_string())?;
-        let tab = BrowserTab {
-            id,
-            url: webview
-                .url()
-                .map(|url| url.to_string())
-                .unwrap_or(target.clone()),
-            title: String::new(),
-            active: true,
-        };
-        activate_tab(&app, id);
-        emit_tabs(&app);
-        Ok(tab)
+        add_content_tab(&app, Surface::Workbench, id, &target)
     })
     .await
     .map_err(|error| error.to_string())?
@@ -208,39 +331,26 @@ pub async fn browser_tab_new(
 
 #[tauri::command]
 pub fn browser_tab_activate(app: AppHandle, id: u32) -> Result<(), String> {
-    if app.get_webview(&content_label(id)).is_none() {
+    if find_webview(&app, Surface::Workbench, id).is_none() {
         return Err("tab not found".into());
     }
-    activate_tab(&app, id);
-    emit_tabs(&app);
+    set_active_tab(&app, Surface::Workbench, id);
+    emit_tabs(&app, Surface::Workbench);
     Ok(())
 }
 
 #[tauri::command]
 pub fn browser_tab_close(app: AppHandle, id: u32) -> Result<(), String> {
-    let Some(webview) = app.get_webview(&content_label(id)) else {
+    if find_webview(&app, Surface::Workbench, id).is_none() {
         return Ok(());
-    };
-    let _ = webview.close();
-    if let Some(state) = app.try_state::<BrowserWorkbenchState>() {
-        state.tab_titles.lock().expect("tab title lock").remove(&id);
     }
-    let remaining: Vec<u32> = app
-        .webviews()
-        .keys()
-        .filter_map(|label| label.strip_prefix("browser-content-")?.parse::<u32>().ok())
-        .filter(|tab_id| *tab_id != id)
-        .collect();
-    if let Some(last) = remaining.iter().max() {
-        activate_tab(&app, *last);
-    }
-    emit_tabs(&app);
+    close_tab(&app, Surface::Workbench, id);
     Ok(())
 }
 
 #[tauri::command]
 pub fn browser_tab_navigate(app: AppHandle, id: u32, url: String) -> Result<(), String> {
-    let Some(webview) = app.get_webview(&content_label(id)) else {
+    let Some(webview) = find_webview(&app, Surface::Workbench, id) else {
         return Err("tab not found".into());
     };
     let target = normalize_input_url(&url)?;
@@ -248,16 +358,20 @@ pub fn browser_tab_navigate(app: AppHandle, id: u32, url: String) -> Result<(), 
     webview
         .navigate(parsed)
         .map_err(|error| error.to_string())?;
-    emit_tabs(&app);
+    emit_tabs(&app, Surface::Workbench);
     Ok(())
 }
 
 #[tauri::command]
 pub fn browser_tab_history(app: AppHandle, id: u32, direction: String) -> Result<(), String> {
-    let Some(webview) = app.get_webview(&content_label(id)) else {
+    history(&app, Surface::Workbench, id, &direction)
+}
+
+fn history(app: &AppHandle, surface: Surface, id: u32, direction: &str) -> Result<(), String> {
+    let Some(webview) = find_webview(app, surface, id) else {
         return Err("tab not found".into());
     };
-    let script = match direction.as_str() {
+    let script = match direction {
         "back" => "history.back()",
         "forward" => "history.forward()",
         "reload" => "location.reload()",
@@ -268,7 +382,7 @@ pub fn browser_tab_history(app: AppHandle, id: u32, direction: String) -> Result
 
 #[tauri::command]
 pub fn browser_tab_list(app: AppHandle) -> Vec<BrowserTab> {
-    list_tabs(&app)
+    list_surface_tabs(&app, Surface::Workbench)
 }
 
 /// The chrome webview reports its content-area rect so child webviews can
@@ -276,6 +390,16 @@ pub fn browser_tab_list(app: AppHandle) -> Vec<BrowserTab> {
 #[tauri::command]
 pub fn browser_layout_update(
     app: AppHandle,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+) -> Result<(), String> {
+    apply_workbench_layout(&app, x, y, width, height)
+}
+
+fn apply_workbench_layout(
+    app: &AppHandle,
     x: f64,
     y: f64,
     width: f64,
@@ -291,7 +415,7 @@ pub fn browser_layout_update(
         (height * scale).max(1.0) as u32,
     );
     for (label, webview) in app.webviews() {
-        if label.starts_with("browser-content-") {
+        if label.starts_with(Surface::Workbench.prefix()) {
             let _ = webview.set_position(position);
             let _ = webview.set_size(size);
         }
@@ -302,8 +426,118 @@ pub fn browser_layout_update(
 #[tauri::command]
 pub fn browser_clear_site_data(app: AppHandle) -> Result<(), String> {
     for (label, webview) in app.webviews() {
-        if label.starts_with("browser-content-") {
+        if label.starts_with(Surface::Workbench.prefix()) {
             let _ = webview.clear_all_browsing_data();
+        }
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Workspace-panel commands (main-window surface)
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub async fn browser_panel_tab_new(app: AppHandle, url: String) -> Result<BrowserTab, String> {
+    let target = normalize_input_url(&url)?;
+    let id = next_tab_id(&app);
+    tauri::async_runtime::spawn_blocking(move || add_content_tab(&app, Surface::Panel, id, &target))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub fn browser_panel_tab_activate(app: AppHandle, id: u32) -> Result<(), String> {
+    if find_webview(&app, Surface::Panel, id).is_none() {
+        return Err("tab not found".into());
+    }
+    set_active_tab(&app, Surface::Panel, id);
+    emit_tabs(&app, Surface::Panel);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn browser_panel_tab_close(app: AppHandle, id: u32) -> Result<(), String> {
+    if find_webview(&app, Surface::Panel, id).is_none() {
+        return Ok(());
+    }
+    close_tab(&app, Surface::Panel, id);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn browser_panel_tab_navigate(app: AppHandle, id: u32, url: String) -> Result<(), String> {
+    let Some(webview) = find_webview(&app, Surface::Panel, id) else {
+        return Err("tab not found".into());
+    };
+    let target = normalize_input_url(&url)?;
+    let parsed = tauri::Url::parse(&target).map_err(|error| error.to_string())?;
+    webview
+        .navigate(parsed)
+        .map_err(|error| error.to_string())?;
+    emit_tabs(&app, Surface::Panel);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn browser_panel_tab_history(app: AppHandle, id: u32, direction: String) -> Result<(), String> {
+    history(&app, Surface::Panel, id, &direction)
+}
+
+#[tauri::command]
+pub fn browser_panel_tab_list(app: AppHandle) -> Vec<BrowserTab> {
+    list_surface_tabs(&app, Surface::Panel)
+}
+
+/// The workspace panel reports its browser content rect (CSS px relative to
+/// the main window). `visible` is false whenever the panel is closed,
+/// another tab is active, or a full-screen overlay is open — the native
+/// webviews would otherwise render above the DOM.
+#[tauri::command]
+pub fn browser_panel_layout_update(
+    app: AppHandle,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    visible: bool,
+) -> Result<(), String> {
+    {
+        let state = app.state::<BrowserWorkbenchState>();
+        *state.panel_visible.lock().expect("panel visible lock") = visible;
+    }
+    let scale = app
+        .get_webview_window("main")
+        .and_then(|window| window.scale_factor().ok())
+        .unwrap_or(1.0);
+    let position = PhysicalPosition::new((x * scale) as i32, (y * scale) as i32);
+    let size = PhysicalSize::new(
+        (width * scale).max(1.0) as u32,
+        (height * scale).max(1.0) as u32,
+    );
+    for (label, webview) in app.webviews() {
+        if !label.starts_with(Surface::Panel.prefix()) {
+            continue;
+        }
+        if visible {
+            let _ = webview.set_position(position);
+            let _ = webview.set_size(size);
+        }
+    }
+    if let Some(active) = app
+        .state::<BrowserWorkbenchState>()
+        .active_tabs
+        .lock()
+        .expect("active tab lock")
+        .get(Surface::Panel.window_label())
+        .copied()
+    {
+        set_active_tab(&app, Surface::Panel, active);
+    } else {
+        for (label, webview) in app.webviews() {
+            if label.starts_with(Surface::Panel.prefix()) {
+                let _ = webview.hide();
+            }
         }
     }
     Ok(())
