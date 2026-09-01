@@ -70,6 +70,7 @@ test("captures the required responsive, theme, and language matrix", async ({ pa
     "switch-theme",
     "language",
     "skills",
+    "browser",
     ...(isDesktop(testInfo) ? ["mcp"] : []),
     "memory",
     "keyboard-shortcuts",

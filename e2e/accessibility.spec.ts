@@ -239,7 +239,7 @@ test("every reachable settings page has no serious axe violations", async ({ pag
   await seedFixture(page);
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const tabs = page.locator(".settings-nav-item");
-  const expectedCount = isDesktop(testInfo) ? 13 : 12;
+  const expectedCount = isDesktop(testInfo) ? 14 : 13;
   await expect(tabs).toHaveCount(expectedCount);
   for (let index = 0; index < expectedCount; index += 1) {
     await tabs.nth(index).click();

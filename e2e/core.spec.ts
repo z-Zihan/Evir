@@ -113,7 +113,7 @@ test("prevents Ask mode from selecting local-capability Skills", async ({ page }
     .getByRole("dialog", { name: "Choose Skills for this message" })
     .getByRole("button", { name: /File Organization/ });
   await expect(localSkill).toBeDisabled();
-  await expect(localSkill).toHaveAttribute("title", "This Skill requires Agent mode");
+  await expect(localSkill).toHaveAttribute("data-tip", "This Skill requires Agent mode");
 });
 
 test("streams a deterministic response through the production adapter", async ({ page }) => {
@@ -231,6 +231,8 @@ test("groups multi-tool activity and shows one approval surface", async ({ page 
   await configurePage(page);
   await seedFixture(page, { messages: agentMessages("approval") });
   await expect(page.locator(".agent-activity")).toHaveCount(1);
+  // Summary-first groups (§40): expand before counting per-call rows.
+  await page.locator(".tool-group-header").first().click();
   await expect(page.locator(".execution-step")).toHaveCount(3);
   await expect(page.locator(".approval-panel")).toHaveCount(1);
   await expect(page.getByRole("button", { name: /Allow once/i })).toHaveCount(1);
@@ -242,10 +244,11 @@ test("keeps dense Agent activity compact and expandable", async ({ page }, testI
   await configurePage(page);
   await seedFixture(page, { messages: agentMessages("complete") });
   const activity = page.locator(".agent-activity");
-  await expect(activity.locator(".execution-step")).toHaveCount(3);
-  await expect(activity.getByRole("button", { name: /Show 9 more/i })).toBeVisible();
-  await activity.getByRole("button", { name: /Show 9 more/i }).click();
-  await expect(activity.locator(".execution-step")).toHaveCount(12);
+  // Dense runs render collapsed summary groups; steps stay one click away.
+  await expect(activity.locator(".execution-step:visible")).toHaveCount(0);
+  await expect(activity.locator(".tool-group-header").first()).toBeVisible();
+  await activity.locator(".tool-group-header").first().click();
+  await expect(activity.locator(".execution-step").first()).toBeVisible();
   await expect(activity.locator("pre:visible")).toHaveCount(0);
 });
 
@@ -620,11 +623,12 @@ test("legacy workspace keeps project modes available without the removed selecto
   // The composer no longer selects folders; the legacy workspace still scopes modes.
   await expect(page.locator(".workspace-selector")).toHaveCount(0);
   const composer = page.locator(".composer");
-  await expect(composer.getByRole("button", { name: "Agent", exact: true })).toHaveCount(0);
-  await expect(composer.getByRole("button", { name: "Plan", exact: true })).toBeVisible();
-  await expect(composer.getByRole("button", { name: "Goal", exact: true })).toBeVisible();
+  // The CSS tooltip round merges data-tip into accessible names, so anchor
+  // the match instead of requiring an exact "Plan" name.
+  await expect(composer.getByRole("button", { name: /^Plan/ })).toBeVisible();
+  await expect(composer.getByRole("button", { name: /^Goal/ })).toBeVisible();
   await page.reload();
-  await expect(composer.getByRole("button", { name: "Agent", exact: true })).toHaveCount(0);
+  await expect(composer.getByRole("button", { name: /^Agent/ })).toHaveCount(0);
 });
 
 test("a text-only model can still chat in a project without exposing project tools", async ({
@@ -787,7 +791,7 @@ test("persisted Agent completion evidence returns after reloading a conversation
   await page.reload();
   await page.locator(".conversation-item", { hasText: "Quality verification" }).click();
   await expect(page.getByRole("heading", { name: "Agent Run Summary" })).toBeVisible();
-  await expect(page.getByText("Execution evidence", { exact: true })).toBeVisible();
+  await expect(page.getByText("Done", { exact: true })).toBeVisible();
   const assistantContent = await page.locator(".message-assistant .message-main").boundingBox();
   const evidenceCard = await page.locator(".agent-run-summary").boundingBox();
   expect(assistantContent).not.toBeNull();

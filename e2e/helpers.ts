@@ -113,7 +113,7 @@ export async function seedFixture(
   if (withConversation) {
     const conversation = page.locator(".conversation-item", { hasText: fixtureConversation.title });
     if ((await conversation.count()) === 0) {
-      await page.locator(".workspace-header .header-icon-button").click();
+      await page.locator(".workspace-header .header-icon-button").first().click();
     }
     await conversation.click();
     await expect(page.getByRole("heading", { name: fixtureConversation.title })).toBeVisible();
@@ -221,7 +221,9 @@ export function agentMessages(
 }
 
 export async function collapseSidebar(page: Page): Promise<void> {
-  const button = page.locator(".workspace-header .header-icon-button");
+  // The workspace toggle shares .header-icon-button; the sidebar control is
+  // the one without the workspace-toggle modifier.
+  const button = page.locator(".workspace-header .header-icon-button:not(.workspace-toggle)");
   await button.click();
   await expect(page.locator(".sidebar")).toHaveCount(0);
 }
