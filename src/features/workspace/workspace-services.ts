@@ -99,6 +99,7 @@ export async function resolveChangeDiff(
   change: { path: string; changeType: "added" | "modified" | "deleted" },
   root: string | null,
 ): Promise<ResolvedFileDiff> {
+  let synthesize = change.changeType === "added";
   if (root) {
     try {
       const status = await gitStatusFor(root);
@@ -106,13 +107,20 @@ export async function resolveChangeDiff(
         const relative = relativeToRoot(change.path, root);
         const diff = filterUnifiedDiffByFile(await gitDiffFor(root), relative);
         if (diff) return { diff };
-        if (change.changeType !== "added") return { diff: "", reason: "no-section" };
+        // Untracked files never appear in `git diff`, but a retried run can
+        // record them as "modified" (the snapshot saw the earlier attempt's
+        // file) — still synthesize the full-addition diff from disk.
+        if (status.entries.some((entry) => entry.status === "??" && entry.file === relative)) {
+          synthesize = true;
+        } else if (!synthesize) {
+          return { diff: "", reason: "no-section" };
+        }
       }
     } catch {
       // fall through to synthesis
     }
   }
-  if (change.changeType === "added") {
+  if (synthesize) {
     try {
       const content = await readTextFile(change.path);
       return { diff: synthesizeAddedDiff(change.path, content) };
