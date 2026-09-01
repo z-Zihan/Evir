@@ -5,6 +5,7 @@ import {
   type GitStatusResult,
 } from "../../runtime/desktop-storage-adapter";
 import { getActiveWorkspaceRoot } from "../../core/workspace/active-root";
+import { logger } from "../../core/logging/logger";
 import type { AgentRunRecord } from "../chat/agent-run-record";
 import { countDiffLines, filterUnifiedDiffByFile, synthesizeAddedDiff } from "./changes-model";
 
@@ -111,6 +112,10 @@ export async function resolveChangeDiff(
         // record them as "modified" (the snapshot saw the earlier attempt's
         // file) — still synthesize the full-addition diff from disk.
         if (status.entries.some((entry) => entry.status === "??" && entry.file === relative)) {
+          logger.info("workspace", "changes.untracked-synthesis", {
+            path: relative,
+            recordedAs: change.changeType,
+          });
           synthesize = true;
         } else if (!synthesize) {
           return { diff: "", reason: "no-section" };

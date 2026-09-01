@@ -41,6 +41,7 @@ import {
 import { useActiveWorkspaceRoot } from "../../features/workspace/workspace-bridge";
 import { useProjectStore } from "../../features/projects/project-store";
 import { useRunWorkspaceStore } from "../../features/workspace/workspace-run-store";
+import { logger } from "../../core/logging/logger";
 import { useConfirmationDialog } from "../useConfirmationDialog";
 
 function normalizeInput(input: string): string {
@@ -111,7 +112,8 @@ export function BrowserTab() {
 
   // Events are the primary channel; polling re-syncs when a push is missed
   // (listener registered late, emit raced a reload) so "starting" can never
-  // wedge the card forever.
+  // wedge the card forever. Tabs get the same treatment: a lost
+  // browser-panel-tabs event must not blank the toolbar.
   useEffect(() => {
     if (!project) return;
     let cancelled = false;
@@ -123,6 +125,11 @@ export function BrowserTab() {
           if (match) {
             setDevServer((current) => (current?.status === match.status ? current : match));
           }
+        })
+        .catch(() => undefined);
+      void panelTabList()
+        .then((next) => {
+          if (!cancelled) setTabs(next);
         })
         .catch(() => undefined);
     };
@@ -157,24 +164,62 @@ export function BrowserTab() {
     };
   }, [root]);
 
+  const lastLoggedVisible = useRef<boolean | null>(null);
   const reportLayout = useCallback((visible: boolean) => {
-    void panelLayoutUpdate({ ...layoutRef.current, visible }).catch(() => undefined);
+    void panelLayoutUpdate({ ...layoutRef.current, visible })
+      .then(() => {
+        // Rects churn every frame during a drag; log visibility flips only.
+        if (lastLoggedVisible.current !== visible) {
+          lastLoggedVisible.current = visible;
+          logger.info("workspace", "browser.layout-visibility", {
+            visible,
+            ...layoutRef.current,
+          });
+        }
+      })
+      .catch((error) => {
+        logger.error("workspace", "browser.layout-update-failed", {
+          visible,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
   }, []);
 
   // Geometry sync: report the content rect (CSS px relative to the main
   // window) so the native child webviews track resizes and tab switches.
+  // ResizeObserver alone misses pure window moves/width changes where this
+  // element keeps its size but shifts position — without the window listener
+  // the native webview stays at stale screen coordinates and floats over the
+  // thread column (observed over the composer). Window resizes hide the
+  // native layer first, then re-report the measured rect one frame later:
+  // between the two reports the old coordinates are wrong, and a visible
+  // webview at a stale rect renders above the DOM.
   useEffect(() => {
     const element = contentRef.current;
     if (!element) return;
+    let frame = 0;
     const measure = () => {
-      const rect = element.getBoundingClientRect();
-      layoutRef.current = { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
-      reportLayout(rect.width > 0 && rect.height > 0);
+      if (frame !== 0) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        const rect = element.getBoundingClientRect();
+        layoutRef.current = { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
+        reportLayout(rect.width > 0 && rect.height > 0);
+      });
+    };
+    const onWindowResize = () => {
+      reportLayout(false);
+      measure();
     };
     const observer = new ResizeObserver(measure);
     observer.observe(element);
+    window.addEventListener("resize", onWindowResize);
     measure();
-    return () => observer.disconnect();
+    return () => {
+      if (frame !== 0) cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener("resize", onWindowResize);
+    };
   }, [reportLayout]);
 
   useEffect(() => {
@@ -192,9 +237,17 @@ export function BrowserTab() {
   // ends annotate mode (one annotation per activation).
   useEffect(() => {
     if (!annotating) return;
-    const unsubscribe = subscribePanelAnnotations(() => setAnnotating(false)).catch(
-      () => undefined,
-    );
+    logger.info("workspace", "browser.annotate-enabled");
+    const unsubscribe = subscribePanelAnnotations((payload) => {
+      const annotation =
+        payload && typeof payload === "object" ? (payload as Record<string, unknown>) : undefined;
+      logger.info("workspace", "browser.annotation-received", {
+        url: typeof annotation?.url === "string" ? annotation.url : null,
+        tag: typeof annotation?.tag === "string" ? annotation.tag : null,
+        selector: typeof annotation?.selector === "string" ? annotation.selector : null,
+      });
+      setAnnotating(false);
+    }).catch(() => undefined);
     return () => {
       void unsubscribe?.then((fn) => fn?.());
       void panelAnnotate(false).catch(() => undefined);
@@ -204,6 +257,7 @@ export function BrowserTab() {
   const navigate = (url: string) => {
     const target = normalizeInput(url);
     if (!target) return;
+    logger.info("workspace", "browser.navigate", { target });
     if (activeTab) {
       void panelTabNavigate(activeTab.id, target);
     } else {
@@ -247,7 +301,10 @@ export function BrowserTab() {
         args: devPlan.args,
         workspaceRoot: root,
       });
-      setDevServer(state);
+      // The invoke resolves with the Starting snapshot; the ready event often
+      // lands first, and overwriting it here would flip the card back to
+      // "starting" after readiness was already shown.
+      setDevServer((current) => (current?.status === "ready" ? current : state));
     } catch (error) {
       setDevError(String(error));
     } finally {

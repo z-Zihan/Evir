@@ -529,6 +529,12 @@ pub fn browser_panel_layout_update(
         if visible {
             let _ = webview.set_position(position);
             let _ = webview.set_size(size);
+            let _ = webview.show();
+        } else {
+            // Hidden state must be explicit: the native layer renders above
+            // every DOM element, so "keep the old rect" would leave a ghost
+            // page floating over whatever moved underneath it.
+            let _ = webview.hide();
         }
     }
     if let Some(active) = app

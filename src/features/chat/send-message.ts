@@ -77,13 +77,15 @@ export async function sendChatMessage(
   // Flip the busy flag synchronously, BEFORE the first await: agent/goal
   // preparation runs two LLM round trips before beginConversationStream fires,
   // and without this window a second send starts a concurrent run.
+  const epoch = get().streamEpoch;
   set({ isStreaming: true });
   try {
-    await sendChatMessageInner(set, get, text, provider);
+    await sendChatMessageInner(set, get, text, provider, epoch);
   } catch (error) {
     // Pre-acceptance failure: the user message never reached the conversation,
     // so the caller must keep the draft on screen instead of silently
     // discarding it.
+    if (get().streamEpoch !== epoch) return false;
     logger.error("provider", "chat.send-failed", {
       conversationId: get().currentConversationId,
       error: error instanceof Error ? error.message : String(error),
@@ -109,6 +111,7 @@ async function sendChatMessageInner(
   get: ChatStoreGet,
   text: string,
   provider: ProviderRecord,
+  epoch: number,
 ): Promise<void> {
   const attachments = get().pendingAttachments;
   const selectedSkillIds = new Set(get().selectedSkillIds);
@@ -213,6 +216,9 @@ async function sendChatMessageInner(
         planner: new ModelPlanGenerator(provider),
       });
     } catch {
+      // A user-initiated stop aborts the intake/planner request mid-flight;
+      // that is not a preparation failure and must not surface an error.
+      if (get().streamEpoch !== epoch) return;
       set({ error: "orchestration.preparationFailed" });
       return;
     }
@@ -223,6 +229,9 @@ async function sendChatMessageInner(
     preparation === "confirmation"
   )
     return;
+  // Stop pressed while preparation was finishing: do not open the stream —
+  // otherwise the streaming spinner reappears after the user pressed stop.
+  if (get().streamEpoch !== epoch) return;
   if (preparation === "ready") {
     await executePreparedStream(set, get, nextHistory, conversationId, selectedSkillIds);
     return;

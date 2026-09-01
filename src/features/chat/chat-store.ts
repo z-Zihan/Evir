@@ -31,6 +31,8 @@ import {
   updateConversationProvider as doUpdateConversationProvider,
 } from "./conversation-ops";
 import { getStructuredStorage } from "../../runtime/structured-storage";
+import { cancelTaskPreparation } from "../orchestration/orchestration-session";
+import { logger } from "../../core/logging/logger";
 import type { AgentRunRecord } from "./agent-run-record";
 import { useSkillStore } from "../skills/skill-store";
 export interface ChatState {
@@ -41,6 +43,8 @@ export interface ChatState {
   isStreaming: boolean;
   activeStreamConversationId: string | null;
   activeStreamStartedAt: number | null;
+  /** Incremented on every stop so in-flight preparation sends can detect cancellation. */
+  streamEpoch: number;
   streamingContent: string;
   error: string | null;
   pendingAttachments: ProcessedAttachment[];
@@ -89,6 +93,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isStreaming: false,
   activeStreamConversationId: null,
   activeStreamStartedAt: null,
+  streamEpoch: 0,
   streamingContent: "",
   error: null,
   pendingAttachments: [],
@@ -267,8 +272,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
   stopGeneration: () => {
-    const { pendingToolApproval, privateSession } = get();
+    const { pendingToolApproval, privateSession, currentConversationId } = get();
+    logger.info("stream", "stream.stop-requested", {
+      conversationId: currentConversationId,
+      phase: get().activeStreamConversationId ? "streaming" : "preparing",
+    });
     stopActiveStream();
+    // Cancellation must also reach the agent/goal preparation pipeline: its
+    // intake/plan round trips run before any stream slot opens, so without
+    // this marker a finished preparation would just start the next stream
+    // and the spinner would come back after the user pressed stop.
+    if (currentConversationId) cancelTaskPreparation(currentConversationId);
     void getRuntime().storage?.cancelActiveCommands();
     void cancelPendingToolApprovals(pendingToolApproval, privateSession);
     set({
@@ -276,6 +290,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       isStreaming: false,
       activeStreamConversationId: null,
       activeStreamStartedAt: null,
+      streamEpoch: get().streamEpoch + 1,
       streamingContent: "",
     });
   },

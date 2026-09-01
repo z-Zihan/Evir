@@ -26,6 +26,7 @@ import { useActiveWorkspaceRoot } from "../../features/workspace/workspace-bridg
 import { normalizeFenceLanguage, previewRegistry } from "../../features/preview/preview-registry";
 import { ArtifactPreview } from "../../features/preview/ArtifactPreview";
 import { isHighlightable, useShikiHighlight } from "../../features/preview/use-shiki";
+import { logger } from "../../core/logging/logger";
 import type { WorkspaceResource } from "../../features/workspace/resource-model";
 import type { PreviewRendererId } from "../../features/preview/types";
 import type { ChangeEntry } from "../../features/workspace/changes-model";
@@ -196,10 +197,20 @@ function useResolvedResource(
       if (value === null) return;
       const maybeError = value as ResolvedContent & { error?: string };
       if (typeof maybeError.error === "string") {
+        logger.error("workspace", "panel.resource-resolve-failed", {
+          kind: resource.kind,
+          message: maybeError.error,
+        });
         setState({ phase: "error", message: maybeError.error });
         setContent(null);
         return;
       }
+      logger.info("workspace", "panel.resource-resolved", {
+        kind: resource.kind,
+        rendererId: value.rendererId ?? null,
+        diffReason: value.diffReason ?? null,
+        textLength: value.text?.length ?? 0,
+      });
       setContent(value);
       setState({ phase: "ready" });
     });

@@ -241,7 +241,11 @@ export function ChatView({
   const contextResource = useWorkspacePanelStore((state) =>
     state.open && state.activeTab === "preview" ? state.activeResource : null,
   );
-  const contextBrowserUrl = useWorkspacePanelStore((state) => state.browserContextUrl);
+  // Only surface the browser chip while the browser tab is actually on
+  // screen; the URL otherwise lingers above the composer after closing.
+  const contextBrowserUrl = useWorkspacePanelStore((state) =>
+    state.open && state.activeTab === "browser" ? state.browserContextUrl : null,
+  );
   const getDefaultProvider = useProviderStore((state) => state.getDefaultProvider);
   const switchProvider = useProviderStore((state) => state.switchProvider);
   const providers = useProviderStore((state) => state.providers);

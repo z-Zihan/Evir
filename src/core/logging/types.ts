@@ -19,6 +19,7 @@ export type LogChannel =
   | "computer-use"
   | "storage"
   | "artifact"
+  | "workspace"
   | "notification"
   | "shortcut"
   | "usage"

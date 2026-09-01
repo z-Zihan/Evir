@@ -540,3 +540,21 @@ describe("sendMessage draft-preservation contract (K)", () => {
     );
   });
 });
+
+describe("stopGeneration cancellation wiring", () => {
+  it("cancels an in-progress task preparation and bumps the stream epoch", async () => {
+    const orchestration = await import("../../orchestration/orchestration-session");
+    const cancelSpy = vi.spyOn(orchestration, "cancelTaskPreparation");
+    try {
+      await useChatStore.getState().createConversation(provider.id, provider.modelId, null);
+      const conversationId = useChatStore.getState().currentConversationId;
+      useChatStore.setState({ isStreaming: true });
+      useChatStore.getState().stopGeneration();
+      expect(cancelSpy).toHaveBeenCalledWith(conversationId);
+      expect(useChatStore.getState().isStreaming).toBe(false);
+      expect(useChatStore.getState().streamEpoch).toBeGreaterThan(0);
+    } finally {
+      cancelSpy.mockRestore();
+    }
+  });
+});

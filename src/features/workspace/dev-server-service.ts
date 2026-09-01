@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { readTextFile, statFile } from "./workspace-services";
+import { logger } from "../../core/logging/logger";
 
 /**
  * Dev-server lifecycle service. Starting a dev server always follows
@@ -112,5 +113,16 @@ export function devServerList(): Promise<DevServerState[]> {
 export function subscribeDevServerStatus(
   handler: (state: DevServerState) => void,
 ): Promise<() => void> {
-  return listen<DevServerState>("dev-server-status", (event) => handler(event.payload));
+  return listen<DevServerState>("dev-server-status", (event) => {
+    const state = event.payload;
+    logger.info("workspace", "dev-server.status", {
+      projectId: state.projectId,
+      status: state.status,
+      port: state.port,
+      url: state.url,
+      pid: state.pid,
+      lastError: state.lastError,
+    });
+    handler(state);
+  });
 }

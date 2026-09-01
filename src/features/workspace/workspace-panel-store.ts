@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { workspaceResourceKey, type WorkspaceResource } from "./resource-model";
+import { logger } from "../../core/logging/logger";
 
 /**
  * UI state for the workspace panel. Deliberately separate from agent/domain
@@ -105,18 +106,28 @@ export const useWorkspacePanelStore = create<WorkspacePanelState>((set, get) => 
   browserContextUrl: null,
   conversationSnapshots: {},
 
-  openPanel: (tab) =>
-    set((state) => ({ open: true, ...(tab && tab !== state.activeTab ? { activeTab: tab } : {}) })),
-  closePanel: () => set({ open: false }),
+  openPanel: (tab) => {
+    set((state) => ({ open: true, ...(tab && tab !== state.activeTab ? { activeTab: tab } : {}) }));
+    logger.info("workspace", "panel.open", { tab: get().activeTab });
+  },
+  closePanel: () => {
+    set({ open: false });
+    logger.info("workspace", "panel.close", { activeTab: get().activeTab });
+  },
   togglePanel: (tab) => {
     const state = get();
     if (state.open && (!tab || tab === state.activeTab)) {
       set({ open: false });
+      logger.info("workspace", "panel.close", { activeTab: state.activeTab });
       return;
     }
     set({ open: true, ...(tab ? { activeTab: tab } : {}) });
+    logger.info("workspace", "panel.open", { tab: get().activeTab });
   },
-  setTab: (tab) => set({ activeTab: tab }),
+  setTab: (tab) => {
+    if (get().activeTab !== tab) logger.info("workspace", "panel.tab", { tab });
+    set({ activeTab: tab });
+  },
   setWidth: (width) => {
     const clamped = clampWidth(width);
     if (typeof window !== "undefined") {
@@ -135,6 +146,11 @@ export const useWorkspacePanelStore = create<WorkspacePanelState>((set, get) => 
         current && workspaceResourceKey(current) === key
           ? state.history
           : [...state.history.slice(0, state.historyIndex + 1), resource].slice(-50);
+      logger.info("workspace", "panel.resource-open", {
+        kind: resource.kind,
+        key,
+        viewMode: options?.viewMode ?? "preview",
+      });
       return {
         open: true,
         activeTab: "preview",

@@ -8,7 +8,7 @@ function resolveTheme(theme: Theme): ResolvedTheme {
   return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
-function applyTheme(theme: Theme) {
+function applyTheme(theme: Theme): ResolvedTheme {
   const resolved = resolveTheme(theme);
   document.documentElement.classList.toggle("dark", resolved === "dark");
   document.documentElement.dataset.theme = theme;
@@ -35,3 +35,18 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
     get().setTheme(next);
   },
 }));
+
+// "system" must track OS appearance changes live: without this listener the
+// resolved theme only updates after an app restart.
+const systemThemeMedia = matchMedia("(prefers-color-scheme: dark)");
+const syncSystemTheme = () => {
+  const { theme } = useThemeStore.getState();
+  if (theme === "system") {
+    useThemeStore.setState({ resolvedTheme: applyTheme("system") });
+  }
+};
+if (typeof systemThemeMedia.addEventListener === "function") {
+  systemThemeMedia.addEventListener("change", syncSystemTheme);
+} else {
+  systemThemeMedia.addListener(syncSystemTheme);
+}
