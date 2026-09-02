@@ -79,7 +79,6 @@ export {
   ToolbarSeparator,
   ToolbarGroup,
 } from "./toolbar";
-export { Toaster } from "./sonner";
 export { ResizableGroup, ResizablePanel, ResizableHandle, useDefaultLayout } from "./resizable";
 export {
   Item,

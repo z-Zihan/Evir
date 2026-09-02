@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useProviderStore } from "../features/provider/provider-store";
 import { useUsageStore } from "../features/usage/usage-store";
 import { Sidebar } from "./Sidebar";
 import { ChatView } from "./ChatView";
-import { SettingsModal, type SettingsTab } from "./SettingsModal";
+const SettingsModal = lazy(() =>
+  import("./SettingsModal").then((m) => ({ default: m.SettingsModal })),
+);
+import type { SettingsTab } from "./SettingsModal";
 import { useShortcuts } from "./useShortcuts";
 import { ShortcutHelpOverlay } from "./ShortcutHelpOverlay";
 import { WorkspacePanel } from "./workspace/WorkspacePanel";

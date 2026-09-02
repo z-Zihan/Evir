@@ -16,7 +16,12 @@ import { gzipSync } from "node:zlib";
 
 const KIB = 1024;
 const MIB = 1024 * KIB;
-const WEB_INITIAL_JS_GZIP_BUDGET = 350 * KIB;
+// Raised 350→420 KiB (2026-09-03, UI System round): the shell now carries the
+// Base UI headless primitive foundation + react-resizable-panels adopted by
+// docs/AGENTS.md §3/§25. Pre-migration baseline was 325.6 KiB. Heavy/optional
+// surfaces (settings modal, task workbench, sonner, preview renderers) stay in
+// async chunks; the remainder is the irreducible startup primitive cost.
+const WEB_INITIAL_JS_GZIP_BUDGET = 420 * KIB;
 const DESKTOP_FRONTEND_TOTAL_BUDGET = 15 * MIB;
 const DESKTOP_INSTALLER_TARGET = 120 * MIB;
 const DESKTOP_INSTALLER_WARNING = 180 * MIB;
