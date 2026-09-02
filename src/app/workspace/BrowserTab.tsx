@@ -409,7 +409,13 @@ export function BrowserTab() {
             size="icon-xs"
             className="disabled:opacity-35"
             disabled={!tabs.length}
-            onClick={() => void panelTabNew("about:blank").then(() => panelTabList().then(setTabs))}
+            onClick={() => {
+              logger.info("ui", "ui.browser.open", {
+                actionId: crypto.randomUUID(),
+                browserSessionId: "new-tab",
+              });
+              void panelTabNew("about:blank").then(() => panelTabList().then(setTabs));
+            }}
             aria-label={t("workspace.newTab")}
           >
             <Plus size={14} aria-hidden="true" />

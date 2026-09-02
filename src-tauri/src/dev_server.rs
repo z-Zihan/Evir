@@ -40,6 +40,9 @@ pub struct DevServerRecord {
     pub port: Option<u16>,
     pub url: Option<String>,
     pub started_at: u64,
+    /// Exit code when the process has ended (None while running or when
+    /// terminated by a signal); drives the App Preview failure UI.
+    pub exit_code: Option<i32>,
     /// Rolling tail of recent output lines for diagnostics.
     pub last_output: Vec<String>,
 }
@@ -189,6 +192,7 @@ fn spawn_watchers(app: AppHandle, project_id: String, child: Child, pgid: i32) {
                         } else {
                             DevStatus::Crashed
                         };
+                        updated.exit_code = status.code();
                         Some(updated)
                     }
                 };
@@ -351,6 +355,7 @@ pub async fn dev_server_start(
         port: None,
         url: None,
         started_at: now_millis(),
+        exit_code: None,
         last_output: Vec::new(),
     };
     {
@@ -496,6 +501,7 @@ mod tests {
             port: None,
             url: None,
             started_at: 123,
+            exit_code: None,
             last_output: vec!["out: starting".into()],
         };
         let value = serde_json::to_value(record).expect("serialize dev server record");

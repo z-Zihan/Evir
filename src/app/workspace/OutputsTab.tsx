@@ -5,6 +5,7 @@ import { Tip } from "../../components/ui";
 import { useRunWorkspaceStore } from "../../features/workspace/workspace-run-store";
 import { useWorkspacePanelStore } from "../../features/workspace/workspace-panel-store";
 import { useActiveWorkspaceRoot } from "../../features/workspace/workspace-bridge";
+import { logger } from "../../core/logging/logger";
 import {
   relativeToRoot,
   resolveWorkspacePath,
@@ -58,14 +59,25 @@ function formatSize(bytes: number | undefined): string | null {
 
 function openOutputResource(output: TaskOutput, root: string | null) {
   const { openResource } = useWorkspacePanelStore.getState();
+  const withEvent = <R,>(open: (resource: R) => void, resource: R): void => {
+    logger.info("ui", "ui.output.open", {
+      actionId: crypto.randomUUID(),
+      resourceId: JSON.stringify(resource).slice(0, 120),
+    });
+    open(resource);
+  };
   if (output.kind === "screenshot") {
     const label = output.path.split("/").pop();
-    openResource({ kind: "screenshot", path: output.path, ...(label ? { label } : {}) });
+    withEvent(openResource, {
+      kind: "screenshot" as const,
+      path: output.path,
+      ...(label ? { label } : {}),
+    });
     return;
   }
   const path = resolveWorkspacePath(output.path, root);
   if (!path) return;
-  openResource({
+  withEvent(openResource, {
     kind: "file",
     path,
     ...(output.mimeType ? { mimeType: output.mimeType } : {}),

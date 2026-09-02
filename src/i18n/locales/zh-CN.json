@@ -41,8 +41,10 @@
     "statusRunning": "运行中",
     "statusPreparing": "准备中",
     "statusApproval": "待审批",
+    "statusWaitingUser": "需要输入",
     "statusFailed": "失败",
-    "statusUnread": "新结果"
+    "statusUnread": "新结果",
+    "statusStopped": "已停止"
   },
   "confirmation": {
     "deleteTitle": "确认删除？",
@@ -692,7 +694,7 @@
     "title": "工作区",
     "changes": "变更",
     "files": "文件",
-    "preview": "预览",
+    "preview": "预览文件",
     "browser": "浏览器",
     "close": "关闭工作区",
     "open": "打开工作区",
@@ -743,7 +745,11 @@
       "crashedHint": "项目预览进程已退出，请检查开发脚本后重试。",
       "retry": "重试",
       "confirmTitle": "启动开发服务器",
-      "confirmDescription": "将在项目目录执行：{{command}}（目录：{{cwd}}）。该进程由 Evir 管理，应用退出时会一并停止。"
+      "confirmDescription": "将在项目目录执行：{{command}}（目录：{{cwd}}）。该进程由 Evir 管理，应用退出时会一并停止。",
+      "command": "启动命令",
+      "exitCode": "退出码",
+      "viewLogs": "查看日志",
+      "hideLogs": "收起日志"
     },
     "annotate": "标注页面元素",
     "annotation": {
@@ -1076,7 +1082,7 @@
     "expand": "展开",
     "showMore": "内容较大，点击展开",
     "codeTab": "代码",
-    "previewTab": "预览",
+    "previewTab": "渲染",
     "viewMode": "查看方式",
     "collapse": "收起",
     "loading": "加载中…",
@@ -1155,5 +1161,10 @@
     "retry": "重试",
     "agentUsingPage": "Agent 正在使用页面",
     "networkFailedDetail": "网络错误，无法访问：{{url}}。请检查地址与网络后重试。"
+  },
+  "toast": {
+    "runCompleted": "任务已完成",
+    "runFailed": "任务失败",
+    "approvalRequired": "等待你的审批"
   }
 }

@@ -1,3 +1,4 @@
+import { logger } from "../core/logging/logger";
 import { memo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pencil, Pin, Trash2 } from "lucide-react";
@@ -22,7 +23,9 @@ const STATUS_LABEL_KEY: Record<ConversationRunStatus, string> = {
   preparing: "sidebar.statusPreparing",
   streaming: "sidebar.statusRunning",
   approval: "sidebar.statusApproval",
+  "waiting-user": "sidebar.statusWaitingUser",
   failed: "sidebar.statusFailed",
+  stopped: "sidebar.statusStopped",
   unread: "sidebar.statusUnread",
 };
 
@@ -33,7 +36,11 @@ const STATUS_LABEL_KEY: Record<ConversationRunStatus, string> = {
 function StatusMark({ status }: { status: ConversationRunStatus }) {
   const { t } = useTranslation();
   const labelKey = STATUS_LABEL_KEY[status];
-  const showLabel = status === "preparing" || status === "streaming" || status === "approval";
+  const showLabel =
+    status === "preparing" ||
+    status === "streaming" ||
+    status === "approval" ||
+    status === "waiting-user";
   return (
     <span className={`conversation-status conversation-status-${status}`}>
       <span className="conversation-status-dot" aria-hidden="true" />
@@ -66,7 +73,13 @@ export const SidebarConversationItem = memo(function SidebarConversationItem({
     <div
       className={`conversation-item group${variant === "thread" ? " project-thread" : ""}${isActive ? " active" : ""}${conversation.pinned ? " pinned" : ""}${status === "streaming" || status === "preparing" ? " has-live-run" : ""}`}
       onClick={() => {
-        if (!renaming) onSelect();
+        if (!renaming) {
+          logger.info("ui", "ui.sidebar.task-open", {
+            actionId: crypto.randomUUID(),
+            conversationId: conversation.id,
+          });
+          onSelect();
+        }
       }}
       onDoubleClick={() => {
         setRenaming(true);

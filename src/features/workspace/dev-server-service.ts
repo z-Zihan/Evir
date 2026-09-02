@@ -21,6 +21,8 @@ export interface DevServerState {
   url: string | null;
   pid: number | null;
   startedAt: number;
+  /** Process exit code once ended (None while running / signal-terminated). */
+  exitCode: number | null;
   lastOutput: string[];
 }
 

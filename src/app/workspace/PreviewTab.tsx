@@ -221,6 +221,15 @@ function useResolvedResource(
         diffReason: value.diffReason ?? null,
         textLength: value.text?.length ?? 0,
       });
+      logger.info("ui", "ui.preview.open", {
+        actionId: crypto.randomUUID(),
+        resourceId:
+          "path" in resource
+            ? resource.path
+            : "url" in resource
+              ? resource.url
+              : String(resource.kind),
+      });
       setContent(value);
       setState({ phase: "ready" });
     });
@@ -258,7 +267,11 @@ function ResourceEmpty() {
 
   const controller = useDevServerUi();
   const failure = devServerFailureText(controller, t("workspace.devServer.crashedHint"));
-  const beginStart = () => {
+  const beginStart = (retry: boolean) => {
+    logger.info("ui", retry ? "ui.app-preview.retry" : "ui.app-preview.start", {
+      actionId: crypto.randomUUID(),
+      projectId: project?.id,
+    });
     if (!project) return;
     if (project.permissionProfile === "ask") {
       requestDevServerConfirmation(
@@ -274,6 +287,13 @@ function ResourceEmpty() {
     }
     void controller.start();
   };
+  // Full §17 failure payload: command, exit code, and the process output tail.
+  const crashed = controller.server?.status === "crashed";
+  const failureCommand = controller.server
+    ? `${controller.server.program} ${controller.server.args.join(" ")}`
+    : null;
+  const failureExitCode = controller.server?.exitCode ?? null;
+  const failureLogs = crashed ? (controller.server?.lastOutput ?? []) : [];
 
   return (
     <div className="workspace-preview-empty">
@@ -305,6 +325,24 @@ function ResourceEmpty() {
               <p className="app-preview-state">{t("workspace.previewApp.noScript")}</p>
             )}
             {failure && <p className="app-preview-failure">{failure}</p>}
+            {crashed && failureCommand && (
+              <div className="app-preview-failure-detail">
+                <p>
+                  {t("workspace.devServer.command")}: <code>{failureCommand}</code>
+                </p>
+                {failureExitCode !== null && (
+                  <p>
+                    {t("workspace.devServer.exitCode")}: <code>{failureExitCode}</code>
+                  </p>
+                )}
+                {failureLogs.length > 0 && (
+                  <details>
+                    <summary>{t("workspace.devServer.viewLogs")}</summary>
+                    <pre>{failureLogs.slice(-10).join("\n")}</pre>
+                  </details>
+                )}
+              </div>
+            )}
           </div>
           <div className="app-preview-actions">
             {controller.active ? (
@@ -318,7 +356,7 @@ function ResourceEmpty() {
                   variant="primary"
                   size="lg"
                   disabled={controller.starting}
-                  onClick={beginStart}
+                  onClick={() => beginStart(false)}
                 >
                   {controller.starting ? (
                     <LoaderCircle size={13} className="spin" aria-hidden="true" />
@@ -336,7 +374,7 @@ function ResourceEmpty() {
                 variant="secondary"
                 size="lg"
                 disabled={controller.starting}
-                onClick={beginStart}
+                onClick={() => beginStart(true)}
               >
                 {t("workspace.devServer.retry")}
               </Button>

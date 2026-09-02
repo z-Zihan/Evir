@@ -41,8 +41,10 @@
     "statusRunning": "Running",
     "statusPreparing": "Preparing",
     "statusApproval": "Approval",
+    "statusWaitingUser": "Needs input",
     "statusFailed": "Failed",
-    "statusUnread": "New result"
+    "statusUnread": "New result",
+    "statusStopped": "Stopped"
   },
   "confirmation": {
     "deleteTitle": "Delete this item?",
@@ -692,7 +694,7 @@
     "title": "Workspace",
     "changes": "Changes",
     "files": "Files",
-    "preview": "Preview",
+    "preview": "File Preview",
     "browser": "Browser",
     "close": "Close workspace",
     "open": "Open workspace",
@@ -743,7 +745,11 @@
       "crashedHint": "The project preview process exited. Check the dev script and retry.",
       "retry": "Retry",
       "confirmTitle": "Start dev server",
-      "confirmDescription": "Evir will run {{command}} in {{cwd}}. The process is managed by Evir and stops when the app exits."
+      "confirmDescription": "Evir will run {{command}} in {{cwd}}. The process is managed by Evir and stops when the app exits.",
+      "command": "Command",
+      "exitCode": "Exit code",
+      "viewLogs": "View logs",
+      "hideLogs": "Hide logs"
     },
     "annotate": "Annotate page element",
     "annotation": {
@@ -1076,7 +1082,7 @@
     "expand": "Expand",
     "showMore": "Content is large — click to expand",
     "codeTab": "Code",
-    "previewTab": "Preview",
+    "previewTab": "Rendered",
     "viewMode": "View mode",
     "collapse": "Collapse",
     "loading": "Loading…",
@@ -1155,5 +1161,10 @@
     "retry": "Retry",
     "agentUsingPage": "Agent using page",
     "networkFailedDetail": "Network error, unreachable: {{url}}. Check the address and your connection, then retry."
+  },
+  "toast": {
+    "runCompleted": "Task completed",
+    "runFailed": "Task failed",
+    "approvalRequired": "Waiting for your approval"
   }
 }
