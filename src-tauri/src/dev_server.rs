@@ -316,6 +316,16 @@ pub async fn dev_server_start(
     command
         .args(&args)
         .current_dir(&validated)
+        .env(
+            // pnpm >=10 runs a dependency-status check (verify-deps-before-run)
+            // before executing scripts; in Evir's non-TTY child environment that
+            // check can trigger an implicit `pnpm install` which fails (e.g. on
+            // un-approved build scripts) and kills the dev server before it
+            // ever binds. Starting a preview must never mutate the user's
+            // node_modules — disable the pre-run check.
+            "npm_config_verify_deps_before_run",
+            "false",
+        )
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
