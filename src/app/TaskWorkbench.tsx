@@ -16,7 +16,7 @@ import {
   X,
   XCircle,
 } from "lucide-react";
-import { Button } from "../components/ui";
+import { Button, Tip } from "../components/ui";
 import { getRuntime } from "../runtime/use-runtime";
 import { useChatStore } from "../features/chat/chat-store";
 import {
@@ -134,17 +134,18 @@ function EditableStep({ node }: { node: PlanNode }) {
         )}
       </div>
       {node.status === "pending" && !editing && (
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          type="button"
-          className="task-icon-button"
-          onClick={() => setEditing(true)}
-          aria-label={t("orchestration.editStep")}
-          data-tip={t("orchestration.editStep")}
-        >
-          <Pencil size={13} />
-        </Button>
+        <Tip content={t("orchestration.editStep")}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            type="button"
+            className="task-icon-button"
+            onClick={() => setEditing(true)}
+            aria-label={t("orchestration.editStep")}
+          >
+            <Pencil size={13} />
+          </Button>
+        </Tip>
       )}
     </li>
   );
@@ -243,21 +244,22 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
             <span>{t(`orchestration.preparing.${preparationKey}Description`)}</span>
             {elapsedSeconds >= 15 && <small>{t("orchestration.preparing.slow")}</small>}
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="task-preparation-stop font-normal"
-            onClick={() => {
-              stopGeneration();
-              cancelTaskPreparation(preparing.conversationId);
-            }}
-            aria-label={t("orchestration.stop")}
-            data-tip={t("orchestration.stop")}
-          >
-            <X size={14} aria-hidden="true" />
-            <span>{t("chat.stop")}</span>
-          </Button>
+          <Tip content={t("orchestration.stop")}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="task-preparation-stop font-normal"
+              onClick={() => {
+                stopGeneration();
+                cancelTaskPreparation(preparing.conversationId);
+              }}
+              aria-label={t("orchestration.stop")}
+            >
+              <X size={14} aria-hidden="true" />
+              <span>{t("chat.stop")}</span>
+            </Button>
+          </Tip>
         </div>
       </section>
     );
@@ -341,7 +343,9 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
                     <span>{result.label}</span>
                     {result.status === "manual" && <small>{t("goal.manualCondition")}</small>}
                     {result.status === "failed" && result.evidence && (
-                      <small data-tip={result.evidence}>{t("goal.conditionFailed")}</small>
+                      <Tip content={result.evidence}>
+                        <small>{t("goal.conditionFailed")}</small>
+                      </Tip>
                     )}
                   </li>
                 ))
@@ -382,7 +386,7 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
               size="lg"
               className="secondary-button"
               disabled={!projectRootForPreference}
-              data-tip={!projectRootForPreference ? t("preference.noProject") : undefined}
+              aria-label={!projectRootForPreference ? t("preference.noProject") : undefined}
               onClick={() => void savePreference("project")}
             >
               {t("preference.rememberProject")}
@@ -476,26 +480,29 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
             </Button>
           )}
           {finished && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="task-icon-button"
-              aria-expanded={showFinishedDetails}
-              aria-label={t(
+            <Tip
+              content={t(
                 showFinishedDetails ? "orchestration.hideDetails" : "orchestration.showDetails",
               )}
-              data-tip={t(
-                showFinishedDetails ? "orchestration.hideDetails" : "orchestration.showDetails",
-              )}
-              onClick={() => setShowFinishedDetails((value) => !value)}
             >
-              <ChevronRight
-                className={showFinishedDetails ? "task-details-chevron-open" : ""}
-                size={14}
-                aria-hidden="true"
-              />
-            </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="task-icon-button"
+                aria-expanded={showFinishedDetails}
+                aria-label={t(
+                  showFinishedDetails ? "orchestration.hideDetails" : "orchestration.showDetails",
+                )}
+                onClick={() => setShowFinishedDetails((value) => !value)}
+              >
+                <ChevronRight
+                  className={showFinishedDetails ? "task-details-chevron-open" : ""}
+                  size={14}
+                  aria-hidden="true"
+                />
+              </Button>
+            </Tip>
           )}
         </div>
       </header>

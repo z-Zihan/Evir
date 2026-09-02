@@ -114,7 +114,7 @@ test("prevents Ask mode from selecting local-capability Skills", async ({ page }
     .getByRole("dialog", { name: "Choose Skills for this message" })
     .getByRole("button", { name: /File Organization/ });
   await expect(localSkill).toBeDisabled();
-  await expect(localSkill).toHaveAttribute("data-tip", "This Skill requires Agent mode");
+  await expect(localSkill).toHaveAttribute("aria-label", "This Skill requires Agent mode");
 });
 
 test("streams a deterministic response through the production adapter", async ({ page }) => {

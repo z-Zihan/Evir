@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight, File, Folder } from "lucide-react";
+import { Tip } from "../../components/ui";
 import type { FileInfo } from "../../runtime/desktop-storage-adapter";
 import { useFilesTabStore } from "../../features/workspace/files-tab-store";
 import { relativeToRoot } from "../../features/workspace/workspace-services";
@@ -50,23 +51,24 @@ const DirectoryNode = memo(function DirectoryNode({
 
   return (
     <li className="file-tree-node" role="none">
-      <button
-        type="button"
-        className="file-tree-row file-tree-dir"
-        role="treeitem"
-        aria-expanded={expanded}
-        style={{ "--tree-depth": depth } as React.CSSProperties}
-        onClick={() => toggleDir(entry.path)}
-        data-tip={entry.path}
-      >
-        <span className="file-tree-chevron" aria-hidden="true">
-          {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-        </span>
-        <span className="file-tree-icon" aria-hidden="true">
-          <Folder size={14} />
-        </span>
-        <span className="file-tree-name">{entry.name}</span>
-      </button>
+      <Tip content={entry.path}>
+        <button
+          type="button"
+          className="file-tree-row file-tree-dir"
+          role="treeitem"
+          aria-expanded={expanded}
+          style={{ "--tree-depth": depth } as React.CSSProperties}
+          onClick={() => toggleDir(entry.path)}
+        >
+          <span className="file-tree-chevron" aria-hidden="true">
+            {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+          </span>
+          <span className="file-tree-icon" aria-hidden="true">
+            <Folder size={14} />
+          </span>
+          <span className="file-tree-name">{entry.name}</span>
+        </button>
+      </Tip>
       {expanded && (
         <ul className="file-tree-children" role="group">
           {loading && !cached && <li className="file-tree-hint">{t("workspace.loading")}</li>}
@@ -82,28 +84,29 @@ const DirectoryNode = memo(function DirectoryNode({
               />
             ) : (
               <li key={child.path} className="file-tree-node" role="none">
-                <button
-                  type="button"
-                  className={`file-tree-row file-tree-file${activePath === child.path ? " active" : ""}`}
-                  role="treeitem"
-                  aria-selected={activePath === child.path}
-                  style={{ "--tree-depth": depth + 1 } as React.CSSProperties}
-                  onClick={() => onOpenFile(child.path)}
-                  data-tip={child.path}
-                >
-                  <span className="file-tree-chevron invisible" aria-hidden="true" />
-                  <span className="file-tree-icon" aria-hidden="true">
-                    <File size={14} />
-                  </span>
-                  <span className="file-tree-name">{child.name}</span>
-                  {gitStatus[relativeToRoot(child.path, root)] && (
-                    <span
-                      className={`file-tree-status ${statusLetterClass(gitStatus[relativeToRoot(child.path, root)])}`}
-                    >
-                      {gitStatus[relativeToRoot(child.path, root)]}
+                <Tip content={child.path}>
+                  <button
+                    type="button"
+                    className={`file-tree-row file-tree-file${activePath === child.path ? " active" : ""}`}
+                    role="treeitem"
+                    aria-selected={activePath === child.path}
+                    style={{ "--tree-depth": depth + 1 } as React.CSSProperties}
+                    onClick={() => onOpenFile(child.path)}
+                  >
+                    <span className="file-tree-chevron invisible" aria-hidden="true" />
+                    <span className="file-tree-icon" aria-hidden="true">
+                      <File size={14} />
                     </span>
-                  )}
-                </button>
+                    <span className="file-tree-name">{child.name}</span>
+                    {gitStatus[relativeToRoot(child.path, root)] && (
+                      <span
+                        className={`file-tree-status ${statusLetterClass(gitStatus[relativeToRoot(child.path, root)])}`}
+                      >
+                        {gitStatus[relativeToRoot(child.path, root)]}
+                      </span>
+                    )}
+                  </button>
+                </Tip>
               </li>
             ),
           )}
@@ -137,21 +140,22 @@ export function FileTree({ root, onOpenFile, activePath }: FileTreeProps) {
           />
         ) : (
           <li key={entry.path} className="file-tree-node" role="none">
-            <button
-              type="button"
-              className={`file-tree-row file-tree-file${activePath === entry.path ? " active" : ""}`}
-              role="treeitem"
-              aria-selected={activePath === entry.path}
-              style={{ "--tree-depth": 0 } as React.CSSProperties}
-              onClick={() => onOpenFile(entry.path)}
-              data-tip={entry.path}
-            >
-              <span className="file-tree-chevron invisible" aria-hidden="true" />
-              <span className="file-tree-icon" aria-hidden="true">
-                <File size={14} />
-              </span>
-              <span className="file-tree-name">{entry.name}</span>
-            </button>
+            <Tip content={entry.path}>
+              <button
+                type="button"
+                className={`file-tree-row file-tree-file${activePath === entry.path ? " active" : ""}`}
+                role="treeitem"
+                aria-selected={activePath === entry.path}
+                style={{ "--tree-depth": 0 } as React.CSSProperties}
+                onClick={() => onOpenFile(entry.path)}
+              >
+                <span className="file-tree-chevron invisible" aria-hidden="true" />
+                <span className="file-tree-icon" aria-hidden="true">
+                  <File size={14} />
+                </span>
+                <span className="file-tree-name">{entry.name}</span>
+              </button>
+            </Tip>
           </li>
         ),
       )}

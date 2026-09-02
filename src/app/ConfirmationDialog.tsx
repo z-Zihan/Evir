@@ -9,6 +9,7 @@ import {
   AlertDialogDescription,
   AlertDialogTitle,
   buttonVariants,
+  Tip,
 } from "../components/ui";
 import { useOverlayBrowserGuard } from "./workspace/use-overlay-browser-guard";
 
@@ -67,16 +68,17 @@ export function ConfirmationDialog({
         style={{ position: "fixed" }}
         initialFocus={cancelRef}
       >
-        <button
-          className="confirmation-close"
-          type="button"
-          aria-label={t("confirmation.close")}
-          data-tip={t("confirmation.close")}
-          disabled={busy}
-          onClick={onCancel}
-        >
-          <X size={16} />
-        </button>
+        <Tip content={t("confirmation.close")}>
+          <button
+            className="confirmation-close"
+            type="button"
+            aria-label={t("confirmation.close")}
+            disabled={busy}
+            onClick={onCancel}
+          >
+            <X size={16} />
+          </button>
+        </Tip>
         <span className="confirmation-icon" aria-hidden="true">
           <Icon size={20} />
         </span>

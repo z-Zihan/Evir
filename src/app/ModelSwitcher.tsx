@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronDown } from "lucide-react";
+import { Tip } from "../components/ui";
 import { useProviderStore } from "../features/provider/provider-store";
 import { listModelsForProtocol } from "../core/providers/adapter-registry";
 import type { ProviderRecord } from "../core/storage/db";
@@ -155,36 +156,37 @@ export function ModelSwitcher({
 
   return (
     <div className="model-switcher" ref={containerRef}>
-      <button
-        ref={triggerRef}
-        type="button"
-        className="model-switcher-button"
-        data-tip={t("chat.switchModel")}
-        aria-label={[current.name, shownModelId].filter(Boolean).join(" ")}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        onKeyDown={(event) => {
-          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-            event.preventDefault();
-            setOpen(true);
-            // Move focus into the list so the container-level Arrow handlers
-            // take over; without this the trigger keeps focus and the listbox
-            // never receives the navigation keys (a11y keyboard trap test).
-            requestAnimationFrame(() => {
-              const options =
-                listRef.current?.querySelectorAll<HTMLButtonElement>('[role="option"]') ?? [];
-              const target =
-                event.key === "ArrowDown" ? options[0] : options[Math.max(0, options.length - 1)];
-              target?.focus();
-            });
-          }
-        }}
-      >
-        {otherProviders.length > 0 && <span>{current.name}</span>}
-        <span className="model-switcher-model">{shownModelId}</span>
-        <ChevronDown size={12} className={`model-switcher-chevron${open ? " open" : ""}`} />
-      </button>
+      <Tip content={t("chat.switchModel")} side="bottom">
+        <button
+          ref={triggerRef}
+          type="button"
+          className="model-switcher-button"
+          aria-label={[current.name, shownModelId].filter(Boolean).join(" ")}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+              event.preventDefault();
+              setOpen(true);
+              // Move focus into the list so the container-level Arrow handlers
+              // take over; without this the trigger keeps focus and the listbox
+              // never receives the navigation keys (a11y keyboard trap test).
+              requestAnimationFrame(() => {
+                const options =
+                  listRef.current?.querySelectorAll<HTMLButtonElement>('[role="option"]') ?? [];
+                const target =
+                  event.key === "ArrowDown" ? options[0] : options[Math.max(0, options.length - 1)];
+                target?.focus();
+              });
+            }
+          }}
+        >
+          {otherProviders.length > 0 && <span>{current.name}</span>}
+          <span className="model-switcher-model">{shownModelId}</span>
+          <ChevronDown size={12} className={`model-switcher-chevron${open ? " open" : ""}`} />
+        </button>
+      </Tip>
       {open && (
         <div
           ref={listRef}
@@ -228,15 +230,16 @@ export function ModelSwitcher({
                 event.stopPropagation();
               }}
             />
-            <button
-              type="button"
-              disabled={!customModel.trim()}
-              onClick={commitCustomModel}
-              aria-label={t("chat.modelPickerUse")}
-              data-tip={t("chat.modelPickerUse")}
-            >
-              {t("chat.modelPickerUse")}
-            </button>
+            <Tip content={t("chat.modelPickerUse")}>
+              <button
+                type="button"
+                disabled={!customModel.trim()}
+                onClick={commitCustomModel}
+                aria-label={t("chat.modelPickerUse")}
+              >
+                {t("chat.modelPickerUse")}
+              </button>
+            </Tip>
           </div>
           {otherProviders.length > 0 && (
             <>

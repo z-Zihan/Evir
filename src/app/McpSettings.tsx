@@ -11,7 +11,7 @@ import {
   Terminal,
   Trash2,
 } from "lucide-react";
-import { Button, Switch } from "../components/ui";
+import { Button, Switch, Tip } from "../components/ui";
 import type { McpTool, McpTransport } from "../core/mcp/types";
 import type { ToolResult } from "../core/providers/tool-registry";
 import { useMcpStore, type McpServerEntry } from "../features/mcp/mcp-store";
@@ -447,55 +447,59 @@ export function McpSettings() {
                       />
                     </label>
                     <div className="mcp-item-actions">
-                      <button
-                        type="button"
-                        disabled={testingServerId === server.id}
-                        onClick={() => void runConnectionTest(server.id)}
-                        aria-label={t("mcp.testConnection")}
-                        data-tip={t("mcp.testConnection")}
-                      >
-                        <Play size={14} />
-                      </button>
-                      {server.enabled && (
+                      <Tip content={t("mcp.testConnection")}>
                         <button
                           type="button"
-                          onClick={() => {
-                            clearServerToolTests(server.id);
-                            void restartServer(server.id);
-                          }}
-                          aria-label={t("mcp.restart")}
-                          data-tip={t("mcp.restart")}
+                          disabled={testingServerId === server.id}
+                          onClick={() => void runConnectionTest(server.id)}
+                          aria-label={t("mcp.testConnection")}
                         >
-                          <RefreshCw size={14} />
+                          <Play size={14} />
                         </button>
+                      </Tip>
+                      {server.enabled && (
+                        <Tip content={t("mcp.restart")}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              clearServerToolTests(server.id);
+                              void restartServer(server.id);
+                            }}
+                            aria-label={t("mcp.restart")}
+                          >
+                            <RefreshCw size={14} />
+                          </button>
+                        </Tip>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => openEdit(server)}
-                        aria-label={t("mcp.edit")}
-                        data-tip={t("mcp.edit")}
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          requestConfirmation(
-                            {
-                              title: t("confirmation.deleteTitle"),
-                              description: t("confirmation.deleteDescription", {
-                                item: server.name,
-                              }),
-                              confirmLabel: t("mcp.delete"),
-                            },
-                            () => removeServer(server.id),
-                          )
-                        }
-                        aria-label={t("mcp.delete")}
-                        data-tip={t("mcp.delete")}
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      <Tip content={t("mcp.edit")}>
+                        <button
+                          type="button"
+                          onClick={() => openEdit(server)}
+                          aria-label={t("mcp.edit")}
+                        >
+                          <Pencil size={14} />
+                        </button>
+                      </Tip>
+                      <Tip content={t("mcp.delete")}>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            requestConfirmation(
+                              {
+                                title: t("confirmation.deleteTitle"),
+                                description: t("confirmation.deleteDescription", {
+                                  item: server.name,
+                                }),
+                                confirmLabel: t("mcp.delete"),
+                              },
+                              () => removeServer(server.id),
+                            )
+                          }
+                          aria-label={t("mcp.delete")}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </Tip>
                     </div>
                   </>
                 );

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ShieldCheck } from "lucide-react";
 import type { PermissionProfile, ProjectRecord } from "../core/storage/db";
-import { Popover, PopoverContent, PopoverTrigger } from "../components/ui";
+import { Popover, PopoverContent, PopoverTrigger, Tip } from "../components/ui";
 import { useProjectStore } from "../features/projects/project-store";
 import { useConfirmationDialog } from "./useConfirmationDialog";
 
@@ -50,20 +50,23 @@ export function PermissionSwitcher({ project }: PermissionSwitcherProps) {
   return (
     <div className="permission-switcher">
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger
-          render={
-            <button
-              type="button"
-              className="permission-switcher-button"
-              aria-label={t("chat.permissionPickerTitle")}
-              data-tip={t("chat.permissionPickerTitle")}
-            />
-          }
-        >
-          <ShieldCheck size={13} aria-hidden="true" />
-          <span>{t(`project.permission.${project.permissionProfile}`)}</span>
-          <ChevronDown size={11} className={`model-switcher-chevron${open ? " open" : ""}`} />
-        </PopoverTrigger>
+        {/* Tip wraps the popover trigger (Base UI trigger-in-trigger
+            composition) so the tooltip opens on the same button. */}
+        <Tip content={t("chat.permissionPickerTitle")}>
+          <PopoverTrigger
+            render={
+              <button
+                type="button"
+                className="permission-switcher-button"
+                aria-label={t("chat.permissionPickerTitle")}
+              />
+            }
+          >
+            <ShieldCheck size={13} aria-hidden="true" />
+            <span>{t(`project.permission.${project.permissionProfile}`)}</span>
+            <ChevronDown size={11} className={`model-switcher-chevron${open ? " open" : ""}`} />
+          </PopoverTrigger>
+        </Tip>
         <PopoverContent
           side="top"
           align="end"

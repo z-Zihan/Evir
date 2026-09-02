@@ -14,7 +14,7 @@ import {
   Unplug,
   X,
 } from "lucide-react";
-import { Button, Tabs, TabsList, TabsTab } from "../../components/ui";
+import { Button, Tabs, TabsList, TabsTab, Tip } from "../../components/ui";
 import {
   panelAnnotate,
   panelLayoutUpdate,
@@ -346,39 +346,42 @@ export function BrowserTab() {
   return (
     <div className="workspace-browser-tab">
       <header className="workspace-browser-toolbar">
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          className="disabled:opacity-35"
-          disabled={!activeTab}
-          onClick={() => activeTab && void panelTabHistory(activeTab.id, "back")}
-          aria-label={t("browser.back")}
-          data-tip={t("browser.back")}
-        >
-          <ArrowLeft size={14} aria-hidden="true" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          className="disabled:opacity-35"
-          disabled={!activeTab}
-          onClick={() => activeTab && void panelTabHistory(activeTab.id, "forward")}
-          aria-label={t("browser.forward")}
-          data-tip={t("browser.forward")}
-        >
-          <ArrowRight size={14} aria-hidden="true" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          className="disabled:opacity-35"
-          disabled={!activeTab}
-          onClick={() => activeTab && void panelTabHistory(activeTab.id, "reload")}
-          aria-label={t("browser.reload")}
-          data-tip={t("browser.reload")}
-        >
-          <RotateCw size={14} aria-hidden="true" />
-        </Button>
+        <Tip content={t("browser.back")} side="bottom">
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="disabled:opacity-35"
+            disabled={!activeTab}
+            onClick={() => activeTab && void panelTabHistory(activeTab.id, "back")}
+            aria-label={t("browser.back")}
+          >
+            <ArrowLeft size={14} aria-hidden="true" />
+          </Button>
+        </Tip>
+        <Tip content={t("browser.forward")} side="bottom">
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="disabled:opacity-35"
+            disabled={!activeTab}
+            onClick={() => activeTab && void panelTabHistory(activeTab.id, "forward")}
+            aria-label={t("browser.forward")}
+          >
+            <ArrowRight size={14} aria-hidden="true" />
+          </Button>
+        </Tip>
+        <Tip content={t("browser.reload")} side="bottom">
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="disabled:opacity-35"
+            disabled={!activeTab}
+            onClick={() => activeTab && void panelTabHistory(activeTab.id, "reload")}
+            aria-label={t("browser.reload")}
+          >
+            <RotateCw size={14} aria-hidden="true" />
+          </Button>
+        </Tip>
         <form
           className="workspace-browser-address"
           onSubmit={(event) => {
@@ -400,33 +403,35 @@ export function BrowserTab() {
             spellCheck={false}
           />
         </form>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          className="disabled:opacity-35"
-          disabled={!tabs.length}
-          onClick={() => void panelTabNew("about:blank").then(() => panelTabList().then(setTabs))}
-          aria-label={t("workspace.newTab")}
-          data-tip={t("workspace.newTab")}
-        >
-          <Plus size={14} aria-hidden="true" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          className={`workspace-icon-button disabled:opacity-35${annotating ? " active" : ""}`}
-          disabled={!activeTab}
-          aria-pressed={annotating}
-          aria-label={t("workspace.annotate")}
-          data-tip={t("workspace.annotate")}
-          onClick={() => {
-            const next = !annotating;
-            setAnnotating(next);
-            void panelAnnotate(next).catch(() => setAnnotating(false));
-          }}
-        >
-          <MousePointerClick size={14} aria-hidden="true" />
-        </Button>
+        <Tip content={t("workspace.newTab")} side="bottom">
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="disabled:opacity-35"
+            disabled={!tabs.length}
+            onClick={() => void panelTabNew("about:blank").then(() => panelTabList().then(setTabs))}
+            aria-label={t("workspace.newTab")}
+          >
+            <Plus size={14} aria-hidden="true" />
+          </Button>
+        </Tip>
+        <Tip content={t("workspace.annotate")} side="bottom">
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className={`workspace-icon-button disabled:opacity-35${annotating ? " active" : ""}`}
+            disabled={!activeTab}
+            aria-pressed={annotating}
+            aria-label={t("workspace.annotate")}
+            onClick={() => {
+              const next = !annotating;
+              setAnnotating(next);
+              void panelAnnotate(next).catch(() => setAnnotating(false));
+            }}
+          >
+            <MousePointerClick size={14} aria-hidden="true" />
+          </Button>
+        </Tip>
         {agentUsingPage && (
           <span className="workspace-browser-agent-chip" role="status">
             <Bot size={11} aria-hidden="true" />
@@ -540,19 +545,19 @@ export function BrowserTab() {
           {screenshotOutputs.length > 0 && (
             <div className="devserver-screenshots" aria-label={t("workspace.recentScreenshots")}>
               {screenshotOutputs.map((output) => (
-                <button
-                  key={output.id}
-                  type="button"
-                  className="devserver-screenshot-chip"
-                  data-tip={output.path}
-                  onClick={() =>
-                    useWorkspacePanelStore
-                      .getState()
-                      .openResource({ kind: "screenshot", path: output.path })
-                  }
-                >
-                  {t("workspace.screenshotChip")}
-                </button>
+                <Tip key={output.id} content={output.path}>
+                  <button
+                    type="button"
+                    className="devserver-screenshot-chip"
+                    onClick={() =>
+                      useWorkspacePanelStore
+                        .getState()
+                        .openResource({ kind: "screenshot", path: output.path })
+                    }
+                  >
+                    {t("workspace.screenshotChip")}
+                  </button>
+                </Tip>
               ))}
             </div>
           )}

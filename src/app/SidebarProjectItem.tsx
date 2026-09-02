@@ -10,7 +10,7 @@ import {
   ShieldCheck,
   Trash2,
 } from "lucide-react";
-import { Button } from "../components/ui";
+import { Button, Tip } from "../components/ui";
 import type { ProjectRecord } from "../core/storage/db";
 
 interface SidebarProjectItemProps {
@@ -96,9 +96,9 @@ export const SidebarProjectItem = memo(function SidebarProjectItem({
             onClick={(event) => event.stopPropagation()}
           />
         ) : (
-          <span className="project-name" data-tip={`${project.displayName}\n${project.rootPath}`}>
-            {project.displayName}
-          </span>
+          <Tip content={`${project.displayName}\n${project.rootPath}`}>
+            <span className="project-name">{project.displayName}</span>
+          </Tip>
         )}
         {folderMissing && !renaming && (
           <span className="project-folder-missing">{t("sidebar.folderMissing")}</span>
@@ -109,65 +109,71 @@ export const SidebarProjectItem = memo(function SidebarProjectItem({
             onClick={(event) => event.stopPropagation()}
           >
             {folderMissing && (
+              <Tip content={t("sidebar.locateFolder")}>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={t("sidebar.locateFolder")}
+                  onClick={onLocate}
+                >
+                  <FolderSearch size={13} />
+                </Button>
+              </Tip>
+            )}
+            <Tip content={t("sidebar.newTask")}>
               <Button
                 variant="ghost"
                 size="icon-xs"
-                aria-label={t("sidebar.locateFolder")}
-                data-tip={t("sidebar.locateFolder")}
-                onClick={onLocate}
+                aria-label={t("sidebar.newTask")}
+                onClick={onNewTask}
               >
-                <FolderSearch size={13} />
+                <Plus size={13} />
               </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              aria-label={t("sidebar.newTask")}
-              data-tip={t("sidebar.newTask")}
-              onClick={onNewTask}
-            >
-              <Plus size={13} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              aria-label={t("sidebar.permission")}
-              data-tip={t("sidebar.permission")}
-              onClick={onPermission}
-            >
-              <ShieldCheck size={13} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              aria-label={project.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
-              data-tip={project.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
-              onClick={onTogglePin}
-            >
-              <Pin size={13} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              aria-label={t("sidebar.rename")}
-              data-tip={t("sidebar.rename")}
-              onClick={() => {
-                setRenaming(true);
-                setValue(project.displayName);
-              }}
-            >
-              <Pencil size={13} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              className="conversation-delete"
-              aria-label={t("sidebar.removeProject")}
-              data-tip={t("sidebar.removeProject")}
-              onClick={onRemove}
-            >
-              <Trash2 size={14} />
-            </Button>
+            </Tip>
+            <Tip content={t("sidebar.permission")}>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label={t("sidebar.permission")}
+                onClick={onPermission}
+              >
+                <ShieldCheck size={13} />
+              </Button>
+            </Tip>
+            <Tip content={project.pinned ? t("sidebar.unpin") : t("sidebar.pin")}>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label={project.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
+                onClick={onTogglePin}
+              >
+                <Pin size={13} />
+              </Button>
+            </Tip>
+            <Tip content={t("sidebar.rename")}>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label={t("sidebar.rename")}
+                onClick={() => {
+                  setRenaming(true);
+                  setValue(project.displayName);
+                }}
+              >
+                <Pencil size={13} />
+              </Button>
+            </Tip>
+            <Tip content={t("sidebar.removeProject")}>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                className="conversation-delete"
+                aria-label={t("sidebar.removeProject")}
+                onClick={onRemove}
+              >
+                <Trash2 size={14} />
+              </Button>
+            </Tip>
           </div>
         )}
       </div>

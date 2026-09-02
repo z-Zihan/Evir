@@ -9,6 +9,7 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
+  Tip,
   buttonVariants,
 } from "../components/ui";
 
@@ -66,15 +67,11 @@ export function SettingsFormDialog({
             <DialogTitle render={<h4 />}>{title}</DialogTitle>
             {description && <p>{description}</p>}
           </div>
-          <button
-            ref={closeRef}
-            type="button"
-            onClick={requestClose}
-            aria-label={title}
-            data-tip={title}
-          >
-            <X size={17} />
-          </button>
+          <Tip content={title}>
+            <button ref={closeRef} type="button" onClick={requestClose} aria-label={title}>
+              <X size={17} />
+            </button>
+          </Tip>
         </header>
         <div className="settings-form-dialog-body">{children}</div>
       </DialogContent>

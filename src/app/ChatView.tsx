@@ -23,7 +23,7 @@ import {
   Play,
   X,
 } from "lucide-react";
-import { Button } from "../components/ui";
+import { Button, Tip } from "../components/ui";
 import { useChatStore, type ChatState } from "../features/chat/chat-store";
 import { useShallow } from "zustand/react/shallow";
 import { useProviderStore } from "../features/provider/provider-store";
@@ -546,17 +546,18 @@ export function ChatView({
   const header = (
     <header className="workspace-header">
       <div className="workspace-heading">
-        <Button
-          variant="ghost"
-          size="icon"
-          type="button"
-          className="header-icon-button"
-          onClick={onToggleSidebar}
-          aria-label={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")}
-          data-tip={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")}
-        >
-          <PanelLeft size={18} aria-hidden="true" />
-        </Button>
+        <Tip content={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")} side="bottom">
+          <Button
+            variant="ghost"
+            size="icon"
+            type="button"
+            className="header-icon-button"
+            onClick={onToggleSidebar}
+            aria-label={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")}
+          >
+            <PanelLeft size={18} aria-hidden="true" />
+          </Button>
+        </Tip>
         <div className="workspace-title-block">
           <h1>{conversationTitle}</h1>
           <span className="workspace-context">
@@ -568,18 +569,19 @@ export function ChatView({
       </div>
       <div className="workspace-controls">
         {runtime.target === "desktop" && (
-          <Button
-            variant="ghost"
-            size="icon"
-            type="button"
-            className="header-icon-button workspace-toggle"
-            onClick={() => togglePanel()}
-            aria-label={panelOpen ? t("workspace.close") : t("workspace.open")}
-            aria-pressed={panelOpen}
-            data-tip={panelOpen ? t("workspace.close") : t("workspace.open")}
-          >
-            <PanelRight size={18} aria-hidden="true" />
-          </Button>
+          <Tip content={panelOpen ? t("workspace.close") : t("workspace.open")} side="bottom">
+            <Button
+              variant="ghost"
+              size="icon"
+              type="button"
+              className="header-icon-button workspace-toggle"
+              onClick={() => togglePanel()}
+              aria-label={panelOpen ? t("workspace.close") : t("workspace.open")}
+              aria-pressed={panelOpen}
+            >
+              <PanelRight size={18} aria-hidden="true" />
+            </Button>
+          </Tip>
         )}
         <ModelSwitcher
           activeProvider={effectiveProvider}
@@ -732,26 +734,28 @@ export function ChatView({
                 att.type === "image" ? (
                   <div key={att.id} className="pending-attachment-chip">
                     <img src={att.data} alt={att.fileName} className="pending-attachment-thumb" />
-                    <button
-                      type="button"
-                      onClick={() => removeAttachment(att.id)}
-                      aria-label={t("chat.removeAttachment")}
-                      data-tip={t("chat.removeAttachment")}
-                    >
-                      <X size={12} />
-                    </button>
+                    <Tip content={t("chat.removeAttachment")}>
+                      <button
+                        type="button"
+                        onClick={() => removeAttachment(att.id)}
+                        aria-label={t("chat.removeAttachment")}
+                      >
+                        <X size={12} />
+                      </button>
+                    </Tip>
                   </div>
                 ) : (
                   <div key={att.id} className="pending-attachment-chip">
                     <span className="attachment-name">{att.fileName}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeAttachment(att.id)}
-                      aria-label={t("chat.removeAttachment")}
-                      data-tip={t("chat.removeAttachment")}
-                    >
-                      <X size={12} />
-                    </button>
+                    <Tip content={t("chat.removeAttachment")}>
+                      <button
+                        type="button"
+                        onClick={() => removeAttachment(att.id)}
+                        aria-label={t("chat.removeAttachment")}
+                      >
+                        <X size={12} />
+                      </button>
+                    </Tip>
                   </div>
                 ),
               )}
@@ -830,17 +834,18 @@ export function ChatView({
           />
           <div className="composer-footer">
             <div className="composer-tools">
-              <Button
-                type="button"
-                variant="ghost"
-                className="composer-tool-button size-[30px] rounded-[7px] font-normal"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isCurrentConversationStreaming}
-                aria-label={t("chat.attachFile")}
-                data-tip={t("chat.attachFile")}
-              >
-                <Paperclip size={16} />
-              </Button>
+              <Tip content={t("chat.attachFile")}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="composer-tool-button size-[30px] rounded-[7px] font-normal"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isCurrentConversationStreaming}
+                  aria-label={t("chat.attachFile")}
+                >
+                  <Paperclip size={16} />
+                </Button>
+              </Tip>
 
               <SkillPicker
                 mode={runtime.target === "web" ? "ask" : effectiveConversationMode}

@@ -12,7 +12,7 @@ import {
   Play,
   Square,
 } from "lucide-react";
-import { Button, Tabs, TabsList, TabsTab } from "../../components/ui";
+import { Button, Tabs, TabsList, TabsTab, Tip } from "../../components/ui";
 import { useWorkspacePanelStore } from "../../features/workspace/workspace-panel-store";
 import {
   workspaceResourceKey,
@@ -408,28 +408,30 @@ export function PreviewTab() {
       {activeResource && (
         <header className="workspace-resource-header">
           <div className="workspace-resource-nav">
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              className="disabled:opacity-35"
-              onClick={goBack}
-              disabled={!canGoBack}
-              aria-label={t("workspace.back")}
-              data-tip={t("workspace.back")}
-            >
-              <ChevronLeft size={14} aria-hidden="true" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              className="disabled:opacity-35"
-              onClick={goForward}
-              disabled={!canGoForward}
-              aria-label={t("workspace.forward")}
-              data-tip={t("workspace.forward")}
-            >
-              <ChevronRight size={14} aria-hidden="true" />
-            </Button>
+            <Tip content={t("workspace.back")} side="bottom">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                className="disabled:opacity-35"
+                onClick={goBack}
+                disabled={!canGoBack}
+                aria-label={t("workspace.back")}
+              >
+                <ChevronLeft size={14} aria-hidden="true" />
+              </Button>
+            </Tip>
+            <Tip content={t("workspace.forward")} side="bottom">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                className="disabled:opacity-35"
+                onClick={goForward}
+                disabled={!canGoForward}
+                aria-label={t("workspace.forward")}
+              >
+                <ChevronRight size={14} aria-hidden="true" />
+              </Button>
+            </Tip>
           </div>
           <span className="workspace-resource-title" title={workspaceResourceTitle(activeResource)}>
             {workspaceResourceTitle(activeResource)}
@@ -450,20 +452,21 @@ export function PreviewTab() {
                 </TabsList>
               </Tabs>
             )}
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              onClick={togglePin}
-              aria-label={isPinned ? t("workspace.unpin") : t("workspace.pin")}
-              aria-pressed={isPinned}
-              data-tip={isPinned ? t("workspace.unpin") : t("workspace.pin")}
-            >
-              {isPinned ? (
-                <PinOff size={14} aria-hidden="true" />
-              ) : (
-                <Pin size={14} aria-hidden="true" />
-              )}
-            </Button>
+            <Tip content={isPinned ? t("workspace.unpin") : t("workspace.pin")} side="bottom">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={togglePin}
+                aria-label={isPinned ? t("workspace.unpin") : t("workspace.pin")}
+                aria-pressed={isPinned}
+              >
+                {isPinned ? (
+                  <PinOff size={14} aria-hidden="true" />
+                ) : (
+                  <Pin size={14} aria-hidden="true" />
+                )}
+              </Button>
+            </Tip>
           </div>
         </header>
       )}

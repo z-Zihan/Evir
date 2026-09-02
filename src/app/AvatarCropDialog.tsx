@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import Cropper, { type Area, type Point } from "react-easy-crop";
 import { useTranslation } from "react-i18next";
 import { ImagePlus, Minus, Plus, X } from "lucide-react";
-import { Button, Dialog, DialogContent, DialogTitle } from "../components/ui";
+import { Button, Dialog, DialogContent, DialogTitle, Tip } from "../components/ui";
 import { cropAvatarImage } from "./avatar-image";
 
 interface AvatarCropDialogProps {
@@ -53,16 +53,17 @@ export function AvatarCropDialog({ imageUrl, onCancel, onSave }: AvatarCropDialo
             <DialogTitle render={<h4 />}>{t("personalization.cropTitle")}</DialogTitle>
             <p>{t("personalization.cropDescription")}</p>
           </div>
-          <button
-            ref={closeRef}
-            type="button"
-            onClick={onCancel}
-            disabled={saving}
-            aria-label={t("personalization.closeCrop")}
-            data-tip={t("personalization.closeCrop")}
-          >
-            <X size={17} />
-          </button>
+          <Tip content={t("personalization.closeCrop")}>
+            <button
+              ref={closeRef}
+              type="button"
+              onClick={onCancel}
+              disabled={saving}
+              aria-label={t("personalization.closeCrop")}
+            >
+              <X size={17} />
+            </button>
+          </Tip>
         </header>
         <div className="avatar-crop-stage">
           <Cropper

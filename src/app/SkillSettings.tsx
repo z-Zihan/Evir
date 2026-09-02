@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BookOpenText, FileUp, Plus, Search, ShieldCheck, Trash2, X } from "lucide-react";
-import { Button, Switch } from "../components/ui";
+import { Button, Switch, Tip } from "../components/ui";
 import { useSkillStore } from "../features/skills/skill-store";
 import type { SkillManifest, SkillRiskLevel } from "../core/skills/types";
 import { useConfirmationDialog } from "./useConfirmationDialog";
@@ -366,26 +366,27 @@ export function SkillSettings() {
                   </div>
                   <div className="skill-item-actions">
                     {isCustom && (
-                      <button
-                        type="button"
-                        className="skill-delete-button"
-                        aria-label={t("skill.uninstall")}
-                        data-tip={t("skill.uninstall")}
-                        onClick={() =>
-                          requestConfirmation(
-                            {
-                              title: t("confirmation.deleteTitle"),
-                              description: t("confirmation.deleteDescription", {
-                                item: displayName,
-                              }),
-                              confirmLabel: t("skill.uninstall"),
-                            },
-                            () => uninstallSkill(skill.manifest.id),
-                          )
-                        }
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      <Tip content={t("skill.uninstall")}>
+                        <button
+                          type="button"
+                          className="skill-delete-button"
+                          aria-label={t("skill.uninstall")}
+                          onClick={() =>
+                            requestConfirmation(
+                              {
+                                title: t("confirmation.deleteTitle"),
+                                description: t("confirmation.deleteDescription", {
+                                  item: displayName,
+                                }),
+                                confirmLabel: t("skill.uninstall"),
+                              },
+                              () => uninstallSkill(skill.manifest.id),
+                            )
+                          }
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </Tip>
                     )}
                     <label className="skill-toggle">
                       <Switch

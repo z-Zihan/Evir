@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Camera, ImagePlus, ShieldCheck, Trash2, UserRound } from "lucide-react";
-import { Button } from "../components/ui";
+import { Button, Tip } from "../components/ui";
 import {
   AVATAR_COLORS,
   DEFAULT_PERSONALIZATION_PREFERENCES,
@@ -187,16 +187,16 @@ export function LocalIdentityPanel() {
                   <span>{t("personalization.fallbackColor")}</span>
                   <div role="radiogroup" aria-label={t("personalization.fallbackColor")}>
                     {AVATAR_COLORS.map((color) => (
-                      <button
-                        className={`avatar-color-option avatar-${color}${form.avatarColor === color ? " active" : ""}`}
-                        type="button"
-                        role="radio"
-                        aria-checked={form.avatarColor === color}
-                        aria-label={t(`personalization.avatarColors.${color}`)}
-                        data-tip={t(`personalization.avatarColors.${color}`)}
-                        key={color}
-                        onClick={() => update("avatarColor", color)}
-                      />
+                      <Tip key={color} content={t(`personalization.avatarColors.${color}`)}>
+                        <button
+                          className={`avatar-color-option avatar-${color}${form.avatarColor === color ? " active" : ""}`}
+                          type="button"
+                          role="radio"
+                          aria-checked={form.avatarColor === color}
+                          aria-label={t(`personalization.avatarColors.${color}`)}
+                          onClick={() => update("avatarColor", color)}
+                        />
+                      </Tip>
                     ))}
                   </div>
                 </div>

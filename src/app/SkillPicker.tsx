@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, Search, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Button, Popover, PopoverContent, PopoverTrigger } from "../components/ui";
+import { Button, Popover, PopoverContent, PopoverTrigger, Tip } from "../components/ui";
 import type { InteractionMode } from "../core/providers/tool-registry";
 import type { InstalledSkill } from "../core/skills/types";
 import { useChatStore } from "../features/chat/chat-store";
@@ -66,22 +66,25 @@ export function SkillPicker({ mode, disabled }: SkillPickerProps) {
   return (
     <div className="composer-skill-picker">
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger
-          render={
-            <Button
-              variant="ghost"
-              className={`composer-tool-button size-[30px] rounded-[7px] font-normal${selectedSkillIds.size > 0 ? " active" : ""}`}
-              disabled={disabled}
-              aria-label={t("skill.chooseForMessage")}
-              data-tip={t("skill.chooseForMessage")}
-            />
-          }
-        >
-          <Sparkles size={16} aria-hidden="true" />
-          {selectedSkillIds.size > 0 && (
-            <span className="composer-skill-count">{selectedSkillIds.size}</span>
-          )}
-        </PopoverTrigger>
+        {/* Tip wraps the popover trigger (Base UI trigger-in-trigger
+            composition) so the tooltip opens on the same button. */}
+        <Tip content={t("skill.chooseForMessage")}>
+          <PopoverTrigger
+            render={
+              <Button
+                variant="ghost"
+                className={`composer-tool-button size-[30px] rounded-[7px] font-normal${selectedSkillIds.size > 0 ? " active" : ""}`}
+                disabled={disabled}
+                aria-label={t("skill.chooseForMessage")}
+              />
+            }
+          >
+            <Sparkles size={16} aria-hidden="true" />
+            {selectedSkillIds.size > 0 && (
+              <span className="composer-skill-count">{selectedSkillIds.size}</span>
+            )}
+          </PopoverTrigger>
+        </Tip>
         <PopoverContent
           side="top"
           align="start"
@@ -127,7 +130,11 @@ export function SkillPicker({ mode, disabled }: SkillPickerProps) {
                           className={selected ? "selected" : ""}
                           disabled={incompatible}
                           onClick={() => toggleSelectedSkill(skill.manifest.id)}
-                          data-tip={incompatible ? t("skill.requiresAgentMode") : undefined}
+                          aria-label={
+                            incompatible
+                              ? `${localized.name} — ${t("skill.requiresAgentMode")}`
+                              : undefined
+                          }
                           aria-pressed={selected}
                         >
                           <span>

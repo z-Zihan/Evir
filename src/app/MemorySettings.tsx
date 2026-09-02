@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Eye, EyeOff, Pencil, Pin, PinOff, Trash2 } from "lucide-react";
-import { Button, Switch } from "../components/ui";
+import { Button, Switch, Tip } from "../components/ui";
 import { useMemoryStore, type MemoryRecord } from "../features/memory/memory-store";
 import { useConfirmationDialog } from "./useConfirmationDialog";
 
@@ -229,54 +229,58 @@ export function MemorySettings({ conversationId, workspacePath }: MemorySettings
                       </span>
                     </div>
                     <div className="memory-item-actions">
-                      <button
-                        type="button"
-                        onClick={() => void toggleEnabled(memory.id).catch(() => undefined)}
-                        aria-label={memory.enabled ? t("memory.disable") : t("memory.enable")}
-                        data-tip={memory.enabled ? t("memory.disable") : t("memory.enable")}
-                        aria-pressed={memory.enabled}
-                      >
-                        {memory.enabled ? <Eye size={14} /> : <EyeOff size={14} />}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void togglePin(memory.id).catch(() => undefined)}
-                        aria-label={memory.pinned ? t("memory.unpin") : t("memory.pin")}
-                        data-tip={memory.pinned ? t("memory.unpin") : t("memory.pin")}
-                        aria-pressed={memory.pinned}
-                      >
-                        {memory.pinned ? <PinOff size={14} /> : <Pin size={14} />}
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={t("memory.edit")}
-                        data-tip={t("memory.edit")}
-                        onClick={() => {
-                          setEditingId(memory.id);
-                          setEditContent(memory.content);
-                        }}
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          requestConfirmation(
-                            {
-                              title: t("confirmation.deleteTitle"),
-                              description: t("confirmation.deleteDescription", {
-                                item: memory.key,
-                              }),
-                              confirmLabel: t("memory.delete"),
-                            },
-                            () => deleteMemory(memory.id),
-                          )
-                        }
-                        aria-label={t("memory.delete")}
-                        data-tip={t("memory.delete")}
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      <Tip content={memory.enabled ? t("memory.disable") : t("memory.enable")}>
+                        <button
+                          type="button"
+                          onClick={() => void toggleEnabled(memory.id).catch(() => undefined)}
+                          aria-label={memory.enabled ? t("memory.disable") : t("memory.enable")}
+                          aria-pressed={memory.enabled}
+                        >
+                          {memory.enabled ? <Eye size={14} /> : <EyeOff size={14} />}
+                        </button>
+                      </Tip>
+                      <Tip content={memory.pinned ? t("memory.unpin") : t("memory.pin")}>
+                        <button
+                          type="button"
+                          onClick={() => void togglePin(memory.id).catch(() => undefined)}
+                          aria-label={memory.pinned ? t("memory.unpin") : t("memory.pin")}
+                          aria-pressed={memory.pinned}
+                        >
+                          {memory.pinned ? <PinOff size={14} /> : <Pin size={14} />}
+                        </button>
+                      </Tip>
+                      <Tip content={t("memory.edit")}>
+                        <button
+                          type="button"
+                          aria-label={t("memory.edit")}
+                          onClick={() => {
+                            setEditingId(memory.id);
+                            setEditContent(memory.content);
+                          }}
+                        >
+                          <Pencil size={14} />
+                        </button>
+                      </Tip>
+                      <Tip content={t("memory.delete")}>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            requestConfirmation(
+                              {
+                                title: t("confirmation.deleteTitle"),
+                                description: t("confirmation.deleteDescription", {
+                                  item: memory.key,
+                                }),
+                                confirmLabel: t("memory.delete"),
+                              },
+                              () => deleteMemory(memory.id),
+                            )
+                          }
+                          aria-label={t("memory.delete")}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </Tip>
                     </div>
                   </>
                 )}

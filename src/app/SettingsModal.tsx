@@ -60,7 +60,7 @@ const UsagePanel = lazy(() => import("./UsagePanel").then((m) => ({ default: m.U
 const BrowserSettings = lazy(() =>
   import("./BrowserSettings").then((m) => ({ default: m.BrowserSettings })),
 );
-import { Button, Dialog, DialogContent, DialogTitle } from "../components/ui";
+import { Button, Dialog, DialogContent, DialogTitle, Tip } from "../components/ui";
 import { downloadBlob, exportConversations } from "../features/chat/conversation-export";
 import { importConversations } from "../features/chat/conversation-import";
 import { getRuntime } from "../runtime/use-runtime";
@@ -214,16 +214,17 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
             <span className="settings-eyebrow">Evir</span>
             <DialogTitle>{t("settings.title")}</DialogTitle>
           </div>
-          <button
-            ref={closeButtonRef}
-            className="settings-close"
-            type="button"
-            onClick={closeSettings}
-            aria-label={t("settings.close")}
-            data-tip={t("settings.close")}
-          >
-            <X size={17} />
-          </button>
+          <Tip content={t("settings.close")} side="bottom">
+            <button
+              ref={closeButtonRef}
+              className="settings-close"
+              type="button"
+              onClick={closeSettings}
+              aria-label={t("settings.close")}
+            >
+              <X size={17} />
+            </button>
+          </Tip>
         </header>
         <div className="settings-layout">
           <nav className="settings-nav" aria-label={t("settings.navigation")}>

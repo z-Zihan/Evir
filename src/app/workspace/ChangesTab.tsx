@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FilePlus2, FilePen, GitCompareArrows } from "lucide-react";
+import { Tip } from "../../components/ui";
 import { useRunWorkspaceStore } from "../../features/workspace/workspace-run-store";
 import { useWorkspacePanelStore } from "../../features/workspace/workspace-panel-store";
 import { relativeToRoot, resolveWorkspacePath } from "../../features/workspace/workspace-services";
@@ -74,26 +75,30 @@ export function ChangesTab() {
         <ul className="workspace-change-list" aria-label={t("workspace.changesTitle")}>
           {changes.map((change) => (
             <li key={change.path}>
-              <button
-                type="button"
-                className="workspace-change-row"
-                onClick={() => {
-                  const path = resolveWorkspacePath(change.path, root);
-                  if (!path) return;
-                  openResource({
-                    kind: "diff",
-                    path,
-                    ...(change.runId ? { runId: change.runId } : {}),
-                  });
-                }}
-                data-tip={change.path}
-              >
-                <span className={`workspace-change-letter ${change.changeType}`} aria-hidden="true">
-                  {change.changeType === "added" ? "A" : "M"}
-                </span>
-                <span className="workspace-change-icon">{changeIcon(change.changeType)}</span>
-                <span className="workspace-change-path">{relativeToRoot(change.path, root)}</span>
-              </button>
+              <Tip content={change.path}>
+                <button
+                  type="button"
+                  className="workspace-change-row"
+                  onClick={() => {
+                    const path = resolveWorkspacePath(change.path, root);
+                    if (!path) return;
+                    openResource({
+                      kind: "diff",
+                      path,
+                      ...(change.runId ? { runId: change.runId } : {}),
+                    });
+                  }}
+                >
+                  <span
+                    className={`workspace-change-letter ${change.changeType}`}
+                    aria-hidden="true"
+                  >
+                    {change.changeType === "added" ? "A" : "M"}
+                  </span>
+                  <span className="workspace-change-icon">{changeIcon(change.changeType)}</span>
+                  <span className="workspace-change-path">{relativeToRoot(change.path, root)}</span>
+                </button>
+              </Tip>
             </li>
           ))}
         </ul>

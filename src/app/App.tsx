@@ -13,7 +13,6 @@ import { useWorkspaceSync } from "./workspace/use-workspace-sync";
 import { useWorkspacePanelStore } from "../features/workspace/workspace-panel-store";
 import { initializeRuntimeStorage } from "../runtime/initialize-storage";
 import { installWorkspaceResolver } from "../features/workspace/workspace-bridge";
-import { installTooltipDirection } from "./tooltipDirection";
 import { useSidebarResize } from "./useSidebarResize";
 import { useProjectStore } from "../features/projects/project-store";
 import { useChatStore } from "../features/chat/chat-store";
@@ -24,7 +23,7 @@ import {
 } from "../core/context/crash-recovery";
 import { getRuntime } from "../runtime/use-runtime";
 import { logger } from "../core/logging/logger";
-import { Button } from "../components/ui";
+import { Button, TooltipProvider } from "../components/ui";
 
 export function App() {
   const { t } = useTranslation();
@@ -111,7 +110,6 @@ export function App() {
     void initializeApplication();
   }, [initializeApplication]);
 
-  useEffect(() => installTooltipDirection(), []);
   const sidebarResize = useSidebarResize();
 
   const dismissRecovery = async (run: UnfinishedRun) => {
@@ -153,109 +151,111 @@ export function App() {
     `${workspaceResize.resizing ? " workspace-resizing" : ""}`;
 
   return (
-    <div
-      className={shellClass}
-      style={{
-        ...(sidebarVisible
-          ? ({ "--sidebar-width": `${sidebarResize.width}px` } as React.CSSProperties)
-          : {}),
-        ...(workspaceOpen
-          ? ({ "--workspace-width": `${workspaceWidth}px` } as React.CSSProperties)
-          : {}),
-      }}
-    >
-      {sidebarVisible && (
-        <Sidebar
-          onOpenSettings={openSettings}
-          onNewConversation={handleNewConversation}
-          onClose={() => setSidebarVisible(false)}
+    <TooltipProvider>
+      <div
+        className={shellClass}
+        style={{
+          ...(sidebarVisible
+            ? ({ "--sidebar-width": `${sidebarResize.width}px` } as React.CSSProperties)
+            : {}),
+          ...(workspaceOpen
+            ? ({ "--workspace-width": `${workspaceWidth}px` } as React.CSSProperties)
+            : {}),
+        }}
+      >
+        {sidebarVisible && (
+          <Sidebar
+            onOpenSettings={openSettings}
+            onNewConversation={handleNewConversation}
+            onClose={() => setSidebarVisible(false)}
+          />
+        )}
+        {sidebarVisible && (
+          <div
+            className="sidebar-resizer"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={t("sidebar.resize")}
+            onPointerDown={sidebarResize.handleProps.onPointerDown}
+            ref={sidebarResize.handleProps.ref}
+            onDoubleClick={sidebarResize.reset}
+          />
+        )}
+        {sidebarVisible && (
+          <button
+            className="sidebar-backdrop"
+            type="button"
+            aria-label={t("sidebar.hide")}
+            onClick={() => setSidebarVisible(false)}
+          />
+        )}
+        <div className="main-area">
+          <ChatView
+            input={messageInput}
+            onInputChange={setMessageInput}
+            onSendMessage={handleSendMessage}
+            onOpenSettings={() => openSettings()}
+            onToggleSidebar={() => setSidebarVisible((visible) => !visible)}
+            sidebarVisible={sidebarVisible}
+          />
+        </div>
+        {workspaceOpen && (
+          <div
+            className="workspace-resizer"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={t("workspace.resize")}
+            onPointerDown={workspaceResize.handleProps.onPointerDown}
+            onDoubleClick={workspaceResize.reset}
+          />
+        )}
+        {workspaceOpen && (
+          <div
+            className="workspace-backdrop"
+            onClick={() => useWorkspacePanelStore.getState().closePanel()}
+          />
+        )}
+        {workspaceAvailable && <WorkspacePanel />}
+        <SettingsModal
+          open={settingsOpen}
+          initialTab={settingsTab}
+          onClose={() => setSettingsOpen(false)}
         />
-      )}
-      {sidebarVisible && (
-        <div
-          className="sidebar-resizer"
-          role="separator"
-          aria-orientation="vertical"
-          aria-label={t("sidebar.resize")}
-          onPointerDown={sidebarResize.handleProps.onPointerDown}
-          ref={sidebarResize.handleProps.ref}
-          onDoubleClick={sidebarResize.reset}
-        />
-      )}
-      {sidebarVisible && (
-        <button
-          className="sidebar-backdrop"
-          type="button"
-          aria-label={t("sidebar.hide")}
-          onClick={() => setSidebarVisible(false)}
-        />
-      )}
-      <div className="main-area">
-        <ChatView
-          input={messageInput}
-          onInputChange={setMessageInput}
-          onSendMessage={handleSendMessage}
-          onOpenSettings={() => openSettings()}
-          onToggleSidebar={() => setSidebarVisible((visible) => !visible)}
-          sidebarVisible={sidebarVisible}
-        />
-      </div>
-      {workspaceOpen && (
-        <div
-          className="workspace-resizer"
-          role="separator"
-          aria-orientation="vertical"
-          aria-label={t("workspace.resize")}
-          onPointerDown={workspaceResize.handleProps.onPointerDown}
-          onDoubleClick={workspaceResize.reset}
-        />
-      )}
-      {workspaceOpen && (
-        <div
-          className="workspace-backdrop"
-          onClick={() => useWorkspacePanelStore.getState().closePanel()}
-        />
-      )}
-      {workspaceAvailable && <WorkspacePanel />}
-      <SettingsModal
-        open={settingsOpen}
-        initialTab={settingsTab}
-        onClose={() => setSettingsOpen(false)}
-      />
-      <ShortcutHelpOverlay open={shortcutHelpOpen} onClose={() => setShortcutHelpOpen(false)} />
-      {initializationError && (
-        <aside className="startup-notice error" role="alert">
-          <div>
-            <strong>{t("startup.failed")}</strong>
-            <span>{initializationError}</span>
-          </div>
-          <button type="button" onClick={() => void initializeApplication()}>
-            {t("startup.retry")}
-          </button>
-        </aside>
-      )}
-      {unfinishedRuns[0] && !initializationError && (
-        <aside className="startup-notice recovery" role="status">
-          <div>
-            <strong>{t("recovery.title")}</strong>
-            <span>{t("recovery.description")}</span>
-          </div>
-          <div className="startup-notice-actions">
-            <button type="button" onClick={() => void dismissRecovery(unfinishedRuns[0]!)}>
-              {t("recovery.dismiss")}
+        <ShortcutHelpOverlay open={shortcutHelpOpen} onClose={() => setShortcutHelpOpen(false)} />
+        {initializationError && (
+          <aside className="startup-notice error" role="alert">
+            <div>
+              <strong>{t("startup.failed")}</strong>
+              <span>{initializationError}</span>
+            </div>
+            <button type="button" onClick={() => void initializeApplication()}>
+              {t("startup.retry")}
             </button>
-            <Button
-              variant="primary"
-              size="lg"
-              type="button"
-              className="primary-button"
-              onClick={() => void resumeRecovery(unfinishedRuns[0]!)}
-            >
-              {t("recovery.resume")}
-            </Button>
-          </div>
-        </aside>
-      )}
-    </div>
+          </aside>
+        )}
+        {unfinishedRuns[0] && !initializationError && (
+          <aside className="startup-notice recovery" role="status">
+            <div>
+              <strong>{t("recovery.title")}</strong>
+              <span>{t("recovery.description")}</span>
+            </div>
+            <div className="startup-notice-actions">
+              <button type="button" onClick={() => void dismissRecovery(unfinishedRuns[0]!)}>
+                {t("recovery.dismiss")}
+              </button>
+              <Button
+                variant="primary"
+                size="lg"
+                type="button"
+                className="primary-button"
+                onClick={() => void resumeRecovery(unfinishedRuns[0]!)}
+              >
+                {t("recovery.resume")}
+              </Button>
+            </div>
+          </aside>
+        )}
+      </div>
+    </TooltipProvider>
   );
 }

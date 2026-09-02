@@ -1,6 +1,7 @@
 import { memo, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Copy, ExternalLink, WrapText } from "lucide-react";
+import { Tip } from "../../components/ui";
 import { normalizeFenceLanguage, previewRegistry } from "./preview-registry";
 import { isHighlightable, useShikiHighlight } from "./use-shiki";
 import { useWorkspacePanelStore } from "../workspace/workspace-panel-store";
@@ -113,16 +114,17 @@ export const CodeBlockView = memo(function CodeBlockView({
             <span>{copied ? t("chat.copied") : t("chat.copyCode")}</span>
           </button>
           {!streaming && (
-            <button
-              type="button"
-              className="code-block-action workspace-open-action"
-              onClick={openInWorkspace}
-              aria-label={t("preview.openInWorkspace")}
-              data-tip={t("preview.openInWorkspace")}
-            >
-              <ExternalLink size={13} />
-              <span>{t("preview.previewTab")}</span>
-            </button>
+            <Tip content={t("preview.openInWorkspace")}>
+              <button
+                type="button"
+                className="code-block-action workspace-open-action"
+                onClick={openInWorkspace}
+                aria-label={t("preview.openInWorkspace")}
+              >
+                <ExternalLink size={13} />
+                <span>{t("preview.previewTab")}</span>
+              </button>
+            </Tip>
           )}
         </div>
       </div>

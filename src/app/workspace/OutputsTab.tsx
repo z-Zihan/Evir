@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FileCode2, FolderSearch, ImageIcon, PackageOpen } from "lucide-react";
+import { Tip } from "../../components/ui";
 import { useRunWorkspaceStore } from "../../features/workspace/workspace-run-store";
 import { useWorkspacePanelStore } from "../../features/workspace/workspace-panel-store";
 import { useActiveWorkspaceRoot } from "../../features/workspace/workspace-bridge";
@@ -149,31 +150,32 @@ export function OutputsTab() {
             const size = formatSize(sizes[output.id]);
             return (
               <li key={output.id}>
-                <button
-                  type="button"
-                  className="workspace-output-row-primary"
-                  onClick={() => openOutputResource(output, root)}
-                  data-tip={output.path}
-                >
-                  <span className="workspace-output-icon">{outputIcon(output)}</span>
-                  <span className="workspace-output-copy">
-                    <span className="workspace-output-name">
-                      {output.path.split("/").pop() ?? output.path}
+                <Tip content={output.path}>
+                  <button
+                    type="button"
+                    className="workspace-output-row-primary"
+                    onClick={() => openOutputResource(output, root)}
+                  >
+                    <span className="workspace-output-icon">{outputIcon(output)}</span>
+                    <span className="workspace-output-copy">
+                      <span className="workspace-output-name">
+                        {output.path.split("/").pop() ?? output.path}
+                      </span>
+                      <span className="workspace-output-meta">
+                        {[
+                          relativeTime(output.createdAt),
+                          size,
+                          output.kind === "screenshot"
+                            ? t("workspace.outputsScreenshot")
+                            : relativeToRoot(output.path, root),
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </span>
                     </span>
-                    <span className="workspace-output-meta">
-                      {[
-                        relativeTime(output.createdAt),
-                        size,
-                        output.kind === "screenshot"
-                          ? t("workspace.outputsScreenshot")
-                          : relativeToRoot(output.path, root),
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </span>
-                  </span>
-                  <span className="workspace-output-chip">{typeChip(output)}</span>
-                </button>
+                    <span className="workspace-output-chip">{typeChip(output)}</span>
+                  </button>
+                </Tip>
               </li>
             );
           })}

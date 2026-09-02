@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Crosshair, ListChecks } from "lucide-react";
+import { Tip } from "../components/ui";
 import type { InteractionMode } from "../core/providers/tool-registry";
 
 interface ModeSwitcherProps {
@@ -49,17 +50,17 @@ export function ModeSwitcher({
   return (
     <div className="mode-switcher" aria-label={t("chat.modeLabel")}>
       {PROJECT_MODES.map(({ mode: candidate, labelKey, icon: Icon }) => (
-        <button
-          key={candidate}
-          type="button"
-          aria-pressed={mode === candidate}
-          className={mode === candidate ? "active" : ""}
-          onClick={() => onModeChange(mode === candidate ? "agent" : candidate)}
-          data-tip={t(`chat.modes.${candidate}Desc`)}
-        >
-          <Icon size={13} aria-hidden="true" />
-          <span>{t(labelKey)}</span>
-        </button>
+        <Tip key={candidate} content={t(`chat.modes.${candidate}Desc`)}>
+          <button
+            type="button"
+            aria-pressed={mode === candidate}
+            className={mode === candidate ? "active" : ""}
+            onClick={() => onModeChange(mode === candidate ? "agent" : candidate)}
+          >
+            <Icon size={13} aria-hidden="true" />
+            <span>{t(labelKey)}</span>
+          </button>
+        </Tip>
       ))}
     </div>
   );

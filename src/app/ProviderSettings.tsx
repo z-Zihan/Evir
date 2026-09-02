@@ -11,7 +11,7 @@ import {
   SlidersHorizontal,
   Trash2,
 } from "lucide-react";
-import { Button, Switch } from "../components/ui";
+import { Button, Switch, Tip } from "../components/ui";
 import { PROVIDER_PRESETS } from "../core/providers/provider-presets";
 import type { ProviderPreset, ProviderRegion } from "../core/providers/types";
 import {
@@ -327,25 +327,26 @@ export function ProviderSettings() {
                   <button type="button" onClick={() => openEdit(provider.id)}>
                     <Pencil size={13} /> <span>{t("provider.edit")}</span>
                   </button>
-                  <button
-                    type="button"
-                    aria-label={t("provider.delete")}
-                    data-tip={t("provider.delete")}
-                    onClick={() =>
-                      requestConfirmation(
-                        {
-                          title: t("confirmation.deleteTitle"),
-                          description: t("confirmation.deleteDescription", {
-                            item: provider.name,
-                          }),
-                          confirmLabel: t("provider.delete"),
-                        },
-                        () => deleteProvider(provider.id),
-                      )
-                    }
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  <Tip content={t("provider.delete")}>
+                    <button
+                      type="button"
+                      aria-label={t("provider.delete")}
+                      onClick={() =>
+                        requestConfirmation(
+                          {
+                            title: t("confirmation.deleteTitle"),
+                            description: t("confirmation.deleteDescription", {
+                              item: provider.name,
+                            }),
+                            confirmLabel: t("provider.delete"),
+                          },
+                          () => deleteProvider(provider.id),
+                        )
+                      }
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </Tip>
                 </div>
               </article>
             ))}

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LockKeyhole, UnlockKeyhole } from "lucide-react";
+import { Tip } from "../components/ui";
 import type { ProviderRecord, SettingRecord } from "../core/storage/db";
 import { useChatStore } from "../features/chat/chat-store";
 import { useConfirmationDialog } from "./useConfirmationDialog";
@@ -141,16 +142,17 @@ export function PrivacySettings() {
       </div>
       <div className="privacy-session-card">
         <span className="text-sm">{t("chat.privateSession")}</span>
-        <button
-          type="button"
-          className={`grid place-items-center w-8 h-8 rounded-lg text-muted hover:bg-surface-hover hover:text-foreground transition${privateSession ? " active" : ""}`}
-          onClick={togglePrivateSession}
-          aria-label={t("chat.privateSession")}
-          data-tip={t("chat.privateSession")}
-          aria-pressed={privateSession}
-        >
-          {privateSession ? <LockKeyhole size={15} /> : <UnlockKeyhole size={15} />}
-        </button>
+        <Tip content={t("chat.privateSession")}>
+          <button
+            type="button"
+            className={`grid place-items-center w-8 h-8 rounded-lg text-muted hover:bg-surface-hover hover:text-foreground transition${privateSession ? " active" : ""}`}
+            onClick={togglePrivateSession}
+            aria-label={t("chat.privateSession")}
+            aria-pressed={privateSession}
+          >
+            {privateSession ? <LockKeyhole size={15} /> : <UnlockKeyhole size={15} />}
+          </button>
+        </Tip>
       </div>
       <div className="danger-zone-heading">
         <strong>{t("privacy.dangerZone")}</strong>

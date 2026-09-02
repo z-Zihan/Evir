@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
-import { Button, Tabs, TabsListUnderline, TabsTabUnderline } from "../../components/ui";
+import { Button, Tabs, TabsListUnderline, TabsTabUnderline, Tip } from "../../components/ui";
 import {
   useWorkspacePanelStore,
   type WorkspaceTab,
@@ -95,16 +95,17 @@ export function WorkspacePanel() {
                 {tab.badge === "dot" && <span className="workspace-tab-dot" aria-hidden="true" />}
               </TabsTabUnderline>
             ))}
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            className="ml-auto"
-            onClick={closePanel}
-            aria-label={t("workspace.close")}
-            data-tip={t("workspace.close")}
-          >
-            <X size={14} aria-hidden="true" />
-          </Button>
+          <Tip content={t("workspace.close")} side="bottom">
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              className="ml-auto"
+              onClick={closePanel}
+              aria-label={t("workspace.close")}
+            >
+              <X size={14} aria-hidden="true" />
+            </Button>
+          </Tip>
         </TabsListUnderline>
       </Tabs>
       <div

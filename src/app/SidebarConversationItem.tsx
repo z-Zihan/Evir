@@ -1,7 +1,7 @@
 import { memo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pencil, Pin, Trash2 } from "lucide-react";
-import { Button } from "../components/ui";
+import { Button, Tip } from "../components/ui";
 import type { ConversationRecord } from "../core/storage/db";
 import type { ConversationRunStatus } from "./useConversationStatus";
 
@@ -93,44 +93,47 @@ export const SidebarConversationItem = memo(function SidebarConversationItem({
           onClick={(event) => event.stopPropagation()}
         />
       ) : (
-        <span className="conversation-title" data-tip={conversation.title || t("chat.title")}>
-          {conversation.title || t("chat.title")}
-        </span>
+        <Tip content={conversation.title || t("chat.title")}>
+          <span className="conversation-title">{conversation.title || t("chat.title")}</span>
+        </Tip>
       )}
       {!renaming && status && <StatusMark status={status} />}
       {!renaming && (
         <div className="conversation-actions" onClick={(event) => event.stopPropagation()}>
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            aria-label={conversation.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
-            data-tip={conversation.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
-            onClick={onTogglePin}
-          >
-            <Pin size={13} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            aria-label={t("sidebar.rename")}
-            data-tip={t("sidebar.rename")}
-            onClick={() => {
-              setRenaming(true);
-              setValue(conversation.title);
-            }}
-          >
-            <Pencil size={13} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            className="conversation-delete"
-            aria-label={t("provider.delete")}
-            data-tip={t("provider.delete")}
-            onClick={onDelete}
-          >
-            <Trash2 size={14} />
-          </Button>
+          <Tip content={conversation.pinned ? t("sidebar.unpin") : t("sidebar.pin")}>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label={conversation.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
+              onClick={onTogglePin}
+            >
+              <Pin size={13} />
+            </Button>
+          </Tip>
+          <Tip content={t("sidebar.rename")}>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label={t("sidebar.rename")}
+              onClick={() => {
+                setRenaming(true);
+                setValue(conversation.title);
+              }}
+            >
+              <Pencil size={13} />
+            </Button>
+          </Tip>
+          <Tip content={t("provider.delete")}>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              className="conversation-delete"
+              aria-label={t("provider.delete")}
+              onClick={onDelete}
+            >
+              <Trash2 size={14} />
+            </Button>
+          </Tip>
         </div>
       )}
     </div>

@@ -16,7 +16,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Button } from "../components/ui";
+import { Button, Tip } from "../components/ui";
 import type { MessageRecord, ToolCallRecord, ToolResultRecord } from "../core/storage/db";
 import {
   TOOL_DENIED,
@@ -241,7 +241,11 @@ export function AgentActivity({
                         </span>
                         <span className="execution-copy">
                           <strong>{toolName}</strong>
-                          {summaryText && <span data-tip={summaryText}>{summaryText}</span>}
+                          {summaryText && (
+                            <Tip content={summaryText}>
+                              <span>{summaryText}</span>
+                            </Tip>
+                          )}
                         </span>
                         <span className="execution-status">
                           {running

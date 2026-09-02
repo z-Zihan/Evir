@@ -16,7 +16,7 @@ import {
   TerminalSquare,
   XCircle,
 } from "lucide-react";
-import { Button } from "../components/ui";
+import { Button, Tip } from "../components/ui";
 import { getRuntime } from "../runtime/use-runtime";
 import {
   runVerification,
@@ -259,21 +259,19 @@ export function AgentRunSummary({
             <ul className="result-change-list">
               {changes.map((change) => (
                 <li key={change.path}>
-                  <button
-                    type="button"
-                    onClick={() => openDiff(change.path)}
-                    data-tip={change.path}
-                  >
-                    <span className={`workspace-change-letter ${change.changeType}`}>
-                      {change.changeType === "added" ? "A" : "M"}
-                    </span>
-                    {change.changeType === "added" ? (
-                      <FilePlus2 size={13} aria-hidden="true" />
-                    ) : (
-                      <FileCode2 size={13} aria-hidden="true" />
-                    )}
-                    <code>{relativeToRoot(change.path, workspace)}</code>
-                  </button>
+                  <Tip content={change.path}>
+                    <button type="button" onClick={() => openDiff(change.path)}>
+                      <span className={`workspace-change-letter ${change.changeType}`}>
+                        {change.changeType === "added" ? "A" : "M"}
+                      </span>
+                      {change.changeType === "added" ? (
+                        <FilePlus2 size={13} aria-hidden="true" />
+                      ) : (
+                        <FileCode2 size={13} aria-hidden="true" />
+                      )}
+                      <code>{relativeToRoot(change.path, workspace)}</code>
+                    </button>
+                  </Tip>
                 </li>
               ))}
             </ul>
@@ -290,10 +288,12 @@ export function AgentRunSummary({
             <ul className="result-change-list">
               {outputs.map((output) => (
                 <li key={output.id}>
-                  <button type="button" onClick={() => openOutput(output)} data-tip={output.path}>
-                    <span className="workspace-output-type">{output.type}</span>
-                    <code>{relativeToRoot(output.path, workspace)}</code>
-                  </button>
+                  <Tip content={output.path}>
+                    <button type="button" onClick={() => openOutput(output)}>
+                      <span className="workspace-output-type">{output.type}</span>
+                      <code>{relativeToRoot(output.path, workspace)}</code>
+                    </button>
+                  </Tip>
                 </li>
               ))}
             </ul>
