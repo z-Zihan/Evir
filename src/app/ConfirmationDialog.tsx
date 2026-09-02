@@ -1,6 +1,15 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { AlertTriangle, RotateCcw, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+  buttonVariants,
+} from "../components/ui";
 import { useOverlayBrowserGuard } from "./workspace/use-overlay-browser-guard";
 
 export interface ConfirmationOptions {
@@ -25,46 +34,9 @@ export function ConfirmationDialog({
 }: ConfirmationDialogProps) {
   const { t } = useTranslation();
   useOverlayBrowserGuard("confirmation", true);
-  const titleId = useId();
-  const descriptionId = useId();
   const cancelRef = useRef<HTMLButtonElement>(null);
-  const dialogRef = useRef<HTMLElement>(null);
-  const restoreFocusRef = useRef<HTMLElement | null>(null);
-  const busyRef = useRef(false);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
-
-  busyRef.current = busy;
-
-  useEffect(() => {
-    restoreFocusRef.current = document.activeElement as HTMLElement | null;
-    cancelRef.current?.focus();
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !busyRef.current) onCancel();
-      if (event.key !== "Tab") return;
-
-      const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
-        'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
-      );
-      if (!focusable?.length) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last?.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first?.focus();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      restoreFocusRef.current?.focus();
-    };
-  }, [onCancel]);
 
   const handleConfirm = async () => {
     setBusy(true);
@@ -81,15 +53,19 @@ export function ConfirmationDialog({
   const Icon = tone === "warning" ? RotateCcw : AlertTriangle;
 
   return (
-    <div className="confirmation-backdrop" onMouseDown={busy ? undefined : onCancel}>
-      <section
-        ref={dialogRef}
+    <AlertDialog
+      open
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen && !busy) onCancel();
+      }}
+    >
+      {/* `.confirmation-dialog` keeps the shell visuals (and its ≤640px rules), but it
+      pins `position: relative` for the old in-flow backdrop layout; the inline style
+      restores the fixed, viewport-centered placement the primitive expects. */}
+      <AlertDialogContent
         className={`confirmation-dialog ${tone}`}
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={descriptionId}
-        onMouseDown={(event) => event.stopPropagation()}
+        style={{ position: "fixed" }}
+        initialFocus={cancelRef}
       >
         <button
           className="confirmation-close"
@@ -105,8 +81,8 @@ export function ConfirmationDialog({
           <Icon size={20} />
         </span>
         <div className="confirmation-copy">
-          <h4 id={titleId}>{title}</h4>
-          <p id={descriptionId}>{description}</p>
+          <AlertDialogTitle render={<h4 />}>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
           {failed && (
             <p className="confirmation-error" role="alert">
               {t("confirmation.failed")}
@@ -114,19 +90,18 @@ export function ConfirmationDialog({
           )}
         </div>
         <footer>
-          <button ref={cancelRef} type="button" disabled={busy} onClick={onCancel}>
+          <AlertDialogCancel ref={cancelRef} disabled={busy}>
             {t("confirmation.cancel")}
-          </button>
-          <button
-            className="confirmation-submit"
-            type="button"
+          </AlertDialogCancel>
+          <AlertDialogAction
+            className={`confirmation-submit ${buttonVariants({ variant: tone === "warning" ? "primary" : "destructive" })}`}
             disabled={busy}
             onClick={() => void handleConfirm()}
           >
             {busy ? t("confirmation.processing") : confirmLabel}
-          </button>
+          </AlertDialogAction>
         </footer>
-      </section>
-    </div>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

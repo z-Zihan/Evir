@@ -11,7 +11,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { Button } from "../components/ui";
+import { Button, Tabs, TabsList, TabsTab } from "../components/ui";
 import {
   activateTab as activateTabCommand,
   clearSiteData as clearSiteDataCommand,
@@ -196,31 +196,37 @@ export function BrowserWorkbench() {
           <Plus size={15} />
         </Button>
       </header>
-      <div className="browser-tabbar" role="tablist" aria-label={t("browser.tabs")}>
-        {tabs.map((tab) => (
-          <div
-            key={tab.id}
-            className={`browser-tab${tab.active ? " active" : ""}`}
-            role="tab"
-            aria-selected={tab.active}
-            onClick={() => void run(() => activateTabCommand(tab.id))}
-          >
-            <span className="browser-tab-title">{tab.title || hostOf(tab.url)}</span>
-            <Button
-              variant="ghost"
-              className="h-auto rounded-sm p-px"
-              aria-label={t("browser.closeTab")}
-              onClick={(event) => {
-                event.stopPropagation();
-                void run(() => closeTabCommand(tab.id));
-              }}
+      <Tabs
+        value={activeTab?.id ?? null}
+        onValueChange={(value) => void run(() => activateTabCommand(value as number))}
+      >
+        <TabsList className="browser-tabbar" aria-label={t("browser.tabs")}>
+          {tabs.map((tab) => (
+            <TabsTab
+              key={tab.id}
+              value={tab.id}
+              className={`browser-tab${tab.active ? " active" : ""}`}
             >
-              <X size={11} />
-            </Button>
-          </div>
-        ))}
-        {tabs.length === 0 && <span className="browser-empty-hint">{t("browser.emptyHint")}</span>}
-      </div>
+              <span className="browser-tab-title">{tab.title || hostOf(tab.url)}</span>
+              <Button
+                variant="ghost"
+                className="h-auto rounded-sm p-px"
+                aria-label={t("browser.closeTab")}
+                onClick={(event) => {
+                  // Close must not bubble into the owning tab's activation.
+                  event.stopPropagation();
+                  void run(() => closeTabCommand(tab.id));
+                }}
+              >
+                <X size={11} />
+              </Button>
+            </TabsTab>
+          ))}
+          {tabs.length === 0 && (
+            <span className="browser-empty-hint">{t("browser.emptyHint")}</span>
+          )}
+        </TabsList>
+      </Tabs>
       {/* Remote content renders in Rust-managed child webviews over this area. */}
       <div className="browser-content-area" ref={contentRef} aria-hidden="true">
         {tabs.length === 0 && (

@@ -12,7 +12,7 @@ import {
   Play,
   Square,
 } from "lucide-react";
-import { Button } from "../../components/ui";
+import { Button, Tabs, TabsList, TabsTab } from "../../components/ui";
 import { useWorkspacePanelStore } from "../../features/workspace/workspace-panel-store";
 import {
   workspaceResourceKey,
@@ -436,28 +436,19 @@ export function PreviewTab() {
           </span>
           <div className="workspace-resource-actions">
             {canToggle && (
-              <div
-                className="workspace-mode-toggle"
-                role="group"
-                aria-label={t("preview.viewMode")}
+              <Tabs
+                value={mode}
+                onValueChange={(value) => setViewMode(value as "code" | "preview")}
               >
-                <button
-                  type="button"
-                  className={mode === "code" ? "active" : ""}
-                  aria-pressed={mode === "code"}
-                  onClick={() => setViewMode("code")}
-                >
-                  {t("preview.codeTab")}
-                </button>
-                <button
-                  type="button"
-                  className={mode === "preview" ? "active" : ""}
-                  aria-pressed={mode === "preview"}
-                  onClick={() => setViewMode("preview")}
-                >
-                  {t("preview.previewTab")}
-                </button>
-              </div>
+                <TabsList className="workspace-mode-toggle" aria-label={t("preview.viewMode")}>
+                  <TabsTab value="code" className={mode === "code" ? "active" : ""}>
+                    {t("preview.codeTab")}
+                  </TabsTab>
+                  <TabsTab value="preview" className={mode === "preview" ? "active" : ""}>
+                    {t("preview.previewTab")}
+                  </TabsTab>
+                </TabsList>
+              </Tabs>
             )}
             <Button
               variant="ghost"

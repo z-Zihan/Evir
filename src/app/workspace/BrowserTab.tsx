@@ -14,7 +14,7 @@ import {
   Unplug,
   X,
 } from "lucide-react";
-import { Button } from "../../components/ui";
+import { Button, Tabs, TabsList, TabsTab } from "../../components/ui";
 import {
   panelAnnotate,
   panelLayoutUpdate,
@@ -435,40 +435,38 @@ export function BrowserTab() {
         )}
       </header>
       {tabs.length > 0 && (
-        <div
-          className="workspace-browser-tabbar"
-          role="tablist"
-          aria-label={t("workspace.browserTabs")}
+        <Tabs
+          value={activeTab?.id ?? null}
+          onValueChange={(value) => void panelTabActivate(value as number)}
         >
-          {tabs.map((tab) => (
-            <div
-              key={tab.id}
-              className={`workspace-browser-tab-pill${tab.active ? " active" : ""}`}
-              role="tab"
-              aria-selected={tab.active}
-            >
-              <button
-                type="button"
-                className="tab-pill-main"
-                onClick={() => void panelTabActivate(tab.id)}
+          <TabsList className="workspace-browser-tabbar" aria-label={t("workspace.browserTabs")}>
+            {tabs.map((tab) => (
+              <TabsTab
+                key={tab.id}
+                value={tab.id}
+                className={`workspace-browser-tab-pill${tab.active ? " active" : ""}`}
               >
-                <span className="tab-pill-title">
-                  {tab.title || tab.url.replace(/^https?:\/\//, "")}
+                <span className="tab-pill-main">
+                  <span className="tab-pill-title">
+                    {tab.title || tab.url.replace(/^https?:\/\//, "")}
+                  </span>
                 </span>
-              </button>
-              <button
-                type="button"
-                className="tab-pill-close"
-                aria-label={t("workspace.closeTab")}
-                onClick={() => {
-                  void panelTabClose(tab.id).then(() => panelTabList().then(setTabs));
-                }}
-              >
-                <X size={11} aria-hidden="true" />
-              </button>
-            </div>
-          ))}
-        </div>
+                <button
+                  type="button"
+                  className="tab-pill-close"
+                  aria-label={t("workspace.closeTab")}
+                  onClick={(event) => {
+                    // Close must not bubble into the owning tab's activation.
+                    event.stopPropagation();
+                    void panelTabClose(tab.id).then(() => panelTabList().then(setTabs));
+                  }}
+                >
+                  <X size={11} aria-hidden="true" />
+                </button>
+              </TabsTab>
+            ))}
+          </TabsList>
+        </Tabs>
       )}
       <div
         className="workspace-browser-content"

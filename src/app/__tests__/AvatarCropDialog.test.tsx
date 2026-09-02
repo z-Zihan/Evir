@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AvatarCropDialog } from "../AvatarCropDialog";
 
@@ -18,7 +18,7 @@ vi.mock("../avatar-image", () => ({
 afterEach(cleanup);
 
 describe("AvatarCropDialog", () => {
-  it("traps focus, closes with Escape, and returns focus to the trigger", () => {
+  it("traps focus, closes with Escape, and returns focus to the trigger", async () => {
     const trigger = document.createElement("button");
     trigger.textContent = "Choose photo";
     document.body.append(trigger);
@@ -30,17 +30,14 @@ describe("AvatarCropDialog", () => {
     );
 
     const close = screen.getByRole("button", { name: "personalization.closeCrop" });
-    const cancel = screen.getByRole("button", { name: "personalization.cancelCrop" });
-    expect(document.activeElement).toBe(close);
-    fireEvent.keyDown(window, { key: "Tab", shiftKey: true });
-    expect(document.activeElement).toBe(cancel);
-    fireEvent.keyDown(window, { key: "Tab" });
-    expect(document.activeElement).toBe(close);
+    await waitFor(() => expect(document.activeElement).toBe(close));
+    // Outside content is inert while the modal is open (Base UI focus trap).
+    await waitFor(() => expect(trigger.getAttribute("data-base-ui-inert") !== null).toBe(true));
 
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(onCancel).toHaveBeenCalledOnce();
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => expect(onCancel).toHaveBeenCalledOnce());
     unmount();
-    expect(document.activeElement).toBe(trigger);
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
     trigger.remove();
   });
 

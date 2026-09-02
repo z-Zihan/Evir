@@ -60,7 +60,7 @@ const UsagePanel = lazy(() => import("./UsagePanel").then((m) => ({ default: m.U
 const BrowserSettings = lazy(() =>
   import("./BrowserSettings").then((m) => ({ default: m.BrowserSettings })),
 );
-import { Button } from "../components/ui";
+import { Button, Dialog, DialogContent, DialogTitle } from "../components/ui";
 import { downloadBlob, exportConversations } from "../features/chat/conversation-export";
 import { importConversations } from "../features/chat/conversation-import";
 import { getRuntime } from "../runtime/use-runtime";
@@ -135,9 +135,7 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
   const [importResult, setImportResult] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const previousFocusRef = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
   const currentConversationId = useChatStore((state) => state.currentConversationId);
   const currentWorkspace = useWorkspaceStore((state) => state.currentWorkspace);
@@ -164,56 +162,6 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
       setActiveTab(isSettingsTabAvailable(initialTab, runtimeTarget) ? initialTab : "providers");
     }
   }, [initialTab, open, runtimeTarget]);
-
-  useEffect(() => {
-    if (!open) return;
-    previousFocusRef.current =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    closeButtonRef.current?.focus();
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (
-        document.querySelector(
-          ".settings-form-backdrop, .confirmation-backdrop, .avatar-crop-backdrop",
-        )
-      )
-        return;
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onCloseRef.current();
-        return;
-      }
-      if (event.key !== "Tab" || !dialogRef.current) return;
-      const focusable = Array.from(
-        dialogRef.current.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
-        ),
-      ).filter(
-        (element) =>
-          !element.hidden &&
-          element.getAttribute("aria-hidden") !== "true" &&
-          element.getClientRects().length > 0,
-      );
-      const first = focusable[0];
-      const last = focusable.at(-1);
-      if (!first || !last) return;
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      previousFocusRef.current?.focus();
-    };
-  }, [open]);
-
-  if (!open) return null;
 
   const handleTabChange = (tab: SettingsTab) => {
     logger.info("ui", "ui.tab-change", {
@@ -250,18 +198,21 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
   };
 
   return (
-    <div className="settings-backdrop">
-      <div
-        ref={dialogRef}
-        className="settings-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="settings-title"
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onCloseRef.current();
+      }}
+    >
+      <DialogContent
+        className="settings-dialog max-w-none p-0"
+        showCloseButton={false}
+        initialFocus={closeButtonRef}
       >
         <header className="settings-header">
           <div>
             <span className="settings-eyebrow">Evir</span>
-            <h2 id="settings-title">{t("settings.title")}</h2>
+            <DialogTitle>{t("settings.title")}</DialogTitle>
           </div>
           <button
             ref={closeButtonRef}
@@ -386,7 +337,7 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
             </div>
           </main>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

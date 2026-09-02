@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProjectRecord } from "../../core/storage/db";
 import { ProjectPermissionPanel } from "../ProjectPermissionPanel";
@@ -60,10 +60,10 @@ describe("ProjectPermissionPanel", () => {
     expect(setPermissionProfile).toHaveBeenCalledWith(project.id, "full");
   });
 
-  it("closes with Escape", () => {
+  it("closes with Escape", async () => {
     const onClose = vi.fn();
     render(<ProjectPermissionPanel project={project} onClose={onClose} />);
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(onClose).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
   });
 });

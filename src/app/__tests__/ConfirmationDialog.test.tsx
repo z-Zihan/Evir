@@ -13,7 +13,7 @@ afterEach(() => {
 });
 
 describe("ConfirmationDialog", () => {
-  it("cancels without executing the destructive action", () => {
+  it("cancels without executing the destructive action", async () => {
     const onCancel = vi.fn();
     const onConfirm = vi.fn();
     render(
@@ -27,8 +27,11 @@ describe("ConfirmationDialog", () => {
     );
 
     expect(screen.getByRole("alertdialog")).toBeDefined();
-    expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: "confirmation.cancel" }),
+    // Base UI settles initial focus asynchronously after the portal mounts.
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "confirmation.cancel" }),
+      ),
     );
     fireEvent.click(screen.getByRole("button", { name: "confirmation.cancel" }));
     expect(onCancel).toHaveBeenCalledOnce();

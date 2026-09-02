@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
-import { Button } from "../../components/ui";
+import { Button, Tabs, TabsListUnderline, TabsTabUnderline } from "../../components/ui";
 import {
   useWorkspacePanelStore,
   type WorkspaceTab,
@@ -69,43 +69,44 @@ export function WorkspacePanel() {
 
   return (
     <aside className="workspace-panel" aria-label={t("workspace.title")}>
-      <div className="workspace-panel-tabs" role="tablist" aria-label={t("workspace.title")}>
-        {tabs
-          .filter((tab) => !tab.requiresProject || hasProject)
-          .map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              id={`workspace-tab-${tab.id}`}
-              aria-selected={effectiveTab === tab.id}
-              aria-controls="workspace-panel-content"
-              className={`workspace-panel-tab${effectiveTab === tab.id ? " active" : ""}`}
-              onClick={() => setTab(tab.id)}
-            >
-              <span>{tab.label}</span>
-              {typeof tab.badge === "number" && tab.badge > 0 && (
-                <span
-                  className="workspace-tab-badge"
-                  aria-label={t("workspace.changesCount", { count: tab.badge })}
-                >
-                  {tab.badge > 99 ? "99+" : tab.badge}
-                </span>
-              )}
-              {tab.badge === "dot" && <span className="workspace-tab-dot" aria-hidden="true" />}
-            </button>
-          ))}
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          className="ml-auto"
-          onClick={closePanel}
-          aria-label={t("workspace.close")}
-          data-tip={t("workspace.close")}
-        >
-          <X size={14} aria-hidden="true" />
-        </Button>
-      </div>
+      {/* Tabs owns only the tab row: the content area stays a plain sibling so
+          the panel's flex column layout and lazy per-tab mounting are kept. */}
+      <Tabs value={effectiveTab} onValueChange={(value) => setTab(value as WorkspaceTab)}>
+        <TabsListUnderline className="workspace-panel-tabs" aria-label={t("workspace.title")}>
+          {tabs
+            .filter((tab) => !tab.requiresProject || hasProject)
+            .map((tab) => (
+              <TabsTabUnderline
+                key={tab.id}
+                id={`workspace-tab-${tab.id}`}
+                value={tab.id}
+                className={`workspace-panel-tab${effectiveTab === tab.id ? " active" : ""}`}
+                aria-controls="workspace-panel-content"
+              >
+                <span>{tab.label}</span>
+                {typeof tab.badge === "number" && tab.badge > 0 && (
+                  <span
+                    className="workspace-tab-badge"
+                    aria-label={t("workspace.changesCount", { count: tab.badge })}
+                  >
+                    {tab.badge > 99 ? "99+" : tab.badge}
+                  </span>
+                )}
+                {tab.badge === "dot" && <span className="workspace-tab-dot" aria-hidden="true" />}
+              </TabsTabUnderline>
+            ))}
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="ml-auto"
+            onClick={closePanel}
+            aria-label={t("workspace.close")}
+            data-tip={t("workspace.close")}
+          >
+            <X size={14} aria-hidden="true" />
+          </Button>
+        </TabsListUnderline>
+      </Tabs>
       <div
         className="workspace-panel-content"
         id="workspace-panel-content"

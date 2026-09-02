@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { CodeBlockView } from "../features/preview/CodeBlockView";
+import { Dialog, DialogContent } from "../components/ui";
 import { useOverlayBrowserGuard } from "./workspace/use-overlay-browser-guard";
 
 const MATH_PATTERN = /\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)|\$[^$\n]+\$/;
@@ -50,34 +51,40 @@ function CodeBlock({ children, streaming }: { children?: ReactNode; streaming: b
 
 function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
   const { t } = useTranslation();
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   useOverlayBrowserGuard("image-lightbox", true);
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
 
   return (
-    <div
-      className="image-lightbox"
-      role="dialog"
-      aria-modal="true"
-      aria-label={alt}
-      onClick={onClose}
+    <Dialog
+      open
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose();
+      }}
     >
-      <button
-        type="button"
-        className="image-lightbox-close"
-        autoFocus
+      {/*
+        `.image-lightbox` paints the full-bleed dark backdrop (fixed inset-0); the
+        extra utilities cancel the primitive's centering transform, border, radius,
+        shadow and max-width so the class fully owns the shell.
+      */}
+      <DialogContent
+        aria-label={alt}
+        className="image-lightbox max-w-none translate-x-0 translate-y-0 rounded-none border-0 shadow-none"
+        showCloseButton={false}
+        initialFocus={closeButtonRef}
         onClick={onClose}
-        aria-label={t("common.close")}
       >
-        <X size={16} />
-      </button>
-      <img src={src} alt={alt} onClick={(event) => event.stopPropagation()} />
-    </div>
+        <button
+          ref={closeButtonRef}
+          type="button"
+          className="image-lightbox-close"
+          onClick={onClose}
+          aria-label={t("common.close")}
+        >
+          <X size={16} />
+        </button>
+        <img src={src} alt={alt} onClick={(event) => event.stopPropagation()} />
+      </DialogContent>
+    </Dialog>
   );
 }
 

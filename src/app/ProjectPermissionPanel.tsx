@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useOverlayBrowserGuard } from "./workspace/use-overlay-browser-guard";
 import { FolderPlus, ShieldCheck, X } from "lucide-react";
-import { Button } from "../components/ui";
+import { Button, Dialog, DialogContent, DialogTitle } from "../components/ui";
 import type { PermissionProfile, ProjectRecord } from "../core/storage/db";
 import { useProjectStore } from "../features/projects/project-store";
 import { getRuntime } from "../runtime/use-runtime";
@@ -39,14 +39,7 @@ export function ProjectPermissionPanel({ project, onClose }: ProjectPermissionPa
   const addAccessRoot = useProjectStore((state) => state.addAccessRoot);
   const removeAccessRoot = useProjectStore((state) => state.removeAccessRoot);
   const [status, setStatus] = useState<string | null>(null);
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   const chooseProfile = (profile: PermissionProfile) => {
     if (profile === project.permissionProfile) return;
@@ -74,24 +67,27 @@ export function ProjectPermissionPanel({ project, onClose }: ProjectPermissionPa
   };
 
   return (
-    <div className="settings-backdrop project-permission-backdrop" onClick={onClose}>
-      <div
-        className="project-permission-panel"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="project-permission-title"
-        onClick={(event) => event.stopPropagation()}
+    <Dialog
+      open
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose();
+      }}
+    >
+      <DialogContent
+        className="project-permission-panel max-w-none p-0"
+        showCloseButton={false}
+        initialFocus={closeButtonRef}
       >
         <header className="project-permission-header">
           <div>
             <ShieldCheck size={15} aria-hidden="true" />
-            <h3 id="project-permission-title">
+            <DialogTitle render={<h3 />}>
               {t("project.permissionTitle", { name: project.displayName })}
-            </h3>
+            </DialogTitle>
           </div>
           <button
+            ref={closeButtonRef}
             type="button"
-            autoFocus
             className="settings-close"
             onClick={onClose}
             aria-label={t("settings.close")}
@@ -152,8 +148,8 @@ export function ProjectPermissionPanel({ project, onClose }: ProjectPermissionPa
             )}
           </div>
         </div>
-      </div>
-      {confirmationDialog}
-    </div>
+        {confirmationDialog}
+      </DialogContent>
+    </Dialog>
   );
 }

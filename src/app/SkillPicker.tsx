@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, Search, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Button } from "../components/ui";
+import { Button, Popover, PopoverContent, PopoverTrigger } from "../components/ui";
 import type { InteractionMode } from "../core/providers/tool-registry";
 import type { InstalledSkill } from "../core/skills/types";
 import { useChatStore } from "../features/chat/chat-store";
@@ -23,8 +23,6 @@ function localizedSkill(skill: InstalledSkill, language: string) {
 
 export function SkillPicker({ mode, disabled }: SkillPickerProps) {
   const { t, i18n } = useTranslation();
-  const rootRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const skills = useSkillStore((state) => state.skills);
@@ -35,25 +33,6 @@ export function SkillPicker({ mode, disabled }: SkillPickerProps) {
   useEffect(() => {
     void loadSkills();
   }, [loadSkills]);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const closeWithEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      setOpen(false);
-      triggerRef.current?.focus();
-    };
-    document.addEventListener("mousedown", close);
-    document.addEventListener("keydown", closeWithEscape);
-    return () => {
-      document.removeEventListener("mousedown", close);
-      document.removeEventListener("keydown", closeWithEscape);
-    };
-  }, [open]);
 
   const grouped = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -85,70 +64,87 @@ export function SkillPicker({ mode, disabled }: SkillPickerProps) {
   };
 
   return (
-    <div className="composer-skill-picker" ref={rootRef}>
-      <Button
-        ref={triggerRef}
-        type="button"
-        variant="ghost"
-        className={`composer-tool-button size-[30px] rounded-[7px] font-normal${selectedSkillIds.size > 0 ? " active" : ""}`}
-        onClick={() => setOpen((value) => !value)}
-        disabled={disabled}
-        aria-label={t("skill.chooseForMessage")}
-        data-tip={t("skill.chooseForMessage")}
-        aria-expanded={open}
-      >
-        <Sparkles size={16} aria-hidden="true" />
-        {selectedSkillIds.size > 0 && (
-          <span className="composer-skill-count">{selectedSkillIds.size}</span>
-        )}
-      </Button>
-      {open && (
-        <div className="composer-skill-menu" role="dialog" aria-label={t("skill.chooseForMessage")}>
-          <label className="composer-skill-search">
-            <Search size={14} aria-hidden="true" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={t("skill.search")}
-              aria-label={t("skill.search")}
-              autoFocus
+    <div className="composer-skill-picker">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger
+          render={
+            <Button
+              variant="ghost"
+              className={`composer-tool-button size-[30px] rounded-[7px] font-normal${selectedSkillIds.size > 0 ? " active" : ""}`}
+              disabled={disabled}
+              aria-label={t("skill.chooseForMessage")}
+              data-tip={t("skill.chooseForMessage")}
             />
-          </label>
-          <div className="composer-skill-results">
-            {grouped.length === 0 ? (
-              <span className="composer-skill-empty">{t("skill.noSearchResults")}</span>
-            ) : (
-              grouped.map(([category, entries]) => (
-                <section key={category} className="composer-skill-group">
-                  <h4>{categoryLabel(category, entries)}</h4>
-                  {entries.map((skill) => {
-                    const localized = localizedSkill(skill, i18n.resolvedLanguage ?? "en");
-                    const incompatible = mode === "ask" && skill.manifest.capabilities.length > 0;
-                    const selected = selectedSkillIds.has(skill.manifest.id);
-                    return (
-                      <button
-                        key={skill.manifest.id}
-                        type="button"
-                        className={selected ? "selected" : ""}
-                        disabled={incompatible}
-                        onClick={() => toggleSelectedSkill(skill.manifest.id)}
-                        data-tip={incompatible ? t("skill.requiresAgentMode") : undefined}
-                        aria-pressed={selected}
-                      >
-                        <span>
-                          <strong>{localized.name}</strong>
-                          <small>{localized.description}</small>
-                        </span>
-                        {selected && <Check size={14} aria-hidden="true" />}
-                      </button>
-                    );
-                  })}
-                </section>
-              ))
-            )}
+          }
+        >
+          <Sparkles size={16} aria-hidden="true" />
+          {selectedSkillIds.size > 0 && (
+            <span className="composer-skill-count">{selectedSkillIds.size}</span>
+          )}
+        </PopoverTrigger>
+        <PopoverContent
+          side="top"
+          align="start"
+          sideOffset={6}
+          className="rounded-none border-0 bg-transparent p-0 shadow-none!"
+        >
+          {/* Base UI popups render in a portal and hard-wire role="dialog" on
+              their own popup; the named dialog role for e2e/a11y lives on this
+              inner element. position:static neutralizes the legacy
+              absolute-position offsets in .composer-skill-menu — placement now
+              comes from the popover positioner. */}
+          <div
+            className="composer-skill-menu"
+            role="dialog"
+            aria-label={t("skill.chooseForMessage")}
+            style={{ position: "static" }}
+          >
+            <label className="composer-skill-search">
+              <Search size={14} aria-hidden="true" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={t("skill.search")}
+                aria-label={t("skill.search")}
+                autoFocus
+              />
+            </label>
+            <div className="composer-skill-results">
+              {grouped.length === 0 ? (
+                <span className="composer-skill-empty">{t("skill.noSearchResults")}</span>
+              ) : (
+                grouped.map(([category, entries]) => (
+                  <section key={category} className="composer-skill-group">
+                    <h4>{categoryLabel(category, entries)}</h4>
+                    {entries.map((skill) => {
+                      const localized = localizedSkill(skill, i18n.resolvedLanguage ?? "en");
+                      const incompatible = mode === "ask" && skill.manifest.capabilities.length > 0;
+                      const selected = selectedSkillIds.has(skill.manifest.id);
+                      return (
+                        <button
+                          key={skill.manifest.id}
+                          type="button"
+                          className={selected ? "selected" : ""}
+                          disabled={incompatible}
+                          onClick={() => toggleSelectedSkill(skill.manifest.id)}
+                          data-tip={incompatible ? t("skill.requiresAgentMode") : undefined}
+                          aria-pressed={selected}
+                        >
+                          <span>
+                            <strong>{localized.name}</strong>
+                            <small>{localized.description}</small>
+                          </span>
+                          {selected && <Check size={14} aria-hidden="true" />}
+                        </button>
+                      );
+                    })}
+                  </section>
+                ))
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

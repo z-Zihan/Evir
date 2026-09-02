@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import Cropper, { type Area, type Point } from "react-easy-crop";
 import { useTranslation } from "react-i18next";
 import { ImagePlus, Minus, Plus, X } from "lucide-react";
-import { Button } from "../components/ui";
+import { Button, Dialog, DialogContent, DialogTitle } from "../components/ui";
 import { cropAvatarImage } from "./avatar-image";
 
 interface AvatarCropDialogProps {
@@ -13,53 +13,12 @@ interface AvatarCropDialogProps {
 
 export function AvatarCropDialog({ imageUrl, onCancel, onSave }: AvatarCropDialogProps) {
   const { t } = useTranslation();
-  const titleId = useId();
-  const dialogRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const previousFocusRef = useRef<HTMLElement | null>(null);
-  const onCancelRef = useRef(onCancel);
-  const savingRef = useRef(false);
-  onCancelRef.current = onCancel;
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedArea, setCroppedArea] = useState<Area | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
-  savingRef.current = saving;
-
-  useEffect(() => {
-    previousFocusRef.current =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    closeRef.current?.focus();
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !savingRef.current) {
-        event.preventDefault();
-        onCancelRef.current();
-        return;
-      }
-      if (event.key !== "Tab" || !dialogRef.current) return;
-      const focusable = Array.from(
-        dialogRef.current.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
-        ),
-      ).filter((element) => !element.hidden && element.getAttribute("aria-hidden") !== "true");
-      const first = focusable[0];
-      const last = focusable.at(-1);
-      if (!first || !last) return;
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      previousFocusRef.current?.focus();
-    };
-  }, []);
 
   const handleCropComplete = useCallback((_area: Area, pixels: Area) => {
     setCroppedArea(pixels);
@@ -78,18 +37,20 @@ export function AvatarCropDialog({ imageUrl, onCancel, onSave }: AvatarCropDialo
   };
 
   return (
-    <div className="avatar-crop-backdrop" onMouseDown={saving ? undefined : onCancel}>
-      <section
-        ref={dialogRef}
-        className="avatar-crop-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onMouseDown={(event) => event.stopPropagation()}
+    <Dialog
+      open
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen && !saving) onCancel();
+      }}
+    >
+      <DialogContent
+        className="avatar-crop-dialog max-w-none p-0"
+        showCloseButton={false}
+        initialFocus={closeRef}
       >
         <header>
           <div>
-            <h4 id={titleId}>{t("personalization.cropTitle")}</h4>
+            <DialogTitle render={<h4 />}>{t("personalization.cropTitle")}</DialogTitle>
             <p>{t("personalization.cropDescription")}</p>
           </div>
           <button
@@ -150,7 +111,7 @@ export function AvatarCropDialog({ imageUrl, onCancel, onSave }: AvatarCropDialo
             {saving ? t("personalization.processing") : t("personalization.usePhoto")}
           </Button>
         </footer>
-      </section>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

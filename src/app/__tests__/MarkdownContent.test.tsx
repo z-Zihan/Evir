@@ -71,15 +71,15 @@ describe("MarkdownContent tables and links", () => {
 });
 
 describe("MarkdownContent images", () => {
-  it("opens a lightbox dialog on image click and closes on Escape", () => {
+  it("opens a lightbox dialog on image click and closes on Escape", async () => {
     render(<MarkdownContent content={"![chart](https://example.com/chart.png)"} />);
 
     fireEvent.click(screen.getByRole("button", { name: "chat.previewImage" }));
     const dialog = screen.getByRole("dialog");
     expect(dialog.querySelector("img")?.getAttribute("src")).toBe("https://example.com/chart.png");
 
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(screen.queryByRole("dialog")).toBeNull();
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 });
 

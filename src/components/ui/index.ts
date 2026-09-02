@@ -6,7 +6,7 @@ export { Input, Textarea, Label } from "./input";
 export { Kbd } from "./kbd";
 export { Spinner, Skeleton } from "./spinner";
 export { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyAction } from "./empty";
-export { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "./tooltip";
+export { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent, Tip } from "./tooltip";
 export {
   Popover,
   PopoverTrigger,
