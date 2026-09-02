@@ -957,7 +957,11 @@
       "evidence": "验证证据",
       "evidenceNotRequired": "该纯回答任务不需要本地验证。",
       "noEvidence": "未记录成功的验证证据。",
-      "unresolvedItems": "未解决事项"
+      "unresolvedItems": "未解决事项",
+      "viewOutputs": "查看产出",
+      "reviewChanges": "查看变更",
+      "outputsCount": "{{count}} 个文件",
+      "changesCount": "{{count}} 个文件 · +{{additions}} −{{deletions}}"
     },
     "agentStatus": {
       "queued": "等待中",

@@ -957,7 +957,11 @@
       "evidence": "Verification evidence",
       "evidenceNotRequired": "This answer-only task did not require local verification.",
       "noEvidence": "No successful verification evidence was recorded.",
-      "unresolvedItems": "Unresolved items"
+      "unresolvedItems": "Unresolved items",
+      "viewOutputs": "View outputs",
+      "reviewChanges": "Review changes",
+      "outputsCount": "{{count}} files",
+      "changesCount": "{{count}} files · +{{additions}} −{{deletions}}"
     },
     "agentStatus": {
       "queued": "Queued",

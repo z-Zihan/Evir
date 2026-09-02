@@ -1,3 +1,4 @@
+import { deriveToolStatus } from "../features/chat/tool-view-model";
 import { useState } from "react";
 import {
   CheckCircle2,
@@ -213,9 +214,10 @@ export function AgentActivity({
               {groupOpen && (
                 <div className="tool-group-calls">
                   {group.calls.map(({ call, result }) => {
-                    const permissionRequired = result?.error === TOOL_PERMISSION_REQUIRED;
-                    const running = isStreaming && !result;
-                    const denied = result?.error === TOOL_DENIED;
+                    const status = deriveToolStatus(call, result, isStreaming);
+                    const permissionRequired = status === "waiting-approval";
+                    const running = status === "running";
+                    const denied = status === "denied";
                     const toolKey = `tools.${call.toolName}`;
                     const toolName = i18n.exists(toolKey) ? t(toolKey) : call.toolName;
                     const summaryText = getArgumentSummary(call);

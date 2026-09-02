@@ -1,6 +1,11 @@
+import { useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, CircleSlash2, ClipboardCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { OrchestrationSnapshot } from "../core/orchestration/types";
+import { useRunWorkspaceStore } from "../features/workspace/workspace-run-store";
+import { useWorkspacePanelStore } from "../features/workspace/workspace-panel-store";
+import { useActiveWorkspaceRoot } from "../features/workspace/workspace-bridge";
+import { logger } from "../core/logging/logger";
 
 type FinishedStatus = "completed" | "partial" | "failed" | "cancelled";
 
@@ -13,7 +18,45 @@ export function TaskRunSummary({
 }) {
   const { t } = useTranslation();
   const plan = snapshot.plan;
+  const outputsCount = useRunWorkspaceStore((state) => state.outputs.length);
+  const changes = useRunWorkspaceStore((state) => state.changes);
+  const root = useActiveWorkspaceRoot();
+  // §14 Result Summary actions: surface the run's deliverables (Outputs) and
+  // the touched work files (Changes, with +adds −dels) as first-class entries.
+  const [changeTotals, setChangeTotals] = useState<{
+    files: number;
+    additions: number;
+    deletions: number;
+  } | null>(null);
+  useEffect(() => {
+    if (snapshot.phase !== "finished" || changes.length === 0) {
+      setChangeTotals(null);
+      return;
+    }
+    let cancelled = false;
+    void import("../features/workspace/workspace-services")
+      .then(({ summarizeRunChanges }) => summarizeRunChanges({ id: snapshot.runId }, changes, root))
+      .then((summary) => {
+        if (!cancelled) setChangeTotals(summary);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [snapshot.phase, snapshot.runId, changes, root]);
+
   if (!plan || snapshot.phase !== "finished") return null;
+
+  const openOutputs = () => {
+    logger.info("ui", "ui.output.open", {
+      actionId: crypto.randomUUID(),
+      runId: snapshot.runId,
+      resourceId: "task-outputs",
+    });
+    useWorkspacePanelStore.getState().openPanel("outputs");
+  };
+  const reviewChanges = () => {
+    useWorkspacePanelStore.getState().openPanel("changes");
+  };
 
   const completed = plan.nodes.filter(({ status }) => status === "completed");
   const unresolved = plan.nodes.filter(({ status }) =>
@@ -36,6 +79,7 @@ export function TaskRunSummary({
           <span>{t(`orchestration.summary.status.${status}`)}</span>
         </div>
       </div>
+      <p className="task-summary-result">{snapshot.brief.objective}</p>
 
       <dl className="task-summary-counts">
         <div>
@@ -97,6 +141,31 @@ export function TaskRunSummary({
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {(outputsCount > 0 || changeTotals) && (
+        <div className="task-summary-actions">
+          {outputsCount > 0 && (
+            <button type="button" className="secondary-button" onClick={openOutputs}>
+              {t("orchestration.summary.viewOutputs")}
+              <span className="task-summary-count-chip">
+                {t("orchestration.summary.outputsCount", { count: outputsCount })}
+              </span>
+            </button>
+          )}
+          {changeTotals && changeTotals.files > 0 && (
+            <button type="button" className="secondary-button" onClick={reviewChanges}>
+              {t("orchestration.summary.reviewChanges")}
+              <span className="task-summary-count-chip">
+                {t("orchestration.summary.changesCount", {
+                  count: changeTotals.files,
+                  additions: changeTotals.additions,
+                  deletions: changeTotals.deletions,
+                })}
+              </span>
+            </button>
+          )}
         </div>
       )}
     </section>
