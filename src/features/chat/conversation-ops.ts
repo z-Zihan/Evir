@@ -96,7 +96,7 @@ export async function selectConversation(
   });
   // Restore the incoming conversation's live run view: a background task keeps
   // streaming while the user was looking elsewhere.
-  mirrorCurrentStreamState(set, get, id);
+  mirrorCurrentStreamState(set, get);
   useOrchestrationStore.getState().setViewedConversation(id);
   logger.debug("ui", "chat.conversation-selected", { conversationId: id });
   const storage = getStructuredStorage();
@@ -137,7 +137,7 @@ export async function selectConversation(
       latestAgentRun: agentRuns[0] ?? null,
     };
   });
-  mirrorCurrentStreamState(set, get, id);
+  mirrorCurrentStreamState(set, get);
   if (orchestration && !useOrchestrationStore.getState().snapshotFor(id)) {
     useOrchestrationStore.getState().setCurrent(orchestration);
   }

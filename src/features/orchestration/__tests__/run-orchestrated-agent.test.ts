@@ -123,7 +123,7 @@ function seedOrchestration(snapshot: Record<string, unknown> | null): void {
           currentFallbackId: snapshot.conversationId as string,
         }
       : {}),
-  } as Parameters<typeof useOrchestrationStore.setState>[0]);
+  } as unknown as Parameters<typeof useOrchestrationStore.setState>[0]);
 }
 
 describe("runOrchestratedAgent", () => {

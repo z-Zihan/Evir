@@ -55,19 +55,6 @@ function formatSize(bytes: number | undefined): string | null {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function formatRelativeTime(
-  t: (key: string, options?: Record<string, unknown>) => string,
-  at: number,
-): string {
-  const seconds = Math.max(0, Math.floor((Date.now() - at) / 1000));
-  if (seconds < 60) return t("workspace.outputsJustNow");
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return t("workspace.outputsMinutesAgo", { count: minutes });
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return t("workspace.outputsHoursAgo", { count: hours });
-  return t("workspace.outputsDaysAgo", { count: Math.floor(hours / 24) });
-}
-
 function openOutputResource(output: TaskOutput, root: string | null) {
   const { openResource } = useWorkspacePanelStore.getState();
   if (output.kind === "screenshot") {
@@ -128,6 +115,16 @@ export function OutputsTab() {
     );
   }
 
+  const relativeTime = (at: number): string => {
+    const seconds = Math.max(0, Math.floor((Date.now() - at) / 1000));
+    if (seconds < 60) return t("workspace.outputsJustNow");
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return t("workspace.outputsMinutesAgo", { count: minutes });
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return t("workspace.outputsHoursAgo", { count: hours });
+    return t("workspace.outputsDaysAgo", { count: Math.floor(hours / 24) });
+  };
+
   if (outputs.length === 0) {
     return (
       <div className="workspace-empty workspace-outputs-empty">
@@ -165,7 +162,7 @@ export function OutputsTab() {
                     </span>
                     <span className="workspace-output-meta">
                       {[
-                        formatRelativeTime(t, output.createdAt),
+                        relativeTime(output.createdAt),
                         size,
                         output.kind === "screenshot"
                           ? t("workspace.outputsScreenshot")
