@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
   ArrowRight,
+  Bot,
   Globe,
   LoaderCircle,
   MonitorPlay,
@@ -10,6 +11,7 @@ import {
   Plus,
   RotateCw,
   Square,
+  Unplug,
   X,
 } from "lucide-react";
 import {
@@ -33,6 +35,7 @@ import {
 import { useActiveWorkspaceRoot } from "../../features/workspace/workspace-bridge";
 import { useProjectStore } from "../../features/projects/project-store";
 import { useRunWorkspaceStore } from "../../features/workspace/workspace-run-store";
+import { useChatStore } from "../../features/chat/chat-store";
 import { logger } from "../../core/logging/logger";
 
 function normalizeInput(input: string): string {
@@ -60,6 +63,24 @@ function isLocal(url: string): boolean {
 }
 
 /**
+ * Local-page reachability probe: a no-cors fetch resolves when ANY HTTP
+ * response arrives and rejects on connection refusal — enough to tell a dead
+ * dev server from a reachable one before the webview paints a blank page.
+ */
+async function probeLocalReachable(url: string): Promise<boolean> {
+  const controller = new AbortController();
+  const timer = globalThis.setTimeout(() => controller.abort(), 1_500);
+  try {
+    await fetch(url, { mode: "no-cors", signal: controller.signal, cache: "no-store" });
+    return true;
+  } catch {
+    return false;
+  } finally {
+    globalThis.clearTimeout(timer);
+  }
+}
+
+/**
  * Workspace browser surface: minimal chrome (§32) over Rust-managed child
  * webviews. The thread column stays alive on the left — this is what makes
  * the product an agent workspace instead of a separate browser page.
@@ -75,6 +96,7 @@ export function BrowserTab() {
   const [tabs, setTabs] = useState<PanelBrowserTab[]>([]);
   const [address, setAddress] = useState("");
   const [annotating, setAnnotating] = useState(false);
+  const [pageError, setPageError] = useState<{ url: string } | null>(null);
   const dev = useDevServerUi();
   const contentRef = useRef<HTMLDivElement>(null);
   const layoutRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
@@ -269,6 +291,18 @@ export function BrowserTab() {
     // and WebKit may throttle its timers. Persist the intent before crossing
     // that boundary so a navigation never disappears from diagnostics.
     await logger.flush();
+    if (isLocal(target)) {
+      const reachable = await probeLocalReachable(target);
+      if (!reachable) {
+        setPageError({ url: target });
+        logger.warn("browser", "browser.navigate-refused", {
+          actionId,
+          target,
+        });
+        return;
+      }
+    }
+    setPageError(null);
     try {
       let browserSessionId: number;
       if (activeTab) {
@@ -299,6 +333,9 @@ export function BrowserTab() {
   const screenshotOutputs = outputs.filter((output) => output.kind === "screenshot").slice(-3);
   const devServerStarting = dev.starting;
   const devServerFailure = devServerFailureText(dev, t("workspace.devServer.crashedHint"));
+  const browserBusy = useRunWorkspaceStore((state) => state.browserActive);
+  const conversationStreaming = useChatStore((state) => state.isStreaming);
+  const agentUsingPage = browserBusy && conversationStreaming;
 
   return (
     <div className="workspace-browser-tab">
@@ -379,6 +416,12 @@ export function BrowserTab() {
         >
           <MousePointerClick size={14} aria-hidden="true" />
         </button>
+        {agentUsingPage && (
+          <span className="workspace-browser-agent-chip" role="status">
+            <Bot size={11} aria-hidden="true" />
+            {t("browser.agentUsingPage")}
+          </span>
+        )}
       </header>
       {tabs.length > 0 && (
         <div
@@ -421,7 +464,25 @@ export function BrowserTab() {
         ref={contentRef}
         data-overlay-blocked={overlayBlocked ? "true" : undefined}
       >
-        {tabs.length === 0 && (
+        {pageError ? (
+          <div className="workspace-empty browser workspace-browser-error" role="alert">
+            <Unplug size={22} aria-hidden="true" />
+            <p>{t("browser.pageFailedTitle")}</p>
+            <p className="workspace-browser-error-detail">
+              {t("browser.pageFailedDetail", { url: pageError.url })}
+            </p>
+            <div className="workspace-browser-error-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => void navigate(pageError.url)}
+              >
+                <RotateCw size={12} aria-hidden="true" />
+                {t("browser.retry")}
+              </button>
+            </div>
+          </div>
+        ) : tabs.length === 0 ? (
           <div className="workspace-empty browser">
             {devServerStarting ? (
               <LoaderCircle size={22} className="spin" aria-hidden="true" />
@@ -434,7 +495,7 @@ export function BrowserTab() {
                 : (devServerFailure ?? t("workspace.browserEmpty"))}
             </p>
           </div>
-        )}
+        ) : null}
       </div>
       {root && dev.server && (
         <footer className="workspace-devserver-card">

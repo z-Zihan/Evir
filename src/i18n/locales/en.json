@@ -1148,6 +1148,10 @@
       "stop": "Stop agent browser",
       "startFailed": "Failed to start the agent browser",
       "installHint": "Install Chrome, Edge, Brave or Chromium to enable agent browsing."
-    }
+    },
+    "pageFailedTitle": "Couldn't open this page",
+    "pageFailedDetail": "Connection refused: {{url}}. Check the local server is running, then retry.",
+    "retry": "Retry",
+    "agentUsingPage": "Agent using page"
   }
 }

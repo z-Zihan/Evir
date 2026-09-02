@@ -1148,6 +1148,10 @@
       "stop": "停止 Agent 浏览器",
       "startFailed": "Agent 浏览器启动失败",
       "installHint": "安装 Chrome、Edge、Brave 或 Chromium 后即可使用 Agent 浏览。"
-    }
+    },
+    "pageFailedTitle": "无法打开此页面",
+    "pageFailedDetail": "连接被拒绝：{{url}}。请确认本地服务正在运行后重试。",
+    "retry": "重试",
+    "agentUsingPage": "Agent 正在使用页面"
   }
 }

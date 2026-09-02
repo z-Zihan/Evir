@@ -1050,6 +1050,33 @@
   }
 }
 
+
+/* ── Browser tab: error card + agent-active chip (§39-41) ── */
+.workspace-browser-error .workspace-browser-error-detail {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  word-break: break-all;
+}
+
+.workspace-browser-error-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.workspace-browser-agent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  color: var(--primary, #3b82f6);
+  background: color-mix(in srgb, var(--primary, #3b82f6) 10%, transparent);
+}
+
 /* ── Preview tab empty state: file guidance + Preview App entry (§26-33) ── */
 .workspace-preview-empty {
   display: flex;
