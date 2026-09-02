@@ -7,6 +7,8 @@ import type { MemoryRecord } from "../../core/memory/types";
 import { OrchestrationRepository } from "../../core/orchestration/repository";
 import type { AgentAssignment, RunEventV1, TaskBrief } from "../../core/orchestration/types";
 import { useOrchestrationStore } from "../orchestration/orchestration-store";
+import { toMessage } from "./chat-helpers";
+import { TOOL_PERMISSION_REQUIRED } from "../../core/tools/tool-executor";
 import { fromApprovalRecord, type ApprovalRecord } from "./tool-approval";
 import { mirrorCurrentStreamState } from "./stream-ownership";
 import { logger } from "../../core/logging/logger";
@@ -111,6 +113,28 @@ export async function selectConversation(
   approvalRecords.sort((a, b) => a.createdAt - b.createdAt);
   const approvals = approvalRecords.map(fromApprovalRecord);
   const [pendingToolApproval, ...remainingApprovals] = approvals;
+  // A first-round approval blocks a turn that was never persisted as a
+  // message (only the approval record is). Without synthesizing it here, a
+  // run that started in the background would wait on an approval the user
+  // cannot see after switching back. Continuation approvals DO persist their
+  // blocked turn, so only synthesize when it is genuinely absent.
+  if (pendingToolApproval) {
+    const blockedCallId = pendingToolApproval.toolCallId;
+    const alreadyRendered = messages.some(
+      (message) =>
+        message.role === "assistant" &&
+        message.toolCalls?.some((call) => call.id === blockedCallId) &&
+        message.toolResults?.some(
+          (result) =>
+            result.toolCallId === blockedCallId && result.error === TOOL_PERMISSION_REQUIRED,
+        ),
+    );
+    if (!alreadyRendered) {
+      messages.push(
+        toMessage(pendingToolApproval.turn, id, undefined, (messages.at(-1)?.createdAt ?? 0) + 1),
+      );
+    }
+  }
   if (get().currentConversationId !== id) {
     logger.debug("ui", "chat.conversation-load-discarded", { conversationId: id });
     return;

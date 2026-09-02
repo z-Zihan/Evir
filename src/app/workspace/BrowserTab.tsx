@@ -63,13 +63,18 @@ function isLocal(url: string): boolean {
 }
 
 /**
- * Local-page reachability probe: a no-cors fetch resolves when ANY HTTP
- * response arrives and rejects on connection refusal — enough to tell a dead
- * dev server from a reachable one before the webview paints a blank page.
+ * Navigation reachability probe: a no-cors fetch resolves when ANY HTTP
+ * response arrives (headers received) and rejects only on network-level
+ * failure — DNS, connection refused, TLS. That is exactly the class the
+ * webview cannot report itself, so probing first turns a blank page into an
+ * actionable error card. Local hosts answer instantly (1.5s budget); remote
+ * hosts get 5s so slow-but-alive sites are never falsely blocked.
  */
-async function probeLocalReachable(url: string): Promise<boolean> {
+async function probeReachable(url: string): Promise<boolean> {
+  const local =
+    isLocal(url) || url.startsWith("https://localhost") || url.startsWith("https://127.0.0.1");
   const controller = new AbortController();
-  const timer = globalThis.setTimeout(() => controller.abort(), 1_500);
+  const timer = globalThis.setTimeout(() => controller.abort(), local ? 1_500 : 5_000);
   try {
     await fetch(url, { mode: "no-cors", signal: controller.signal, cache: "no-store" });
     return true;
@@ -277,7 +282,7 @@ export function BrowserTab() {
     };
   }, [activeTab?.id, annotating, currentProjectId]);
 
-  const navigate = async (url: string): Promise<void> => {
+  const navigate = async (url: string, options?: { skipProbe?: boolean }): Promise<void> => {
     const target = normalizeInput(url);
     if (!target) return;
     const actionId = crypto.randomUUID();
@@ -291,8 +296,8 @@ export function BrowserTab() {
     // and WebKit may throttle its timers. Persist the intent before crossing
     // that boundary so a navigation never disappears from diagnostics.
     await logger.flush();
-    if (isLocal(target)) {
-      const reachable = await probeLocalReachable(target);
+    if (!options?.skipProbe && (target.startsWith("http://") || target.startsWith("https://"))) {
+      const reachable = await probeReachable(target);
       if (!reachable) {
         setPageError({ url: target });
         logger.warn("browser", "browser.navigate-refused", {
@@ -469,13 +474,15 @@ export function BrowserTab() {
             <Unplug size={22} aria-hidden="true" />
             <p>{t("browser.pageFailedTitle")}</p>
             <p className="workspace-browser-error-detail">
-              {t("browser.pageFailedDetail", { url: pageError.url })}
+              {isLocal(pageError.url)
+                ? t("browser.pageFailedDetail", { url: pageError.url })
+                : t("browser.networkFailedDetail", { url: pageError.url })}
             </p>
             <div className="workspace-browser-error-actions">
               <button
                 type="button"
                 className="secondary-button"
-                onClick={() => void navigate(pageError.url)}
+                onClick={() => void navigate(pageError.url, { skipProbe: true })}
               >
                 <RotateCw size={12} aria-hidden="true" />
                 {t("browser.retry")}

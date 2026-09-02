@@ -1152,6 +1152,7 @@
     "pageFailedTitle": "Couldn't open this page",
     "pageFailedDetail": "Connection refused: {{url}}. Check the local server is running, then retry.",
     "retry": "Retry",
-    "agentUsingPage": "Agent using page"
+    "agentUsingPage": "Agent using page",
+    "networkFailedDetail": "Network error, unreachable: {{url}}. Check the address and your connection, then retry."
   }
 }

@@ -1152,6 +1152,7 @@
     "pageFailedTitle": "无法打开此页面",
     "pageFailedDetail": "连接被拒绝：{{url}}。请确认本地服务正在运行后重试。",
     "retry": "重试",
-    "agentUsingPage": "Agent 正在使用页面"
+    "agentUsingPage": "Agent 正在使用页面",
+    "networkFailedDetail": "网络错误，无法访问：{{url}}。请检查地址与网络后重试。"
   }
 }
