@@ -12,12 +12,19 @@ export type WorkspaceTab = "outputs" | "changes" | "files" | "preview" | "browse
 export const WORKSPACE_MIN_WIDTH = 360;
 export const WORKSPACE_DEFAULT_WIDTH = 520;
 export const WORKSPACE_MAX_WIDTH_RATIO = 0.7;
+/** The inline conversation column never shrinks below this (§6-7). */
+export const CONVERSATION_MIN_WIDTH = 460;
+const SIDEBAR_DEFAULT = 252;
 
 const WIDTH_STORAGE_KEY = "evir-workspace-width";
 
 function clampWidth(width: number): number {
   if (typeof window !== "undefined") {
-    const max = Math.max(WORKSPACE_MIN_WIDTH, window.innerWidth * WORKSPACE_MAX_WIDTH_RATIO);
+    // Two caps: at most 70% of the viewport, and never so wide that the
+    // inline chat column would fall below its readable minimum.
+    const ratioMax = window.innerWidth * WORKSPACE_MAX_WIDTH_RATIO;
+    const chatFloorMax = window.innerWidth - SIDEBAR_DEFAULT - CONVERSATION_MIN_WIDTH;
+    const max = Math.max(WORKSPACE_MIN_WIDTH, Math.min(ratioMax, chatFloorMax));
     return Math.min(Math.max(width, WORKSPACE_MIN_WIDTH), Math.floor(max));
   }
   return Math.min(Math.max(width, WORKSPACE_MIN_WIDTH), 1600);

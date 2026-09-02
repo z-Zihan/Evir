@@ -171,6 +171,40 @@ test("keeps an active response inside its originating conversation", async ({ pa
   );
 });
 
+test("runs two tasks concurrently with stop isolation", async ({ page }) => {
+  await configurePage(page);
+  await seedFixture(page, { withConversation: true });
+
+  // Task A starts in the seeded conversation.
+  await page.locator("textarea").fill("[slow] concurrent task A");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page.locator(".message-streaming")).toContainText("deliberately streamed");
+
+  // Switch away and start Task B — the composer must stay enabled now that
+  // runs are per-conversation.
+  await page.getByRole("button", { name: "New chat", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "New conversation" })).toBeVisible();
+  const composer = page.locator("textarea");
+  await expect(composer).toBeEnabled();
+  await composer.fill("[slow] concurrent task B");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page.locator(".message-streaming")).toContainText("deliberately streamed");
+
+  // While viewing B, A's sidebar row shows a live running status.
+  const rowA = page.locator(".conversation-item", { hasText: "Quality verification" });
+  await expect(rowA.locator(".conversation-status-streaming")).toBeVisible();
+
+  // Stop B; A must keep streaming.
+  await page.getByRole("button", { name: "Stop", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Stop", exact: true })).toHaveCount(0);
+  await rowA.click();
+  await expect(page.locator(".message-streaming")).toContainText("deliberately streamed");
+
+  // Stopping A leaves the app fully usable.
+  await page.getByRole("button", { name: "Stop", exact: true }).click();
+  await expect(page.locator("textarea")).toBeEnabled();
+});
+
 test("Desktop Agent renders the event-driven task workbench", async ({ page }, testInfo) => {
   test.skip(!isDesktop(testInfo), "Task orchestration is a Desktop capability");
   await configurePage(page);

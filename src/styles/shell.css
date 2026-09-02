@@ -981,7 +981,6 @@
   padding-right: 74px;
 }
 
-
 /* ── Sidebar live task status (§10-12: running / approval / unread / failed) ── */
 .conversation-status {
   position: absolute;
@@ -1050,8 +1049,6 @@
     animation: none !important;
   }
 }
-
-
 
 /* ── Preview tab empty state: file guidance + Preview App entry (§26-33) ── */
 .workspace-preview-empty {
@@ -1161,7 +1158,8 @@
   background: var(--surface);
   text-align: left;
   cursor: pointer;
-  transition: border-color var(--motion-fast) var(--ease-out),
+  transition:
+    border-color var(--motion-fast) var(--ease-out),
     background var(--motion-fast) var(--ease-out);
 }
 
@@ -4241,6 +4239,28 @@
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+}
+
+/* Overflow root-cause guards: unbroken strings (10k chars, URLs, hashes)
+ * must wrap inside the bubble; code blocks, tables, and diffs keep their own
+ * horizontal scroll (§8). The conversation column itself never scrolls
+ * horizontally. */
+.message-content,
+.message-content p,
+.message-content li,
+.message-content h1,
+.message-content h2,
+.message-content h3,
+.message-content h4,
+.message-content blockquote,
+.message-content td,
+.message-content th,
+.message-content summary {
+  overflow-wrap: anywhere;
+}
+
+.message-content :where(a, code) {
+  overflow-wrap: anywhere;
 }
 
 .message-user .message-content {
@@ -8625,9 +8645,11 @@
   background: var(--surface-hover);
 }
 
-/* Adaptive small-window layout: the workspace becomes a right drawer */
+/* Adaptive small-window layout: the workspace becomes a right drawer.
+ * Below 1440px an inline third column would squeeze the conversation under
+ * ~500px (sidebar 252 + workspace ≥360); the drawer keeps chat readable. */
 
-@media (max-width: 1180px) {
+@media (max-width: 1439.5px) {
   .app-shell.workspace-visible:not(.sidebar-visible),
   .app-shell.sidebar-visible.workspace-visible {
     grid-template-columns: var(--sidebar-width, 252px) minmax(0, 1fr);
