@@ -39,4 +39,13 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "error",
     },
   },
+  {
+    // The primitives layer exports cva variant configs alongside components
+    // (shadcn convention) and re-exports hooks — Fast Refresh boundaries don't
+    // apply to a source-vendored component library.
+    files: ["src/components/ui/**/*.{ts,tsx}"],
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
+  },
 );

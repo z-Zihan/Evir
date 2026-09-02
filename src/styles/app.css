@@ -25,6 +25,12 @@
   --color-danger: #c93632;
   --color-warning: #985600;
   --color-accent: #2678e8;
+
+  /* Elevation scale — one shadow language for tooltips / popovers / dialogs.
+   * Defined in @theme so Tailwind emits shadow-* utilities; .dark overrides below. */
+  --shadow-tooltip: 0 2px 8px rgb(0 0 0 / 0.08);
+  --shadow-popover: 0 4px 16px rgb(0 0 0 / 0.1), 0 1px 4px rgb(0 0 0 / 0.06);
+  --shadow-dialog: 0 12px 40px rgb(0 0 0 / 0.16), 0 2px 8px rgb(0 0 0 / 0.08);
 }
 
 /* Dark mode tokens — applied via .dark class on :root */
@@ -84,11 +90,6 @@
   --motion-fast: 140ms;
   --motion-standard: 220ms;
   --signal: var(--primary);
-
-  /* Elevation scale — one shadow language for tooltips / popovers / dialogs */
-  --shadow-tooltip: 0 2px 8px rgb(0 0 0 / 0.08);
-  --shadow-popover: 0 4px 16px rgb(0 0 0 / 0.1), 0 1px 4px rgb(0 0 0 / 0.06);
-  --shadow-dialog: 0 12px 40px rgb(0 0 0 / 0.16), 0 2px 8px rgb(0 0 0 / 0.08);
 }
 
 :root.dark {
