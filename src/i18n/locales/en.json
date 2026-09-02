@@ -141,6 +141,7 @@
     "preparingResponse": "Preparing response",
     "elapsed": "{{seconds}}s",
     "slowResponse": "The model is responding slowly, but the task is still running. You can stop at any time.",
+    "ipcRetrying": "Retrying local file access…",
     "requestTimedOut": "The model did not finish this turn within 120 seconds. Retry or check provider load.",
     "tokenCount": "{{count}} tokens",
     "retry": "Retry",

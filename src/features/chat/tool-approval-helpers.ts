@@ -163,6 +163,11 @@ async function executeApprovedBound(
     runtime,
     true,
     signal,
+    {
+      conversationId: pending.conversationId,
+      runId,
+      toolCallId: pending.toolCallId,
+    },
   );
   const completedAt = Date.now();
   const replacement: ToolResultRecord = {

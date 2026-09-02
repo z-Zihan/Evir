@@ -108,6 +108,9 @@ export async function runVerification(
       "run_command",
       { cwd: workspacePath, program: project.program, args: project.args, timeout_ms: 60_000 },
       { ...runtime, mode: "agent" as const },
+      false,
+      undefined,
+      { runId: runtime.agentRun?.id ?? null },
     );
     const durationMs = Date.now() - start;
 

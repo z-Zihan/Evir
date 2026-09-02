@@ -141,6 +141,7 @@
     "preparingResponse": "正在准备回复",
     "elapsed": "{{seconds}} 秒",
     "slowResponse": "模型响应较慢，但任务仍在运行。你可以随时停止。",
+    "ipcRetrying": "正在重试本地文件访问…",
     "requestTimedOut": "模型在 120 秒内没有完成本轮响应。请重试，或检查服务端负载。",
     "tokenCount": "{{count}} tokens",
     "retry": "重试",

@@ -26,6 +26,14 @@ export interface ToolApprovalDetails {
   dataDestination?: string;
 }
 
+/** Identity of the model-issued call a tool execution belongs to, threaded
+ * down so storage-layer IPC observability can carry run/tool correlation. */
+export interface ToolCallContext {
+  conversationId?: string;
+  runId?: string | null;
+  toolCallId?: string;
+}
+
 export interface ToolDefinition {
   id: string;
   name: string;
@@ -39,6 +47,7 @@ export interface ToolDefinition {
     args: Record<string, unknown>,
     runtime: EvirRuntime,
     signal?: AbortSignal,
+    call?: ToolCallContext,
   ): Promise<ToolResult>;
 }
 

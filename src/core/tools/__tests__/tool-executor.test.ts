@@ -130,7 +130,7 @@ describe("ToolExecutor", () => {
     controller.abort();
 
     await expect(pending).resolves.toMatchObject({ success: false, error: "tool_cancelled" });
-    expect(execute).toHaveBeenCalledWith({}, current, controller.signal);
+    expect(execute).toHaveBeenCalledWith({}, current, controller.signal, undefined);
     expect(cancelActiveCommands).toHaveBeenCalledOnce();
   });
 });

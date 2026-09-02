@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ToolDefinition, ToolResult } from "../../providers/tool-registry";
+import type { ToolCallContext, ToolDefinition, ToolResult } from "../../providers/tool-registry";
 import type { EvirRuntime } from "../../../runtime/types";
 import { redactLogValue } from "../../logging/redaction";
 import { logger } from "../../logging/logger";
@@ -213,14 +213,22 @@ async function sealMutationSnapshot(
   }
 }
 
-async function readFile(args: Record<string, unknown>, runtime: EvirRuntime): Promise<ToolResult> {
+async function readFile(
+  args: Record<string, unknown>,
+  runtime: EvirRuntime,
+  _signal?: AbortSignal,
+  call?: ToolCallContext,
+): Promise<ToolResult> {
   if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
   const parsed = pathArgsSchema.safeParse(args);
   if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
   const safePath = validateWorkspacePath(parsed.data.path, runtime);
   if (!safePath) return pathBlocked();
   try {
-    const content = await runtime.storage.readFile(safePath);
+    const content = await runtime.storage.readFile(safePath, {
+      runId: runtime.agentRun?.id ?? null,
+      ...(call ?? {}),
+    });
     const hash = await contentHash(content);
     rememberFileRead(safePath, content, hash, runtime);
     const output = content.length > 10_000 ? `${content.slice(0, 10_000)}\n... truncated` : content;
@@ -233,6 +241,8 @@ async function readFile(args: Record<string, unknown>, runtime: EvirRuntime): Pr
 async function listDirectory(
   args: Record<string, unknown>,
   runtime: EvirRuntime,
+  _signal?: AbortSignal,
+  call?: ToolCallContext,
 ): Promise<ToolResult> {
   const dbg = (step: string, extra?: string) =>
     logger.debug("tool", `listdir.${step}`, {
@@ -250,7 +260,10 @@ async function listDirectory(
   if (!safePath) return pathBlocked();
   try {
     dbg("invoke");
-    const entries = await runtime.storage.listDir(safePath);
+    const entries = await runtime.storage.listDir(safePath, {
+      runId: runtime.agentRun?.id ?? null,
+      ...(call ?? {}),
+    });
     dbg("done", String(entries.length));
     const names = entries.slice(0, 200).map((entry) => `${entry.name}${entry.is_dir ? "/" : ""}`);
     if (entries.length > 200) names.push("... truncated");
@@ -306,6 +319,8 @@ async function applyPatch(
 async function searchFiles(
   args: Record<string, unknown>,
   runtime: EvirRuntime,
+  _signal?: AbortSignal,
+  call?: ToolCallContext,
 ): Promise<ToolResult> {
   if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
   const parsed = searchArgsSchema.safeParse(args);
@@ -313,7 +328,8 @@ async function searchFiles(
   const safePath = validateWorkspacePath(parsed.data.path, runtime);
   if (!safePath) return pathBlocked();
   try {
-    const results = await runtime.storage.searchFiles(safePath, parsed.data.pattern);
+    const corr = { runId: runtime.agentRun?.id ?? null, ...(call ?? {}) };
+    const results = await runtime.storage.searchFiles(safePath, parsed.data.pattern, corr);
     return { success: true, output: results.join("\n") || "no matches" };
   } catch (error) {
     return toolError(error);
@@ -327,6 +343,8 @@ const DOC_EXTENSIONS = [".md", ".mdx", ".txt", ".rst", ".adoc"];
 async function searchDocs(
   args: Record<string, unknown>,
   runtime: EvirRuntime,
+  _signal?: AbortSignal,
+  call?: ToolCallContext,
 ): Promise<ToolResult> {
   if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
   const parsed = searchArgsSchema.safeParse(args);
@@ -334,14 +352,15 @@ async function searchDocs(
   const safePath = validateWorkspacePath(parsed.data.path, runtime);
   if (!safePath) return pathBlocked();
   try {
-    const candidates = await runtime.storage.searchFiles(safePath, "");
+    const corr = { runId: runtime.agentRun?.id ?? null, ...(call ?? {}) };
+    const candidates = await runtime.storage.searchFiles(safePath, "", corr);
     const docs = candidates.filter((file) =>
       DOC_EXTENSIONS.some((extension) => file.toLowerCase().endsWith(extension)),
     );
     const needle = parsed.data.pattern.toLowerCase();
     const hits: string[] = [];
     for (const doc of docs.slice(0, 200)) {
-      const content = await runtime.storage.readFile(doc).catch(() => "");
+      const content = await runtime.storage.readFile(doc, corr).catch(() => "");
       const lines = content.split("\n");
       lines.forEach((line, index) => {
         if (line.toLowerCase().includes(needle) && hits.length < 80) {
@@ -394,14 +413,22 @@ async function runCommand(
   }
 }
 
-async function gitStatus(args: Record<string, unknown>, runtime: EvirRuntime): Promise<ToolResult> {
+async function gitStatus(
+  args: Record<string, unknown>,
+  runtime: EvirRuntime,
+  _signal?: AbortSignal,
+  call?: ToolCallContext,
+): Promise<ToolResult> {
   if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
   const parsed = gitArgsSchema.safeParse(args);
   if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
   const safePath = validateWorkspacePath(parsed.data.path, runtime);
   if (!safePath) return pathBlocked();
   try {
-    const result = await runtime.storage.gitStatus(safePath);
+    const result = await runtime.storage.gitStatus(safePath, {
+      runId: runtime.agentRun?.id ?? null,
+      ...(call ?? {}),
+    });
     if (!result.is_repo) return { success: true, output: "Not a git repository" };
     const lines = result.entries.map((e) => `${e.status}\t${e.file}`);
     return { success: true, output: `branch: ${result.branch ?? "unknown"}\n${lines.join("\n")}` };
@@ -410,14 +437,22 @@ async function gitStatus(args: Record<string, unknown>, runtime: EvirRuntime): P
   }
 }
 
-async function gitDiff(args: Record<string, unknown>, runtime: EvirRuntime): Promise<ToolResult> {
+async function gitDiff(
+  args: Record<string, unknown>,
+  runtime: EvirRuntime,
+  _signal?: AbortSignal,
+  call?: ToolCallContext,
+): Promise<ToolResult> {
   if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
   const parsed = gitDiffArgsSchema.safeParse(args);
   if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
   const safePath = validateWorkspacePath(parsed.data.path, runtime);
   if (!safePath) return pathBlocked();
   try {
-    const diff = await runtime.storage.gitDiff(safePath, parsed.data.staged);
+    const diff = await runtime.storage.gitDiff(safePath, parsed.data.staged, {
+      runId: runtime.agentRun?.id ?? null,
+      ...(call ?? {}),
+    });
     return { success: true, output: diff || "no changes" };
   } catch (error) {
     return toolError(error);
@@ -441,14 +476,22 @@ async function createDirectory(
   }
 }
 
-async function fileStat(args: Record<string, unknown>, runtime: EvirRuntime): Promise<ToolResult> {
+async function fileStat(
+  args: Record<string, unknown>,
+  runtime: EvirRuntime,
+  _signal?: AbortSignal,
+  call?: ToolCallContext,
+): Promise<ToolResult> {
   if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
   const parsed = pathArgsSchema.safeParse(args);
   if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
   const safePath = validateWorkspacePath(parsed.data.path, runtime);
   if (!safePath) return pathBlocked();
   try {
-    const stat = await runtime.storage.fileStat(safePath);
+    const stat = await runtime.storage.fileStat(safePath, {
+      runId: runtime.agentRun?.id ?? null,
+      ...(call ?? {}),
+    });
     return { success: true, output: JSON.stringify(stat, null, 2) };
   } catch (error) {
     return toolError(error);

@@ -30,6 +30,9 @@ describe("runVerification", () => {
       "run_command",
       expect.objectContaining({ cwd: "/project", program: "pnpm", args: ["check"] }),
       expect.objectContaining({ mode: "agent" }),
+      false,
+      undefined,
+      expect.objectContaining({ runId: null }),
     );
   });
 

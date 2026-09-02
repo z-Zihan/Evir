@@ -1,7 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { getActivePermissionContext, getActiveWorkspaceRoot } from "../core/workspace/active-root";
+import { logger } from "../core/logging/logger";
 import { isInsideRoots } from "../core/security/permission-profiles";
 import type { EntityName, StorageMutation, StoragePort } from "../core/storage/storage-port";
+import { ipcRetryStore } from "./ipc-retry-store";
 
 export interface DesktopStorageAdapter {
   query(sql: string, params: unknown[]): Promise<Record<string, unknown>[]>;
@@ -14,18 +16,18 @@ export interface DesktopStorageAdapter {
     profiles: SharedProviderProfile[],
     deletedIds?: string[],
   ): Promise<void>;
-  readFile(path: string): Promise<string>;
+  readFile(path: string, corr?: IpcCorrelation): Promise<string>;
   /** Base64 content for binary preview (images, PDFs); 8 MiB cap on the Rust side. */
-  readFileBase64(path: string): Promise<string>;
-  realPath(path: string): Promise<string>;
+  readFileBase64(path: string, corr?: IpcCorrelation): Promise<string>;
+  realPath(path: string, corr?: IpcCorrelation): Promise<string>;
   gitWorktreeCreate(root: string, id: string): Promise<string>;
   gitWorktreeMerge(root: string, id: string): Promise<void>;
   gitWorktreeRemove(root: string, id: string): Promise<void>;
   writeFile(path: string, content: string): Promise<void>;
-  listDir(path: string): Promise<FileInfo[]>;
-  fileInfo(path: string): Promise<FileInfo>;
+  listDir(path: string, corr?: IpcCorrelation): Promise<FileInfo[]>;
+  fileInfo(path: string, corr?: IpcCorrelation): Promise<FileInfo>;
   applyPatch(path: string, oldContent: string, newContent: string): Promise<void>;
-  searchFiles(path: string, pattern: string): Promise<string[]>;
+  searchFiles(path: string, pattern: string, corr?: IpcCorrelation): Promise<string[]>;
   runCommand(
     cwd: string,
     program: string,
@@ -34,10 +36,10 @@ export interface DesktopStorageAdapter {
     env?: Record<string, string>,
   ): Promise<CommandResult>;
   cancelActiveCommands(): Promise<void>;
-  gitStatus(path: string): Promise<GitStatusResult>;
-  gitDiff(path: string, staged: boolean): Promise<string>;
+  gitStatus(path: string, corr?: IpcCorrelation): Promise<GitStatusResult>;
+  gitDiff(path: string, staged: boolean, corr?: IpcCorrelation): Promise<string>;
   createDirectory(path: string): Promise<void>;
-  fileStat(path: string): Promise<FileStat>;
+  fileStat(path: string, corr?: IpcCorrelation): Promise<FileStat>;
   createSnapshot(filePath: string, runId: string): Promise<SnapshotResult>;
   sealSnapshot(snapshotId: string, runId: string, filePath: string): Promise<void>;
   restoreSnapshot(snapshotId: string, runId: string, filePath: string): Promise<boolean>;
@@ -117,16 +119,50 @@ function selectedWorkspace(): string {
  *
  * Reads are idempotent, so a bounded timeout + retry keeps agent tool calls
  * alive instead of hanging on the platform stall. Mutating commands are NOT
- * retried here — re-issuing them is not provably safe.
+ * retried here — re-issuing them is not provably safe. Every attempt is
+ * observable via the `desktop.ipc.duration/timeout/retry/retry-recovered`
+ * runtime events (command / attempt / maxAttempts / durationMs / runId /
+ * toolCallId), and the first timeout raises a low-noise UI retry state
+ * (ipc-retry-store) so the chat never shows a fake "thinking" hang.
+ *
+ * Workaround removal condition: upgrade wry/tauri past the fix for
+ * tauri#7662 (or macOS fixes the WKURLSchemeHandler stall) and verify a
+ * release build no longer stalls `invoke` — then drop this wrapper.
  */
 const IPC_READ_ATTEMPT_TIMEOUT_MS = 10_000;
 const IPC_READ_MAX_ATTEMPTS = 3;
 
-async function invokeReadWithRetry<T>(label: string, run: () => Promise<T>): Promise<T> {
+/** Correlation threaded from the owning tool call when available; UI-direct
+ * callers (file tree, preview) invoke without it. */
+export interface IpcCorrelation {
+  conversationId?: string;
+  runId?: string | null;
+  toolCallId?: string;
+}
+
+function ipcFields(command: string, attempt: number, durationMs: number, corr?: IpcCorrelation) {
+  return {
+    command,
+    attempt,
+    maxAttempts: IPC_READ_MAX_ATTEMPTS,
+    durationMs,
+    ...(corr?.conversationId ? { conversationId: corr.conversationId } : {}),
+    ...(corr?.runId ? { runId: corr.runId } : {}),
+    ...(corr?.toolCallId ? { toolCallId: corr.toolCallId } : {}),
+  };
+}
+
+async function invokeReadWithRetry<T>(
+  label: string,
+  run: () => Promise<T>,
+  corr?: IpcCorrelation,
+): Promise<T> {
   class IpcReadTimeout extends Error {}
+  let timedOut = false;
   for (let attempt = 1; attempt <= IPC_READ_MAX_ATTEMPTS; attempt += 1) {
+    const startedAt = Date.now();
     try {
-      return await Promise.race([
+      const result = await Promise.race([
         run(),
         new Promise<never>((_, reject) =>
           globalThis.setTimeout(
@@ -135,18 +171,46 @@ async function invokeReadWithRetry<T>(label: string, run: () => Promise<T>): Pro
           ),
         ),
       ]);
+      const durationMs = Date.now() - startedAt;
+      if (timedOut) {
+        logger.warn("runtime", "desktop.ipc.retry-recovered", {
+          ...ipcFields(label, attempt, durationMs, corr),
+        });
+        ipcRetryStore.end(corr?.toolCallId ?? label);
+      } else {
+        logger.debug("runtime", "desktop.ipc.duration", {
+          ...ipcFields(label, attempt, durationMs, corr),
+        });
+      }
+      return result;
     } catch (error) {
+      const durationMs = Date.now() - startedAt;
       // Real command failures reject immediately with the handler's error —
       // surface those on the first attempt. Only the platform stall (our
       // timeout) justifies re-issuing the read.
       if (!(error instanceof IpcReadTimeout)) throw error;
+      timedOut = true;
+      logger.warn("runtime", "desktop.ipc.timeout", {
+        ...ipcFields(label, attempt, durationMs, corr),
+      });
       if (attempt < IPC_READ_MAX_ATTEMPTS) {
+        logger.warn("runtime", "desktop.ipc.retry", {
+          ...ipcFields(label, attempt, durationMs, corr),
+        });
+        ipcRetryStore.begin(corr?.toolCallId ?? label, {
+          command: label,
+          attempt,
+          maxAttempts: IPC_READ_MAX_ATTEMPTS,
+          ...(corr ?? {}),
+        });
         await new Promise((resolve) => globalThis.setTimeout(resolve, 250 * attempt));
       } else {
+        ipcRetryStore.end(corr?.toolCallId ?? label);
         throw error;
       }
     }
   }
+  ipcRetryStore.end(corr?.toolCallId ?? label);
   throw new Error(`ipc read ${label} failed`);
 }
 
@@ -180,28 +244,36 @@ export const desktopStorage: DesktopStorageAdapter = {
   sharedProviderProfilesRead: () => invoke("shared_provider_profiles_read"),
   sharedProviderProfilesWrite: (profiles, deletedIds = []) =>
     invoke("shared_provider_profiles_write", { profiles, deletedIds }),
-  readFile: (path) =>
-    invokeReadWithRetry("fs_read_file", () =>
-      invoke<string>("fs_read_file", { path, workspaceRoot: rootForPath(path) }),
+  readFile: (path, corr) =>
+    invokeReadWithRetry(
+      "fs_read_file",
+      () => invoke<string>("fs_read_file", { path, workspaceRoot: rootForPath(path) }),
+      corr,
     ),
-  readFileBase64: (path) =>
-    invokeReadWithRetry("fs_read_file_base64", () =>
-      invoke<string>("fs_read_file_base64", { path, workspaceRoot: rootForPath(path) }),
+  readFileBase64: (path, corr) =>
+    invokeReadWithRetry(
+      "fs_read_file_base64",
+      () => invoke<string>("fs_read_file_base64", { path, workspaceRoot: rootForPath(path) }),
+      corr,
     ),
-  realPath: (path) =>
-    invokeReadWithRetry("fs_real_path", () => invoke<string>("fs_real_path", { path })),
+  realPath: (path, corr) =>
+    invokeReadWithRetry("fs_real_path", () => invoke<string>("fs_real_path", { path }), corr),
   gitWorktreeCreate: (root, id) => invoke("git_worktree_create", { root, id }),
   gitWorktreeMerge: (root, id) => invoke("git_worktree_merge", { root, id }),
   gitWorktreeRemove: (root, id) => invoke("git_worktree_remove", { root, id }),
   writeFile: (path, content) =>
     invoke("fs_write_file", { path, content, workspaceRoot: rootForPath(path) }),
-  listDir: (path) =>
-    invokeReadWithRetry("fs_list_dir", () =>
-      invoke<FileInfo[]>("fs_list_dir", { path, workspaceRoot: rootForPath(path) }),
+  listDir: (path, corr) =>
+    invokeReadWithRetry(
+      "fs_list_dir",
+      () => invoke<FileInfo[]>("fs_list_dir", { path, workspaceRoot: rootForPath(path) }),
+      corr,
     ),
-  fileInfo: (path) =>
-    invokeReadWithRetry("fs_file_info", () =>
-      invoke<FileInfo>("fs_file_info", { path, workspaceRoot: rootForPath(path) }),
+  fileInfo: (path, corr) =>
+    invokeReadWithRetry(
+      "fs_file_info",
+      () => invoke<FileInfo>("fs_file_info", { path, workspaceRoot: rootForPath(path) }),
+      corr,
     ),
   applyPatch: (path, oldContent, newContent) =>
     invoke("fs_apply_patch", {
@@ -210,9 +282,12 @@ export const desktopStorage: DesktopStorageAdapter = {
       newContent,
       workspaceRoot: rootForPath(path),
     }),
-  searchFiles: (path, pattern) =>
-    invokeReadWithRetry("fs_search_files", () =>
-      invoke<string[]>("fs_search_files", { path, pattern, workspaceRoot: rootForPath(path) }),
+  searchFiles: (path, pattern, corr) =>
+    invokeReadWithRetry(
+      "fs_search_files",
+      () =>
+        invoke<string[]>("fs_search_files", { path, pattern, workspaceRoot: rootForPath(path) }),
+      corr,
     ),
   runCommand: async (cwd, program, args, timeoutMs, env) => {
     const commandId = crypto.randomUUID();
@@ -236,19 +311,25 @@ export const desktopStorage: DesktopStorageAdapter = {
       [...activeCommandIds].map((commandId) => invoke("cancel_command", { commandId })),
     );
   },
-  gitStatus: (path) =>
-    invokeReadWithRetry("git_status", () =>
-      invoke<GitStatusResult>("git_status", { path, workspaceRoot: rootForPath(path) }),
+  gitStatus: (path, corr) =>
+    invokeReadWithRetry(
+      "git_status",
+      () => invoke<GitStatusResult>("git_status", { path, workspaceRoot: rootForPath(path) }),
+      corr,
     ),
-  gitDiff: (path, staged) =>
-    invokeReadWithRetry("git_diff", () =>
-      invoke<string>("git_diff", { path, staged, workspaceRoot: rootForPath(path) }),
+  gitDiff: (path, staged, corr) =>
+    invokeReadWithRetry(
+      "git_diff",
+      () => invoke<string>("git_diff", { path, staged, workspaceRoot: rootForPath(path) }),
+      corr,
     ),
   createDirectory: (path) =>
     invoke("fs_create_directory", { path, workspaceRoot: rootForPath(path) }),
-  fileStat: (path) =>
-    invokeReadWithRetry("fs_file_stat", () =>
-      invoke<FileStat>("fs_file_stat", { path, workspaceRoot: rootForPath(path) }),
+  fileStat: (path, corr) =>
+    invokeReadWithRetry(
+      "fs_file_stat",
+      () => invoke<FileStat>("fs_file_stat", { path, workspaceRoot: rootForPath(path) }),
+      corr,
     ),
   createSnapshot: (filePath, runId) =>
     invoke("fs_create_snapshot", { filePath, runId, workspaceRoot: rootForPath(filePath) }),

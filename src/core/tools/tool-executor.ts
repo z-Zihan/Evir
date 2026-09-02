@@ -1,6 +1,7 @@
 import {
   MODE_TOOL_RISK_LIMITS,
   type InteractionMode,
+  type ToolCallContext,
   type ToolDefinition,
   type ToolRegistry,
   type ToolResult,
@@ -78,6 +79,7 @@ export class ToolExecutor {
     runtime: EvirRuntime,
     approved = false,
     signal?: AbortSignal,
+    call?: ToolCallContext,
   ): Promise<ToolResult> {
     const tool =
       this.registry.get(toolName) ?? this.registry.list().find((item) => item.name === toolName);
@@ -102,7 +104,7 @@ export class ToolExecutor {
     signal?.addEventListener("abort", cancelActiveCommands, { once: true });
     try {
       logger.debug("tool", "executor.tool-invoking", { toolName });
-      const result = await tool.execute(args, runtime, signal);
+      const result = await tool.execute(args, runtime, signal, call);
       logger.debug("tool", "executor.tool-invoked", { toolName, success: result?.success });
       return signal?.aborted ? failure("Tool execution cancelled", "tool_cancelled") : result;
     } catch (error) {

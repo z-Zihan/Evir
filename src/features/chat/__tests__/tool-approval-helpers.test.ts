@@ -76,6 +76,7 @@ describe("tool approval continuation", () => {
       runtime,
       true,
       controller.signal,
+      { conversationId: "conversation-1", runId: "agent-run-1", toolCallId: "call-1" },
     );
     const result = resolvedTurn.toolResults?.[0];
     expect(result).toMatchObject({ toolCallId: "call-1", success: true });

@@ -84,7 +84,8 @@ describe("agent mutation snapshots", () => {
     await expect(read.execute({ path: "input.txt" }, runtime)).resolves.toMatchObject({
       success: true,
     });
-    expect(readFile).toHaveBeenCalledWith("/tmp/project/input.txt");
+    // The second argument carries IPC correlation (no run context here → runId null).
+    expect(readFile).toHaveBeenCalledWith("/tmp/project/input.txt", { runId: null });
   });
 
   it("preserves bounded native string errors for diagnosis", async () => {

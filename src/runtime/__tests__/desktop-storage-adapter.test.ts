@@ -2,7 +2,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { logger } from "../../core/logging/logger";
 import { DesktopStructuredStorageAdapter, desktopStorage } from "../desktop-storage-adapter";
+import { useIpcRetryStore } from "../ipc-retry-store";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
@@ -132,6 +134,114 @@ describe("DesktopStorageAdapter", () => {
 
     await expect(desktopStorage.listDir("/tmp")).rejects.toThrow("Path not allowed");
     expect(invoke).toHaveBeenCalledTimes(1);
+  });
+
+  it("logs desktop.ipc.duration with correlation on a successful read", async () => {
+    const durationSpy = vi.spyOn(logger, "debug").mockImplementation(() => undefined);
+    try {
+      vi.mocked(invoke).mockResolvedValue([]);
+
+      await desktopStorage.listDir("/tmp", {
+        conversationId: "conv-1",
+        runId: "run-1",
+        toolCallId: "call-1",
+      });
+
+      const event = durationSpy.mock.calls.find(
+        ([, message]) => message === "desktop.ipc.duration",
+      );
+      expect(event).toBeDefined();
+      const data = event?.[2] as Record<string, unknown>;
+      expect(data).toMatchObject({
+        command: "fs_list_dir",
+        attempt: 1,
+        maxAttempts: 3,
+        conversationId: "conv-1",
+        runId: "run-1",
+        toolCallId: "call-1",
+      });
+      expect(typeof data.durationMs).toBe("number");
+    } finally {
+      durationSpy.mockRestore();
+    }
+  });
+
+  it("emits timeout/retry/recovered events with correlation on stall recovery", async () => {
+    vi.useFakeTimers();
+    const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => undefined);
+    try {
+      vi.mocked(invoke)
+        .mockImplementationOnce(() => new Promise(() => undefined))
+        .mockResolvedValueOnce([]);
+
+      const pending = desktopStorage.listDir("/tmp", {
+        conversationId: "conv-1",
+        runId: "run-1",
+        toolCallId: "call-1",
+      });
+      await vi.advanceTimersByTimeAsync(10_000 + 250);
+      await expect(pending).resolves.toEqual([]);
+
+      const messages = warnSpy.mock.calls.map(([, message]) => message);
+      expect(messages).toContain("desktop.ipc.timeout");
+      expect(messages).toContain("desktop.ipc.retry");
+      expect(messages).toContain("desktop.ipc.retry-recovered");
+      const timeoutEvent = warnSpy.mock.calls.find(
+        ([, message]) => message === "desktop.ipc.timeout",
+      );
+      expect(timeoutEvent?.[2]).toMatchObject({
+        command: "fs_list_dir",
+        attempt: 1,
+        maxAttempts: 3,
+        conversationId: "conv-1",
+        runId: "run-1",
+        toolCallId: "call-1",
+      });
+    } finally {
+      warnSpy.mockRestore();
+      useIpcRetryStore.setState({ retries: {} });
+      vi.useRealTimers();
+    }
+  });
+
+  it("raises and clears the UI retry state between stall attempts", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(invoke)
+        .mockImplementationOnce(() => new Promise(() => undefined))
+        .mockResolvedValueOnce([]);
+
+      const pending = desktopStorage.listDir("/tmp", { toolCallId: "call-9" });
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(useIpcRetryStore.getState().retries["call-9"]).toMatchObject({
+        command: "fs_list_dir",
+        attempt: 1,
+        maxAttempts: 3,
+        toolCallId: "call-9",
+      });
+      await vi.advanceTimersByTimeAsync(250);
+      await pending;
+      expect(useIpcRetryStore.getState().retries["call-9"]).toBeUndefined();
+    } finally {
+      useIpcRetryStore.setState({ retries: {} });
+      vi.useRealTimers();
+    }
+  });
+
+  it("clears the UI retry state when every attempt times out", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(invoke).mockImplementation(() => new Promise(() => undefined));
+
+      const pending = desktopStorage.listDir("/tmp");
+      const assertion = expect(pending).rejects.toThrow(/timed out/);
+      await vi.advanceTimersByTimeAsync(10_000 + 250 + 10_000 + 500 + 10_000);
+      await assertion;
+      expect(useIpcRetryStore.getState().retries).toEqual({});
+    } finally {
+      useIpcRetryStore.setState({ retries: {} });
+      vi.useRealTimers();
+    }
   });
 
   it("gets file information", async () => {

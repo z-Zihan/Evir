@@ -156,7 +156,11 @@ async function executeCalls(
           error: "tool_not_allowed",
         }
       : args
-        ? await runtime.toolExecutor?.execute(rawCall.toolName, args, runtime, false, signal)
+        ? await runtime.toolExecutor?.execute(rawCall.toolName, args, runtime, false, signal, {
+            conversationId,
+            runId: runtime.agentRun?.id ?? null,
+            toolCallId: rawCall.id,
+          })
         : {
             success: false,
             output: "Tool arguments must be a JSON object",

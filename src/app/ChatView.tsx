@@ -49,6 +49,7 @@ import { useProjectStore } from "../features/projects/project-store";
 import { PermissionSwitcher } from "./PermissionSwitcher";
 import { SlashPalette, type SlashPaletteHandle, type SlashCommandId } from "./SlashPalette";
 import { useWorkspacePanelStore } from "../features/workspace/workspace-panel-store";
+import { useIpcRetryStore } from "../runtime/ipc-retry-store";
 import { workspaceResourceTitle } from "../features/workspace/resource-model";
 import { formatAnnotationDraft, parseAnnotationPayload } from "../features/workspace/annotation";
 import { subscribePanelAnnotations } from "../features/workspace/browser-panel-service";
@@ -289,6 +290,16 @@ export function ChatView({
   const streamElapsedSeconds = useElapsedSeconds(
     isCurrentConversationStreaming ? activeStreamStartedAt : null,
   );
+  // Honest status while a read-only IPC invoke is being re-issued after the
+  // macOS ipc:// stall — replaces the generic "responding…" hint for this
+  // conversation until the retry resolves (see ipc-retry-store.ts).
+  const ipcRetrying = useIpcRetryStore((state) => {
+    if (!currentConversationId) return undefined;
+    for (const entry of Object.values(state.retries)) {
+      if (entry.conversationId === currentConversationId) return entry;
+    }
+    return undefined;
+  });
   // "/" command palette state: hidden until the user retypes after Escape.
   const slashPaletteRef = useRef<SlashPaletteHandle>(null);
   const [slashDismissed, setSlashDismissed] = useState(false);
@@ -666,7 +677,11 @@ export function ChatView({
                     <span className="message-author">Evir</span>
                     <span className="stream-status">
                       <span className="signal-dot" aria-hidden="true" />
-                      {streamingContent ? t("chat.responding") : t("chat.preparingResponse")}
+                      {ipcRetrying
+                        ? t("chat.ipcRetrying")
+                        : streamingContent
+                          ? t("chat.responding")
+                          : t("chat.preparingResponse")}
                       <time>{t("chat.elapsed", { seconds: streamElapsedSeconds })}</time>
                     </span>
                   </header>
