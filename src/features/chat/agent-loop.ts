@@ -147,6 +147,7 @@ async function executeCalls(
       toolCallId: rawCall.id,
       toolName: rawCall.toolName,
     });
+    logger.debug("tool", "executor.loop-before", { toolName: rawCall.toolName });
     const snapshotsBefore = runtime.agentRun ? runtime.agentRun.snapshots.length : 0;
     const result = !allowedToolIds.has(rawCall.toolName)
       ? {
@@ -162,6 +163,12 @@ async function executeCalls(
             error: "invalid_arguments",
           };
     const completedAt = Date.now();
+    logger.debug("tool", "executor.loop-after", {
+      toolName: rawCall.toolName,
+      success: result?.success,
+      error: result?.error ?? null,
+      durationMs: completedAt - startedAt,
+    });
     const timedResult: ToolResultRecord = {
       toolCallId: rawCall.id,
       toolName: rawCall.toolName,

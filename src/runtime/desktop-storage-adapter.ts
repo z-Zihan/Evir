@@ -106,6 +106,51 @@ function selectedWorkspace(): string {
 }
 
 /**
+ * On macOS, `invoke` from a custom-scheme page (`tauri://localhost`) is served
+ * through the `ipc://localhost` WKURLSchemeHandler. Under macOS 26.5 that
+ * handler intermittently stalls a subresource request for ~100s before it is
+ * delivered (observed with structured-log breadcrumbs: `listdir.invoke` at
+ * T, `listdir.done` at T+97.7s, with the Rust process idle the whole time and
+ * the app's main thread in a normal runloop wait). Dev builds serve the page
+ * from an http origin and use postMessage IPC instead, which is why the stall
+ * only reproduces in release builds (tauri#7662 documents this split).
+ *
+ * Reads are idempotent, so a bounded timeout + retry keeps agent tool calls
+ * alive instead of hanging on the platform stall. Mutating commands are NOT
+ * retried here — re-issuing them is not provably safe.
+ */
+const IPC_READ_ATTEMPT_TIMEOUT_MS = 10_000;
+const IPC_READ_MAX_ATTEMPTS = 3;
+
+async function invokeReadWithRetry<T>(label: string, run: () => Promise<T>): Promise<T> {
+  class IpcReadTimeout extends Error {}
+  for (let attempt = 1; attempt <= IPC_READ_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      return await Promise.race([
+        run(),
+        new Promise<never>((_, reject) =>
+          globalThis.setTimeout(
+            () => reject(new IpcReadTimeout(`ipc read ${label} timed out (attempt ${attempt})`)),
+            IPC_READ_ATTEMPT_TIMEOUT_MS,
+          ),
+        ),
+      ]);
+    } catch (error) {
+      // Real command failures reject immediately with the handler's error —
+      // surface those on the first attempt. Only the platform stall (our
+      // timeout) justifies re-issuing the read.
+      if (!(error instanceof IpcReadTimeout)) throw error;
+      if (attempt < IPC_READ_MAX_ATTEMPTS) {
+        await new Promise((resolve) => globalThis.setTimeout(resolve, 250 * attempt));
+      } else {
+        throw error;
+      }
+    }
+  }
+  throw new Error(`ipc read ${label} failed`);
+}
+
+/**
  * The Rust boundary validates each path against a single workspace root, so
  * with multiple granted roots (additional access) or Full Access the root that
  * actually contains the path is passed per command.
@@ -135,17 +180,29 @@ export const desktopStorage: DesktopStorageAdapter = {
   sharedProviderProfilesRead: () => invoke("shared_provider_profiles_read"),
   sharedProviderProfilesWrite: (profiles, deletedIds = []) =>
     invoke("shared_provider_profiles_write", { profiles, deletedIds }),
-  readFile: (path) => invoke("fs_read_file", { path, workspaceRoot: rootForPath(path) }),
+  readFile: (path) =>
+    invokeReadWithRetry("fs_read_file", () =>
+      invoke<string>("fs_read_file", { path, workspaceRoot: rootForPath(path) }),
+    ),
   readFileBase64: (path) =>
-    invoke("fs_read_file_base64", { path, workspaceRoot: rootForPath(path) }),
-  realPath: (path) => invoke("fs_real_path", { path }),
+    invokeReadWithRetry("fs_read_file_base64", () =>
+      invoke<string>("fs_read_file_base64", { path, workspaceRoot: rootForPath(path) }),
+    ),
+  realPath: (path) =>
+    invokeReadWithRetry("fs_real_path", () => invoke<string>("fs_real_path", { path })),
   gitWorktreeCreate: (root, id) => invoke("git_worktree_create", { root, id }),
   gitWorktreeMerge: (root, id) => invoke("git_worktree_merge", { root, id }),
   gitWorktreeRemove: (root, id) => invoke("git_worktree_remove", { root, id }),
   writeFile: (path, content) =>
     invoke("fs_write_file", { path, content, workspaceRoot: rootForPath(path) }),
-  listDir: (path) => invoke("fs_list_dir", { path, workspaceRoot: rootForPath(path) }),
-  fileInfo: (path) => invoke("fs_file_info", { path, workspaceRoot: rootForPath(path) }),
+  listDir: (path) =>
+    invokeReadWithRetry("fs_list_dir", () =>
+      invoke<FileInfo[]>("fs_list_dir", { path, workspaceRoot: rootForPath(path) }),
+    ),
+  fileInfo: (path) =>
+    invokeReadWithRetry("fs_file_info", () =>
+      invoke<FileInfo>("fs_file_info", { path, workspaceRoot: rootForPath(path) }),
+    ),
   applyPatch: (path, oldContent, newContent) =>
     invoke("fs_apply_patch", {
       path,
@@ -154,7 +211,9 @@ export const desktopStorage: DesktopStorageAdapter = {
       workspaceRoot: rootForPath(path),
     }),
   searchFiles: (path, pattern) =>
-    invoke("fs_search_files", { path, pattern, workspaceRoot: rootForPath(path) }),
+    invokeReadWithRetry("fs_search_files", () =>
+      invoke<string[]>("fs_search_files", { path, pattern, workspaceRoot: rootForPath(path) }),
+    ),
   runCommand: async (cwd, program, args, timeoutMs, env) => {
     const commandId = crypto.randomUUID();
     activeCommandIds.add(commandId);
@@ -177,11 +236,20 @@ export const desktopStorage: DesktopStorageAdapter = {
       [...activeCommandIds].map((commandId) => invoke("cancel_command", { commandId })),
     );
   },
-  gitStatus: (path) => invoke("git_status", { path, workspaceRoot: rootForPath(path) }),
-  gitDiff: (path, staged) => invoke("git_diff", { path, staged, workspaceRoot: rootForPath(path) }),
+  gitStatus: (path) =>
+    invokeReadWithRetry("git_status", () =>
+      invoke<GitStatusResult>("git_status", { path, workspaceRoot: rootForPath(path) }),
+    ),
+  gitDiff: (path, staged) =>
+    invokeReadWithRetry("git_diff", () =>
+      invoke<string>("git_diff", { path, staged, workspaceRoot: rootForPath(path) }),
+    ),
   createDirectory: (path) =>
     invoke("fs_create_directory", { path, workspaceRoot: rootForPath(path) }),
-  fileStat: (path) => invoke("fs_file_stat", { path, workspaceRoot: rootForPath(path) }),
+  fileStat: (path) =>
+    invokeReadWithRetry("fs_file_stat", () =>
+      invoke<FileStat>("fs_file_stat", { path, workspaceRoot: rootForPath(path) }),
+    ),
   createSnapshot: (filePath, runId) =>
     invoke("fs_create_snapshot", { filePath, runId, workspaceRoot: rootForPath(filePath) }),
   sealSnapshot: (snapshotId, runId, filePath) =>

@@ -84,6 +84,12 @@ export class ToolExecutor {
     if (!tool) return failure(`Unknown tool: ${toolName}`, "tool_not_found");
 
     const mode = runtime.mode ?? "ask";
+    logger.debug("tool", "executor.execute", {
+      toolName,
+      mode,
+      approved,
+      profile: runtime.permissionContext?.profile ?? null,
+    });
     const validationError = validateToolForExecution(tool, mode, runtime, approved, args);
     if (validationError) {
       return failure(messageFor(validationError, tool, mode), validationError);
@@ -95,7 +101,9 @@ export class ToolExecutor {
     };
     signal?.addEventListener("abort", cancelActiveCommands, { once: true });
     try {
+      logger.debug("tool", "executor.tool-invoking", { toolName });
       const result = await tool.execute(args, runtime, signal);
+      logger.debug("tool", "executor.tool-invoked", { toolName, success: result?.success });
       return signal?.aborted ? failure("Tool execution cancelled", "tool_cancelled") : result;
     } catch (error) {
       return failure(

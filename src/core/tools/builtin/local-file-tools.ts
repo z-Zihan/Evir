@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { ToolDefinition, ToolResult } from "../../providers/tool-registry";
 import type { EvirRuntime } from "../../../runtime/types";
 import { redactLogValue } from "../../logging/redaction";
+import { logger } from "../../logging/logger";
 import { TOOL_NOT_AVAILABLE } from "../tool-executor";
 
 export const PATH_BLOCKED = "path_blocked";
@@ -233,17 +234,29 @@ async function listDirectory(
   args: Record<string, unknown>,
   runtime: EvirRuntime,
 ): Promise<ToolResult> {
+  const dbg = (step: string, extra?: string) =>
+    logger.debug("tool", `listdir.${step}`, {
+      step,
+      args,
+      profile: runtime.permissionContext?.profile ?? null,
+      ...(extra === undefined ? {} : { extra: extra.slice(0, 200) }),
+    });
+  dbg("enter");
   if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
   const parsed = pathArgsSchema.safeParse(args);
   if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
   const safePath = validateWorkspacePath(parsed.data.path, runtime);
+  dbg("validated", safePath);
   if (!safePath) return pathBlocked();
   try {
+    dbg("invoke");
     const entries = await runtime.storage.listDir(safePath);
+    dbg("done", String(entries.length));
     const names = entries.slice(0, 200).map((entry) => `${entry.name}${entry.is_dir ? "/" : ""}`);
     if (entries.length > 200) names.push("... truncated");
     return { success: true, output: names.join("\n") };
   } catch (error) {
+    dbg("error", error instanceof Error ? error.message : "list failed");
     return toolError(error);
   }
 }

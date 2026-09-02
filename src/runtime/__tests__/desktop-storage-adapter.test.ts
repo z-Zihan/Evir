@@ -106,6 +106,34 @@ describe("DesktopStorageAdapter", () => {
     expect(invoke).toHaveBeenCalledWith("fs_list_dir", { path: "/tmp", workspaceRoot: "/tmp" });
   });
 
+  it("retries a stalled read invoke and recovers (macOS ipc scheme stall)", async () => {
+    vi.useFakeTimers();
+    try {
+      const files = [{ name: "a.txt", path: "/tmp/a.txt", is_dir: false, size: 1, modified: null }];
+      // First invoke never settles (simulates the WKURLSchemeHandler stall);
+      // the retried invoke resolves.
+      vi.mocked(invoke)
+        .mockImplementationOnce(() => new Promise(() => undefined))
+        .mockResolvedValueOnce(files);
+
+      const pending = desktopStorage.listDir("/tmp");
+      // Let the first attempt hit its timeout, then the backoff, then the retry.
+      await vi.advanceTimersByTimeAsync(10_000 + 250);
+      await expect(pending).resolves.toEqual(files);
+      expect(invoke).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("surfaces real read errors without retrying", async () => {
+    const failure = new Error("Path not allowed");
+    vi.mocked(invoke).mockRejectedValueOnce(failure);
+
+    await expect(desktopStorage.listDir("/tmp")).rejects.toThrow("Path not allowed");
+    expect(invoke).toHaveBeenCalledTimes(1);
+  });
+
   it("gets file information", async () => {
     const info = {
       name: "test.txt",
