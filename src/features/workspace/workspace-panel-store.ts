@@ -4,38 +4,16 @@ import { logger } from "../../core/logging/logger";
 
 /**
  * UI state for the workspace panel. Deliberately separate from agent/domain
- * state: panel width or the pinned resource must never leak into run records.
+ * state: panel layout or the pinned resource must never leak into run records.
  */
 
 export type WorkspaceTab = "outputs" | "changes" | "files" | "preview" | "browser";
 
-export const WORKSPACE_MIN_WIDTH = 360;
-export const WORKSPACE_DEFAULT_WIDTH = 520;
-export const WORKSPACE_MAX_WIDTH_RATIO = 0.7;
-/** The inline conversation column never shrinks below this (§6-7). */
-export const CONVERSATION_MIN_WIDTH = 460;
-const SIDEBAR_DEFAULT = 252;
-
-const WIDTH_STORAGE_KEY = "evir-workspace-width";
-
-function clampWidth(width: number): number {
-  if (typeof window !== "undefined") {
-    // Two caps: at most 70% of the viewport, and never so wide that the
-    // inline chat column would fall below its readable minimum.
-    const ratioMax = window.innerWidth * WORKSPACE_MAX_WIDTH_RATIO;
-    const chatFloorMax = window.innerWidth - SIDEBAR_DEFAULT - CONVERSATION_MIN_WIDTH;
-    const max = Math.max(WORKSPACE_MIN_WIDTH, Math.min(ratioMax, chatFloorMax));
-    return Math.min(Math.max(width, WORKSPACE_MIN_WIDTH), Math.floor(max));
-  }
-  return Math.min(Math.max(width, WORKSPACE_MIN_WIDTH), 1600);
-}
-
-function loadPersistedWidth(): number {
-  if (typeof window === "undefined") return WORKSPACE_DEFAULT_WIDTH;
-  const raw = window.localStorage.getItem(WIDTH_STORAGE_KEY);
-  const parsed = raw === null ? Number.NaN : Number.parseInt(raw, 10);
-  return Number.isFinite(parsed) ? clampWidth(parsed) : WORKSPACE_DEFAULT_WIDTH;
-}
+/**
+ * Column width constants (min/default/viewport caps) moved to
+ * `src/app/shell-layout.ts` alongside the resizable shell; the store no
+ * longer tracks the panel width — react-resizable-panels owns it.
+ */
 
 interface ConversationPanelSnapshot {
   open: boolean;
@@ -50,7 +28,6 @@ interface ConversationPanelSnapshot {
 interface WorkspacePanelState {
   open: boolean;
   activeTab: WorkspaceTab;
-  width: number;
   viewMode: "code" | "preview";
   activeResource: WorkspaceResource | null;
   history: WorkspaceResource[];
@@ -70,8 +47,6 @@ interface WorkspacePanelState {
   closePanel: () => void;
   togglePanel: (tab?: WorkspaceTab) => void;
   setTab: (tab: WorkspaceTab) => void;
-  setWidth: (width: number) => void;
-  resetWidth: () => void;
 
   openResource: (resource: WorkspaceResource, options?: { viewMode?: "code" | "preview" }) => void;
   setViewMode: (mode: "code" | "preview") => void;
@@ -103,7 +78,6 @@ function currentStateSnapshot(state: WorkspacePanelState): ConversationPanelSnap
 export const useWorkspacePanelStore = create<WorkspacePanelState>((set, get) => ({
   open: false,
   activeTab: "outputs",
-  width: loadPersistedWidth(),
   viewMode: "preview",
   activeResource: null,
   history: [],
@@ -135,14 +109,6 @@ export const useWorkspacePanelStore = create<WorkspacePanelState>((set, get) => 
     if (get().activeTab !== tab) logger.info("workspace", "panel.tab", { tab });
     set({ activeTab: tab });
   },
-  setWidth: (width) => {
-    const clamped = clampWidth(width);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(WIDTH_STORAGE_KEY, String(clamped));
-    }
-    set({ width: clamped });
-  },
-  resetWidth: () => get().setWidth(WORKSPACE_DEFAULT_WIDTH),
 
   openResource: (resource, options) => {
     set((state) => {

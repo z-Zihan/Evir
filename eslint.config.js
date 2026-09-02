@@ -48,4 +48,15 @@ export default tseslint.config(
       "react-refresh/only-export-components": "off",
     },
   },
+  {
+    // MessageScroller exports its pure scroll-decision helpers
+    // (shouldAttachToBottom / shouldShowJumpButton) from the same file so unit
+    // tests can exercise them — jsdom has no layout, so the meaningful tests
+    // are on these functions, not on scroll pixels. Editing the file falls
+    // back to a full reload in dev; acceptable for one scroll primitive.
+    files: ["src/app/MessageScroller.tsx"],
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
+  },
 );

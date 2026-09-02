@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useProviderStore } from "../features/provider/provider-store";
 import { useUsageStore } from "../features/usage/usage-store";
@@ -8,12 +8,10 @@ import { SettingsModal, type SettingsTab } from "./SettingsModal";
 import { useShortcuts } from "./useShortcuts";
 import { ShortcutHelpOverlay } from "./ShortcutHelpOverlay";
 import { WorkspacePanel } from "./workspace/WorkspacePanel";
-import { useWorkspaceResize } from "./workspace/useWorkspaceResize";
 import { useWorkspaceSync } from "./workspace/use-workspace-sync";
 import { useWorkspacePanelStore } from "../features/workspace/workspace-panel-store";
 import { initializeRuntimeStorage } from "../runtime/initialize-storage";
 import { installWorkspaceResolver } from "../features/workspace/workspace-bridge";
-import { useSidebarResize } from "./useSidebarResize";
 import { useProjectStore } from "../features/projects/project-store";
 import { useChatStore } from "../features/chat/chat-store";
 import {
@@ -23,7 +21,30 @@ import {
 } from "../core/context/crash-recovery";
 import { getRuntime } from "../runtime/use-runtime";
 import { logger } from "../core/logging/logger";
-import { Button, TooltipProvider } from "../components/ui";
+import {
+  Button,
+  ResizableGroup,
+  ResizableHandle,
+  ResizablePanel,
+  TooltipProvider,
+  useDefaultLayout,
+} from "../components/ui";
+import {
+  CHAT_PANEL_ID,
+  CONVERSATION_MIN_WIDTH,
+  SIDEBAR_DEFAULT_WIDTH,
+  SIDEBAR_MAX_WIDTH,
+  SIDEBAR_MIN_WIDTH,
+  SIDEBAR_OVERLAY_QUERY,
+  SHELL_LAYOUT_STORAGE_ID,
+  SIDEBAR_PANEL_ID,
+  WORKSPACE_DEFAULT_WIDTH,
+  WORKSPACE_DRAWER_QUERY,
+  WORKSPACE_MIN_WIDTH,
+  WORKSPACE_PANEL_ID,
+  createShellLayoutStorage,
+} from "./shell-layout";
+import { useMediaQuery } from "./useMediaQuery";
 
 export function App() {
   const { t } = useTranslation();
@@ -110,8 +131,6 @@ export function App() {
     void initializeApplication();
   }, [initializeApplication]);
 
-  const sidebarResize = useSidebarResize();
-
   const dismissRecovery = async (run: UnfinishedRun) => {
     await clearCheckpoint(run.conversationId);
     setUnfinishedRuns((runs) => runs.filter((item) => item.conversationId !== run.conversationId));
@@ -123,99 +142,142 @@ export function App() {
     window.dispatchEvent(new Event("evir:focus-composer"));
   };
 
+  // Drawer breakpoints (CSS mirrors live in shell.css). Below 820px the
+  // sidebar becomes a fixed overlay drawer; below 1440px an open workspace
+  // becomes a fixed right drawer. Affected columns render outside the Group.
+  const sidebarOverlay = useMediaQuery(SIDEBAR_OVERLAY_QUERY);
+  const workspaceDrawer = useMediaQuery(WORKSPACE_DRAWER_QUERY);
+
+  // Entering the compact viewport closes the sidebar, leaving it reopens it
+  // (same behavior the old matchMedia handler provided).
+  const previousSidebarOverlay = useRef(sidebarOverlay);
   useEffect(() => {
-    if (typeof window.matchMedia !== "function") return;
-    const compact = window.matchMedia("(max-width: 820px)");
-    const handleViewportChange = (event: MediaQueryListEvent) => {
-      setSidebarVisible(!event.matches);
-    };
-    compact.addEventListener("change", handleViewportChange);
-    return () => compact.removeEventListener("change", handleViewportChange);
-  }, []);
+    if (previousSidebarOverlay.current === sidebarOverlay) return;
+    previousSidebarOverlay.current = sidebarOverlay;
+    setSidebarVisible(!sidebarOverlay);
+  }, [sidebarOverlay]);
 
   // Workspace panel: third column with persisted width + per-thread state.
-  const workspaceResize = useWorkspaceResize();
   const workspaceStoreOpen = useWorkspacePanelStore((state) => state.open);
   const workspaceOpen = workspaceAvailable && workspaceStoreOpen;
-  const workspaceWidth = useWorkspacePanelStore((state) => state.width);
   const currentConversationId = useChatStore((state) => state.currentConversationId);
   useWorkspaceSync(currentConversationId);
+
+  // Columns laid out by the resizable Group; drawer variants render after it
+  // as fixed overlays and must not join the Group's flex layout.
+  const sidebarInFlow = sidebarVisible && !sidebarOverlay;
+  const workspaceInFlow = workspaceOpen && !workspaceDrawer;
+
+  const panelIds = useMemo(
+    () => [
+      ...(sidebarInFlow ? [SIDEBAR_PANEL_ID] : []),
+      CHAT_PANEL_ID,
+      ...(workspaceInFlow ? [WORKSPACE_PANEL_ID] : []),
+    ],
+    [sidebarInFlow, workspaceInFlow],
+  );
+
+  // One persisted layout per visible-panel composition; the storage adapter
+  // migrates the legacy `evir-*-width` px keys on first read (shell-layout.ts).
+  const shellStorage = useMemo(() => createShellLayoutStorage(window.localStorage), []);
+  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
+    id: SHELL_LAYOUT_STORAGE_ID,
+    panelIds,
+    storage: shellStorage,
+  });
 
   // Full-screen overlays register themselves via useOverlayBrowserGuard so
   // the native browser webviews hide while any of them is open.
 
   const shellClass =
     `app-shell${sidebarVisible ? " sidebar-visible" : ""}` +
-    `${sidebarResize.resizing ? " sidebar-resizing" : ""}` +
-    `${workspaceOpen ? " workspace-visible" : ""}` +
-    `${workspaceResize.resizing ? " workspace-resizing" : ""}`;
+    `${workspaceOpen ? " workspace-visible" : ""}`;
+
+  const sidebar = (
+    <Sidebar
+      onOpenSettings={openSettings}
+      onNewConversation={handleNewConversation}
+      onClose={() => setSidebarVisible(false)}
+    />
+  );
 
   return (
     <TooltipProvider>
-      <div
-        className={shellClass}
-        style={{
-          ...(sidebarVisible
-            ? ({ "--sidebar-width": `${sidebarResize.width}px` } as React.CSSProperties)
-            : {}),
-          ...(workspaceOpen
-            ? ({ "--workspace-width": `${workspaceWidth}px` } as React.CSSProperties)
-            : {}),
-        }}
-      >
-        {sidebarVisible && (
-          <Sidebar
-            onOpenSettings={openSettings}
-            onNewConversation={handleNewConversation}
-            onClose={() => setSidebarVisible(false)}
-          />
+      <div className={shellClass}>
+        <ResizableGroup
+          /* Remount per composition so the persisted layout for exactly these
+           * panels is applied on mount (defaultLayout is only read on mount). */
+          key={panelIds.join("+")}
+          id={SHELL_LAYOUT_STORAGE_ID}
+          className="shell-columns"
+          defaultLayout={defaultLayout}
+          onLayoutChanged={onLayoutChanged}
+        >
+          {sidebarInFlow && (
+            <ResizablePanel
+              id={SIDEBAR_PANEL_ID}
+              defaultSize={SIDEBAR_DEFAULT_WIDTH}
+              minSize={SIDEBAR_MIN_WIDTH}
+              maxSize={SIDEBAR_MAX_WIDTH}
+              groupResizeBehavior="preserve-pixel-size"
+            >
+              {sidebar}
+            </ResizablePanel>
+          )}
+          {sidebarInFlow && (
+            <ResizableHandle
+              /* Legacy hook class kept for e2e/test selectors. */
+              className="sidebar-resizer"
+              aria-label={t("sidebar.resize")}
+            />
+          )}
+          <ResizablePanel id={CHAT_PANEL_ID} minSize={CONVERSATION_MIN_WIDTH}>
+            <div className="main-area">
+              <ChatView
+                input={messageInput}
+                onInputChange={setMessageInput}
+                onSendMessage={handleSendMessage}
+                onOpenSettings={() => openSettings()}
+                onToggleSidebar={() => setSidebarVisible((visible) => !visible)}
+                sidebarVisible={sidebarVisible}
+              />
+            </div>
+          </ResizablePanel>
+          {workspaceInFlow && (
+            <ResizableHandle className="workspace-resizer" aria-label={t("workspace.resize")} />
+          )}
+          {workspaceInFlow && (
+            <ResizablePanel
+              id={WORKSPACE_PANEL_ID}
+              defaultSize={WORKSPACE_DEFAULT_WIDTH}
+              minSize={WORKSPACE_MIN_WIDTH}
+              maxSize="70vw"
+              groupResizeBehavior="preserve-pixel-size"
+            >
+              <WorkspacePanel />
+            </ResizablePanel>
+          )}
+        </ResizableGroup>
+        {sidebarVisible && sidebarOverlay && (
+          <>
+            <button
+              className="sidebar-backdrop"
+              type="button"
+              aria-label={t("sidebar.hide")}
+              onClick={() => setSidebarVisible(false)}
+            />
+            {sidebar}
+          </>
         )}
-        {sidebarVisible && (
-          <div
-            className="sidebar-resizer"
-            role="separator"
-            aria-orientation="vertical"
-            aria-label={t("sidebar.resize")}
-            onPointerDown={sidebarResize.handleProps.onPointerDown}
-            ref={sidebarResize.handleProps.ref}
-            onDoubleClick={sidebarResize.reset}
-          />
+        {workspaceOpen && workspaceDrawer && (
+          <>
+            <div
+              className="workspace-backdrop"
+              onClick={() => useWorkspacePanelStore.getState().closePanel()}
+            />
+            <WorkspacePanel />
+          </>
         )}
-        {sidebarVisible && (
-          <button
-            className="sidebar-backdrop"
-            type="button"
-            aria-label={t("sidebar.hide")}
-            onClick={() => setSidebarVisible(false)}
-          />
-        )}
-        <div className="main-area">
-          <ChatView
-            input={messageInput}
-            onInputChange={setMessageInput}
-            onSendMessage={handleSendMessage}
-            onOpenSettings={() => openSettings()}
-            onToggleSidebar={() => setSidebarVisible((visible) => !visible)}
-            sidebarVisible={sidebarVisible}
-          />
-        </div>
-        {workspaceOpen && (
-          <div
-            className="workspace-resizer"
-            role="separator"
-            aria-orientation="vertical"
-            aria-label={t("workspace.resize")}
-            onPointerDown={workspaceResize.handleProps.onPointerDown}
-            onDoubleClick={workspaceResize.reset}
-          />
-        )}
-        {workspaceOpen && (
-          <div
-            className="workspace-backdrop"
-            onClick={() => useWorkspacePanelStore.getState().closePanel()}
-          />
-        )}
-        {workspaceAvailable && <WorkspacePanel />}
         <SettingsModal
           open={settingsOpen}
           initialTab={settingsTab}

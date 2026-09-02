@@ -1,10 +1,11 @@
 /* Application shell and high-level product surfaces. */
 
+/* The shell root is a plain block; the column layout comes from the
+ * react-resizable-panels Group rendered inside it (App.tsx), which brings
+ * its own display:flex. */
 .app-shell {
   min-height: 100vh;
   height: 100dvh;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
   overflow: hidden;
   background: var(--background);
 }
@@ -650,96 +651,13 @@
   }
 }
 
-.app-shell.sidebar-visible {
-  grid-template-columns: var(--sidebar-width, 252px) minmax(0, 1fr);
-}
-
-/* Three-column shell: Navigation | Thread | Workspace. The workspace column
- * only exists while the panel is open; every combination of sidebar×panel
- * gets explicit column slots so auto-placement never reshuffles children. */
-.app-shell.workspace-visible:not(.sidebar-visible) {
-  grid-template-columns: minmax(0, 1fr) var(--workspace-width, 520px);
-}
-
-.app-shell.workspace-visible:not(.sidebar-visible) .main-area {
-  grid-column: 1;
-  grid-row: 1;
-}
-
-.app-shell.workspace-visible:not(.sidebar-visible) .workspace-resizer,
-.app-shell.workspace-visible:not(.sidebar-visible) .workspace-panel {
-  grid-column: 2;
-  grid-row: 1;
-}
-
-.app-shell.sidebar-visible.workspace-visible {
-  grid-template-columns:
-    var(--sidebar-width, 252px) minmax(360px, 1fr)
-    var(--workspace-width, 520px);
-}
-
-.app-shell.sidebar-visible.workspace-visible .main-area {
-  grid-column: 2;
-  grid-row: 1;
-}
-
-.app-shell.sidebar-visible.workspace-visible .workspace-resizer,
-.app-shell.sidebar-visible.workspace-visible .workspace-panel {
-  grid-column: 3;
-  grid-row: 1;
-}
-
-/* Explicit placement for every shell child: the resizer is explicitly
- * positioned at (1,1), and without explicit slots the auto-placement
- * algorithm would push the sidebar into column 2 and the main area out of
- * row 1 (regression seen in the wild: sidebar filled the whole window). */
-.app-shell.sidebar-visible .sidebar {
-  grid-column: 1;
-  grid-row: 1;
-}
-
-.app-shell.sidebar-visible .main-area {
-  grid-column: 2;
-  grid-row: 1;
-}
-
-/* Drag handle overlapping the sidebar's right edge. Kept invisible until
- * hover so it does not add visual noise to the default layout. */
-.sidebar-resizer {
-  position: relative;
-  z-index: 5;
-  grid-column: 1;
-  grid-row: 1;
-  justify-self: end;
-  align-self: stretch;
-  width: 7px;
-  margin-right: -7px;
-  cursor: col-resize;
-  touch-action: none;
-}
-
-.sidebar-resizer::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  right: 2px;
-  bottom: 0;
-  width: 3px;
-  border-radius: 3px;
-  background: transparent;
-  transition: background var(--motion-fast) var(--ease-out);
-}
-
-.sidebar-resizer:hover::after,
-.sidebar-resizer:focus-visible::after,
-.app-shell.sidebar-resizing .sidebar-resizer::after {
-  background: color-mix(in srgb, var(--primary) 45%, transparent);
-}
-
-.app-shell.sidebar-resizing {
-  cursor: col-resize;
-  user-select: none;
-}
+/* Shell columns (Navigation | Thread | Workspace) are laid out by the
+ * react-resizable-panels Group in App.tsx: each column is a Panel with
+ * flex-grow percentages persisted per visible composition, so the former
+ * grid-template-columns + --sidebar-width/--workspace-width rules are gone.
+ * Visibility is expressed by which panels App renders into the Group; the
+ * sidebar/workspace become fixed drawers below the shell.css breakpoints
+ * (mirrored in src/app/shell-layout.ts) and render outside the Group. */
 
 .startup-notice {
   position: fixed;
@@ -803,10 +721,6 @@
 .main-area {
   min-height: 0;
   height: 100dvh;
-}
-
-.sidebar-backdrop {
-  display: none;
 }
 
 /* Sidebar */
@@ -1832,6 +1746,7 @@
 
 .messages-area {
   min-height: 0;
+  min-width: 0;
   padding: 34px 24px 18px;
 }
 
@@ -2546,10 +2461,8 @@
 }
 
 @media (max-width: 820px) {
-  .app-shell.sidebar-visible {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
+  /* Sidebar renders as a fixed overlay drawer: App renders it (plus the
+   * backdrop) outside the resizable Group below this breakpoint. */
   .sidebar {
     position: fixed;
     z-index: 70;
@@ -4091,12 +4004,14 @@
 .message-list {
   width: min(900px, 100%);
   max-width: 900px;
+  min-width: 0;
   gap: 38px;
 }
 
 .message-row {
   display: grid;
   width: 100%;
+  min-width: 0;
   grid-template-columns: 28px minmax(0, 1fr);
   gap: 13px;
 }
@@ -4211,7 +4126,13 @@
 /* Overflow root-cause guards: unbroken strings (10k chars, URLs, hashes)
  * must wrap inside the bubble; code blocks, tables, and diffs keep their own
  * horizontal scroll (§8). The conversation column itself never scrolls
- * horizontally. */
+ * horizontally. `word-break: break-word` backs up `overflow-wrap` on engines
+ * that treat long-token shaping differently; it never affects CJK line
+ * breaking (CJK breaks between characters by default).
+ * Flex/grid min-width chain: without `min-width: 0` flex children default to
+ * min-width:auto and the conversation column blows out horizontally (§9). */
+.message-list,
+.message-row,
 .message-content,
 .message-content p,
 .message-content li,
@@ -4223,11 +4144,61 @@
 .message-content td,
 .message-content th,
 .message-content summary {
+  min-width: 0;
+}
+
+.message-content p,
+.message-content li,
+.message-content h1,
+.message-content h2,
+.message-content h3,
+.message-content h4,
+.message-content blockquote,
+.message-content td,
+.message-content th,
+.message-content summary {
   overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .message-content :where(a, code) {
   overflow-wrap: anywhere;
+}
+
+/* Jump-to-latest pill (MessageScroller): a zero-height sticky anchor floats
+ * the pill over the scrollport bottom without adding layout space, so its
+ * appearance never shifts the message flow. */
+.jump-to-latest-anchor {
+  position: sticky;
+  bottom: 18px;
+  z-index: 5;
+  display: flex;
+  height: 0;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.jump-to-latest {
+  position: absolute;
+  bottom: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 94%, var(--background));
+  color: var(--foreground);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 550;
+  box-shadow: var(--shadow-md);
+  pointer-events: auto;
+}
+
+.jump-to-latest:hover {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+  color: var(--primary);
 }
 
 .message-user .message-content {
@@ -4745,6 +4716,7 @@
 
 .execution-detail-grid pre {
   max-height: 190px;
+  max-width: 100%;
   margin: 0;
   overflow: auto;
   padding: 9px;
@@ -7721,39 +7693,6 @@
  * Browser around one activeResource.                            *
  * ============================================================ */
 
-.workspace-resizer {
-  position: relative;
-  z-index: 6;
-  justify-self: start;
-  align-self: stretch;
-  width: 7px;
-  margin-left: -7px;
-  cursor: col-resize;
-  touch-action: none;
-}
-
-.workspace-resizer::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 2px;
-  bottom: 0;
-  width: 3px;
-  border-radius: 3px;
-  background: transparent;
-  transition: background var(--motion-fast) var(--ease-out);
-}
-
-.workspace-resizer:hover::after,
-.workspace-resizer:focus-visible::after,
-.app-shell.workspace-resizing .workspace-resizer::after {
-  background: var(--accent);
-}
-
-.workspace-backdrop {
-  display: none;
-}
-
 .workspace-panel {
   display: flex;
   min-height: 0;
@@ -8502,22 +8441,11 @@
 
 /* Adaptive small-window layout: the workspace becomes a right drawer.
  * Below 1440px an inline third column would squeeze the conversation under
- * ~500px (sidebar 252 + workspace ≥360); the drawer keeps chat readable. */
-
+ * ~500px (sidebar 252 + workspace ≥360); the drawer keeps chat readable.
+ * App mirrors this breakpoint (WORKSPACE_DRAWER_QUERY in shell-layout.ts)
+ * and renders the workspace outside the resizable Group; this block only
+ * pins the drawer and its backdrop to the viewport edge. */
 @media (max-width: 1439.5px) {
-  .app-shell.workspace-visible:not(.sidebar-visible),
-  .app-shell.sidebar-visible.workspace-visible {
-    grid-template-columns: var(--sidebar-width, 252px) minmax(0, 1fr);
-  }
-
-  .app-shell.sidebar-visible.workspace-visible .main-area {
-    grid-column: 2;
-  }
-
-  .workspace-resizer {
-    display: none;
-  }
-
   .workspace-panel {
     position: fixed;
     top: 0;
@@ -8529,7 +8457,6 @@
   }
 
   .workspace-backdrop {
-    display: block;
     position: fixed;
     inset: 0;
     z-index: 140;

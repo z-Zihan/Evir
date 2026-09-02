@@ -521,11 +521,8 @@
 
 /* ===== Layout ===== */
 
-.app-shell {
-  min-height: 100vh;
-  display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
-}
+/* Shell column layout is owned by the react-resizable-panels Group in
+ * App.tsx; the shell root rules live in shell.css. */
 
 .main-area {
   display: flex;
@@ -1679,9 +1676,6 @@
 
 /* Responsive */
 @media (max-width: 768px) {
-  .app-shell {
-    grid-template-columns: 1fr;
-  }
   .sidebar {
     position: fixed;
     z-index: 50;

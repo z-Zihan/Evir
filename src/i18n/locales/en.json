@@ -93,6 +93,7 @@
     "modelPlaceholder": "No model configured",
     "send": "Send",
     "stop": "Stop",
+    "jumpToLatest": "Jump to latest",
     "streamInProgress": "Another conversation is still generating",
     "regenerate": "Regenerate",
     "edit": "Edit",

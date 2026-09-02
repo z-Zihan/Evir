@@ -71,6 +71,9 @@ test("compact sidebar and settings use the whole viewport without overflow", asy
   const dialogBox = await dialog.boundingBox();
   expect(dialogBox).toEqual({ x: 0, y: 0, width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+  // Let the dialog's 150ms entry transition settle so axe never scans
+  // semi-transparent text (see the settings keyboard test).
+  await page.waitForTimeout(250);
   await expectNoBlockingViolations(page);
 
   await page.setViewportSize({ width: 900, height: 500 });

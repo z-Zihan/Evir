@@ -205,6 +205,7 @@ select:focus-visible {
   border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 12px;
+  max-width: 100%;
   overflow-x: auto;
   font-family: var(--font-mono);
   font-size: 0.875rem;
@@ -218,6 +219,7 @@ select:focus-visible {
   background: var(--color-surface-hover);
   border-radius: 4px;
   color: var(--color-foreground);
+  overflow-wrap: anywhere;
 }
 
 .message-content pre code {
@@ -291,7 +293,15 @@ select:focus-visible {
   color: var(--color-muted);
 }
 
+/* Tables: super-wide markdown tables scroll internally instead of stretching
+ * the conversation column (§9 conversation-overflow closure). MarkdownContent
+ * also wraps tables in a .table-scroll region; these properties keep raw
+ * tables safe through any render path. */
 .message-content table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
   border-collapse: collapse;
   margin: 8px 0;
   color: var(--color-foreground);

@@ -30,6 +30,7 @@ import { useProviderStore } from "../features/provider/provider-store";
 import { ChatMessage } from "./ChatMessage";
 import { MarkdownContent } from "./MarkdownContent";
 import { ChatEmptyState } from "./ChatEmptyState";
+import { MessageScroller, type MessageScrollerHandle } from "./MessageScroller";
 import { ModeSwitcher } from "./ModeSwitcher";
 import { ModelSwitcher } from "./ModelSwitcher";
 import type { MessageRecord, ProviderRecord } from "../core/storage/db";
@@ -328,33 +329,27 @@ export function ChatView({
   const hasMessageError = messages.some(
     (message) => message.status === "error" && Boolean(message.errorMessage),
   );
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollerRef = useRef<MessageScrollerHandle>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Draft mirror for the annotation listener (avoids re-subscribing per keystroke).
   const inputRef = useRef(input);
   inputRef.current = input;
   const fileInputRef = useRef<HTMLInputElement>(null);
-  // Stickiness: streaming frames only auto-scroll while the user is already
-  // at (near) the bottom, so reading earlier output is never yanked away.
-  const stickToBottomRef = useRef(true);
-
-  const handleScroll = useCallback(() => {
-    const element = scrollRef.current;
-    if (!element) return;
-    stickToBottomRef.current = element.scrollHeight - element.scrollTop - element.clientHeight < 80;
-  }, []);
-
+  // Display-only escape hatch for the scroll owner: existing force-scroll
+  // call sites (send, Execute Plan) keep working through the ref handle.
   const scrollToBottom = useCallback((force = false) => {
-    if (!force && !stickToBottomRef.current) return;
-    stickToBottomRef.current = true;
-    requestAnimationFrame(() => {
-      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "auto" });
-    });
+    scrollerRef.current?.scrollToBottom(force);
   }, []);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, streamingContent, latestAgentRun?.updatedAt, scrollToBottom]);
+  // streamKey signals "new content arrived" to MessageScroller without handing
+  // it any domain state: message count, streaming delta identity (bumped on
+  // every new streamingContent reference), and the latest run's update stamp.
+  const streamDeltaRef = useRef(0);
+  const lastStreamingContentRef = useRef(streamingContent);
+  if (lastStreamingContentRef.current !== streamingContent) {
+    lastStreamingContentRef.current = streamingContent;
+    streamDeltaRef.current += 1;
+  }
+  const streamKey = `${messages.length}:${streamDeltaRef.current}:${latestAgentRun?.updatedAt ?? 0}`;
 
   const displayError = (value: string) => (i18n.exists(value) ? t(value) : value);
 
@@ -627,7 +622,7 @@ export function ChatView({
   return (
     <main className="workspace">
       {header}
-      <div className="messages-area" ref={scrollRef} onScroll={handleScroll}>
+      <MessageScroller ref={scrollerRef} streamKey={streamKey} className="messages-area">
         {messages.length === 0 && !isCurrentConversationStreaming ? (
           <ChatEmptyState
             onSendMessage={(content) => {
@@ -719,7 +714,7 @@ export function ChatView({
             )}
           </div>
         )}
-      </div>
+      </MessageScroller>
       {error && !hasMessageError && <div className="chat-error">{displayError(error)}</div>}
       <footer className="composer-wrap">
         <div
