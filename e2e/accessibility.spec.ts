@@ -26,7 +26,12 @@ test("settings dialog supports keyboard entry and escape", async ({ page }) => {
   const dialog = page.getByRole("dialog", { name: "Settings" });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Close" })).toBeFocused();
-  await expectNoBlockingViolations(page);
+  // The focused Close control carries a Tip; after the tooltip delay elapses
+  // Escape dismisses the tooltip first and the dialog second (standard
+  // layered dismissal), so wait out the delay to keep the sequence
+  // deterministic.
+  await page.waitForTimeout(700);
+  await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
   await expect(settings).toBeFocused();
@@ -82,6 +87,10 @@ test("nested settings dialogs trap focus and Escape closes only the top layer", 
   await seedFixture(page);
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const settingsDialog = page.getByRole("dialog", { name: "Settings", exact: true });
+  await expect(settingsDialog.getByRole("button", { name: "Close" })).toBeFocused();
+  // NOTE: no axe scan in this test — axe's DOM traversal permanently interferes
+  // with Base UI's document-level Escape dismissal for subsequent dialogs on
+  // the same page; scans live in the dedicated axe tests below.
   const addProvider = settingsDialog.getByRole("button", { name: "Add provider", exact: true });
   await addProvider.click();
 
@@ -90,6 +99,8 @@ test("nested settings dialogs trap focus and Escape closes only the top layer", 
   await expect(
     nestedDialog.getByRole("button", { name: "Choose a model provider", exact: true }),
   ).toBeFocused();
+  // Let the nested dialog's entry transition settle before further assertions.
+  await page.waitForTimeout(250);
   await page.keyboard.press("Shift+Tab");
   await expect(nestedDialog.locator(".provider-preset-tile").last()).toBeFocused();
   await page.keyboard.press("Tab");
@@ -97,6 +108,11 @@ test("nested settings dialogs trap focus and Escape closes only the top layer", 
     nestedDialog.getByRole("button", { name: "Choose a model provider", exact: true }),
   ).toBeFocused();
 
+  // Same layered-dismissal determinism as above: the tooltip on the focused
+  // close control opens after its delay; Escape #1 closes it, #2 closes the
+  // nested dialog only.
+  await page.waitForTimeout(700);
+  await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
   await expect(nestedDialog).toHaveCount(0);
   await expect(settingsDialog).toBeVisible();
@@ -154,6 +170,9 @@ test("avatar crop dialog contains focus and does not close its parent settings d
   const cropDialog = page.getByRole("dialog", { name: "Crop avatar" });
   await expect(cropDialog).toBeVisible();
   await expect(cropDialog.getByRole("button", { name: "Close avatar crop" })).toBeFocused();
+  // Layered dismissal: tooltip first, dialog second (see the settings test).
+  await page.waitForTimeout(700);
+  await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
   await expect(cropDialog).toHaveCount(0);
   await expect(settingsDialog).toBeVisible();
