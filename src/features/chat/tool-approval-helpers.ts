@@ -34,6 +34,7 @@ import {
 import {
   beginConversationStream,
   finishConversationStream,
+  setPendingApproval,
   visibleForConversation,
 } from "./stream-ownership";
 import { emitWorkspaceToolEvent } from "../workspace/workspace-events";
@@ -46,7 +47,7 @@ export function getApprovalContext(
   set: ChatStoreSet,
   get: ChatStoreGet,
 ): { provider: ProviderRecord; runtime: EvirRuntime; streamStartedAt: number } | null {
-  const current = get().pendingToolApproval;
+  const current = get().pendingApprovals?.[pending.conversationId] ?? null;
   const sameApproval =
     current !== null &&
     current.conversationId === pending.conversationId &&
@@ -55,8 +56,8 @@ export function getApprovalContext(
   // A delayed click or restored UI must never execute an approval that has
   // already been replaced, denied, cancelled, or resolved.
   if (!sameApproval) return null;
-  const streamStartedAt = beginConversationStream(set, pending.conversationId);
-  if (visibleForConversation(get, pending.conversationId)) set({ pendingToolApproval: null });
+  const streamStartedAt = beginConversationStream(set, get, pending.conversationId);
+  setPendingApproval(set, get, pending.conversationId, null);
   const provider =
     useProviderStore.getState().providers.find((p) => p.id === pending.providerId) ??
     useProviderStore.getState().getDefaultProvider();

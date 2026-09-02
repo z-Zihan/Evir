@@ -11,17 +11,33 @@ import { useUsageStore } from "../usage/usage-store";
 import { logger } from "../../core/logging/logger";
 import type { TokenBreakdown } from "../../core/usage/types";
 
-const activeControllers = new Set<AbortController>();
+// Controllers are keyed by conversation so a Stop in one task aborts only that
+// task's in-flight requests; concurrent conversations keep streaming.
+const activeControllers = new Map<string, Set<AbortController>>();
 
-export function createActiveTaskController(): {
+function controllersFor(conversationId: string): Set<AbortController> {
+  let set = activeControllers.get(conversationId);
+  if (!set) {
+    set = new Set();
+    activeControllers.set(conversationId, set);
+  }
+  return set;
+}
+
+export function createActiveTaskController(conversationId: string): {
   signal: AbortSignal;
   dispose(): void;
 } {
   const controller = new AbortController();
-  activeControllers.add(controller);
+  controllersFor(conversationId).add(controller);
   return {
     signal: controller.signal,
-    dispose: () => activeControllers.delete(controller),
+    dispose: () => {
+      const set = activeControllers.get(conversationId);
+      if (!set) return;
+      set.delete(controller);
+      if (set.size === 0) activeControllers.delete(conversationId);
+    },
   };
 }
 
@@ -39,8 +55,19 @@ export function providerReadinessError(provider: ProviderRecord): string | undef
   if (!isSupportedProtocol(provider.protocolId)) return "chat.protocolUnsupported";
 }
 
-export function stopActiveStream(): void {
-  for (const controller of activeControllers) controller.abort();
+/** Aborts in-flight requests for one conversation (undefined = every conversation). */
+export function stopActiveStream(conversationId?: string): void {
+  if (conversationId === undefined) {
+    for (const [key, set] of activeControllers) {
+      for (const controller of set) controller.abort();
+      activeControllers.delete(key);
+    }
+    return;
+  }
+  const set = activeControllers.get(conversationId);
+  if (!set) return;
+  for (const controller of set) controller.abort();
+  activeControllers.delete(conversationId);
 }
 
 function batchDeltas(onDelta: (content: string) => void) {
@@ -108,7 +135,7 @@ export async function streamAssistant(
   const abortFromExternal = () => controller.abort();
   if (externalSignal?.aborted) controller.abort();
   else externalSignal?.addEventListener("abort", abortFromExternal, { once: true });
-  activeControllers.add(controller);
+  controllersFor(conversationId).add(controller);
   let content = "";
   let status: StreamResult["status"] = "complete";
   let errorMessage: string | undefined;
@@ -194,7 +221,9 @@ export async function streamAssistant(
         : ProviderErrorType.PROVIDER_ERROR;
   } finally {
     if (timeout !== undefined) globalThis.clearTimeout(timeout);
-    activeControllers.delete(controller);
+    const set = activeControllers.get(conversationId);
+    set?.delete(controller);
+    if (set?.size === 0) activeControllers.delete(conversationId);
     externalSignal?.removeEventListener("abort", abortFromExternal);
     batched.flush(content);
   }

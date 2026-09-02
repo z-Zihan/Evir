@@ -44,7 +44,13 @@ vi.mock("../../../runtime/structured-storage", () => ({
   }),
 }));
 vi.mock("../../orchestration/orchestration-store", () => ({
-  useOrchestrationStore: { getState: () => ({ current: null, setCurrent: vi.fn() }) },
+  useOrchestrationStore: {
+    getState: () => ({
+      current: null,
+      setCurrent: vi.fn(),
+      snapshotFor: () => null,
+    }),
+  },
 }));
 vi.mock("../../../i18n/config", () => ({
   default: { t: (key: string) => key },
@@ -109,6 +115,18 @@ function harness(pending: PendingToolApproval, runtimeOverrides: Partial<EvirRun
     activeStreamStartedAt: 111,
     streamingContent: "",
     pendingToolApproval: pending,
+    pendingApprovals: { "conversation-1": pending },
+    // Mirrors the slot beginConversationStream would create with the mocked
+    // streamStartedAt (111) so finishConversationStream can resolve it.
+    streamSlots: {
+      "conversation-1": {
+        conversationId: "conversation-1",
+        phase: "streaming",
+        startedAt: 111,
+        content: "",
+      },
+    },
+    streamEpochs: {},
     error: null,
   };
   // zustand setState accepts a partial object OR an updater function.
@@ -207,6 +225,7 @@ describe("approveTool", () => {
     const current = pendingApproval({ approvalId: "approval-current", toolCallId: "call-2" });
     const { set, get, state } = harness(stale);
     state.pendingToolApproval = current;
+    state.pendingApprovals = { "conversation-1": current };
 
     await approveTool(stale, set, get);
 
@@ -221,6 +240,7 @@ describe("approveTool", () => {
     const current = pendingApproval({ approvalId: "approval-current" });
     const { set, get, state } = harness(stale);
     state.pendingToolApproval = current;
+    state.pendingApprovals = { "conversation-1": current };
 
     await approveTool(stale, set, get);
 

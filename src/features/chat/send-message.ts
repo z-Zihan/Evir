@@ -4,6 +4,7 @@ import { useProviderStore } from "../provider/provider-store";
 import type { ChatState } from "./chat-store";
 import { providerReadinessError } from "./chat-stream";
 import { streamResponse } from "./stream-response";
+import { beginPreparation, endPreparation, slotFor, streamEpochFor } from "./stream-ownership";
 import { getRuntime } from "../../runtime/use-runtime";
 import { getStructuredStorage } from "../../runtime/structured-storage";
 import { logger } from "../../core/logging/logger";
@@ -45,6 +46,12 @@ import { useProjectStore } from "../projects/project-store";
 type ChatStoreSet = StoreApi<ChatState>["setState"];
 type ChatStoreGet = StoreApi<ChatState>["getState"];
 
+// Synchronous submit locks: a double-click must not spawn two sends for the
+// same conversation (or two brand-new threads) during the first await, while
+// OTHER conversations stay free to start their own runs.
+const submitLocks = new Set<string>();
+let newThreadSubmitLocked = false;
+
 export async function executePreparedStream(
   set: ChatStoreSet,
   get: ChatStoreGet,
@@ -63,68 +70,99 @@ export async function sendChatMessage(
   onAccepted?: () => void,
 ): Promise<boolean> {
   const text = rawText.trim();
-  if ((!text && get().pendingAttachments.length === 0) || get().isStreaming) return false;
-  const provider = useProviderStore.getState().getDefaultProvider();
-  if (!provider) {
-    set({ error: "chat.noProvider" });
-    return false;
-  }
-  const readinessError = providerReadinessError(provider);
-  if (readinessError) {
-    set({ error: readinessError });
-    return false;
-  }
-
-  // Flip the busy flag synchronously, BEFORE the first await: agent/goal
-  // preparation runs two LLM round trips before beginConversationStream fires,
-  // and without this window a second send starts a concurrent run.
-  const epoch = get().streamEpoch;
-  const actionId = crypto.randomUUID();
-  set({ isStreaming: true });
-  try {
-    await sendChatMessageInner(set, get, text, provider, epoch, actionId, onAccepted);
-  } catch (error) {
-    // Pre-acceptance failure: the user message never reached the conversation,
-    // so the caller must keep the draft on screen instead of silently
-    // discarding it.
-    if (get().streamEpoch !== epoch) return false;
-    logger.error("provider", "chat.send-failed", {
-      conversationId: get().currentConversationId,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    set({
-      error: "chat.sendFailed",
-      isStreaming: get().activeStreamConversationId !== null ? get().isStreaming : false,
-    });
-    return false;
-  } finally {
-    // Early exits (cancelled/clarification/confirmation/preparation failure)
-    // never open a stream slot — reset the flag so the composer re-enables.
-    // When a stream did run, it has already finished and this is a no-op.
-    if (get().activeStreamConversationId === null) {
-      set({ isStreaming: false });
+  if (!text && get().pendingAttachments.length === 0) return false;
+  // Per-conversation busy: an active run or an in-flight submit blocks THIS
+  // conversation only — concurrent tasks in other conversations are expected.
+  const existingConversationId = get().currentConversationId;
+  const lockedIds: string[] = [];
+  if (existingConversationId) {
+    if (submitLocks.has(existingConversationId) || slotFor(get(), existingConversationId)) {
+      return false;
     }
+    submitLocks.add(existingConversationId);
+    lockedIds.push(existingConversationId);
+  } else if (newThreadSubmitLocked) {
+    return false;
+  } else {
+    newThreadSubmitLocked = true;
   }
-  return true;
+  try {
+    const provider = useProviderStore.getState().getDefaultProvider();
+    if (!provider) {
+      set({ error: "chat.noProvider" });
+      return false;
+    }
+    const readinessError = providerReadinessError(provider);
+    if (readinessError) {
+      set({ error: readinessError });
+      return false;
+    }
+
+    let conversationId = existingConversationId;
+    if (!conversationId) {
+      // New threads inherit the active project context; standalone chats pass null.
+      const projectId = useProjectStore.getState().currentProjectId;
+      conversationId = await get().createConversation(provider.id, provider.modelId, projectId);
+      // The freshly created conversation now owns a submit lock of its own.
+      if (submitLocks.has(conversationId)) return false;
+      submitLocks.add(conversationId);
+      lockedIds.push(conversationId);
+    }
+    // Claim the preparing slot BEFORE the first await: agent/goal preparation
+    // runs two LLM round trips before beginConversationStream fires, and
+    // without this window a second send starts a concurrent run.
+    const epoch = beginPreparation(set, get, conversationId);
+    const actionId = crypto.randomUUID();
+    try {
+      await sendChatMessageInner(
+        set,
+        get,
+        text,
+        provider,
+        conversationId,
+        epoch,
+        actionId,
+        onAccepted,
+      );
+    } catch (error) {
+      // Pre-acceptance failure: the user message never reached the conversation,
+      // so the caller must keep the draft on screen instead of silently
+      // discarding it.
+      if (streamEpochFor(get(), conversationId) !== epoch) return false;
+      logger.error("provider", "chat.send-failed", {
+        conversationId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      set({
+        error: "chat.sendFailed",
+      });
+      return false;
+    } finally {
+      // Early exits (cancelled/clarification/confirmation/preparation failure)
+      // never open a stream slot — drop the preparing slot so the composer
+      // re-enables. When a stream did run, it has already finished and this is
+      // a no-op.
+      endPreparation(set, get, conversationId, epoch);
+    }
+    return true;
+  } finally {
+    for (const locked of lockedIds) submitLocks.delete(locked);
+    if (!existingConversationId) newThreadSubmitLocked = false;
+  }
 }
 
-async function sendChatMessageInner(
+export async function sendChatMessageInner(
   set: ChatStoreSet,
   get: ChatStoreGet,
   text: string,
   provider: ProviderRecord,
+  conversationId: string,
   epoch: number,
   actionId: string,
   onAccepted?: () => void,
 ): Promise<void> {
   const attachments = get().pendingAttachments;
   const selectedSkillIds = new Set(get().selectedSkillIds);
-  let conversationId = get().currentConversationId;
-  if (!conversationId) {
-    // New threads inherit the active project context; standalone chats pass null.
-    const projectId = useProjectStore.getState().currentProjectId;
-    conversationId = await get().createConversation(provider.id, provider.modelId, projectId);
-  }
   const history = get().messages;
   const now = Date.now();
   const userMessage: MessageRecord = {
@@ -239,7 +277,7 @@ async function sendChatMessageInner(
     } catch {
       // A user-initiated stop aborts the intake/planner request mid-flight;
       // that is not a preparation failure and must not surface an error.
-      if (get().streamEpoch !== epoch) return;
+      if (streamEpochFor(get(), conversationId) !== epoch) return;
       set({ error: "orchestration.preparationFailed" });
       return;
     }
@@ -252,7 +290,7 @@ async function sendChatMessageInner(
     return;
   // Stop pressed while preparation was finishing: do not open the stream —
   // otherwise the streaming spinner reappears after the user pressed stop.
-  if (get().streamEpoch !== epoch) return;
+  if (streamEpochFor(get(), conversationId) !== epoch) return;
   if (preparation === "ready") {
     await executePreparedStream(set, get, nextHistory, conversationId, selectedSkillIds);
     return;

@@ -842,7 +842,7 @@ export function ChatView({
                   // second click of the same physical double-click so a rapid submit
                   // cannot immediately cancel the request it just started.
                   if (event.detail > 1) return;
-                  stopGeneration();
+                  stopGeneration(currentConversationId ?? undefined);
                 }}
               >
                 <Square size={14} />
@@ -853,13 +853,11 @@ export function ChatView({
                 type="button"
                 className="send-button"
                 aria-label={t("chat.send")}
-                disabled={isStreaming || (!input.trim() && pendingAttachments.length === 0)}
-                onClick={onSendMessage}
-                data-tip={
-                  isStreaming && !isCurrentConversationStreaming
-                    ? t("chat.streamInProgress")
-                    : undefined
+                disabled={
+                  isCurrentConversationStreaming ||
+                  (!input.trim() && pendingAttachments.length === 0)
                 }
+                onClick={onSendMessage}
               >
                 {t("chat.send")}
                 <ArrowUp size={15} aria-hidden="true" />

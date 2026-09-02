@@ -60,6 +60,8 @@ import { useOrchestrationStore } from "../orchestration/orchestration-store";
 import {
   beginConversationStream,
   finishConversationStream,
+  ownsConversationSlot,
+  setPendingApproval,
   updateConversationStream,
   visibleForConversation,
 } from "./stream-ownership";
@@ -137,9 +139,9 @@ async function getLoopResult(
   const onDelta = (streamingContent: string) =>
     updateConversationStream(set, get, conversationId, streamingContent);
   if (mode === "agent" || mode === "goal" || mode === "plan") {
-    const task = createActiveTaskController();
+    const task = createActiveTaskController(conversationId);
     try {
-      const orchestration = useOrchestrationStore.getState().current;
+      const orchestration = useOrchestrationStore.getState().snapshotFor(conversationId);
       if (
         (mode === "agent" || mode === "goal") &&
         orchestration?.conversationId === conversationId &&
@@ -374,7 +376,7 @@ export async function streamResponse(
   const readinessError = providerReadinessError(provider);
   if (readinessError) return set({ error: readinessError });
 
-  const streamStartedAt = beginConversationStream(set, conversationId);
+  const streamStartedAt = beginConversationStream(set, get, conversationId);
   try {
     await runStreamResponse(
       set,
@@ -836,14 +838,13 @@ async function runStreamResponse(
       ...(currentConversationId === conversationId
         ? { messages: [...currentMessages, ...earlierMessages, ...blockedMessages] }
         : {}),
-      ...(currentConversationId === conversationId
-        ? {
-            streamingContent: "",
-            pendingToolApproval: { ...pendingApproval, remainingApprovals },
-            latestAgentRun: agentRunRecord,
-          }
-        : {}),
     }));
+    // The approval belongs to THIS conversation whether or not it is on
+    // screen: concurrent tasks can each wait on their own approval.
+    setPendingApproval(set, get, conversationId, { ...pendingApproval, remainingApprovals });
+    if (visibleForConversation(get, conversationId)) {
+      set({ latestAgentRun: agentRunRecord });
+    }
     return;
   }
 
@@ -876,11 +877,10 @@ async function runStreamResponse(
     agentRunRecord = await finalizeAutomaticVerification(agentRunRecord, runtime);
   }
 
-  // After a Stop the active stream slot is null and this tail must still land
+  // After a Stop the conversation's slot is gone and this tail must still land
   // (persisting the partial content); but if a NEWER run already owns the same
   // conversation, applying this tail would append stale turns on top of it.
-  const ownsStreamSlot =
-    get().activeStreamStartedAt === null || get().activeStreamStartedAt === streamStartedAt;
+  const ownsStreamSlot = ownsConversationSlot(get, conversationId, streamStartedAt);
   set(({ conversations, currentConversationId, messages: currentMessages }) => ({
     conversations: sorted(
       conversations.map((item) =>

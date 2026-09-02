@@ -18,6 +18,11 @@ import type { TaskIntakeAnalyzerPort } from "../../core/orchestration/task-intak
 import { cancelOrchestration, pauseOrchestration } from "./run-orchestrated-agent";
 import { logger } from "../../core/logging/logger";
 
+function targetSnapshot(conversationId?: string | null) {
+  const state = useOrchestrationStore.getState();
+  return conversationId ? state.snapshotFor(conversationId) : state.current;
+}
+
 export type PreparationResult =
   "not-applicable" | "cancelled" | "blocked" | "clarification" | "confirmation" | "ready";
 
@@ -259,8 +264,9 @@ export async function submitClarifications(
   runtime: EvirRuntime,
   privateSession: boolean,
   planner?: PlanGeneratorPort,
+  conversationId?: string,
 ): Promise<PreparationResult> {
-  const current = useOrchestrationStore.getState().current;
+  const current = targetSnapshot(conversationId);
   if (!current || current.phase !== "clarification") return "not-applicable";
   // Claim the clarification slot synchronously: rapid re-clicks each read
   // phase === "clarification" before the first submission finishes and would
@@ -384,8 +390,9 @@ export async function submitClarifications(
 export async function approveCurrentPlan(
   runtime: EvirRuntime,
   privateSession: boolean,
+  conversationId?: string,
 ): Promise<boolean> {
-  const current = useOrchestrationStore.getState().current;
+  const current = targetSnapshot(conversationId);
   // "paused" runs still waiting on the plan-level approval node must accept
   // the confirmation too — otherwise the approve node deadlocks with no UI
   // able to unblock it (seen in the RC Feature battery follow-up run).
@@ -424,8 +431,9 @@ export async function reviseCurrentPlan(
   objective: string,
   runtime: EvirRuntime,
   privateSession: boolean,
+  conversationId?: string,
 ): Promise<boolean> {
-  const current = useOrchestrationStore.getState().current;
+  const current = targetSnapshot(conversationId);
   if (!current?.plan || !["confirmation", "paused"].includes(current.phase) || !objective.trim())
     return false;
   const plan: PlanGraph = {
@@ -459,8 +467,9 @@ export async function reviseCurrentPlan(
 export async function markExecutionStarted(
   runtime: EvirRuntime,
   privateSession: boolean,
+  conversationId?: string,
 ): Promise<void> {
-  const current = useOrchestrationStore.getState().current;
+  const current = targetSnapshot(conversationId);
   if (!current?.plan) return;
   const plan = { ...current.plan, status: "running" as const, updatedAt: Date.now() };
   const next = { ...current, phase: "execution" as const, plan };
@@ -473,8 +482,9 @@ export async function markExecutionFinished(
   runtime: EvirRuntime,
   privateSession: boolean,
   outcome: "completed" | "partial" | "failed" | "cancelled",
+  conversationId?: string,
 ): Promise<void> {
-  const current = useOrchestrationStore.getState().current;
+  const current = targetSnapshot(conversationId);
   if (!current?.plan) return;
   const type =
     outcome === "completed"
@@ -514,8 +524,9 @@ export async function markExecutionFinished(
 export async function cancelCurrentRun(
   runtime: EvirRuntime,
   privateSession: boolean,
+  conversationId?: string,
 ): Promise<void> {
-  const runId = useOrchestrationStore.getState().current?.runId;
+  const runId = targetSnapshot(conversationId)?.runId;
   const schedulerCancelled = runId ? cancelOrchestration(runId) : false;
   try {
     if (runId && !privateSession && runtime.structuredStorage) {
@@ -540,21 +551,22 @@ export async function cancelCurrentRun(
     }
   } finally {
     if (!runId || !schedulerCancelled) {
-      await markExecutionFinished(runtime, privateSession, "cancelled");
+      await markExecutionFinished(runtime, privateSession, "cancelled", conversationId);
     }
   }
 }
 
-export function pauseCurrentRun(): boolean {
-  const runId = useOrchestrationStore.getState().current?.runId;
+export function pauseCurrentRun(conversationId?: string): boolean {
+  const runId = targetSnapshot(conversationId)?.runId;
   return runId ? pauseOrchestration(runId) : false;
 }
 
 export async function resumeCurrentRun(
   runtime: EvirRuntime,
   privateSession: boolean,
+  conversationId?: string,
 ): Promise<boolean> {
-  const current = useOrchestrationStore.getState().current;
+  const current = targetSnapshot(conversationId);
   if (!current?.plan || current.phase !== "paused") return false;
   const event = createRunEvent(
     "run.resumed",
@@ -585,8 +597,9 @@ export async function resumeCurrentRun(
 export async function retryCurrentRun(
   runtime: EvirRuntime,
   privateSession: boolean,
+  conversationId?: string,
 ): Promise<boolean> {
-  const current = useOrchestrationStore.getState().current;
+  const current = targetSnapshot(conversationId);
   if (!current?.plan || current.phase !== "finished") return false;
   if (current.plan.status === "completed") return false;
   const completedIds = new Set(
@@ -634,8 +647,9 @@ export async function resolveCurrentApprovalNode(
   nodeId: string,
   outcome: "completed" | "failed",
   summary: string,
+  conversationId?: string,
 ): Promise<boolean> {
-  const current = useOrchestrationStore.getState().current;
+  const current = targetSnapshot(conversationId);
   const blocked = current?.plan?.nodes.find(
     ({ id, status }) => id === nodeId && status === "blocked",
   );

@@ -5,18 +5,37 @@ import { approveCurrentPlan, submitClarifications } from "./orchestration-sessio
 import { useOrchestrationStore } from "./orchestration-store";
 import { useProviderStore } from "../provider/provider-store";
 import { ModelPlanGenerator } from "./model-plan-generator";
+import { slotFor } from "../chat/stream-ownership";
 
-export async function continueCurrentExecution(): Promise<void> {
+export async function continueCurrentExecution(conversationId?: string): Promise<void> {
   const chat = useChatStore.getState();
-  const current = useOrchestrationStore.getState().current;
-  if (!current || chat.isStreaming || chat.currentConversationId !== current.conversationId) return;
+  const current = useOrchestrationStore
+    .getState()
+    .snapshotFor(conversationId ?? chat.currentConversationId);
+  if (!current) return;
+  // A run already in flight for this conversation must not be doubled; other
+  // conversations streaming concurrently do not block this one.
+  if (slotFor(chat, current.conversationId)) return;
+  const history =
+    chat.currentConversationId === current.conversationId
+      ? chat.messages
+      : await loadHistoryFor(current.conversationId);
   await executePreparedStream(
     useChatStore.setState,
     useChatStore.getState,
-    chat.messages,
+    history,
     current.conversationId,
     chat.selectedSkillIds,
   );
+}
+
+async function loadHistoryFor(conversationId: string) {
+  const { getStructuredStorage } = await import("../../runtime/structured-storage");
+  const messages = await getStructuredStorage().query<
+    ReturnType<typeof useChatStore.getState>["messages"][number]
+  >("messages", { conversationId });
+  messages.sort((a, b) => a.createdAt - b.createdAt);
+  return messages;
 }
 
 export async function answerCurrentClarifications(
@@ -24,16 +43,20 @@ export async function answerCurrentClarifications(
 ): Promise<void> {
   const chat = useChatStore.getState();
   const provider = useProviderStore.getState().getDefaultProvider();
+  const conversationId = useOrchestrationStore.getState().current?.conversationId ?? undefined;
   const result = await submitClarifications(
     answers,
     getRuntime(),
     chat.privateSession,
     provider ? new ModelPlanGenerator(provider) : undefined,
+    conversationId,
   );
-  if (result === "ready") await continueCurrentExecution();
+  if (result === "ready") await continueCurrentExecution(conversationId);
 }
 
 export async function confirmCurrentPlan(): Promise<void> {
   const chat = useChatStore.getState();
-  if (await approveCurrentPlan(getRuntime(), chat.privateSession)) await continueCurrentExecution();
+  const conversationId = useOrchestrationStore.getState().current?.conversationId ?? undefined;
+  if (await approveCurrentPlan(getRuntime(), chat.privateSession, conversationId))
+    await continueCurrentExecution(conversationId);
 }

@@ -8,6 +8,7 @@ import { OrchestrationRepository } from "../../core/orchestration/repository";
 import type { AgentAssignment, RunEventV1, TaskBrief } from "../../core/orchestration/types";
 import { useOrchestrationStore } from "../orchestration/orchestration-store";
 import { fromApprovalRecord, type ApprovalRecord } from "./tool-approval";
+import { mirrorCurrentStreamState } from "./stream-ownership";
 import { logger } from "../../core/logging/logger";
 
 type ChatStoreSet = StoreApi<ChatState>["setState"];
@@ -47,7 +48,7 @@ export async function createConversation(
     error: null,
     latestAgentRun: null,
   }));
-  useOrchestrationStore.getState().setCurrent(null);
+  useOrchestrationStore.getState().setViewedConversation(conversation.id);
   return conversation.id;
 }
 
@@ -82,7 +83,10 @@ export async function selectConversation(
     pendingToolApproval: null,
     latestAgentRun: null,
   });
-  useOrchestrationStore.getState().setCurrent(null);
+  // Restore the incoming conversation's live run view: a background task keeps
+  // streaming while the user was looking elsewhere.
+  mirrorCurrentStreamState(set, get, id);
+  useOrchestrationStore.getState().setViewedConversation(id);
   logger.debug("ui", "chat.conversation-selected", { conversationId: id });
   const storage = getStructuredStorage();
   const [messages, agentRuns, orchestration, approvalRecords] = await Promise.all([
@@ -100,17 +104,31 @@ export async function selectConversation(
     logger.debug("ui", "chat.conversation-load-discarded", { conversationId: id });
     return;
   }
-  set({
+  set((state) => ({
     messages,
-    pendingToolApproval: pendingToolApproval
-      ? { ...pendingToolApproval, remainingApprovals }
-      : null,
+    // An in-memory approval (live run in this conversation) wins over the
+    // storage reload; only fall back to persisted approvals when absent.
+    ...(!state.pendingApprovals?.[id] && pendingToolApproval
+      ? {
+          pendingApprovals: {
+            ...state.pendingApprovals,
+            [id]: { ...pendingToolApproval, remainingApprovals },
+          },
+        }
+      : {}),
     latestAgentRun: agentRuns[0] ?? null,
-  });
-  useOrchestrationStore.getState().setCurrent(orchestration ?? null);
+  }));
+  mirrorCurrentStreamState(set, get, id);
+  if (orchestration && !useOrchestrationStore.getState().snapshotFor(id)) {
+    useOrchestrationStore.getState().setCurrent(orchestration);
+  }
 }
 
-export async function deleteConversation(set: ChatStoreSet, id: string): Promise<void> {
+export async function deleteConversation(
+  set: ChatStoreSet,
+  get: ChatStoreGet,
+  id: string,
+): Promise<void> {
   const storage = getStructuredStorage();
   const [messages, agentRuns, toolExecutions, conversationMemories, briefs, plans, events] =
     await Promise.all([
@@ -201,7 +219,7 @@ export async function deleteConversation(set: ChatStoreSet, id: string): Promise
     { type: "delete", entity: "settings", id: `checkpoint:${id}` },
     { type: "delete", entity: "conversations", id },
   ]);
-  set(({ conversations, currentConversationId }) => ({
+  set(({ conversations, currentConversationId, streamSlots, pendingApprovals }) => ({
     conversations: conversations.filter((c) => c.id !== id),
     ...(currentConversationId === id
       ? {
@@ -213,9 +231,19 @@ export async function deleteConversation(set: ChatStoreSet, id: string): Promise
           latestAgentRun: null,
         }
       : {}),
+    // Drop the deleted conversation's live-run bookkeeping either way.
+    ...(streamSlots?.[id] || pendingApprovals?.[id]
+      ? (() => {
+          const nextSlots = { ...streamSlots };
+          delete nextSlots[id];
+          const nextApprovals = { ...pendingApprovals };
+          delete nextApprovals[id];
+          return { streamSlots: nextSlots, pendingApprovals: nextApprovals };
+        })()
+      : {}),
   }));
-  const orchestration = useOrchestrationStore.getState().current;
-  if (orchestration?.conversationId === id) useOrchestrationStore.getState().setCurrent(null);
+  useOrchestrationStore.getState().discardConversation(id);
+  mirrorCurrentStreamState(set, get);
 }
 
 export async function renameConversation(

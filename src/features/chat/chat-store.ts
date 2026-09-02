@@ -21,6 +21,14 @@ import {
   type PendingToolApproval,
 } from "./tool-approval";
 import {
+  bumpStreamEpoch,
+  beginPreparation,
+  endPreparation,
+  hasActiveStream,
+  mirrorCurrentStreamState,
+  slotFor,
+} from "./stream-ownership";
+import {
   loadConversations as doLoadConversations,
   createConversation as doCreateConversation,
   createOrReuseConversation as doCreateOrReuseConversation,
@@ -35,6 +43,18 @@ import { cancelTaskPreparation } from "../orchestration/orchestration-session";
 import { logger } from "../../core/logging/logger";
 import type { AgentRunRecord } from "./agent-run-record";
 import { useSkillStore } from "../skills/skill-store";
+
+/** Live run state for ONE conversation — the unit of multi-task isolation. */
+export interface StreamSlot {
+  conversationId: string;
+  /** "preparing" covers the intake/plan round trips before any tokens stream. */
+  phase: "preparing" | "streaming";
+  /** Wall-clock of beginConversationStream; null while preparing. */
+  startedAt: number | null;
+  /** Latest streamed content — survives switching away and back. */
+  content: string;
+}
+
 export interface ChatState {
   conversations: ConversationRecord[];
   currentConversationId: string | null;
@@ -53,6 +73,12 @@ export interface ChatState {
   privateConversationId: string | null;
   latestAgentRun: AgentRunRecord | null;
   selectedSkillIds: Set<string>;
+  /** Source of truth for concurrent runs, keyed by conversationId. */
+  streamSlots: Record<string, StreamSlot>;
+  /** Per-conversation stop epochs (the global streamEpoch is kept for logging only). */
+  streamEpochs: Record<string, number>;
+  /** Pending tool approvals keyed by conversationId; the flat field mirrors the viewed one. */
+  pendingApprovals: Record<string, PendingToolApproval>;
   loadConversations: () => Promise<void>;
   createConversation: (
     providerId: string,
@@ -73,7 +99,8 @@ export interface ChatState {
   sendMessage: (text: string, onAccepted?: () => void) => Promise<boolean>;
   regenerate: () => Promise<void>;
   editMessage: (messageId: string, newContent: string) => Promise<void>;
-  stopGeneration: () => void;
+  /** Stops ONE conversation's run (defaults to the viewed conversation); others keep running. */
+  stopGeneration: (conversationId?: string) => void;
   addAttachment: (file: File) => Promise<void>;
   removeAttachment: (id: string) => void;
   clearAttachments: () => void;
@@ -102,6 +129,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   privateConversationId: null,
   latestAgentRun: null,
   selectedSkillIds: new Set<string>(),
+  streamSlots: {},
+  streamEpochs: {},
+  pendingApprovals: {},
   loadConversations: async () => doLoadConversations(set),
   createConversation: async (providerId, modelId, projectId = null) =>
     doCreateConversation(set, providerId, modelId, get().privateSession, projectId),
@@ -109,11 +139,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     doCreateOrReuseConversation(set, get, providerId, modelId, projectId),
   selectConversation: async (id) => doSelectConversation(set, get, id),
   deleteConversation: async (id) => {
-    // Deleting the conversation that is currently streaming must stop its run
-    // first — otherwise it keeps burning tokens and persists orphan rows for a
+    // Deleting a conversation that is running must stop its run first —
+    // otherwise it keeps burning tokens and persists orphan rows for a
     // conversation that no longer exists.
-    if (get().activeStreamConversationId === id) get().stopGeneration();
-    return doDeleteConversation(set, id);
+    if (slotFor(get(), id)) get().stopGeneration(id);
+    return doDeleteConversation(set, get, id);
   },
   renameConversation: async (id, title) => doRenameConversation(set, id, title),
   togglePin: async (id) => doTogglePin(set, get, id),
@@ -171,7 +201,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }),
   togglePrivateSession: () =>
     set((state) => {
-      if (state.isStreaming) return {};
+      if (hasActiveStream(state)) return {};
       if (!state.privateSession) {
         return {
           privateSession: true,
@@ -207,42 +237,48 @@ export const useChatStore = create<ChatState>((set, get) => ({
       };
     }),
   approveTool: async () => {
-    const pending = get().pendingToolApproval;
+    const conversationId = get().currentConversationId;
+    const pending = conversationId ? get().pendingApprovals?.[conversationId] : undefined;
     if (!pending) return;
     await approveTool(pending, set, get);
   },
   denyTool: async () => {
-    const pending = get().pendingToolApproval;
+    const conversationId = get().currentConversationId;
+    const pending = conversationId ? get().pendingApprovals?.[conversationId] : undefined;
     if (!pending) return;
     await denyTool(pending, set, get);
   },
   sendMessage: (text, onAccepted) => sendChatMessage(set, get, text, onAccepted),
   regenerate: async () => {
-    const { messages, currentConversationId, isStreaming } = get();
-    if (!currentConversationId || isStreaming) return;
+    const { messages, currentConversationId } = get();
+    if (!currentConversationId || slotFor(get(), currentConversationId)) return;
     const lastAssistant = [...messages].reverse().find(({ role }) => role === "assistant");
     if (!lastAssistant) return;
-    // Claim the busy flag before the storage await: a double-click during it
+    // Claim the busy slot before the storage await: a double-click during it
     // would otherwise launch two concurrent streams for one conversation.
-    set({ isStreaming: true });
+    const epoch = beginPreparation(set, get, currentConversationId);
     try {
       if (!get().privateSession) {
         await getStructuredStorage().delete("messages", lastAssistant.id);
       }
       const history = get().messages.filter(({ id }) => id !== lastAssistant.id);
-      set({ messages: history, pendingToolApproval: null });
+      set((state) => {
+        const pendingApprovals = { ...state.pendingApprovals };
+        delete pendingApprovals[currentConversationId];
+        return { messages: history, pendingApprovals, pendingToolApproval: null };
+      });
       await streamResponse(set, get, history, currentConversationId, getRuntime());
     } finally {
-      if (get().activeStreamConversationId === null) set({ isStreaming: false });
+      endPreparation(set, get, currentConversationId, epoch);
     }
   },
   editMessage: async (messageId, newContent) => {
-    const { messages, currentConversationId, isStreaming } = get();
-    if (!currentConversationId || isStreaming) return;
+    const { messages, currentConversationId } = get();
+    if (!currentConversationId || slotFor(get(), currentConversationId)) return;
     const index = messages.findIndex(({ id }) => id === messageId);
     const message = messages[index];
     if (!message || message.role !== "user") return;
-    set({ isStreaming: true });
+    const epoch = beginPreparation(set, get, currentConversationId);
     try {
       const toDelete = messages.slice(index + 1);
       const deleteIds = toDelete.map(({ id }) => id);
@@ -265,39 +301,55 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
       const updated = messages.slice(0, index + 1);
       updated[index] = { ...message, content: newContent };
-      set({ messages: updated, pendingToolApproval: null });
+      set((state) => {
+        const pendingApprovals = { ...state.pendingApprovals };
+        delete pendingApprovals[currentConversationId];
+        return { messages: updated, pendingApprovals, pendingToolApproval: null };
+      });
       await streamResponse(set, get, updated, currentConversationId, getRuntime());
     } finally {
-      if (get().activeStreamConversationId === null) set({ isStreaming: false });
+      endPreparation(set, get, currentConversationId, epoch);
     }
   },
-  stopGeneration: () => {
-    const { pendingToolApproval, privateSession, currentConversationId } = get();
+  stopGeneration: (conversationId) => {
+    const target = conversationId ?? get().currentConversationId;
+    if (!target) return;
+    const state = get();
+    const slot = slotFor(state, target);
+    const othersRunning = Object.keys(state.streamSlots).some((id) => id !== target);
     logger.info("stream", "stream.stop-requested", {
-      conversationId: currentConversationId,
-      phase: get().activeStreamConversationId ? "streaming" : "preparing",
+      conversationId: target,
+      phase: slot ? slot.phase : "approval-or-idle",
     });
-    stopActiveStream();
+    // Abort only this conversation's in-flight requests; concurrent tasks in
+    // other conversations must not notice the stop.
+    stopActiveStream(target);
     // Cancellation must also reach the agent/goal preparation pipeline: its
     // intake/plan round trips run before any stream slot opens, so without
     // this marker a finished preparation would just start the next stream
     // and the spinner would come back after the user pressed stop.
-    if (currentConversationId) cancelTaskPreparation(currentConversationId);
-    void getRuntime().storage?.cancelActiveCommands();
-    void cancelPendingToolApprovals(pendingToolApproval, privateSession);
-    set({
-      pendingToolApproval: null,
-      isStreaming: false,
-      activeStreamConversationId: null,
-      activeStreamStartedAt: null,
-      streamEpoch: get().streamEpoch + 1,
-      streamingContent: "",
+    cancelTaskPreparation(target);
+    if (!othersRunning) void getRuntime().storage?.cancelActiveCommands();
+    void cancelPendingToolApprovals(state.pendingApprovals[target] ?? null, state.privateSession);
+    set((current) => {
+      const streamSlots = { ...current.streamSlots };
+      delete streamSlots[target];
+      const pendingApprovals = { ...current.pendingApprovals };
+      delete pendingApprovals[target];
+      return {
+        streamSlots,
+        pendingApprovals,
+        streamEpoch: current.streamEpoch + 1,
+      };
     });
+    bumpStreamEpoch(set, target);
+    mirrorCurrentStreamState(set, get);
   },
   branchConversation: async (messageId) => {
-    const { currentConversationId, messages, conversations, isStreaming, privateSession } = get();
+    const { currentConversationId, messages, conversations, privateSession } = get();
     if (privateSession) throw new Error("Cannot branch a private session");
-    if (!currentConversationId || isStreaming) throw new Error("Cannot branch now");
+    if (!currentConversationId || slotFor(get(), currentConversationId))
+      throw new Error("Cannot branch now");
     const conversation = conversations.find((c) => c.id === currentConversationId);
     if (!conversation) throw new Error("Conversation not found");
     const newId = await doBranchConversation(messages, conversation, messageId);

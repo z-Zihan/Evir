@@ -72,14 +72,16 @@ export function App() {
   }, []);
 
   const handleSendMessage = useCallback(() => {
-    if (!messageInput.trim() || isStreaming) return;
+    // Busy checks live in the store (per-conversation): another conversation
+    // running in the background must not block this one's composer.
+    if (!messageInput.trim()) return;
     // Clear the draft only after the message is accepted (persisted or
     // private-accepted); on pre-acceptance failure the draft stays editable
     // and the chat-error line explains the failure.
     void sendMessage(messageInput, () => setMessageInput("")).catch(() => {
       /* error surfaced via chat error line; draft preserved */
     });
-  }, [isStreaming, messageInput, sendMessage]);
+  }, [messageInput, sendMessage]);
 
   useShortcuts({
     onShortcutHelp: () => setShortcutHelpOpen(true),

@@ -20,7 +20,11 @@ import {
 import { useOrchestrationStore } from "../orchestration/orchestration-store";
 import { getStructuredStorage } from "../../runtime/structured-storage";
 import { createActiveTaskController } from "./chat-stream";
-import { finishConversationStream, updateConversationStream } from "./stream-ownership";
+import {
+  finishConversationStream,
+  setPendingApproval,
+  updateConversationStream,
+} from "./stream-ownership";
 import { permissionContextForRoot } from "../projects/run-permission";
 import type { PermissionContext } from "../../core/security/permission-profiles";
 import {
@@ -271,12 +275,13 @@ async function continueOrchestrationAfterApproval(
         pending.orchestration.nodeId,
         outcome,
         summary,
+        pending.conversationId,
       )
     : false;
   const [next, ...rest] = pending.remainingApprovals ?? [];
   if (next) {
-    set({ pendingToolApproval: { ...next, remainingApprovals: rest }, isStreaming: false });
-    const current = useOrchestrationStore.getState().current;
+    setPendingApproval(set, get, pending.conversationId, { ...next, remainingApprovals: rest });
+    const current = useOrchestrationStore.getState().snapshotFor(next.conversationId);
     if (current && current.runId === next.orchestration?.runId) {
       useOrchestrationStore.getState().setCurrent({ ...current, phase: "paused" });
     }
@@ -284,7 +289,7 @@ async function continueOrchestrationAfterApproval(
   }
   if (shouldContinue) {
     const { continueCurrentExecution } = await import("../orchestration/continue-orchestration");
-    await continueCurrentExecution();
+    await continueCurrentExecution(pending.conversationId);
   }
 }
 
@@ -317,7 +322,7 @@ async function resolveApproval(
   get: ChatStoreGet,
   outcome: "approved" | "denied",
 ): Promise<void> {
-  const current = get().pendingToolApproval;
+  const current = get().pendingApprovals?.[pending.conversationId] ?? null;
   const isCurrent =
     current !== null &&
     current.conversationId === pending.conversationId &&
@@ -343,7 +348,7 @@ async function resolveApproval(
     }
     return;
   }
-  const task = createActiveTaskController();
+  const task = createActiveTaskController(pending.conversationId);
   try {
     let resolved: { messages: AgentMessage[]; msg: MessageRecord; resolvedTurn: AgentLoopTurn };
     if (approved) {
@@ -385,7 +390,7 @@ async function resolveApproval(
     const finalTurn = loopResult.turns.at(-1);
     if (approvalContinuationStopped(task.signal, finalTurn)) {
       await persistApprovalStatus(pending, approved ? "cancelled" : "denied", get().privateSession);
-      await cancelCurrentRun(runtime, get().privateSession);
+      await cancelCurrentRun(runtime, get().privateSession, pending.conversationId);
       return;
     }
     if (finalTurn) {
@@ -393,9 +398,7 @@ async function resolveApproval(
       if (next) {
         await persistApprovalStatus(pending, outcome, get().privateSession);
         await persistApprovalStatus(next, "pending", get().privateSession);
-        if (get().currentConversationId === pending.conversationId) {
-          set({ pendingToolApproval: next });
-        }
+        setPendingApproval(set, get, pending.conversationId, next);
         return;
       }
     }

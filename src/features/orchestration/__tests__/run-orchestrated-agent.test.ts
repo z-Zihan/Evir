@@ -108,20 +108,35 @@ const plan: PlanGraph = {
   updatedAt: 1,
 };
 
+function seedOrchestration(snapshot: Record<string, unknown> | null): void {
+  useOrchestrationStore.setState({
+    current: snapshot,
+    preparing: null,
+    byConversation: {},
+    preparingByConversation: {},
+    currentFallbackId: null,
+    preparingFallbackId: null,
+    viewedConversationId: null,
+    ...(snapshot
+      ? {
+          byConversation: { [snapshot.conversationId as string]: snapshot },
+          currentFallbackId: snapshot.conversationId as string,
+        }
+      : {}),
+  } as Parameters<typeof useOrchestrationStore.setState>[0]);
+}
+
 describe("runOrchestratedAgent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useOrchestrationStore.setState({
-      current: {
-        runId: "run-1",
-        conversationId: "conversation-1",
-        phase: "execution",
-        brief,
-        plan,
-        assignments: [],
-        events: [],
-      },
-      preparing: null,
+    seedOrchestration({
+      runId: "run-1",
+      conversationId: "conversation-1",
+      phase: "execution",
+      brief,
+      plan,
+      assignments: [],
+      events: [],
     });
     vi.mocked(runAgentLoop).mockImplementation((options) => {
       const content = String(options.messages.at(-1)?.content);
@@ -368,16 +383,14 @@ describe("runOrchestratedAgent", () => {
       edges: [],
       status: "ready",
     };
-    useOrchestrationStore.setState({
-      current: {
-        runId: brief.runId,
-        conversationId: brief.conversationId,
-        phase: "execution",
-        brief: { ...brief, goalKind: "answer" },
-        plan: approvalPlan,
-        assignments: [],
-        events: [],
-      },
+    seedOrchestration({
+      runId: brief.runId,
+      conversationId: brief.conversationId,
+      phase: "execution",
+      brief: { ...brief, goalKind: "answer" },
+      plan: approvalPlan,
+      assignments: [],
+      events: [],
     });
     const runtime = {
       target: "desktop",
@@ -429,17 +442,14 @@ describe("goal done-when verification", () => {
   }
 
   it("completes the goal only when every executable criterion actually passes", async () => {
-    useOrchestrationStore.setState({
-      current: {
-        runId: "run-1",
-        conversationId: "conversation-1",
-        phase: "execution",
-        brief: doneWhenBrief,
-        plan,
-        assignments: [],
-        events: [],
-      },
-      preparing: null,
+    seedOrchestration({
+      runId: "run-1",
+      conversationId: "conversation-1",
+      phase: "execution",
+      brief: doneWhenBrief,
+      plan,
+      assignments: [],
+      events: [],
     });
     vi.mocked(runAgentLoop).mockImplementation((options) => {
       const content = String(options.messages.at(-1)?.content);
@@ -481,17 +491,14 @@ describe("goal done-when verification", () => {
   });
 
   it("fails the goal when a done-when command fails, even with all steps completed", async () => {
-    useOrchestrationStore.setState({
-      current: {
-        runId: "run-1",
-        conversationId: "conversation-1",
-        phase: "execution",
-        brief: doneWhenBrief,
-        plan,
-        assignments: [],
-        events: [],
-      },
-      preparing: null,
+    seedOrchestration({
+      runId: "run-1",
+      conversationId: "conversation-1",
+      phase: "execution",
+      brief: doneWhenBrief,
+      plan,
+      assignments: [],
+      events: [],
     });
     vi.mocked(runAgentLoop).mockImplementation((options) => {
       const content = String(options.messages.at(-1)?.content);
@@ -565,17 +572,14 @@ describe("sub-agent security ceiling", () => {
       ],
       edges: [{ from: "inspect", to: "verify", when: "success" }],
     };
-    useOrchestrationStore.setState({
-      current: {
-        runId: "run-1",
-        conversationId: "conversation-1",
-        phase: "execution",
-        brief,
-        plan: verificationPlan,
-        assignments: [],
-        events: [],
-      },
-      preparing: null,
+    seedOrchestration({
+      runId: "run-1",
+      conversationId: "conversation-1",
+      phase: "execution",
+      brief,
+      plan: verificationPlan,
+      assignments: [],
+      events: [],
     });
     const registry = createToolRegistry();
     registry.register({
@@ -668,17 +672,14 @@ describe("sub-agent security ceiling", () => {
   });
 
   it("workers inherit the parent permission context and never gain extra tools", async () => {
-    useOrchestrationStore.setState({
-      current: {
-        runId: "run-1",
-        conversationId: "conversation-1",
-        phase: "execution",
-        brief,
-        plan,
-        assignments: [],
-        events: [],
-      },
-      preparing: null,
+    seedOrchestration({
+      runId: "run-1",
+      conversationId: "conversation-1",
+      phase: "execution",
+      brief,
+      plan,
+      assignments: [],
+      events: [],
     });
     const registry = createToolRegistry();
     registry.register({

@@ -10,22 +10,47 @@ import {
 import { subscribeWorkspaceToolEvents, type WorkspaceToolEvent } from "./workspace-events";
 
 /**
- * Live mirror of the active (or most recent) run's changes and outputs.
- * Hydrated from the persisted AgentRunRecord when a conversation is opened,
- * then updated in real time from tool-execution events while the run is in
- * flight. On run completion the record (rebuilt through the same derive
+ * Live mirror of each conversation's active (or most recent) run — changes and
+ * outputs keyed by conversationId so concurrent tasks never bleed into each
+ * other. Hydrated from the persisted AgentRunRecord when a conversation is
+ * opened, then updated in real time from tool-execution events while the run
+ * is in flight. On run completion the record (rebuilt through the same derive
  * functions) replaces the incremental state, keeping one source of truth.
+ *
+ * The flat fields (runId / changes / outputs / browserActive) are VIEW mirrors
+ * of the conversation currently on screen.
  */
 
-interface RunWorkspaceState {
+interface RunWorkspaceEntry {
   runId: string | null;
-  conversationId: string | null;
   changes: ChangeEntry[];
   outputs: TaskOutput[];
   /** True while the run's most recent tool event was a browser action. */
   browserActive: boolean;
+}
+
+interface RunWorkspaceState extends RunWorkspaceEntry {
+  conversationId: string | null;
+  viewedConversationId: string | null;
+  entries: Record<string, RunWorkspaceEntry>;
+  setViewedConversation: (conversationId: string | null) => void;
   hydrate: (record: AgentRunRecord) => void;
   clear: () => void;
+}
+
+const EMPTY_ENTRY: RunWorkspaceEntry = {
+  runId: null,
+  changes: [],
+  outputs: [],
+  browserActive: false,
+};
+
+function entryView(
+  entries: Record<string, RunWorkspaceEntry>,
+  conversationId: string | null,
+): RunWorkspaceEntry & { conversationId: string | null } {
+  const entry = conversationId ? (entries[conversationId] ?? EMPTY_ENTRY) : EMPTY_ENTRY;
+  return { ...entry, conversationId };
 }
 
 function applyEvent(
@@ -62,20 +87,35 @@ export const useRunWorkspaceStore = create<RunWorkspaceState>((set, get) => {
   subscribeWorkspaceToolEvents((event) => {
     if (!event.runId) return;
     const state = get();
-    // A brand-new run resets the panel: the previous run's changes must not
-    // accumulate into the next run's workspace view.
-    const sameRun = state.runId === event.runId;
+    const existing = state.entries[event.conversationId] ?? EMPTY_ENTRY;
+    // A brand-new run resets that conversation's entry: the previous run's
+    // changes must not accumulate into the next run's workspace view.
+    const sameRun = existing.runId === event.runId;
     const { changes, outputs } = applyEvent(
-      sameRun ? state.changes : [],
-      sameRun ? state.outputs : [],
+      sameRun ? existing.changes : [],
+      sameRun ? existing.outputs : [],
       event,
     );
-    set({
+    const entry: RunWorkspaceEntry = {
       runId: event.runId,
-      conversationId: event.conversationId,
       changes,
       outputs,
       browserActive: event.toolCall.toolName.startsWith("browser_"),
+    };
+    set((current) => {
+      const entries = {
+        ...current.entries,
+        [event.conversationId]: entry,
+      };
+      // Flat fields mirror the viewed conversation; before any conversation
+      // has been viewed (fresh start), fall back to the event's own.
+      const targetView = current.viewedConversationId ?? event.conversationId;
+      return {
+        entries,
+        ...(targetView === event.conversationId
+          ? { ...entry, conversationId: event.conversationId }
+          : {}),
+      };
     });
   });
   return {
@@ -84,16 +124,42 @@ export const useRunWorkspaceStore = create<RunWorkspaceState>((set, get) => {
     changes: [],
     outputs: [],
     browserActive: false,
+    viewedConversationId: null,
+    entries: {},
+    setViewedConversation: (conversationId) =>
+      set((state) => ({
+        viewedConversationId: conversationId,
+        ...entryView(state.entries, conversationId),
+      })),
     hydrate: (record) =>
-      set({
-        runId: record.id,
-        conversationId: record.conversationId,
-        changes: deriveChanges(record.toolCalls, record.toolResults, record.snapshots, record.id),
-        outputs: deriveTaskOutputs(record.toolCalls, record.toolResults, record.snapshots, {
+      set((state) => {
+        const entry: RunWorkspaceEntry = {
           runId: record.id,
-          conversationId: record.conversationId,
-        }),
+          changes: deriveChanges(record.toolCalls, record.toolResults, record.snapshots, record.id),
+          outputs: deriveTaskOutputs(record.toolCalls, record.toolResults, record.snapshots, {
+            runId: record.id,
+            conversationId: record.conversationId,
+          }),
+          browserActive: false,
+        };
+        const entries = {
+          ...state.entries,
+          [record.conversationId]: entry,
+        };
+        return {
+          entries,
+          ...((state.viewedConversationId ?? record.conversationId) === record.conversationId
+            ? { ...entry, conversationId: record.conversationId }
+            : {}),
+        };
       }),
-    clear: () => set({ runId: null, conversationId: null, changes: [], outputs: [] }),
+    clear: () =>
+      set((state) => {
+        const viewed = state.viewedConversationId;
+        if (!viewed) return {};
+        const entries = { ...state.entries };
+        delete entries[viewed];
+        return { entries, ...entryView(entries, viewed) };
+      }),
   };
 });

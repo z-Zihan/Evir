@@ -228,7 +228,8 @@ export async function runOrchestratedAgent(input: OrchestratedRunInput): Promise
 }
 
 async function runOrchestratedAgentBound(input: OrchestratedRunInput): Promise<AgentLoopResult> {
-  const initial = useOrchestrationStore.getState().current;
+  const { conversationId } = input;
+  const initial = useOrchestrationStore.getState().snapshotFor(conversationId);
   if (!initial?.plan || initial.conversationId !== input.conversationId) {
     return runAgentLoop({ ...input, mode: "agent" });
   }
@@ -260,7 +261,7 @@ async function runOrchestratedAgentBound(input: OrchestratedRunInput): Promise<A
 
   const appendEvent = async (event: RunEventV1): Promise<void> => {
     if (!input.privateSession) await repository.appendEvent(event);
-    const current = useOrchestrationStore.getState().current;
+    const current = useOrchestrationStore.getState().snapshotFor(conversationId);
     if (current?.runId === initial.runId) {
       useOrchestrationStore
         .getState()
@@ -270,7 +271,7 @@ async function runOrchestratedAgentBound(input: OrchestratedRunInput): Promise<A
 
   const queuePlanEvent = (event: RunEventV1): void => {
     pendingPlanEvents.push(event);
-    const current = useOrchestrationStore.getState().current;
+    const current = useOrchestrationStore.getState().snapshotFor(conversationId);
     if (current?.runId === initial.runId) {
       useOrchestrationStore
         .getState()
@@ -280,7 +281,7 @@ async function runOrchestratedAgentBound(input: OrchestratedRunInput): Promise<A
 
   const updateAssignment = async (assignment: AgentAssignment): Promise<void> => {
     if (!input.privateSession) await repository.persistAssignment(assignment);
-    const current = useOrchestrationStore.getState().current;
+    const current = useOrchestrationStore.getState().snapshotFor(conversationId);
     if (!current || current.runId !== initial.runId) return;
     const assignments = current.assignments.some(({ id }) => id === assignment.id)
       ? current.assignments.map((item) => (item.id === assignment.id ? assignment : item))
@@ -655,7 +656,7 @@ async function runOrchestratedAgentBound(input: OrchestratedRunInput): Promise<A
     onPlanChanged: async (plan) => {
       const events = pendingPlanEvents.splice(0);
       if (!input.privateSession) await repository.persistPlanWithEvents(plan, events);
-      const current = useOrchestrationStore.getState().current;
+      const current = useOrchestrationStore.getState().snapshotFor(conversationId);
       if (current?.runId === initial.runId)
         useOrchestrationStore.getState().setCurrent({
           ...current,
@@ -699,7 +700,7 @@ async function runOrchestratedAgentBound(input: OrchestratedRunInput): Promise<A
           { data: { revision: revised.revision, retriedNodes: failedNodes.map(({ id }) => id) } },
         ),
       );
-      const currentSnapshot = useOrchestrationStore.getState().current;
+      const currentSnapshot = useOrchestrationStore.getState().snapshotFor(conversationId);
       if (currentSnapshot?.runId === initial.runId) {
         useOrchestrationStore
           .getState()
@@ -732,7 +733,7 @@ async function runOrchestratedAgentBound(input: OrchestratedRunInput): Promise<A
     if (!input.privateSession) {
       await repository.persistBrief({ ...initial.brief, doneWhenResults, updatedAt: Date.now() });
     }
-    const current = useOrchestrationStore.getState().current;
+    const current = useOrchestrationStore.getState().snapshotFor(conversationId);
     if (current?.runId === initial.runId) {
       useOrchestrationStore.getState().setCurrent({
         ...current,
@@ -773,7 +774,7 @@ async function runOrchestratedAgentBound(input: OrchestratedRunInput): Promise<A
     `Run ${plan.status}`,
   );
   if (!input.privateSession) await repository.persistPlanWithEvents(plan, [terminalEvent]);
-  const current = useOrchestrationStore.getState().current;
+  const current = useOrchestrationStore.getState().snapshotFor(conversationId);
   if (current?.runId === initial.runId) {
     useOrchestrationStore.getState().setCurrent({
       ...current,
