@@ -31,6 +31,17 @@
   --shadow-tooltip: 0 2px 8px rgb(0 0 0 / 0.08);
   --shadow-popover: 0 4px 16px rgb(0 0 0 / 0.1), 0 1px 4px rgb(0 0 0 / 0.06);
   --shadow-dialog: 0 12px 40px rgb(0 0 0 / 0.16), 0 2px 8px rgb(0 0 0 / 0.08);
+
+  /* Radius scale — makes rounded-* utilities render the app's current radius
+   * language instead of Tailwind defaults. Values match the legacy
+   * supplemental.css --radius-* definitions (4/8/12/16) so shell.css var()
+   * consumers keep their current rendering. Divergence note: a proposed
+   * 6/8/10/12 scale was NOT applied because it would change legacy var()
+   * consumers; revisit after migrating those consumers. */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
 }
 
 /* Dark mode tokens — applied via .dark class on :root */
@@ -90,6 +101,35 @@
   --motion-fast: 140ms;
   --motion-standard: 220ms;
   --signal: var(--primary);
+
+  /* Legacy aliases (moved verbatim from the supplemental.css :root block so
+   * app.css owns every token; shell.css/preview.css keep the same values). */
+  --bg-primary: var(--color-surface-elevated);
+  --bg-secondary: var(--color-surface);
+  --bg-tertiary: var(--color-background);
+  --border-color: var(--color-border);
+  --text: var(--color-foreground);
+  --text-muted: var(--color-muted);
+  --text-primary: var(--color-foreground);
+  --input: var(--color-surface);
+  --font-size-xs: 0.7rem;
+  --font-size-sm: 0.78rem;
+  --font-size-base: 0.875rem;
+  --font-size-md: 0.95rem;
+  --font-size-lg: 1.1rem;
+  --font-size-xl: 1.35rem;
+  --font-size-2xl: 1.75rem;
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.08);
+  --shadow-xl: 0 12px 48px rgba(0, 0, 0, 0.12);
+  --transition-fast: 120ms ease;
+  --transition-normal: 200ms ease;
+  --z-sidebar: 50;
+  --z-overlay: 100;
+  --z-modal: 200;
+  --z-toast: 300;
 }
 
 :root.dark {

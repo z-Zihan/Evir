@@ -2231,17 +2231,6 @@
 
 /* Settings */
 
-.settings-backdrop {
-  position: fixed;
-  z-index: 200;
-  inset: 0;
-  display: grid;
-  padding: 32px;
-  place-items: center;
-  background: color-mix(in srgb, #111 42%, transparent);
-  backdrop-filter: blur(8px);
-}
-
 .settings-dialog {
   display: grid;
   width: min(920px, calc(100vw - 64px));
@@ -2620,10 +2609,6 @@
     padding-left: 14px;
   }
 
-  .settings-backdrop {
-    padding: 0;
-  }
-
   .settings-dialog {
     width: 100vw;
     max-width: 100vw;
@@ -2678,10 +2663,6 @@
 }
 
 @media (max-width: 900px) {
-  .settings-backdrop {
-    padding: 0;
-  }
-
   .settings-dialog {
     width: 100vw;
     max-width: 100vw;
@@ -2752,10 +2733,6 @@
 }
 
 @media (max-height: 640px) {
-  .settings-backdrop {
-    padding: 0;
-  }
-
   .settings-dialog {
     width: 100vw;
     max-width: 100vw;
@@ -3070,17 +3047,6 @@
   overflow: hidden;
 }
 
-.avatar-crop-backdrop {
-  position: fixed;
-  z-index: 150;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  background: color-mix(in srgb, var(--foreground) 32%, transparent);
-  backdrop-filter: blur(3px);
-}
-
 .avatar-crop-dialog {
   width: min(470px, calc(100vw - 40px));
   overflow: hidden;
@@ -3191,17 +3157,6 @@
 .avatar-crop-dialog > footer .primary-button {
   background: var(--primary);
   color: var(--primary-foreground);
-}
-
-.confirmation-backdrop {
-  position: fixed;
-  z-index: 200;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  background: color-mix(in srgb, var(--foreground) 30%, transparent);
-  backdrop-filter: blur(3px);
 }
 
 .confirmation-dialog {
@@ -3321,10 +3276,6 @@
 }
 
 @media (max-width: 640px) {
-  .confirmation-backdrop {
-    align-items: end;
-    padding: 0;
-  }
   .confirmation-dialog {
     width: 100vw;
     grid-template-columns: 34px minmax(0, 1fr);
@@ -3366,10 +3317,6 @@
   .identity-avatar-error {
     margin-left: 0;
   }
-  .avatar-crop-backdrop {
-    align-items: end;
-    padding: 0;
-  }
   .avatar-crop-dialog {
     width: 100vw;
     border-right: 0;
@@ -3383,17 +3330,6 @@
 }
 
 /* Focused settings workflows */
-
-.settings-form-backdrop {
-  position: fixed;
-  z-index: 120;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: color-mix(in srgb, var(--foreground) 24%, transparent);
-  backdrop-filter: blur(2px);
-}
 
 .settings-form-dialog {
   display: grid;
@@ -4093,10 +4029,6 @@
 }
 
 @media (max-width: 640px) {
-  .settings-form-backdrop {
-    align-items: end;
-    padding: 0;
-  }
   .settings-form-dialog,
   .settings-form-dialog.wide {
     width: 100vw;
@@ -6527,16 +6459,6 @@
   background: color-mix(in srgb, var(--background) 42%, var(--surface));
   cursor: pointer;
 }
-.provider-capability-toggle > input[type="checkbox"] {
-  position: absolute;
-  width: 1px;
-  min-height: 0;
-  height: 1px;
-  margin: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  opacity: 0;
-}
 .provider-capability-toggle > span {
   display: grid;
   min-width: 0;
@@ -6551,37 +6473,6 @@
   font-size: 9px;
   font-weight: 450;
   line-height: 1.45;
-}
-.provider-capability-switch {
-  position: relative;
-  width: 36px;
-  height: 20px;
-  border-radius: 10px;
-  background: var(--border-strong);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--foreground) 8%, transparent);
-  transition: background 140ms var(--ease-out);
-}
-.provider-capability-switch::after {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--surface);
-  box-shadow: 0 1px 3px color-mix(in srgb, black 18%, transparent);
-  content: "";
-  transition: transform 140ms var(--ease-out);
-}
-.provider-capability-toggle > input:checked ~ .provider-capability-switch {
-  background: var(--primary);
-}
-.provider-capability-toggle > input:checked ~ .provider-capability-switch::after {
-  transform: translateX(16px);
-}
-.provider-capability-toggle > input:focus-visible ~ .provider-capability-switch {
-  outline: 2px solid var(--focus);
-  outline-offset: 3px;
 }
 .provider-form-grid label > span {
   font-size: 10px;
@@ -6885,42 +6776,6 @@
 }
 .skill-toggle {
   display: block !important;
-}
-.skill-toggle input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-.skill-toggle > span {
-  position: relative;
-  display: block;
-  width: 34px;
-  height: 19px;
-  border-radius: 10px;
-  background: var(--border-strong);
-  cursor: pointer;
-}
-.skill-toggle > span::after {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 15px;
-  height: 15px;
-  border-radius: 50%;
-  background: var(--surface);
-  box-shadow: 0 1px 2px color-mix(in srgb, black 15%, transparent);
-  content: "";
-  transition: transform 140ms var(--ease-out);
-}
-.skill-toggle input:checked + span {
-  background: var(--primary);
-}
-.skill-toggle input:checked + span::after {
-  transform: translateX(15px);
-}
-.skill-toggle input:focus-visible + span {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
 }
 
 /* Personalization controls */
@@ -7479,23 +7334,6 @@
   padding-right: 8px;
 }
 
-.section-add {
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--muted-foreground);
-  cursor: pointer;
-}
-
-.section-add:hover {
-  background: var(--surface-hover);
-  color: var(--foreground);
-}
-
 .project-group {
   margin-bottom: 2px;
 }
@@ -7976,24 +7814,6 @@
   height: 6px;
   border-radius: 50%;
   background: var(--success);
-}
-
-.workspace-panel-close {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--muted-foreground);
-  cursor: pointer;
-}
-
-.workspace-panel-close:hover {
-  background: var(--surface-hover);
 }
 
 .workspace-panel-content {

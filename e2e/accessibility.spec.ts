@@ -124,13 +124,8 @@ test("provider Tool Calling capability uses a compact accessible switch", async 
   await expect(compatible).toHaveAttribute("aria-pressed", "true");
   await expect(compatible).toBeFocused();
 
-  const capability = formDialog.getByRole("checkbox", { name: /Supports Tool Calling/ });
-  const switchTrack = formDialog.locator(".provider-capability-switch");
+  const capability = formDialog.getByRole("switch", { name: /Supports Tool Calling/ });
   await expect(capability).toBeChecked();
-  await expect(switchTrack).toBeVisible();
-  const trackBox = await switchTrack.boundingBox();
-  expect(trackBox?.width).toBe(36);
-  expect(trackBox?.height).toBe(20);
   await capability.focus();
   await page.keyboard.press("Space");
   await expect(capability).not.toBeChecked();

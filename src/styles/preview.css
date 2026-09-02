@@ -541,52 +541,6 @@
   display: block;
 }
 
-/* ===== Preview overlay ===== */
-
-.preview-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 260;
-  background: var(--background);
-  display: flex;
-  flex-direction: column;
-}
-.preview-overlay-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
-}
-.preview-overlay-title {
-  font-size: var(--font-size-sm);
-  color: var(--foreground);
-}
-.preview-overlay-close {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  border-radius: var(--radius-sm);
-  padding: var(--space-1) var(--space-2);
-  font-size: var(--font-size-xs);
-  color: var(--muted-foreground);
-  cursor: pointer;
-}
-.preview-overlay-close:hover {
-  color: var(--foreground);
-}
-.preview-overlay-body {
-  flex: 1;
-  overflow: auto;
-  padding: var(--space-3);
-}
-.preview-overlay-body .artifact-preview {
-  max-height: none;
-}
-
 /* ===== Audio in markdown ===== */
 
 .markdown-audio {
@@ -614,30 +568,6 @@
   padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--border);
   background: var(--surface);
-}
-
-.browser-tool-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 28px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--muted-foreground);
-  cursor: pointer;
-}
-.browser-tool-button:hover:not(:disabled) {
-  background: var(--surface-hover);
-  color: var(--foreground);
-}
-.browser-tool-button:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-.browser-tool-button:focus-visible {
-  outline: 2px solid var(--focus);
 }
 
 .browser-address-form {
@@ -699,19 +629,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.browser-tab-close {
-  display: inline-flex;
-  border: none;
-  background: transparent;
-  color: var(--muted-foreground);
-  cursor: pointer;
-  padding: 1px;
-  border-radius: var(--radius-sm);
-}
-.browser-tab-close:hover {
-  color: var(--foreground);
-  background: var(--surface-hover);
 }
 .browser-empty-hint {
   font-size: var(--font-size-xs);
