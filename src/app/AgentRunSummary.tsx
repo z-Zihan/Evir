@@ -11,6 +11,7 @@ import {
   GitCompareArrows,
   ImageIcon,
   LoaderCircle,
+  PackageOpen,
   RotateCcw,
   TerminalSquare,
   XCircle,
@@ -202,6 +203,16 @@ export function AgentRunSummary({
       </summary>
       <div className="agent-run-details">
         <div className="result-summary-actions">
+          {outputs.length > 0 && (
+            <button
+              type="button"
+              className="primary-button result-view-outputs"
+              onClick={() => openPanel("outputs")}
+            >
+              <PackageOpen size={14} aria-hidden="true" />
+              {t("workspace.viewOutputs")}
+            </button>
+          )}
           {changes.length > 0 && record.status !== "rolled_back" && (
             <button
               type="button"

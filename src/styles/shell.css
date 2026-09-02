@@ -1051,6 +1051,91 @@
   }
 }
 
+
+/* ── Outputs tab: desktop-resource list (§19-23, §47) ── */
+.workspace-outputs-empty .workspace-empty-hint {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.workspace-output-list-primary {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.workspace-output-row-primary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--motion-fast) var(--ease-out),
+    background var(--motion-fast) var(--ease-out);
+}
+
+.workspace-output-row-primary:hover {
+  border-color: color-mix(in srgb, var(--primary, #3b82f6) 45%, var(--border));
+  background: color-mix(in srgb, var(--primary, #3b82f6) 5%, var(--surface));
+}
+
+.workspace-output-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--primary, #3b82f6) 10%, transparent);
+  color: var(--primary, #3b82f6);
+}
+
+.workspace-output-copy {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.workspace-output-name {
+  font-size: 12.5px;
+  font-weight: 550;
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-output-meta {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-output-chip {
+  flex: none;
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+}
+
 .conversation-actions {
   position: absolute;
   right: 5px;

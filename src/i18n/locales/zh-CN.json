@@ -751,7 +751,16 @@
       "element": "元素",
       "box": "位置",
       "comment": "请修改"
-    }
+    },
+    "outputs": "产出",
+    "outputsEmptyTitle": "此任务还没有产出",
+    "outputsEmptyHint": "让 Agent 生成报告、页面、图表或数据文件后，交付结果会列在这里。",
+    "outputsJustNow": "刚刚生成",
+    "outputsMinutesAgo": "{{count}} 分钟前生成",
+    "outputsHoursAgo": "{{count}} 小时前生成",
+    "outputsDaysAgo": "{{count}} 天前生成",
+    "outputsScreenshot": "截图",
+    "viewOutputs": "查看产出"
   },
   "startup": {
     "failed": "本地数据初始化失败",

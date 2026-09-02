@@ -751,7 +751,16 @@
       "element": "Element",
       "box": "Box",
       "comment": "Please change"
-    }
+    },
+    "outputs": "Outputs",
+    "outputsEmptyTitle": "No outputs from this task yet",
+    "outputsEmptyHint": "Ask the agent to produce a report, page, chart, or data file — deliverables land here.",
+    "outputsJustNow": "Generated just now",
+    "outputsMinutesAgo": "Generated {{count}}m ago",
+    "outputsHoursAgo": "Generated {{count}}h ago",
+    "outputsDaysAgo": "Generated {{count}}d ago",
+    "outputsScreenshot": "Screenshot",
+    "viewOutputs": "View outputs"
   },
   "startup": {
     "failed": "Local data could not be initialized",

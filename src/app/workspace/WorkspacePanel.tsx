@@ -8,6 +8,7 @@ import { useRunWorkspaceStore } from "../../features/workspace/workspace-run-sto
 import { useChatStore } from "../../features/chat/chat-store";
 import { useActiveWorkspaceRoot } from "../../features/workspace/workspace-bridge";
 import { ChangesTab } from "./ChangesTab";
+import { OutputsTab } from "./OutputsTab";
 import { FilesTab } from "./FilesTab";
 import { PreviewTab } from "./PreviewTab";
 import { BrowserTab } from "./BrowserTab";
@@ -33,6 +34,7 @@ export function WorkspacePanel() {
   const setTab = useWorkspacePanelStore((state) => state.setTab);
   const closePanel = useWorkspacePanelStore((state) => state.closePanel);
   const changesCount = useRunWorkspaceStore((state) => state.changes.length);
+  const outputsCount = useRunWorkspaceStore((state) => state.outputs.length);
   const browserActive = useRunWorkspaceStore((state) => state.browserActive);
   const isStreaming = useChatStore((state) => state.isStreaming);
   const root = useActiveWorkspaceRoot();
@@ -41,6 +43,7 @@ export function WorkspacePanel() {
   if (getRuntime().target !== "desktop" || !open) return null;
 
   const tabs: TabDefinition[] = [
+    { id: "outputs", label: t("workspace.outputs"), requiresProject: true, badge: outputsCount },
     { id: "changes", label: t("workspace.changes"), requiresProject: true, badge: changesCount },
     { id: "files", label: t("workspace.files"), requiresProject: true },
     {
@@ -57,7 +60,7 @@ export function WorkspacePanel() {
     },
   ];
   const effectiveTab =
-    activeTab === "changes" || activeTab === "files"
+    activeTab === "changes" || activeTab === "files" || activeTab === "outputs"
       ? hasProject
         ? activeTab
         : "preview"
@@ -107,6 +110,7 @@ export function WorkspacePanel() {
         role="tabpanel"
         aria-labelledby={`workspace-tab-${effectiveTab}`}
       >
+        {effectiveTab === "outputs" && <OutputsTab />}
         {effectiveTab === "changes" && <ChangesTab />}
         {effectiveTab === "files" && <FilesTab />}
         {effectiveTab === "preview" && <PreviewTab />}

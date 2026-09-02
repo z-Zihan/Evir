@@ -7,7 +7,7 @@ import { logger } from "../../core/logging/logger";
  * state: panel width or the pinned resource must never leak into run records.
  */
 
-export type WorkspaceTab = "changes" | "files" | "preview" | "browser";
+export type WorkspaceTab = "outputs" | "changes" | "files" | "preview" | "browser";
 
 export const WORKSPACE_MIN_WIDTH = 360;
 export const WORKSPACE_DEFAULT_WIDTH = 520;
@@ -95,7 +95,7 @@ function currentStateSnapshot(state: WorkspacePanelState): ConversationPanelSnap
 
 export const useWorkspacePanelStore = create<WorkspacePanelState>((set, get) => ({
   open: false,
-  activeTab: "changes",
+  activeTab: "outputs",
   width: loadPersistedWidth(),
   viewMode: "preview",
   activeResource: null,
