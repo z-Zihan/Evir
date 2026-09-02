@@ -48,13 +48,14 @@
 | CLI                                                      | **Preview**（configure/doctor/ask/agent 可用；错误友好度/退出码/i18n 未收口）                |
 | 通知、命令面板、应用内帮助                               | 未实现                                                                                       |
 
-## 6. Current Test Baseline（2026-09-02，UX Acceptance 轮门禁全绿）
+## 6. Current Test Baseline（2026-09-02，UX Acceptance + §五闭环轮门禁全绿）
 
-- `pnpm check`（format + ESLint + strict `tsc -b` + vitest + release workflow 校验 + VS Code + CLI）：**876 TS** 用例 / **8 VS Code** / **8 CLI** 全过。
+- `pnpm check`（format + ESLint + strict `tsc -b` + vitest + release workflow 校验 + VS Code + CLI）：**878 TS** 用例 / **8 VS Code** / **8 CLI** 全过（新增 2 个 ipc 停顿重试用例，7ccf580）。
 - `pnpm test:rust`：**66 Rust** 用例全过；cargo fmt / clippy 干净。
 - E2E core（fixture，web+desktop）：42 过 / 10 能力跳过（含并发双任务停止隔离用例）；UI 矩阵 2/2、视觉 6/6、a11y 18/18、stress 7 过/1 跳（2026-09-02 全量重跑）。
 - Benchmark 预算全过：Web 初始 gzip 325.6 KiB、桌面前端 14.71 MiB（`docs/benchmarks/latest.json`）。
 - 原生 macOS arm64 实测（release 构建）：冷启动 0.84s、空闲内存 ~71 MB、空闲 CPU 0%。
+- 真人双任务双审批演练通过（任务M/N：双待审批同屏、切走切回卡片保留、批一不影响另一、各自真实落盘）；3 会话日志审计零交叉污染；远程导航 NXDOMAIN 错误卡 + 重试验证通过。已知平台缺陷：macOS 26.5 release 构建 `ipc://` WKURLSchemeHandler 间歇停顿 ~100s（dev 的 postMessage IPC 不受影响），已用只读 invoke 10s×3 重试缓解（根治需上游 wry 修复）。
 - 逐项验证状态与 NOT RUN 清单：**以 `docs/release-readiness.md` 为准**（不要凭记忆引用旧数字）。
 
 ## 7. Known Release Blockers
