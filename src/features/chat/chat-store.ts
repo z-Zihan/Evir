@@ -79,6 +79,10 @@ export interface ChatState {
   streamEpochs: Record<string, number>;
   /** Pending tool approvals keyed by conversationId; the flat field mirrors the viewed one. */
   pendingApprovals: Record<string, PendingToolApproval>;
+  /** Last settled outcome per conversation (background runs included) for sidebar status. */
+  runOutcomes: Record<string, { status: "completed" | "failed" | "stopped"; at: number }>;
+  /** Wall-clock of the last time each conversation was viewed (unread dots). */
+  conversationViewedAt: Record<string, number>;
   loadConversations: () => Promise<void>;
   createConversation: (
     providerId: string,
@@ -132,6 +136,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   streamSlots: {},
   streamEpochs: {},
   pendingApprovals: {},
+  runOutcomes: {},
+  conversationViewedAt: {},
   loadConversations: async () => doLoadConversations(set),
   createConversation: async (providerId, modelId, projectId = null) =>
     doCreateConversation(set, providerId, modelId, get().privateSession, projectId),

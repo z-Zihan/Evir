@@ -877,6 +877,21 @@ async function runStreamResponse(
     agentRunRecord = await finalizeAutomaticVerification(agentRunRecord, runtime);
   }
 
+  // Sidebar status bookkeeping: background runs record their settled outcome
+  // even when the conversation is not on screen.
+  const lastTurnForOutcome = result.turns.at(-1);
+  const stoppedMidRun = lastTurnForOutcome?.stream.status === "stopped";
+  const failed = Boolean(error) || agentRunRecord?.status === "failed";
+  set((state) => ({
+    runOutcomes: {
+      ...state.runOutcomes,
+      [conversationId]: {
+        status: stoppedMidRun ? "stopped" : failed ? "failed" : "completed",
+        at: Date.now(),
+      },
+    },
+  }));
+
   // After a Stop the conversation's slot is gone and this tail must still land
   // (persisting the partial content); but if a NEWER run already owns the same
   // conversation, applying this tail would append stale turns on top of it.

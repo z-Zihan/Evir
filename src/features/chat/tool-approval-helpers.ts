@@ -284,10 +284,17 @@ export async function finalizeApprovalFlow(
   const isNotBlockedMessage = (m: MessageRecord) =>
     !(m.toolCalls?.some((tc) => tc.id === pendingToolCallId) && !m.toolResults?.length);
 
-  set(({ conversations, messages: currentMessages, currentConversationId }) => ({
+  set(({ conversations, messages: currentMessages, currentConversationId, runOutcomes }) => ({
     conversations: sorted(
       conversations.map((item) => (item.id === conversationId ? { ...item, updatedAt } : item)),
     ),
+    runOutcomes: {
+      ...runOutcomes,
+      [conversationId]: {
+        status: error ? "failed" : "completed",
+        at: Date.now(),
+      },
+    },
     ...(currentConversationId === conversationId
       ? { messages: [...currentMessages.filter(isNotBlockedMessage), resolvedMsg, ...newMessages] }
       : {}),

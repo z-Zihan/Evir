@@ -2,6 +2,7 @@ import { memo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pencil, Pin, Trash2 } from "lucide-react";
 import type { ConversationRecord } from "../core/storage/db";
+import type { ConversationRunStatus } from "./useConversationStatus";
 
 interface SidebarConversationItemProps {
   conversation: ConversationRecord;
@@ -12,6 +13,32 @@ interface SidebarConversationItemProps {
   onDelete: () => void;
   /** Extra class for nesting depth (project threads indent). */
   variant?: "chat" | "thread";
+  /** Live run status for this row (running / approval / failed / unread). */
+  status?: ConversationRunStatus | null;
+}
+
+const STATUS_LABEL_KEY: Record<ConversationRunStatus, string> = {
+  preparing: "sidebar.statusPreparing",
+  streaming: "sidebar.statusRunning",
+  approval: "sidebar.statusApproval",
+  failed: "sidebar.statusFailed",
+  unread: "sidebar.statusUnread",
+};
+
+/**
+ * Restrained live status mark: a small dot plus an optional one-word label.
+ * Running dots pulse; approval uses amber; failures red; unread a plain dot.
+ */
+function StatusMark({ status }: { status: ConversationRunStatus }) {
+  const { t } = useTranslation();
+  const labelKey = STATUS_LABEL_KEY[status];
+  const showLabel = status === "preparing" || status === "streaming" || status === "approval";
+  return (
+    <span className={`conversation-status conversation-status-${status}`}>
+      <span className="conversation-status-dot" aria-hidden="true" />
+      {showLabel && <span className="conversation-status-label">{t(labelKey)}</span>}
+    </span>
+  );
 }
 
 export const SidebarConversationItem = memo(function SidebarConversationItem({
@@ -22,6 +49,7 @@ export const SidebarConversationItem = memo(function SidebarConversationItem({
   onTogglePin,
   onDelete,
   variant = "chat",
+  status = null,
 }: SidebarConversationItemProps) {
   const { t } = useTranslation();
   const [renaming, setRenaming] = useState(false);
@@ -35,7 +63,7 @@ export const SidebarConversationItem = memo(function SidebarConversationItem({
 
   return (
     <div
-      className={`conversation-item group${variant === "thread" ? " project-thread" : ""}${isActive ? " active" : ""}${conversation.pinned ? " pinned" : ""}`}
+      className={`conversation-item group${variant === "thread" ? " project-thread" : ""}${isActive ? " active" : ""}${conversation.pinned ? " pinned" : ""}${status === "streaming" || status === "preparing" ? " has-live-run" : ""}`}
       onClick={() => {
         if (!renaming) onSelect();
       }}
@@ -68,6 +96,7 @@ export const SidebarConversationItem = memo(function SidebarConversationItem({
           {conversation.title || t("chat.title")}
         </span>
       )}
+      {!renaming && status && <StatusMark status={status} />}
       {!renaming && (
         <div className="conversation-actions" onClick={(event) => event.stopPropagation()}>
           <button

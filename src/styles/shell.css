@@ -981,6 +981,76 @@
   padding-right: 74px;
 }
 
+
+/* ── Sidebar live task status (§10-12: running / approval / unread / failed) ── */
+.conversation-status {
+  position: absolute;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  line-height: 1;
+  color: var(--muted-foreground);
+  pointer-events: none;
+}
+
+.conversation-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--muted-foreground);
+}
+
+.conversation-status-streaming .conversation-status-dot,
+.conversation-status-preparing .conversation-status-dot {
+  background: var(--primary, #3b82f6);
+  animation: conversation-status-pulse 1.6s var(--ease-out) infinite;
+}
+
+.conversation-status-streaming .conversation-status-label,
+.conversation-status-preparing .conversation-status-label,
+.conversation-status-approval .conversation-status-label {
+  color: color-mix(in srgb, var(--foreground) 72%, var(--muted-foreground));
+}
+
+.conversation-status-approval .conversation-status-dot {
+  background: #d97706;
+  animation: conversation-status-pulse 1.2s var(--ease-out) infinite;
+}
+
+.conversation-status-failed .conversation-status-dot {
+  background: #dc2626;
+}
+
+.conversation-status-unread .conversation-status-dot {
+  background: var(--primary, #3b82f6);
+}
+
+@keyframes conversation-status-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.72);
+  }
+}
+
+/* Live-run rows hide the hover toolbar overlap by reserving label space. */
+.conversation-item.has-live-run .conversation-title {
+  padding-right: 96px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .conversation-status-dot {
+    animation: none !important;
+  }
+}
+
 .conversation-actions {
   position: absolute;
   right: 5px;

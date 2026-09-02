@@ -21,6 +21,7 @@ import { getRuntime } from "../runtime/use-runtime";
 import type { SettingsTab } from "./SettingsModal";
 import { ProjectPermissionPanel } from "./ProjectPermissionPanel";
 import { SidebarConversationItem } from "./SidebarConversationItem";
+import { useConversationStatusIndex } from "./useConversationStatus";
 import { SidebarProjectItem } from "./SidebarProjectItem";
 import { useConfirmationDialog } from "./useConfirmationDialog";
 
@@ -68,6 +69,10 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
   const togglePinProject = useProjectStore((state) => state.togglePinProject);
   const rebindProject = useProjectStore((state) => state.rebindProject);
   const removeProject = useProjectStore((state) => state.removeProject);
+  // Live per-row run status (running / approval / failed / unread). The hook's
+  // projections stay stable across streaming deltas, so the sidebar tree does
+  // not repaint on every token.
+  const statusIndex = useConversationStatusIndex();
   const [search, setSearch] = useState("");
   const [sortOrder, setSortOrder] = useState<SortOrder>(readSortOrder);
   const [expanded, setExpanded] = useState<Set<string>>(readExpanded);
@@ -340,6 +345,10 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
                                 key={conversation.id}
                                 conversation={conversation}
                                 variant="thread"
+                                status={statusIndex.statusOf(
+                                  conversation.id,
+                                  conversation.updatedAt,
+                                )}
                                 isActive={conversation.id === currentConversationId}
                                 onSelect={() =>
                                   handleSelectConversation(project.id)(conversation.id)
@@ -399,6 +408,7 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
                   <SidebarConversationItem
                     key={conversation.id}
                     conversation={conversation}
+                    status={statusIndex.statusOf(conversation.id, conversation.updatedAt)}
                     isActive={conversation.id === currentConversationId}
                     onSelect={() => handleSelectConversation(null)(conversation.id)}
                     onRename={(title) => void renameConversation(conversation.id, title)}

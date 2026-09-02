@@ -17,7 +17,18 @@ type ChatStoreGet = StoreApi<ChatState>["getState"];
 export async function loadConversations(set: ChatStoreSet): Promise<void> {
   const conversations = await getStructuredStorage().readAll<ConversationRecord>("conversations");
   conversations.sort((a, b) => b.updatedAt - a.updatedAt);
-  set({ conversations });
+  set((state) => {
+    // Seed viewedAt for conversations not yet seen this session: their
+    // current state counts as "seen" so only post-launch updates mark unread.
+    const conversationViewedAt = { ...state.conversationViewedAt };
+    const loadedAt = Date.now();
+    for (const conversation of conversations) {
+      if (conversationViewedAt[conversation.id] === undefined) {
+        conversationViewedAt[conversation.id] = loadedAt;
+      }
+    }
+    return { conversations, conversationViewedAt };
+  });
 }
 
 export async function createConversation(
@@ -104,20 +115,28 @@ export async function selectConversation(
     logger.debug("ui", "chat.conversation-load-discarded", { conversationId: id });
     return;
   }
-  set((state) => ({
-    messages,
-    // An in-memory approval (live run in this conversation) wins over the
-    // storage reload; only fall back to persisted approvals when absent.
-    ...(!state.pendingApprovals?.[id] && pendingToolApproval
-      ? {
-          pendingApprovals: {
-            ...state.pendingApprovals,
-            [id]: { ...pendingToolApproval, remainingApprovals },
-          },
-        }
-      : {}),
-    latestAgentRun: agentRuns[0] ?? null,
-  }));
+  set((state) => {
+    // Viewing a conversation marks its results as seen (sidebar unread dots)
+    // and clears its settled-outcome mark.
+    const runOutcomes = { ...state.runOutcomes };
+    delete runOutcomes[id];
+    return {
+      messages,
+      runOutcomes,
+      conversationViewedAt: { ...state.conversationViewedAt, [id]: Date.now() },
+      // An in-memory approval (live run in this conversation) wins over the
+      // storage reload; only fall back to persisted approvals when absent.
+      ...(!state.pendingApprovals?.[id] && pendingToolApproval
+        ? {
+            pendingApprovals: {
+              ...state.pendingApprovals,
+              [id]: { ...pendingToolApproval, remainingApprovals },
+            },
+          }
+        : {}),
+      latestAgentRun: agentRuns[0] ?? null,
+    };
+  });
   mirrorCurrentStreamState(set, get, id);
   if (orchestration && !useOrchestrationStore.getState().snapshotFor(id)) {
     useOrchestrationStore.getState().setCurrent(orchestration);

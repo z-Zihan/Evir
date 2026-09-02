@@ -24,8 +24,11 @@ const chatState = {
 };
 
 vi.mock("../../features/chat/chat-store", () => ({
-  useChatStore: (selector?: (state: typeof chatState) => unknown) =>
-    selector ? selector(chatState) : chatState,
+  useChatStore: Object.assign(
+    (selector?: (state: typeof chatState) => unknown) =>
+      selector ? selector(chatState) : chatState,
+    { getState: () => chatState },
+  ),
 }));
 
 vi.mock("../../features/projects/project-store", () => ({

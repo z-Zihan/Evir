@@ -37,7 +37,12 @@
     "sortToggle": "排序方式",
     "expandProject": "展开项目",
     "collapseProject": "折叠项目",
-    "resize": "调整侧边栏宽度"
+    "resize": "调整侧边栏宽度",
+    "statusRunning": "运行中",
+    "statusPreparing": "准备中",
+    "statusApproval": "待审批",
+    "statusFailed": "失败",
+    "statusUnread": "新结果"
   },
   "confirmation": {
     "deleteTitle": "确认删除？",

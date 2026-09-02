@@ -37,7 +37,12 @@
     "sortToggle": "Sort order",
     "expandProject": "Expand project",
     "collapseProject": "Collapse project",
-    "resize": "Resize sidebar"
+    "resize": "Resize sidebar",
+    "statusRunning": "Running",
+    "statusPreparing": "Preparing",
+    "statusApproval": "Approval",
+    "statusFailed": "Failed",
+    "statusUnread": "New result"
   },
   "confirmation": {
     "deleteTitle": "Delete this item?",
