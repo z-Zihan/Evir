@@ -3,7 +3,7 @@
 > Scope: 仅适用于 Evir 仓库。本文件是**高密度当前事实索引**，不创建新事实，不承载历史。
 > 产品逻辑最终来源：`docs/01-product-requirements.md`；架构：`docs/02`；主题路由：`docs/README.md`。
 > 历史与逐轮 Changelog：`docs/archive/`（Git 承担其余历史职责）。
-> Last reviewed: 2026-09-01（Workspace 重构轮）
+> Last reviewed: 2026-09-02（Product UX Acceptance 轮）
 
 ## 1. Product Identity
 
@@ -16,7 +16,8 @@
 - **Plan / Goal**：项目线程内仅有的两个显式**特殊工作方式**。Plan = 只读检查（L1）产出结构化计划，一键 Execute Plan 转 Agent 执行；Goal = 长期目标 + doneWhen 完成条件，完成判定必须来自证据而非模型文字。
 - **权限档位（Project 级）**：ask（默认，写操作逐次审批）/ workspace / full（首开必须明确确认）。工具边界在 Tool Registry 与 Rust 侧双层强制，不靠提示词。
 - 无 Tool Calling 的模型在 Project 中仍可聊天，但不获得项目工具，Plan/Goal 禁用并说明原因。
-- **Workspace 面板（2026-09-01 起）**：Desktop 主窗口为三栏 Navigation | Thread | Workspace。右栏四 Tab（变更/文件/预览/浏览器）+ Task Outputs 区；`WorkspaceResource` 统一资源模型（file/diff/artifact/url/screenshot）驱动 activeResource/history/pin/resize；TaskOutput 与 Changes 由真实工具执行+快照推导并随 run 持久化；Result Summary 卡片（查看变更入口）；工具卡按检查/修改/命令/浏览器聚合折叠；聊天大 artifact 改道右栏（内容持久化到 `artifacts` 实体）；面板浏览器 = 主窗口子 webview（零能力，浮层经 overlayBlockers 隐藏）；dev server 生命周期由 Rust `dev_server.rs` 管理（ready 探测 + 退出清理）。独立聊天隐藏变更/文件 Tab。
+- **多任务运行时（2026-09-02 起）**：流槽位/停止 epoch/待审批均按 conversationId 键控（`streamSlots`/`streamEpochs`/`pendingApprovals` 为真相，平铺 isStreaming 等字段仅为当前视图镜像）；AbortController 与编排快照同样按会话分组——`stopGeneration(id)` 只停一个任务，其他任务继续流式/准备/等审批；发送守卫为 per-conversation 提交锁。侧栏行显示实时状态（运行中/准备中/待审批/失败/新结果），状态投影与流内容解耦不重绘。
+- **Workspace 面板（2026-09-02 起）**：Desktop 主窗口三栏 Navigation | Thread | Workspace；右栏五 Tab（产出/变更/文件/预览/浏览器）——产出为一等交付物列表（类型 chip+大小+时间，点击进类型化预览），与变更（Agent 修改）、文件（项目树）彻底分离；`WorkspaceResource` 统一资源模型驱动 activeResource/history/pin/resize；TaskOutput 与 Changes 由真实工具执行+快照推导并随 run 持久化（run workspace store 按会话键控，多任务不串扰）；Result Summary 卡片（查看产出/查看变更入口）；工具卡按检查/修改/命令/浏览器聚合折叠；聊天大 artifact 改道右栏（`artifacts` 实体）；面板浏览器 = 主窗口子 webview（零能力，浮层经 overlayBlockers 隐藏），本地导航先探测可达性、拒绝连接显示错误卡+重试，Agent 使用页面时工具栏出 chip；预览 Tab 空态提供「预览应用」一等入口（检测启动脚本→Starting→Ready→自动开页切浏览器 Tab；ask 档确认保留）；dev server 生命周期由 Rust `dev_server.rs` 管理（ready 探测 + 退出清理 + `npm_config_verify_deps_before_run=false` 防 pnpm 隐式 install）；工作区在 <1440px 视口转为右侧抽屉，面板宽度钳制保证对话列 ≥460px；对话正文全链 `overflow-wrap:anywhere`。独立聊天隐藏产出/变更/文件 Tab。
 
 ## 3. Current Architecture Boundaries
 
@@ -47,12 +48,12 @@
 | CLI                                                      | **Preview**（configure/doctor/ask/agent 可用；错误友好度/退出码/i18n 未收口）                |
 | 通知、命令面板、应用内帮助                               | 未实现                                                                                       |
 
-## 6. Current Test Baseline（2026-08-28，门禁当日全绿）
+## 6. Current Test Baseline（2026-09-02，UX Acceptance 轮门禁全绿）
 
-- `pnpm check`（format + ESLint + strict TS + vitest + release workflow 校验 + VS Code + CLI）：**839 TS** 用例 / **8 VS Code** / **8 CLI** 全过。
-- `pnpm test:rust`：**64 Rust** 用例全过（含 7 个 secret vault 用例）；cargo fmt / clippy 干净。
-- E2E core（fixture，web+desktop）：40 过 / 10 能力跳过；UI 矩阵 2/2、视觉 6/6、a11y 18/18（2026-09-01 Workspace 轮全量重跑；视觉基线经人工核验更新为聚合工具组形态）。
-- Benchmark 预算全过：Web 初始 gzip 290.3 KiB、桌面前端 2.69 MiB（`docs/benchmarks/latest.json`）。
+- `pnpm check`（format + ESLint + strict `tsc -b` + vitest + release workflow 校验 + VS Code + CLI）：**876 TS** 用例 / **8 VS Code** / **8 CLI** 全过。
+- `pnpm test:rust`：**66 Rust** 用例全过；cargo fmt / clippy 干净。
+- E2E core（fixture，web+desktop）：42 过 / 10 能力跳过（含并发双任务停止隔离用例）；UI 矩阵 2/2、视觉 6/6、a11y 18/18、stress 7 过/1 跳（2026-09-02 全量重跑）。
+- Benchmark 预算全过：Web 初始 gzip 325.6 KiB、桌面前端 14.71 MiB（`docs/benchmarks/latest.json`）。
 - 原生 macOS arm64 实测（release 构建）：冷启动 0.84s、空闲内存 ~71 MB、空闲 CPU 0%。
 - 逐项验证状态与 NOT RUN 清单：**以 `docs/release-readiness.md` 为准**（不要凭记忆引用旧数字）。
 
