@@ -676,7 +676,7 @@
     "description": "本地优先、自带模型的多模型 AI 客户端与桌面 Agent。",
     "github": "GitHub",
     "license": "许可证",
-    "mit": "MIT 许可证"
+    "notDeclared": "尚未声明"
   },
   "workspace": {
     "select": "选择工作区",
@@ -730,9 +730,12 @@
       "stop": "停止",
       "none": "此项目未检测到开发服务器脚本",
       "starting": "启动中…",
+      "startingHint": "正在启动项目预览，检测到本地地址后会自动打开。",
       "ready": "已就绪",
       "running": "运行中（未确认端口）",
       "crashed": "已崩溃",
+      "crashedHint": "项目预览进程已退出，请检查开发脚本后重试。",
+      "retry": "重试",
       "confirmTitle": "启动开发服务器",
       "confirmDescription": "将在项目目录执行：{{command}}（目录：{{cwd}}）。该进程由 Evir 管理，应用退出时会一并停止。"
     },
@@ -941,6 +944,8 @@
     "exportCancelled": "已取消导出。",
     "exportFailed": "导出失败，请重试。",
     "clear": "清除日志",
+    "createEvidenceMarker": "创建截图证据标记",
+    "evidenceMarkerCreated": "已于 {{timestamp}} 创建标记 {{evidenceId}}（操作 {{actionId}}）。请立即截图以保持时间一致。",
     "data": "所有本地诊断日志",
     "filter": "按级别筛选",
     "empty": "暂无日志",

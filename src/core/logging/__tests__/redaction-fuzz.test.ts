@@ -146,6 +146,7 @@ describe("RedactionMiddleware fuzz", () => {
       appVersion: "0.1.0",
       platform: "darwin",
       sessionId: "session-1",
+      windowId: "window-1",
       data: {
         nested: {
           path: "/Users/dave/config/app.json",

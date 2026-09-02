@@ -553,16 +553,18 @@ export function ChatView({
         </div>
       </div>
       <div className="workspace-controls">
-        <button
-          className="header-icon-button workspace-toggle"
-          type="button"
-          onClick={() => togglePanel()}
-          aria-label={panelOpen ? t("workspace.close") : t("workspace.open")}
-          aria-pressed={panelOpen}
-          data-tip={panelOpen ? t("workspace.close") : t("workspace.open")}
-        >
-          <PanelRight size={18} aria-hidden="true" />
-        </button>
+        {runtime.target === "desktop" && (
+          <button
+            className="header-icon-button workspace-toggle"
+            type="button"
+            onClick={() => togglePanel()}
+            aria-label={panelOpen ? t("workspace.close") : t("workspace.open")}
+            aria-pressed={panelOpen}
+            data-tip={panelOpen ? t("workspace.close") : t("workspace.open")}
+          >
+            <PanelRight size={18} aria-hidden="true" />
+          </button>
+        )}
         <ModelSwitcher
           activeProvider={effectiveProvider}
           activeModelId={effectiveModelId}
@@ -832,7 +834,17 @@ export function ChatView({
               </span>
             </div>
             {isCurrentConversationStreaming ? (
-              <button type="button" className="send-button stop-button" onClick={stopGeneration}>
+              <button
+                type="button"
+                className="send-button stop-button"
+                onClick={(event) => {
+                  // The send button morphs into Stop after the first click. Ignore the
+                  // second click of the same physical double-click so a rapid submit
+                  // cannot immediately cancel the request it just started.
+                  if (event.detail > 1) return;
+                  stopGeneration();
+                }}
+              >
                 <Square size={14} />
                 {t("chat.stop")}
               </button>

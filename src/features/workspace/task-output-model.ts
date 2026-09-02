@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { ToolCallRecord, ToolResultRecord } from "../../core/storage/db";
 import type { SnapshotResult } from "../../runtime/desktop-storage-adapter";
+import { matchingSnapshotForPath } from "./changes-model";
 
 /**
  * Task Outputs are derived from real tool executions and snapshot metadata —
@@ -151,19 +152,18 @@ export function deriveTaskOutput(
     if (!path) return null;
     // Only *created* files qualify: snapshotBeforeMutation recorded the file
     // as non-existent right before this call mutated it.
-    const created = context.newSnapshots.some(
-      (snapshot) => snapshot.file_path === path && !snapshot.existed,
-    );
-    if (!created || !isArtifactPath(path)) return null;
-    const extension = extensionOf(path);
+    const snapshot = matchingSnapshotForPath(context.newSnapshots, path);
+    if (snapshot?.existed !== false || !isArtifactPath(path)) return null;
+    const resolvedPath = snapshot.file_path;
+    const extension = extensionOf(resolvedPath);
     return {
       id: `${context.runId}:${call.id}`,
       runId: context.runId,
       conversationId: context.conversationId,
       kind: "created-file",
       type: extension,
-      path,
-      ...(mimeTypeForPath(path) ? { mimeType: mimeTypeForPath(path) } : {}),
+      path: resolvedPath,
+      ...(mimeTypeForPath(resolvedPath) ? { mimeType: mimeTypeForPath(resolvedPath) } : {}),
       sourceTool: call.toolName,
       createdAt: result.completedAt ?? Date.now(),
     };

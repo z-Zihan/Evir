@@ -53,7 +53,7 @@ export const SidebarProjectItem = memo(function SidebarProjectItem({
 
   return (
     <div
-      className={`project-item group${active ? " active" : ""}${project.pinned ? " pinned" : ""}`}
+      className={`project-item group${active ? " active" : ""}${project.pinned ? " pinned" : ""}${folderMissing ? " folder-missing" : ""}`}
     >
       <div
         className="project-row"
@@ -103,7 +103,10 @@ export const SidebarProjectItem = memo(function SidebarProjectItem({
           <span className="project-folder-missing">{t("sidebar.folderMissing")}</span>
         )}
         {!renaming && (
-          <div className="conversation-actions" onClick={(event) => event.stopPropagation()}>
+          <div
+            className="conversation-actions project-actions"
+            onClick={(event) => event.stopPropagation()}
+          >
             {folderMissing && (
               <button
                 className="conversation-action-btn"

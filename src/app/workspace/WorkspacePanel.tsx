@@ -11,6 +11,7 @@ import { ChangesTab } from "./ChangesTab";
 import { FilesTab } from "./FilesTab";
 import { PreviewTab } from "./PreviewTab";
 import { BrowserTab } from "./BrowserTab";
+import { getRuntime } from "../../runtime/use-runtime";
 
 interface TabDefinition {
   id: WorkspaceTab;
@@ -37,7 +38,7 @@ export function WorkspacePanel() {
   const root = useActiveWorkspaceRoot();
   const hasProject = root !== null;
 
-  if (!open) return null;
+  if (getRuntime().target !== "desktop" || !open) return null;
 
   const tabs: TabDefinition[] = [
     { id: "changes", label: t("workspace.changes"), requiresProject: true, badge: changesCount },

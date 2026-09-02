@@ -21,6 +21,7 @@ describe("AboutSettings", () => {
 
     expect(screen.getByText("about.title")).toBeDefined();
     expect(screen.getByText("about.description")).toBeDefined();
+    expect(screen.getByText("about.notDeclared")).toBeDefined();
     expect(screen.getByText("0.1.0")).toBeDefined();
   });
 

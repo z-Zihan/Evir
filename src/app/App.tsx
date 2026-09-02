@@ -22,9 +22,12 @@ import {
   findUnfinishedRuns,
   type UnfinishedRun,
 } from "../core/context/crash-recovery";
+import { getRuntime } from "../runtime/use-runtime";
+import { logger } from "../core/logging/logger";
 
 export function App() {
   const { t } = useTranslation();
+  const workspaceAvailable = getRuntime().target === "desktop";
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("providers");
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
@@ -59,6 +62,11 @@ export function App() {
   }, [createOrReuseConversation, getDefaultProvider]);
 
   const openSettings = useCallback((tab: SettingsTab = "providers") => {
+    logger.info("ui", "ui.open", {
+      actionId: crypto.randomUUID(),
+      surface: "settings",
+      tab,
+    });
     setSettingsTab(tab);
     setSettingsOpen(true);
   }, []);
@@ -68,13 +76,9 @@ export function App() {
     // Clear the draft only after the message is accepted (persisted or
     // private-accepted); on pre-acceptance failure the draft stays editable
     // and the chat-error line explains the failure.
-    void sendMessage(messageInput)
-      .then((accepted) => {
-        if (accepted) setMessageInput("");
-      })
-      .catch(() => {
-        /* error surfaced via chat error line; draft preserved */
-      });
+    void sendMessage(messageInput, () => setMessageInput("")).catch(() => {
+      /* error surfaced via chat error line; draft preserved */
+    });
   }, [isStreaming, messageInput, sendMessage]);
 
   useShortcuts({
@@ -130,7 +134,8 @@ export function App() {
 
   // Workspace panel: third column with persisted width + per-thread state.
   const workspaceResize = useWorkspaceResize();
-  const workspaceOpen = useWorkspacePanelStore((state) => state.open);
+  const workspaceStoreOpen = useWorkspacePanelStore((state) => state.open);
+  const workspaceOpen = workspaceAvailable && workspaceStoreOpen;
   const workspaceWidth = useWorkspacePanelStore((state) => state.width);
   const currentConversationId = useChatStore((state) => state.currentConversationId);
   useWorkspaceSync(currentConversationId);
@@ -208,7 +213,7 @@ export function App() {
           onClick={() => useWorkspacePanelStore.getState().closePanel()}
         />
       )}
-      <WorkspacePanel />
+      {workspaceAvailable && <WorkspacePanel />}
       <SettingsModal
         open={settingsOpen}
         initialTab={settingsTab}

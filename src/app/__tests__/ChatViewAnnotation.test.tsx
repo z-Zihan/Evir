@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ChatView } from "../ChatView";
 
@@ -48,8 +48,9 @@ vi.mock("../SkillPicker", () => ({ SkillPicker: () => null }));
 vi.mock("../PermissionSwitcher", () => ({ PermissionSwitcher: () => null }));
 vi.mock("../SlashPalette", () => ({ SlashPalette: () => null }));
 vi.mock("../use-drag-drop", () => ({ useDragDrop: () => ({ dragOver: false }) }));
+let runtimeTarget: "web" | "desktop" = "desktop";
 vi.mock("../../runtime/use-runtime", () => ({
-  getRuntime: () => ({ target: "desktop", has: () => true }),
+  getRuntime: () => ({ target: runtimeTarget, has: () => runtimeTarget === "desktop" }),
 }));
 vi.mock("../../features/chat/chat-store", () => ({
   useChatStore: (selector: (state: Record<string, unknown>) => unknown) =>
@@ -111,9 +112,27 @@ vi.mock("../../features/workspace/workspace-bridge", () => ({
   useActiveWorkspaceRoot: () => "/tmp/demo",
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  runtimeTarget = "desktop";
+  cleanup();
+});
 
 describe("browser annotation → composer draft", () => {
+  it("does not expose the Workspace entry in the Web product", () => {
+    runtimeTarget = "web";
+    render(
+      <ChatView
+        input=""
+        onInputChange={vi.fn()}
+        onSendMessage={vi.fn()}
+        onOpenSettings={vi.fn()}
+        onToggleSidebar={vi.fn()}
+        sidebarVisible
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "workspace.open" })).toBeNull();
+  });
+
   it("prefills a Browser Feedback draft when an annotation payload arrives (§37)", async () => {
     const onInputChange = vi.fn();
     render(

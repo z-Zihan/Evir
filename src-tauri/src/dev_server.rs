@@ -29,6 +29,7 @@ pub enum DevStatus {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DevServerRecord {
     pub project_id: String,
     pub cwd: String,
@@ -130,6 +131,28 @@ fn spawn_watchers(app: AppHandle, project_id: String, child: Child, pgid: i32) {
     let stdout = shared.lock().expect("dev server lock").child.stdout.take();
     let stderr = shared.lock().expect("dev server lock").child.stderr.take();
 
+    // A long-running command may never print a URL. Do not leave the UI in
+    // "Starting" forever: after the readiness window, report that the process
+    // is running without a confirmed port. A later URL line can still promote
+    // this state to Ready.
+    {
+        let app = app.clone();
+        let project_id = project_id.clone();
+        tauri::async_runtime::spawn(async move {
+            tokio::time::sleep(Duration::from_secs(60)).await;
+            let state = app.state::<DevServerState>();
+            let mut servers = state.servers.lock().expect("dev server lock");
+            if let Some(record) = servers.get_mut(&project_id) {
+                if matches!(record.status, DevStatus::Starting) {
+                    record.status = DevStatus::Running;
+                    let updated = record.clone();
+                    drop(servers);
+                    emit_status(&app, &updated);
+                }
+            }
+        });
+    }
+
     // Exit watcher: marks the server crashed/stopped when the process dies.
     {
         let app = app.clone();
@@ -218,7 +241,8 @@ fn spawn_watchers(app: AppHandle, project_id: String, child: Child, pgid: i32) {
                     servers
                         .get(&project_id)
                         .map(|record| {
-                            matches!(record.status, DevStatus::Starting) && record.port.is_none()
+                            matches!(record.status, DevStatus::Starting | DevStatus::Running)
+                                && record.port.is_none()
                         })
                         .unwrap_or(false)
                 };
@@ -233,7 +257,8 @@ fn spawn_watchers(app: AppHandle, project_id: String, child: Child, pgid: i32) {
                             let state = app.state::<DevServerState>();
                             let mut servers = state.servers.lock().expect("dev server lock");
                             if let Some(record) = servers.get_mut(&project_id) {
-                                if matches!(record.status, DevStatus::Starting) {
+                                if matches!(record.status, DevStatus::Starting | DevStatus::Running)
+                                {
                                     record.status = DevStatus::Ready;
                                     record.port = Some(port);
                                     record.url = Some(format!("http://localhost:{port}"));
@@ -447,5 +472,27 @@ mod tests {
             parse_port_from_line("listening on 0.0.0.0:8080"),
             Some(8080)
         );
+    }
+
+    #[test]
+    fn serializes_records_for_the_frontend_in_camel_case() {
+        let record = DevServerRecord {
+            project_id: "project-1".into(),
+            cwd: "/tmp/project".into(),
+            program: "pnpm".into(),
+            args: vec!["run".into(), "dev:web".into()],
+            pid: 42,
+            status: DevStatus::Starting,
+            port: None,
+            url: None,
+            started_at: 123,
+            last_output: vec!["out: starting".into()],
+        };
+        let value = serde_json::to_value(record).expect("serialize dev server record");
+
+        assert_eq!(value["projectId"], "project-1");
+        assert_eq!(value["startedAt"], 123);
+        assert_eq!(value["lastOutput"][0], "out: starting");
+        assert!(value.get("project_id").is_none());
     }
 }

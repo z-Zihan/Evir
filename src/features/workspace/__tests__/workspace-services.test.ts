@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { resolveChangeDiff } from "../workspace-services";
+import { resolveChangeDiff, resolveWorkspacePath } from "../workspace-services";
 
 const storageMock = vi.hoisted(() => ({
   readFile: vi.fn<(path: string) => Promise<string>>(),
@@ -22,6 +22,20 @@ beforeEach(() => {
 });
 
 describe("resolveChangeDiff", () => {
+  it("resolves project-relative added files before reading them", async () => {
+    storageMock.gitStatus.mockResolvedValue(repoStatus([{ status: "??", file: "report.md" }]));
+    storageMock.gitDiff.mockResolvedValue("");
+    storageMock.readFile.mockResolvedValue("# Report\n");
+
+    const resolved = await resolveChangeDiff(
+      { path: "report.md", changeType: "added" },
+      "/tmp/demo",
+    );
+
+    expect(resolved.diff).toContain("+++ b/report.md");
+    expect(storageMock.readFile).toHaveBeenCalledWith("/tmp/demo/report.md");
+  });
+
   it("synthesizes a full-addition diff for untracked files recorded as modified", async () => {
     // Retried runs snapshot the earlier attempt's file, so the change lands
     // as "modified" while git never tracked it (`git diff` has no section).
@@ -58,5 +72,17 @@ describe("resolveChangeDiff", () => {
       null,
     );
     expect(resolved.diff).toContain("+hello");
+  });
+});
+
+describe("resolveWorkspacePath", () => {
+  it("keeps absolute paths and resolves slash variants under the root", () => {
+    expect(resolveWorkspacePath("/tmp/other.txt", "/tmp/demo")).toBe("/tmp/other.txt");
+    expect(resolveWorkspacePath("src\\index.ts", "/tmp/demo/")).toBe("/tmp/demo/src/index.ts");
+  });
+
+  it("rejects relative paths that escape the workspace", () => {
+    expect(resolveWorkspacePath("../secret.txt", "/tmp/demo")).toBeNull();
+    expect(resolveWorkspacePath("relative.txt", null)).toBeNull();
   });
 });

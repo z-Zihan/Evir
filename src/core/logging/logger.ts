@@ -1,7 +1,7 @@
 import packageJson from "../../../package.json";
 import { currentPlatform } from "../shortcuts/platform";
 import { redactLogValue } from "./redaction";
-import type { LogCategory, LogChannel, LogEvent, LogLevel, LogSink } from "./types";
+import type { LogCategory, LogChannel, LogCorrelation, LogEvent, LogLevel, LogSink } from "./types";
 
 export interface LogFilter {
   level?: LogLevel;
@@ -37,6 +37,8 @@ export class Logger {
   private readonly buffer: LogEvent[] = [];
   private readonly listeners = new Set<() => void>();
   private readonly sessionId = crypto.randomUUID();
+  private readonly windowId = crypto.randomUUID();
+  private readonly conversationCorrelations = new Map<string, LogCorrelation>();
   private sink: LogSink | undefined;
   private sinkDisabled = false;
   private sinkFailures = 0;
@@ -47,16 +49,29 @@ export class Logger {
 
   log(level: LogLevel, channel: LogChannel, message: string, data?: Record<string, unknown>): void {
     const redactedMessage = redactLogValue(message) as string;
+    const inputConversationId =
+      typeof data?.conversationId === "string" ? data.conversationId : undefined;
+    const enrichedData = inputConversationId
+      ? { ...this.conversationCorrelations.get(inputConversationId), ...data }
+      : data;
     const redactedData =
-      data === undefined ? undefined : (redactLogValue(data) as Record<string, unknown>);
+      enrichedData === undefined
+        ? undefined
+        : (redactLogValue(enrichedData) as Record<string, unknown>);
     const correlation = redactedData ?? {};
     const stringField = (key: string) =>
       typeof correlation[key] === "string" ? correlation[key] : undefined;
     const conversationId = stringField("conversationId");
+    const threadId = stringField("threadId") ?? conversationId;
+    const projectId = stringField("projectId");
     const runId = stringField("runId");
+    const planId = stringField("planId");
     const stepId = stringField("stepId");
     const toolCallId = stringField("toolCallId");
     const requestId = stringField("requestId");
+    const browserSessionId = stringField("browserSessionId");
+    const actionId = stringField("actionId");
+    const evidenceId = stringField("evidenceId");
     const durationMs =
       typeof correlation.durationMs === "number" ? correlation.durationMs : undefined;
     const entry: LogEvent = {
@@ -68,11 +83,18 @@ export class Logger {
       appVersion: packageJson.version,
       platform: currentPlatform(),
       sessionId: this.sessionId,
+      windowId: this.windowId,
       ...(conversationId ? { conversationId } : {}),
+      ...(threadId ? { threadId } : {}),
+      ...(projectId ? { projectId } : {}),
       ...(runId ? { runId } : {}),
+      ...(planId ? { planId } : {}),
       ...(stepId ? { stepId } : {}),
       ...(toolCallId ? { toolCallId } : {}),
       ...(requestId ? { requestId } : {}),
+      ...(browserSessionId ? { browserSessionId } : {}),
+      ...(actionId ? { actionId } : {}),
+      ...(evidenceId ? { evidenceId } : {}),
       ...(durationMs !== undefined ? { durationMs } : {}),
       ...(redactedData !== undefined ? { data: redactedData } : {}),
     };
@@ -83,6 +105,21 @@ export class Logger {
     }
     this.enqueue(entry);
     this.emitChange();
+  }
+
+  bindConversationCorrelation(conversationId: string, correlation: LogCorrelation): void {
+    this.conversationCorrelations.set(conversationId, {
+      ...this.conversationCorrelations.get(conversationId),
+      ...correlation,
+    });
+  }
+
+  latestActionId(): string | undefined {
+    for (let index = this.buffer.length - 1; index >= 0; index -= 1) {
+      const actionId = this.buffer[index]?.actionId;
+      if (actionId) return actionId;
+    }
+    return undefined;
   }
 
   attachSink(sink: LogSink): void {
@@ -172,6 +209,7 @@ export class Logger {
               appVersion: packageJson.version,
               platform: currentPlatform(),
               sessionId: this.sessionId,
+              windowId: this.windowId,
               data: { droppedCount: this.droppedCount },
             });
             this.emitChange();

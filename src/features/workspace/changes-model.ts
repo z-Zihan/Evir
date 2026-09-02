@@ -30,6 +30,30 @@ function callPath(call: ToolCallRecord): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
+function normalizedFilePath(path: string): string {
+  return path.replace(/\\/g, "/").replace(/\/+$/, "");
+}
+
+function isAbsoluteFilePath(path: string): boolean {
+  return path.startsWith("/") || /^[A-Za-z]:\//.test(path) || path.startsWith("//");
+}
+
+/** Match a tool's project-relative path to the absolute path returned by snapshots. */
+export function matchingSnapshotForPath(
+  snapshots: readonly SnapshotResult[],
+  path: string,
+): SnapshotResult | undefined {
+  const normalized = normalizedFilePath(path);
+  const exact = snapshots.find((snapshot) => normalizedFilePath(snapshot.file_path) === normalized);
+  if (exact) return exact;
+  if (isAbsoluteFilePath(normalized)) return undefined;
+  const suffix = `/${normalized.replace(/^\/+/, "")}`;
+  const candidates = snapshots.filter((snapshot) =>
+    normalizedFilePath(snapshot.file_path).endsWith(suffix),
+  );
+  return candidates.length === 1 ? candidates[0] : undefined;
+}
+
 /**
  * Derive a run's change list from its tool records + snapshots. Files the run
  * created and then modified collapse into one "added" entry; the newest
@@ -42,19 +66,15 @@ export function deriveChanges(
   runId: string,
 ): ChangeEntry[] {
   const resultsByCallId = new Map(toolResults.map((result) => [result.toolCallId, result]));
-  const existedByPath = new Map<string, boolean>();
-  for (const snapshot of snapshots) {
-    if (!existedByPath.has(snapshot.file_path)) {
-      existedByPath.set(snapshot.file_path, snapshot.existed);
-    }
-  }
   const byPath = new Map<string, ChangeEntry>();
   for (const call of toolCalls) {
     const result = resultsByCallId.get(call.id);
     if (!result?.success || !MUTATING_TOOLS.has(call.toolName)) continue;
     const path = callPath(call);
     if (!path) continue;
-    const existed = existedByPath.get(path);
+    const snapshot = matchingSnapshotForPath(snapshots, path);
+    const resolvedPath = snapshot?.file_path ?? path;
+    const existed = snapshot?.existed;
     const changeType: ChangeType =
       existed === undefined || existed === false
         ? "added"
@@ -63,10 +83,10 @@ export function deriveChanges(
           : "modified";
     // A later mutation of the same path replaces the entry, but a file the
     // run created stays "added" even after follow-up edits.
-    const previous = byPath.get(path);
+    const previous = byPath.get(resolvedPath);
     if (previous?.changeType === "added" && changeType === "modified") continue;
-    byPath.set(path, {
-      path,
+    byPath.set(resolvedPath, {
+      path: resolvedPath,
       changeType,
       toolName: call.toolName,
       runId,

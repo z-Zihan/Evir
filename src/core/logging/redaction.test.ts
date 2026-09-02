@@ -46,6 +46,18 @@ describe("redactLogValue", () => {
       sessionToken: "[REDACTED]",
     });
   });
+
+  it("removes URL credentials, query parameters, and fragments from log fields", () => {
+    expect(
+      redactLogValue({
+        target: "https://user:pass@example.com/path?token=secret#section",
+        url: "http://localhost:1420/callback?code=oauth-code",
+      }),
+    ).toEqual({
+      target: "https://example.com/path",
+      url: "http://localhost:1420/callback",
+    });
+  });
 });
 
 describe("Logger subscriptions", () => {
@@ -68,20 +80,57 @@ describe("Logger subscriptions", () => {
     const logger = new Logger();
     logger.info("provider", "provider.request-completed", {
       conversationId: "conversation-1",
+      projectId: "project-1",
       runId: "run-1",
+      planId: "plan-1",
       toolCallId: "tool-1",
       requestId: "request-1",
+      browserSessionId: "browser-1",
+      actionId: "action-1",
+      evidenceId: "evidence-1",
       durationMs: 42,
       modelId: "model-1",
     });
 
     expect(logger.getEntries()[0]).toMatchObject({
       conversationId: "conversation-1",
+      threadId: "conversation-1",
+      projectId: "project-1",
       runId: "run-1",
+      planId: "plan-1",
       toolCallId: "tool-1",
       requestId: "request-1",
+      browserSessionId: "browser-1",
+      actionId: "action-1",
+      evidenceId: "evidence-1",
       durationMs: 42,
       data: { modelId: "model-1" },
     });
+    expect(logger.getEntries()[0]?.windowId).toBeTruthy();
+  });
+
+  it("inherits bound action, project, run, and plan IDs across one conversation", () => {
+    const logger = new Logger();
+    logger.bindConversationCorrelation("conversation-1", {
+      actionId: "action-1",
+      projectId: "project-1",
+      runId: "run-1",
+      planId: "plan-1",
+    });
+    logger.info("tool", "tool.completed", {
+      conversationId: "conversation-1",
+      toolCallId: "tool-1",
+    });
+
+    expect(logger.getEntries()[0]).toMatchObject({
+      conversationId: "conversation-1",
+      threadId: "conversation-1",
+      projectId: "project-1",
+      runId: "run-1",
+      planId: "plan-1",
+      actionId: "action-1",
+      toolCallId: "tool-1",
+    });
+    expect(logger.latestActionId()).toBe("action-1");
   });
 });

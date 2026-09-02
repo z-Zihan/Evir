@@ -6,6 +6,11 @@ import { useWorkspacePanelStore } from "../../../features/workspace/workspace-pa
 import { useRunWorkspaceStore } from "../../../features/workspace/workspace-run-store";
 import { useProjectStore } from "../../../features/projects/project-store";
 
+let runtimeTarget: "web" | "desktop" = "desktop";
+vi.mock("../../../runtime/use-runtime", () => ({
+  getRuntime: () => ({ target: runtimeTarget }),
+}));
+
 vi.mock("react-i18next", () => ({
   initReactI18next: { type: "3rdParty", init: vi.fn() },
   useTranslation: () => ({
@@ -28,6 +33,7 @@ vi.mock("../BrowserTab", () => ({ BrowserTab: () => <div data-testid="browser-ta
 afterEach(cleanup);
 
 function resetStores() {
+  runtimeTarget = "desktop";
   useWorkspacePanelStore.setState({
     open: false,
     activeTab: "changes",
@@ -53,6 +59,14 @@ function resetStores() {
 describe("WorkspacePanel", () => {
   it("renders nothing while closed", () => {
     resetStores();
+    const { container } = render(<WorkspacePanel />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it("renders nothing in the Web product even when panel state is open", () => {
+    resetStores();
+    runtimeTarget = "web";
+    useWorkspacePanelStore.setState({ open: true });
     const { container } = render(<WorkspacePanel />);
     expect(container.firstChild).toBeNull();
   });

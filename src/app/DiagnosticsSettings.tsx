@@ -45,6 +45,11 @@ export function DiagnosticsSettings() {
   const [entries, setEntries] = useState(() => logger.getEntries());
   const [exportResult, setExportResult] = useState<string | null>(null);
   const [copiedDirectory, setCopiedDirectory] = useState(false);
+  const [evidenceMarker, setEvidenceMarker] = useState<{
+    evidenceId: string;
+    actionId: string;
+    timestamp: string;
+  } | null>(null);
   const persistence = logger.persistenceStatus();
 
   useEffect(() => {
@@ -81,6 +86,24 @@ export function DiagnosticsSettings() {
   const handleClear = () => {
     logger.clear();
     setEntries(logger.getEntries());
+  };
+
+  const handleEvidenceMarker = () => {
+    const evidenceId = `ev-${crypto.randomUUID()}`;
+    const actionId = logger.latestActionId() ?? `act-${crypto.randomUUID()}`;
+    const timestamp = new Date().toISOString();
+    const related = [...logger.getEntries()].reverse().find((entry) => entry.actionId === actionId);
+    logger.info("artifact", "evidence.capture", {
+      evidenceId,
+      actionId,
+      ...(related?.conversationId ? { conversationId: related.conversationId } : {}),
+      ...(related?.projectId ? { projectId: related.projectId } : {}),
+      ...(related?.runId ? { runId: related.runId } : {}),
+      ...(related?.planId ? { planId: related.planId } : {}),
+      screen: "diagnostics",
+      capturedAt: timestamp,
+    });
+    setEvidenceMarker({ evidenceId, actionId, timestamp });
   };
 
   const runBundleExport = async (exportPort: DesktopDiagnosticsExport) => {
@@ -148,6 +171,9 @@ export function DiagnosticsSettings() {
           <p>{t("settingsDescriptions.diagnostics")}</p>
         </div>
         <div className="flex gap-2">
+          <button type="button" className="secondary-button" onClick={handleEvidenceMarker}>
+            {t("diagnostics.createEvidenceMarker")}
+          </button>
           {getRuntime().target === "desktop" && (
             <button type="button" className="secondary-button" onClick={handleBundleExport}>
               {t("diagnostics.exportBundle")}
@@ -179,6 +205,11 @@ export function DiagnosticsSettings() {
       {exportResult && (
         <p className="text-sm text-muted" role="status">
           {exportResult}
+        </p>
+      )}
+      {evidenceMarker && (
+        <p className="text-sm text-muted" role="status">
+          {t("diagnostics.evidenceMarkerCreated", evidenceMarker)}
         </p>
       )}
       <div className="flex flex-col gap-1">

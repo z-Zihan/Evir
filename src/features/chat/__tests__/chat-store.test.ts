@@ -247,6 +247,25 @@ describe("chat retries", () => {
     expect(await db.messages.count()).toBe(2);
   });
 
+  it("notifies the composer as soon as the user message is accepted", async () => {
+    let finishStream: ((value: { content: string; status: "complete" }) => void) | undefined;
+    vi.mocked(streamAssistant).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishStream = resolve;
+        }),
+    );
+    const onAccepted = vi.fn();
+
+    const pending = useChatStore.getState().sendMessage("Accepted prompt", onAccepted);
+    await vi.waitFor(() => expect(onAccepted).toHaveBeenCalledOnce());
+    expect(useChatStore.getState().messages.at(-1)?.content).toBe("Accepted prompt");
+    expect(useChatStore.getState().isStreaming).toBe(true);
+
+    finishStream?.({ content: "Assistant response", status: "complete" });
+    await pending;
+  });
+
   it("keeps a streaming response scoped to its originating conversation", async () => {
     const otherConversation: ConversationRecord = {
       ...conversation,

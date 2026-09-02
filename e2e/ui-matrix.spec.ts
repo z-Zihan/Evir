@@ -48,7 +48,7 @@ test("captures the required responsive, theme, and language matrix", async ({ pa
             output,
             `conversation-${language}-${theme}-${viewport.width}x${viewport.height}.png`,
           ),
-          fullPage: true,
+          fullPage: false,
         });
       }
     }
@@ -56,11 +56,11 @@ test("captures the required responsive, theme, and language matrix", async ({ pa
 
   await page.setViewportSize({ width: 1280, height: 800 });
   await collapseSidebar(page);
-  await page.screenshot({ path: join(output, "sidebar-collapsed.png"), fullPage: true });
+  await page.screenshot({ path: join(output, "sidebar-collapsed.png"), fullPage: false });
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: /Show sidebar|显示侧边栏/i }).click();
-  await page.screenshot({ path: join(output, "sidebar-compact-open.png"), fullPage: true });
+  await page.screenshot({ path: join(output, "sidebar-compact-open.png"), fullPage: false });
   await page.locator(".sidebar-close").click();
 
   const settingsTabs = [
@@ -70,8 +70,7 @@ test("captures the required responsive, theme, and language matrix", async ({ pa
     "switch-theme",
     "language",
     "skills",
-    "browser",
-    ...(isDesktop(testInfo) ? ["mcp"] : []),
+    ...(isDesktop(testInfo) ? ["mcp", "browser"] : []),
     "memory",
     "keyboard-shortcuts",
     "usage",
@@ -112,7 +111,7 @@ test("captures the required responsive, theme, and language matrix", async ({ pa
               output,
               `settings-${tab}-${language}-${theme}-${viewport.width}x${viewport.height}.png`,
             ),
-            fullPage: true,
+            fullPage: false,
           });
         }
       }
@@ -142,7 +141,7 @@ test("captures the required responsive, theme, and language matrix", async ({ pa
     await expect(settings.getByText("Disabled", { exact: true }).first()).toBeVisible();
     await page.screenshot({
       path: join(output, "settings-mcp-configured-1280x800.png"),
-      fullPage: true,
+      fullPage: false,
     });
 
     await page.setViewportSize({ width: 390, height: 844 });
@@ -150,7 +149,7 @@ test("captures the required responsive, theme, and language matrix", async ({ pa
     await expect(settings.getByRole("alert")).toContainText("Connection test failed");
     await page.screenshot({
       path: join(output, "settings-mcp-connection-error-390x844.png"),
-      fullPage: true,
+      fullPage: false,
     });
     await settings.getByRole("button", { name: "Close", exact: true }).click();
   }
@@ -167,11 +166,11 @@ test("captures the required responsive, theme, and language matrix", async ({ pa
     .click();
   await page.screenshot({
     path: join(output, "provider-tool-calling-800x600.png"),
-    fullPage: true,
+    fullPage: false,
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({
     path: join(output, "provider-tool-calling-390x844.png"),
-    fullPage: true,
+    fullPage: false,
   });
 });

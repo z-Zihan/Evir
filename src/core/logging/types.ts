@@ -20,6 +20,7 @@ export type LogChannel =
   | "storage"
   | "artifact"
   | "workspace"
+  | "browser"
   | "notification"
   | "shortcut"
   | "usage"
@@ -36,13 +37,28 @@ export interface LogEvent {
   appVersion: string;
   platform: string;
   sessionId: string;
+  windowId: string;
   conversationId?: string;
+  threadId?: string;
+  projectId?: string;
   runId?: string;
+  planId?: string;
   stepId?: string;
   toolCallId?: string;
   requestId?: string;
+  browserSessionId?: string;
+  actionId?: string;
+  evidenceId?: string;
   durationMs?: number;
   data?: Record<string, unknown>;
+}
+
+export interface LogCorrelation {
+  projectId?: string;
+  runId?: string;
+  planId?: string;
+  browserSessionId?: string;
+  actionId?: string;
 }
 
 export interface LoggerPort {

@@ -26,6 +26,7 @@ test("first run and runtime capability boundaries", async ({ page }, testInfo) =
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await expect(page.getByRole("dialog", { name: "Settings" })).toBeVisible();
     await expect(page.getByRole("button", { name: "MCP", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Browser", exact: true })).toHaveCount(0);
   }
   expect(consoleErrors).toEqual([]);
 });

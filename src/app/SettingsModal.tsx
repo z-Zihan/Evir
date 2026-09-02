@@ -65,22 +65,10 @@ import { importConversations } from "../features/chat/conversation-import";
 import { getRuntime } from "../runtime/use-runtime";
 import { useChatStore } from "../features/chat/chat-store";
 import { useWorkspaceStore } from "../features/workspace/workspace-store";
+import { isSettingsTabAvailable, type SettingsTab } from "./settings-navigation";
+import { logger } from "../core/logging/logger";
 
-export type SettingsTab =
-  | "browser"
-  | "providers"
-  | "identity"
-  | "personalization"
-  | "shortcuts"
-  | "skills"
-  | "mcp"
-  | "usage"
-  | "privacy"
-  | "theme"
-  | "language"
-  | "memory"
-  | "diagnostics"
-  | "about";
+export type { SettingsTab } from "./settings-navigation";
 
 interface SettingsNavItem {
   tab: SettingsTab;
@@ -152,15 +140,29 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
   const onCloseRef = useRef(onClose);
   const currentConversationId = useChatStore((state) => state.currentConversationId);
   const currentWorkspace = useWorkspaceStore((state) => state.currentWorkspace);
-  onCloseRef.current = onClose;
+  const closeSettings = () => {
+    logger.info("ui", "ui.close", {
+      actionId: crypto.randomUUID(),
+      surface: "settings",
+      tab: effectiveActiveTab,
+    });
+    onClose();
+  };
+  onCloseRef.current = closeSettings;
+  const runtimeTarget = getRuntime().target;
   const visibleGroups = SETTINGS_GROUPS.map((group) => ({
     ...group,
-    items: group.items.filter((item) => item.tab !== "mcp" || getRuntime().target === "desktop"),
+    items: group.items.filter((item) => isSettingsTabAvailable(item.tab, runtimeTarget)),
   })).filter((group) => group.items.length > 0);
+  const effectiveActiveTab = isSettingsTabAvailable(activeTab, runtimeTarget)
+    ? activeTab
+    : "providers";
 
   useEffect(() => {
-    if (open) setActiveTab(initialTab);
-  }, [initialTab, open]);
+    if (open) {
+      setActiveTab(isSettingsTabAvailable(initialTab, runtimeTarget) ? initialTab : "providers");
+    }
+  }, [initialTab, open, runtimeTarget]);
 
   useEffect(() => {
     if (!open) return;
@@ -213,6 +215,12 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
   if (!open) return null;
 
   const handleTabChange = (tab: SettingsTab) => {
+    logger.info("ui", "ui.tab-change", {
+      actionId: crypto.randomUUID(),
+      surface: "settings",
+      fromTab: effectiveActiveTab,
+      toTab: tab,
+    });
     setActiveTab(tab);
     setImportResult(null);
     contentRef.current?.scrollTo?.({ top: 0 });
@@ -220,7 +228,7 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
 
   const activeItem = visibleGroups
     .flatMap((group) => group.items)
-    .find((item) => item.tab === activeTab);
+    .find((item) => item.tab === effectiveActiveTab);
 
   const handleExport = async () => {
     const blob = await exportConversations();
@@ -258,7 +266,7 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
             ref={closeButtonRef}
             className="settings-close"
             type="button"
-            onClick={onClose}
+            onClick={closeSettings}
             aria-label={t("settings.close")}
             data-tip={t("settings.close")}
           >
@@ -272,10 +280,10 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
                 <span className="settings-nav-label">{t(group.labelKey)}</span>
                 {group.items.map(({ tab, labelKey, icon: Icon }) => (
                   <button
-                    className={`settings-nav-item${activeTab === tab ? " active" : ""}`}
+                    className={`settings-nav-item${effectiveActiveTab === tab ? " active" : ""}`}
                     type="button"
                     key={tab}
-                    aria-current={activeTab === tab ? "page" : undefined}
+                    aria-current={effectiveActiveTab === tab ? "page" : undefined}
                     onClick={() => handleTabChange(tab)}
                   >
                     <Icon size={16} aria-hidden="true" />
@@ -289,7 +297,7 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
             <span>{t("settings.navigation")}</span>
             <select
               className="settings-mobile-select"
-              value={activeTab}
+              value={effectiveActiveTab}
               onChange={(event) => handleTabChange(event.target.value as SettingsTab)}
             >
               {visibleGroups.map((group) => (
@@ -316,15 +324,15 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
               aria-labelledby="settings-section-title"
             >
               <Suspense fallback={<SettingsPanelFallback />}>
-                {activeTab === "providers" && <ProviderSettings />}
-                {activeTab === "identity" && <LocalIdentityPanel />}
-                {activeTab === "personalization" && <PersonalizationPanel />}
-                {activeTab === "shortcuts" && <ShortcutsSettings />}
-                {activeTab === "skills" && <SkillSettings />}
-                {activeTab === "mcp" && <McpSettings />}
-                {activeTab === "browser" && <BrowserSettings />}
-                {activeTab === "usage" && <UsagePanel />}
-                {activeTab === "privacy" && (
+                {effectiveActiveTab === "providers" && <ProviderSettings />}
+                {effectiveActiveTab === "identity" && <LocalIdentityPanel />}
+                {effectiveActiveTab === "personalization" && <PersonalizationPanel />}
+                {effectiveActiveTab === "shortcuts" && <ShortcutsSettings />}
+                {effectiveActiveTab === "skills" && <SkillSettings />}
+                {effectiveActiveTab === "mcp" && <McpSettings />}
+                {effectiveActiveTab === "browser" && <BrowserSettings />}
+                {effectiveActiveTab === "usage" && <UsagePanel />}
+                {effectiveActiveTab === "privacy" && (
                   <div className="data-privacy-settings">
                     <section className="settings-data-actions">
                       <div>
@@ -367,16 +375,16 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
                     <PrivacySettings />
                   </div>
                 )}
-                {activeTab === "about" && <AboutSettings />}
-                {activeTab === "theme" && <ThemeSettings />}
-                {activeTab === "language" && <LanguageSettings />}
-                {activeTab === "memory" && (
+                {effectiveActiveTab === "about" && <AboutSettings />}
+                {effectiveActiveTab === "theme" && <ThemeSettings />}
+                {effectiveActiveTab === "language" && <LanguageSettings />}
+                {effectiveActiveTab === "memory" && (
                   <MemorySettings
                     conversationId={currentConversationId}
                     workspacePath={currentWorkspace}
                   />
                 )}
-                {activeTab === "diagnostics" && <DiagnosticsSettings />}
+                {effectiveActiveTab === "diagnostics" && <DiagnosticsSettings />}
               </Suspense>
             </div>
           </main>

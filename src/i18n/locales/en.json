@@ -676,7 +676,7 @@
     "description": "Local-first, BYOM multi-model AI client and desktop agent.",
     "github": "GitHub",
     "license": "License",
-    "mit": "MIT License"
+    "notDeclared": "Not declared"
   },
   "workspace": {
     "select": "Select Workspace",
@@ -730,9 +730,12 @@
       "stop": "Stop",
       "none": "No dev-server script detected for this project",
       "starting": "Starting…",
+      "startingHint": "Starting the project preview. It will open when a local address is detected.",
       "ready": "Ready",
       "running": "Running (port unconfirmed)",
       "crashed": "Crashed",
+      "crashedHint": "The project preview process exited. Check the dev script and retry.",
+      "retry": "Retry",
       "confirmTitle": "Start dev server",
       "confirmDescription": "Evir will run {{command}} in {{cwd}}. The process is managed by Evir and stops when the app exits."
     },
@@ -941,6 +944,8 @@
     "exportCancelled": "Export cancelled.",
     "exportFailed": "Export failed. Please try again.",
     "clear": "Clear logs",
+    "createEvidenceMarker": "Create screenshot marker",
+    "evidenceMarkerCreated": "Marker {{evidenceId}} created at {{timestamp}} (action {{actionId}}). Capture the screenshot now to keep the timestamp aligned.",
     "data": "All local diagnostic logs",
     "filter": "Filter by level",
     "empty": "No log entries",

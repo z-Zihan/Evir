@@ -20,6 +20,7 @@ import {
   readBinaryBase64,
   readTextFile,
   resolveChangeDiff,
+  resolveWorkspacePath,
 } from "../../features/workspace/workspace-services";
 import { readScreenshotBase64 } from "../../features/workspace/browser-panel-service";
 import { useActiveWorkspaceRoot } from "../../features/workspace/workspace-bridge";
@@ -111,7 +112,9 @@ function useResolvedResource(
           } satisfies ResolvedContent;
         }
         if (resource.kind === "diff") {
-          const change = changes.find((entry) => entry.path === resource.path) ?? {
+          const change = changes.find(
+            (entry) => resolveWorkspacePath(entry.path, root) === resource.path,
+          ) ?? {
             path: resource.path,
             changeType: "modified" as const,
             toolName: "",

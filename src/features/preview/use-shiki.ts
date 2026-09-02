@@ -5,7 +5,9 @@ import { useEffect, useRef, useState } from "react";
  * an empty language set; grammars are lazy-loaded per language so the initial
  * bundle stays small. Unknown languages fall back to plain text.
  */
-type ShikiHighlighter = Awaited<ReturnType<(typeof import("shiki"))["createHighlighter"]>>;
+type ShikiHighlighter = Awaited<
+  ReturnType<(typeof import("shiki/bundle/web"))["createHighlighter"]>
+>;
 
 let highlighterPromise: Promise<ShikiHighlighter> | null = null;
 const loadedLanguages = new Set<string>();
@@ -18,7 +20,7 @@ export const DARK_THEME = "github-dark";
 export const PLAIN_LANGUAGES = new Set(["txt", "text", "plaintext", "plain", "log", ""]);
 
 function getHighlighter(): Promise<ShikiHighlighter> {
-  highlighterPromise ??= import("shiki").then(({ createHighlighter }) =>
+  highlighterPromise ??= import("shiki/bundle/web").then(({ createHighlighter }) =>
     createHighlighter({ themes: [LIGHT_THEME, DARK_THEME], langs: [] }),
   );
   return highlighterPromise;
@@ -27,7 +29,7 @@ function getHighlighter(): Promise<ShikiHighlighter> {
 async function ensureLanguage(highlighter: ShikiHighlighter, language: string): Promise<string> {
   if (PLAIN_LANGUAGES.has(language) || language === "ansi") return "text";
   if (loadedLanguages.has(language)) return language;
-  const { bundledLanguages, bundledLanguagesAlias } = await import("shiki");
+  const { bundledLanguages, bundledLanguagesAlias } = await import("shiki/bundle/web");
   const resolved =
     bundledLanguages[language as keyof typeof bundledLanguages] ??
     bundledLanguagesAlias[language as keyof typeof bundledLanguagesAlias];

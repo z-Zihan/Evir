@@ -86,10 +86,15 @@ export async function prepareTask(input: {
   analyzer?: TaskIntakeAnalyzerPort;
   planner?: PlanGeneratorPort;
   doneWhen?: string[];
+  actionId?: string;
 }): Promise<PreparationResult> {
   if (input.runtime.target !== "desktop") return "not-applicable";
   const startedAt = Date.now();
   const runId = crypto.randomUUID();
+  logger.bindConversationCorrelation(input.conversationId, {
+    runId,
+    ...(input.actionId ? { actionId: input.actionId } : {}),
+  });
   logger.info("agent", "orchestration.intake-started", {
     runId,
     conversationId: input.conversationId,
@@ -181,6 +186,7 @@ export async function prepareTask(input: {
       input.runtime,
       input.planner,
     );
+    logger.bindConversationCorrelation(input.conversationId, { runId, planId: plan.id });
     // Stop during planning aborts the planner stream; buildValidatedPlan then
     // returns its deterministic fallback. Honour the cancellation here so a
     // user-stopped task never proceeds to execution.
@@ -213,6 +219,7 @@ export async function prepareTask(input: {
     const phase = plan.requiresConfirmation ? "confirmation" : "execution";
     logger.info("agent", "orchestration.plan-created", {
       runId,
+      planId: plan.id,
       conversationId: input.conversationId,
       nodeCount: plan.nodes.length,
       requiresConfirmation: plan.requiresConfirmation,

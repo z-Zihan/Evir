@@ -26,7 +26,7 @@ export function AboutSettings() {
           <span>{t("about.license")}</span>
           <strong>
             <ShieldCheck size={14} />
-            {t("about.mit")}
+            {t("about.notDeclared")}
           </strong>
         </div>
       </div>

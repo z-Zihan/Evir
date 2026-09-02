@@ -11,6 +11,7 @@ function logEvent(channel: LogEvent["channel"], level: LogEvent["level"]): LogEv
     appVersion: "0.1.0",
     platform: "mac",
     sessionId: "session-1",
+    windowId: "window-1",
   };
 }
 

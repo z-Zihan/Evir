@@ -60,6 +60,7 @@ export async function sendChatMessage(
   set: ChatStoreSet,
   get: ChatStoreGet,
   rawText: string,
+  onAccepted?: () => void,
 ): Promise<boolean> {
   const text = rawText.trim();
   if ((!text && get().pendingAttachments.length === 0) || get().isStreaming) return false;
@@ -78,9 +79,10 @@ export async function sendChatMessage(
   // preparation runs two LLM round trips before beginConversationStream fires,
   // and without this window a second send starts a concurrent run.
   const epoch = get().streamEpoch;
+  const actionId = crypto.randomUUID();
   set({ isStreaming: true });
   try {
-    await sendChatMessageInner(set, get, text, provider, epoch);
+    await sendChatMessageInner(set, get, text, provider, epoch, actionId, onAccepted);
   } catch (error) {
     // Pre-acceptance failure: the user message never reached the conversation,
     // so the caller must keep the draft on screen instead of silently
@@ -112,6 +114,8 @@ async function sendChatMessageInner(
   text: string,
   provider: ProviderRecord,
   epoch: number,
+  actionId: string,
+  onAccepted?: () => void,
 ): Promise<void> {
   const attachments = get().pendingAttachments;
   const selectedSkillIds = new Set(get().selectedSkillIds);
@@ -147,6 +151,21 @@ async function sendChatMessageInner(
   if (!get().privateSession) {
     await storage.write("messages", userMessage.id, userMessage);
   }
+
+  const acceptedConversation = get().conversations.find((item) => item.id === conversationId);
+  logger.bindConversationCorrelation(conversationId, {
+    actionId,
+    ...(acceptedConversation?.projectId ? { projectId: acceptedConversation.projectId } : {}),
+  });
+  logger.info("ui", "ui.submit", {
+    actionId,
+    conversationId,
+    ...(acceptedConversation?.projectId ? { projectId: acceptedConversation.projectId } : {}),
+    control: "chat.composer",
+    messageId: userMessage.id,
+    characterCount: text.length,
+    attachmentCount: attachments.length,
+  });
 
   // Auto-generate title
   const conversation = get().conversations.find((c) => c.id === conversationId);
@@ -186,6 +205,7 @@ async function sendChatMessageInner(
     selectedSkillIds: new Set<string>(),
     latestAgentRun: null,
   });
+  onAccepted?.();
   const nextHistory = [...history, userMessage];
   let preparation: Awaited<ReturnType<typeof prepareTask>> = "not-applicable";
   const conversationRecord = get().conversations.find((c) => c.id === conversationId);
@@ -201,6 +221,7 @@ async function sendChatMessageInner(
         conversationId,
         runtime: getRuntime(),
         privateSession: get().privateSession,
+        actionId,
         ...(runMode === "goal" ? { doneWhen: parseDoneWhen(text) } : {}),
         analyzer: new ModelTaskIntakeAnalyzer(
           provider,

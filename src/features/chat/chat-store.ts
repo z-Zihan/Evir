@@ -69,8 +69,8 @@ export interface ChatState {
   renameConversation: (id: string, title: string) => Promise<void>;
   togglePin: (id: string) => Promise<void>;
   updateConversationProvider: (providerId: string, modelId: string) => Promise<void>;
-  /** Resolves true once the user message is accepted (persisted or private-accepted). */
-  sendMessage: (text: string) => Promise<boolean>;
+  /** Resolves after the run settles; onAccepted fires once the user message is safely accepted. */
+  sendMessage: (text: string, onAccepted?: () => void) => Promise<boolean>;
   regenerate: () => Promise<void>;
   editMessage: (messageId: string, newContent: string) => Promise<void>;
   stopGeneration: () => void;
@@ -216,7 +216,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     if (!pending) return;
     await denyTool(pending, set, get);
   },
-  sendMessage: (text) => sendChatMessage(set, get, text),
+  sendMessage: (text, onAccepted) => sendChatMessage(set, get, text, onAccepted),
   regenerate: async () => {
     const { messages, currentConversationId, isStreaming } = get();
     if (!currentConversationId || isStreaming) return;

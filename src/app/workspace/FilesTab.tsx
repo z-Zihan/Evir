@@ -5,7 +5,7 @@ import { useFilesTabStore } from "../../features/workspace/files-tab-store";
 import { useRunWorkspaceStore } from "../../features/workspace/workspace-run-store";
 import { useWorkspacePanelStore } from "../../features/workspace/workspace-panel-store";
 import { useActiveWorkspaceRoot } from "../../features/workspace/workspace-bridge";
-import { relativeToRoot } from "../../features/workspace/workspace-services";
+import { relativeToRoot, resolveWorkspacePath } from "../../features/workspace/workspace-services";
 import { subscribeWorkspaceToolEvents } from "../../features/workspace/workspace-events";
 import { FileTree } from "./FileTree";
 import type { TaskOutput } from "../../features/workspace/task-output-model";
@@ -22,16 +22,18 @@ function outputIcon(output: TaskOutput) {
   return <FileCode2 size={14} aria-hidden="true" />;
 }
 
-function openOutputResource(output: TaskOutput) {
+function openOutputResource(output: TaskOutput, root: string | null) {
   const { openResource } = useWorkspacePanelStore.getState();
   if (output.kind === "screenshot") {
     const label = output.path.split("/").pop();
     openResource({ kind: "screenshot", path: output.path, ...(label ? { label } : {}) });
     return;
   }
+  const path = resolveWorkspacePath(output.path, root);
+  if (!path) return;
   openResource({
     kind: "file",
-    path: output.path,
+    path,
     ...(output.mimeType ? { mimeType: output.mimeType } : {}),
   });
 }
@@ -94,7 +96,16 @@ export function FilesTab() {
     [activeResource],
   );
 
-  const changedThisRun = useMemo(() => new Set(changes.map((change) => change.path)), [changes]);
+  const changedThisRun = useMemo(
+    () =>
+      new Set(
+        changes.flatMap((change) => {
+          const path = resolveWorkspacePath(change.path, root);
+          return path ? [path] : [];
+        }),
+      ),
+    [changes, root],
+  );
 
   if (!root) {
     return (
@@ -125,7 +136,7 @@ export function FilesTab() {
                 <button
                   type="button"
                   className="workspace-output-row"
-                  onClick={() => openOutputResource(output)}
+                  onClick={() => openOutputResource(output, root)}
                   data-tip={output.path}
                 >
                   <span className="workspace-change-icon">{outputIcon(output)}</span>

@@ -20,8 +20,8 @@ export interface DevServerState {
   port: number | null;
   url: string | null;
   pid: number | null;
-  startedAt: number | null;
-  lastError: string | null;
+  startedAt: number;
+  lastOutput: string[];
 }
 
 export interface DevScriptPlan {
@@ -33,7 +33,18 @@ export interface DevScriptPlan {
   command: string;
 }
 
-const SCRIPT_PRIORITY = ["dev", "start", "preview", "serve"];
+// Browser preview must prefer an explicitly browser-scoped script. A generic
+// `dev` script may launch Electron/Tauri (including Evir itself), which cannot
+// produce content for the embedded browser and can recursively open an app.
+const SCRIPT_PRIORITY = [
+  "dev:web",
+  "dev:browser",
+  "preview:web",
+  "dev",
+  "start",
+  "preview",
+  "serve",
+];
 
 /** Parse package.json (already read as text) into a dev-script plan. */
 export function detectDevScriptFromPackageJson(source: string): DevScriptPlan | null {
@@ -121,7 +132,7 @@ export function subscribeDevServerStatus(
       port: state.port,
       url: state.url,
       pid: state.pid,
-      lastError: state.lastError,
+      lastOutput: state.lastOutput,
     });
     handler(state);
   });

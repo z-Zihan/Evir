@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { FilePlus2, FilePen, GitCompareArrows } from "lucide-react";
 import { useRunWorkspaceStore } from "../../features/workspace/workspace-run-store";
 import { useWorkspacePanelStore } from "../../features/workspace/workspace-panel-store";
-import { relativeToRoot } from "../../features/workspace/workspace-services";
+import { relativeToRoot, resolveWorkspacePath } from "../../features/workspace/workspace-services";
 import { useActiveWorkspaceRoot } from "../../features/workspace/workspace-bridge";
 import type { ChangeEntry } from "../../features/workspace/changes-model";
 
@@ -77,13 +77,15 @@ export function ChangesTab() {
               <button
                 type="button"
                 className="workspace-change-row"
-                onClick={() =>
+                onClick={() => {
+                  const path = resolveWorkspacePath(change.path, root);
+                  if (!path) return;
                   openResource({
                     kind: "diff",
-                    path: change.path,
+                    path,
                     ...(change.runId ? { runId: change.runId } : {}),
-                  })
-                }
+                  });
+                }}
                 data-tip={change.path}
               >
                 <span className={`workspace-change-letter ${change.changeType}`} aria-hidden="true">

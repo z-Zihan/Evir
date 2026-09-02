@@ -86,6 +86,32 @@ export function relativeToRoot(absolutePath: string, root: string | null): strin
   return absolutePath;
 }
 
+function isAbsoluteFilePath(path: string): boolean {
+  return path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(path) || /^\\\\/.test(path);
+}
+
+/**
+ * Resolve a tool-produced workspace path at the service boundary. Agent tool
+ * records may contain project-relative paths, while Desktop storage ports
+ * require absolute paths. Relative traversal outside the project is rejected.
+ */
+export function resolveWorkspacePath(path: string, root: string | null): string | null {
+  if (isAbsoluteFilePath(path)) return path;
+  if (!root) return null;
+  const segments: string[] = [];
+  for (const segment of path.replace(/\\/g, "/").split("/")) {
+    if (segment === "" || segment === ".") continue;
+    if (segment === "..") {
+      if (segments.length === 0) return null;
+      segments.pop();
+      continue;
+    }
+    segments.push(segment);
+  }
+  const normalizedRoot = root.replace(/\\/g, "/").replace(/\/+$/, "");
+  return segments.length > 0 ? `${normalizedRoot}/${segments.join("/")}` : normalizedRoot;
+}
+
 export interface ResolvedFileDiff {
   diff: string;
   /** null when the diff could not be produced (not a repo / unavailable). */
@@ -100,12 +126,14 @@ export async function resolveChangeDiff(
   change: { path: string; changeType: "added" | "modified" | "deleted" },
   root: string | null,
 ): Promise<ResolvedFileDiff> {
+  const resolvedPath = resolveWorkspacePath(change.path, root);
+  if (!resolvedPath) return { diff: "", reason: "unreadable" };
   let synthesize = change.changeType === "added";
   if (root) {
     try {
       const status = await gitStatusFor(root);
       if (status.is_repo) {
-        const relative = relativeToRoot(change.path, root);
+        const relative = relativeToRoot(resolvedPath, root);
         const diff = filterUnifiedDiffByFile(await gitDiffFor(root), relative);
         if (diff) return { diff };
         // Untracked files never appear in `git diff`, but a retried run can
@@ -127,8 +155,8 @@ export async function resolveChangeDiff(
   }
   if (synthesize) {
     try {
-      const content = await readTextFile(change.path);
-      return { diff: synthesizeAddedDiff(change.path, content) };
+      const content = await readTextFile(resolvedPath);
+      return { diff: synthesizeAddedDiff(relativeToRoot(resolvedPath, root), content) };
     } catch {
       return { diff: "", reason: "unreadable" };
     }
@@ -158,7 +186,9 @@ export async function summarizeRunChanges(
     }
     if (change.changeType === "added") {
       try {
-        const content = await readTextFile(change.path);
+        const resolvedPath = resolveWorkspacePath(change.path, root);
+        if (!resolvedPath) continue;
+        const content = await readTextFile(resolvedPath);
         additions += content.split("\n").filter((line) => line !== "").length;
       } catch {
         // file may be gone already

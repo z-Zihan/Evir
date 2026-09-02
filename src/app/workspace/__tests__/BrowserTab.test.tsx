@@ -73,6 +73,22 @@ afterEach(() => {
 });
 
 describe("BrowserTab geometry reporting", () => {
+  it("does not expose the native webview before a non-zero layout is measured", async () => {
+    render(<BrowserTab />);
+    await waitFor(() => expect(layoutUpdate).toHaveBeenCalled());
+
+    const visibleZeroLayout = layoutUpdate.mock.calls.some(([layout]) => {
+      const candidate = layout as {
+        width: number;
+        height: number;
+        visible: boolean;
+      };
+      return candidate.visible && (candidate.width <= 0 || candidate.height <= 0);
+    });
+
+    expect(visibleZeroLayout).toBe(false);
+  });
+
   it("re-reports the layout after a window resize", async () => {
     render(<BrowserTab />);
     await waitFor(() => expect(layoutUpdate).toHaveBeenCalled());

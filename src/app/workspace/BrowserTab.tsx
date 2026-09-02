@@ -95,8 +95,28 @@ export function BrowserTab() {
     confirmationDialog: devServerConfirmation,
   } = useConfirmationDialog();
   const activeTab = tabs.find((tab) => tab.active) ?? tabs[0];
+  const activeBrowserSessionId = activeTab?.id;
+  const activeBrowserUrl = activeTab?.url;
 
   useEffect(() => {
+    if (!activeBrowserSessionId) return;
+    logger.info("browser", "browser.started", {
+      browserSessionId: activeBrowserSessionId,
+      ...(currentProjectId ? { projectId: currentProjectId } : {}),
+      url: activeBrowserUrl,
+    });
+    return () => {
+      logger.info("browser", "browser.closed", {
+        browserSessionId: activeBrowserSessionId,
+        ...(currentProjectId ? { projectId: currentProjectId } : {}),
+      });
+    };
+  }, [activeBrowserSessionId, activeBrowserUrl, currentProjectId]);
+
+  useEffect(() => {
+    setDevServer(null);
+    setDevError(null);
+    setStarting(false);
     void panelTabList()
       .then(setTabs)
       .catch(() => setTabs([]));
@@ -122,9 +142,7 @@ export function BrowserTab() {
         .then((servers) => {
           if (cancelled) return;
           const match = servers.find((server) => server.projectId === project.id);
-          if (match) {
-            setDevServer((current) => (current?.status === match.status ? current : match));
-          }
+          setDevServer(match ?? null);
         })
         .catch(() => undefined);
       void panelTabList()
@@ -164,16 +182,38 @@ export function BrowserTab() {
     };
   }, [root]);
 
-  const lastLoggedVisible = useRef<boolean | null>(null);
-  const reportLayout = useCallback((visible: boolean) => {
-    void panelLayoutUpdate({ ...layoutRef.current, visible })
+  const lastLoggedLayout = useRef<{
+    visible: boolean;
+    width: number;
+    height: number;
+  } | null>(null);
+  const reportLayout = useCallback((requestedVisible: boolean) => {
+    const layout = { ...layoutRef.current };
+    // A native child webview must never be shown before the DOM has produced
+    // a usable content rect. On mount the overlay effect runs before the first
+    // animation-frame measurement; treating its requested visibility as the
+    // actual visibility briefly exposed the offscreen 1x1 child webview and
+    // left diagnostics with a misleading visible 0x0 layout.
+    const visible = requestedVisible && layout.width > 0 && layout.height > 0;
+    void panelLayoutUpdate({ ...layout, visible })
       .then(() => {
-        // Rects churn every frame during a drag; log visibility flips only.
-        if (lastLoggedVisible.current !== visible) {
-          lastLoggedVisible.current = visible;
+        // Rects churn every frame during a drag. Log visibility flips and the
+        // first usable visible rect, but do not turn resize gestures into a
+        // high-volume geometry trace.
+        const previous = lastLoggedLayout.current;
+        if (
+          previous === null ||
+          previous.visible !== visible ||
+          (visible && (previous.width <= 0 || previous.height <= 0))
+        ) {
+          lastLoggedLayout.current = {
+            visible,
+            width: layout.width,
+            height: layout.height,
+          };
           logger.info("workspace", "browser.layout-visibility", {
             visible,
-            ...layoutRef.current,
+            ...layout,
           });
         }
       })
@@ -204,7 +244,7 @@ export function BrowserTab() {
         frame = 0;
         const rect = element.getBoundingClientRect();
         layoutRef.current = { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
-        reportLayout(rect.width > 0 && rect.height > 0);
+        reportLayout(!overlayBlocked);
       });
     };
     const onWindowResize = () => {
@@ -219,13 +259,9 @@ export function BrowserTab() {
       if (frame !== 0) cancelAnimationFrame(frame);
       observer.disconnect();
       window.removeEventListener("resize", onWindowResize);
+      reportLayout(false);
     };
-  }, [reportLayout]);
-
-  useEffect(() => {
-    reportLayout(true);
-    return () => reportLayout(false);
-  }, [reportLayout]);
+  }, [overlayBlocked, reportLayout]);
 
   // Native child webviews render above every DOM layer: any full-screen
   // overlay (settings, dialogs) must hide them first.
@@ -237,14 +273,23 @@ export function BrowserTab() {
   // ends annotate mode (one annotation per activation).
   useEffect(() => {
     if (!annotating) return;
-    logger.info("workspace", "browser.annotate-enabled");
+    const actionId = crypto.randomUUID();
+    logger.info("browser", "browser.annotate-enabled", {
+      actionId,
+      browserSessionId: activeTab?.id,
+      ...(currentProjectId ? { projectId: currentProjectId } : {}),
+    });
     const unsubscribe = subscribePanelAnnotations((payload) => {
       const annotation =
         payload && typeof payload === "object" ? (payload as Record<string, unknown>) : undefined;
-      logger.info("workspace", "browser.annotation-received", {
+      logger.info("browser", "browser.annotation-received", {
+        actionId,
+        browserSessionId: activeTab?.id,
+        ...(currentProjectId ? { projectId: currentProjectId } : {}),
         url: typeof annotation?.url === "string" ? annotation.url : null,
         tag: typeof annotation?.tag === "string" ? annotation.tag : null,
-        selector: typeof annotation?.selector === "string" ? annotation.selector : null,
+        selectorLength:
+          typeof annotation?.selector === "string" ? annotation.selector.length : null,
       });
       setAnnotating(false);
     }).catch(() => undefined);
@@ -252,18 +297,46 @@ export function BrowserTab() {
       void unsubscribe?.then((fn) => fn?.());
       void panelAnnotate(false).catch(() => undefined);
     };
-  }, [annotating]);
+  }, [activeTab?.id, annotating, currentProjectId]);
 
-  const navigate = (url: string) => {
+  const navigate = async (url: string): Promise<void> => {
     const target = normalizeInput(url);
     if (!target) return;
-    logger.info("workspace", "browser.navigate", { target });
-    if (activeTab) {
-      void panelTabNavigate(activeTab.id, target);
-    } else {
-      void panelTabNew(target)
-        .then(() => panelTabList().then(setTabs))
-        .catch(() => undefined);
+    const actionId = crypto.randomUUID();
+    logger.info("browser", "browser.navigate", {
+      actionId,
+      browserSessionId: activeTab?.id,
+      ...(currentProjectId ? { projectId: currentProjectId } : {}),
+      target,
+    });
+    // Creating a native child webview moves focus away from the main frontend
+    // and WebKit may throttle its timers. Persist the intent before crossing
+    // that boundary so a navigation never disappears from diagnostics.
+    await logger.flush();
+    try {
+      let browserSessionId: number;
+      if (activeTab) {
+        await panelTabNavigate(activeTab.id, target);
+        browserSessionId = activeTab.id;
+      } else {
+        browserSessionId = (await panelTabNew(target)).id;
+      }
+      setTabs(await panelTabList());
+      logger.info("browser", "browser.navigate-completed", {
+        actionId,
+        browserSessionId,
+        ...(currentProjectId ? { projectId: currentProjectId } : {}),
+        target,
+      });
+      await logger.flush();
+    } catch (error) {
+      logger.error("browser", "browser.navigate-failed", {
+        actionId,
+        browserSessionId: activeTab?.id,
+        ...(currentProjectId ? { projectId: currentProjectId } : {}),
+        target,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   };
 
@@ -306,7 +379,7 @@ export function BrowserTab() {
       // "starting" after readiness was already shown.
       setDevServer((current) => (current?.status === "ready" ? current : state));
     } catch (error) {
-      setDevError(String(error));
+      setDevError(error instanceof Error ? error.message : String(error));
     } finally {
       setStarting(false);
     }
@@ -315,12 +388,23 @@ export function BrowserTab() {
   // When the dev server turns ready, open its URL (user-initiated flow).
   useEffect(() => {
     if (devServer?.status === "ready" && devServer.url) {
-      navigate(devServer.url);
+      void navigate(devServer.url);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [devServer?.status, devServer?.url]);
 
   const screenshotOutputs = outputs.filter((output) => output.kind === "screenshot").slice(-3);
+  const devServerActive =
+    devServer?.status === "starting" ||
+    devServer?.status === "ready" ||
+    devServer?.status === "running";
+  const devServerStarting = starting || devServer?.status === "starting";
+  const devServerFailure =
+    devError ??
+    (devServer?.status === "crashed"
+      ? devServer.lastOutput.at(-1)?.replace(/^(out|err):\s*/, "") ||
+        t("workspace.devServer.crashedHint")
+      : null);
 
   return (
     <div className="workspace-browser-tab">
@@ -359,7 +443,7 @@ export function BrowserTab() {
           className="workspace-browser-address"
           onSubmit={(event) => {
             event.preventDefault();
-            navigate(address);
+            void navigate(address);
           }}
         >
           <span
@@ -445,19 +529,27 @@ export function BrowserTab() {
       >
         {tabs.length === 0 && (
           <div className="workspace-empty browser">
-            <MonitorPlay size={22} aria-hidden="true" />
-            <p>{t("workspace.browserEmpty")}</p>
+            {devServerStarting ? (
+              <LoaderCircle size={22} className="spin" aria-hidden="true" />
+            ) : (
+              <MonitorPlay size={22} aria-hidden="true" />
+            )}
+            <p aria-live="polite">
+              {devServerStarting
+                ? t("workspace.devServer.startingHint")
+                : (devServerFailure ?? t("workspace.browserEmpty"))}
+            </p>
           </div>
         )}
       </div>
       {root && (
         <footer className="workspace-devserver-card">
-          {devServer && devServer.status !== "stopped" ? (
+          {devServerActive ? (
             <div className="devserver-state">
-              <span className={`devserver-dot ${devServer.status}`} aria-hidden="true" />
+              <span className={`devserver-dot ${devServer?.status}`} aria-hidden="true" />
               <span className="devserver-copy">
-                {t(`workspace.devServer.${devServer.status}`)}
-                {devServer.url ? ` · ${devServer.url}` : ""}
+                {t(`workspace.devServer.${devServer?.status}`)}
+                {devServer?.url ? ` · ${devServer.url}` : ""}
               </span>
               <button
                 type="button"
@@ -469,6 +561,19 @@ export function BrowserTab() {
               >
                 <Square size={12} aria-hidden="true" />
                 {t("workspace.devServer.stop")}
+              </button>
+            </div>
+          ) : devServer?.status === "crashed" && devPlan ? (
+            <div className="devserver-state">
+              <span className="devserver-dot crashed" aria-hidden="true" />
+              <span className="devserver-copy">{t("workspace.devServer.crashed")}</span>
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={starting}
+                onClick={startDevServer}
+              >
+                {t("workspace.devServer.retry")}
               </button>
             </div>
           ) : devPlan ? (
@@ -495,7 +600,7 @@ export function BrowserTab() {
           ) : (
             <span className="devserver-copy muted">{t("workspace.devServer.none")}</span>
           )}
-          {devError && <span className="devserver-error">{devError}</span>}
+          {devServerFailure && <span className="devserver-error">{devServerFailure}</span>}
           {screenshotOutputs.length > 0 && (
             <div className="devserver-screenshots" aria-label={t("workspace.recentScreenshots")}>
               {screenshotOutputs.map((output) => (

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const clearUsage = vi.fn<() => Promise<void>>();
 const loadRecords = vi.fn<() => Promise<void>>();
 const clearLogs = vi.fn();
+const infoLog = vi.fn<(channel: string, event: string, data: Record<string, unknown>) => void>();
 
 vi.mock("../../core/storage/db", () => ({
   db: { usage_records: { clear: clearUsage } },
@@ -33,6 +34,8 @@ vi.mock("../../core/logging/logger", () => ({
     getEntries: vi.fn(() => []),
     exportLogs: vi.fn(() => "[]"),
     clear: clearLogs,
+    info: infoLog,
+    latestActionId: vi.fn(() => "action-existing"),
     subscribe: vi.fn(() => () => undefined),
     persistenceStatus: vi.fn(() => ({ active: false, directory: null })),
   },
@@ -84,6 +87,20 @@ describe("data clearing confirmations", () => {
       }),
     );
     await waitFor(() => expect(clearLogs).toHaveBeenCalledOnce());
+  });
+
+  it("creates a screenshot evidence marker linked to an action", async () => {
+    const { DiagnosticsSettings } = await import("../DiagnosticsSettings");
+    render(<DiagnosticsSettings />);
+
+    fireEvent.click(screen.getByRole("button", { name: "diagnostics.createEvidenceMarker" }));
+
+    const call = infoLog.mock.calls.at(-1);
+    expect(call?.[0]).toBe("artifact");
+    expect(call?.[1]).toBe("evidence.capture");
+    expect(call?.[2]?.evidenceId).toMatch(/^ev-/);
+    expect(call?.[2]).toMatchObject({ actionId: "action-existing", screen: "diagnostics" });
+    expect(screen.getByRole("status").textContent).toBe("diagnostics.evidenceMarkerCreated");
   });
 
   it("shows the active persistence status with the log directory", async () => {

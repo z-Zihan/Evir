@@ -7265,6 +7265,21 @@
   font-weight: 620;
 }
 
+/* Project actions float above the row so the name can use the full width at
+ * rest. Reserve the toolbar footprint while it is visible; otherwise long
+ * names render beneath the opaque gaps between icons and become unreadable. */
+.project-item:hover .project-name,
+.project-item.active .project-name,
+.project-item:focus-within .project-name {
+  padding-right: 136px;
+}
+
+.project-item.folder-missing:hover .project-name,
+.project-item.folder-missing.active .project-name,
+.project-item.folder-missing:focus-within .project-name {
+  padding-right: 164px;
+}
+
 .project-folder-missing {
   flex: 0 0 auto;
   padding: 1px 6px;

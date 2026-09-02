@@ -76,6 +76,19 @@ describe("task output classification", () => {
     expect(output).toMatchObject({ kind: "created-file", type: "html", mimeType: "text/html" });
   });
 
+  it("matches relative tool paths to absolute creation snapshots", () => {
+    const output = deriveTaskOutput(
+      call("relative", "write_file", { path: "reports/result.md" }),
+      result("relative", "write_file"),
+      { ...CONTEXT, newSnapshots: [snapshot("/p/reports/result.md", false)] },
+    );
+    expect(output).toMatchObject({
+      kind: "created-file",
+      path: "/p/reports/result.md",
+      type: "md",
+    });
+  });
+
   it("does not classify created source files as outputs", () => {
     const output = deriveTaskOutput(
       call("t2", "write_file", { path: "/p/src/Button.tsx" }),
@@ -176,6 +189,18 @@ describe("changes derivation", () => {
     expect(changes).toHaveLength(2);
     expect(changes.find((c) => c.path === "/p/new.html")?.changeType).toBe("added");
     expect(changes.find((c) => c.path === "/p/old.ts")?.changeType).toBe("modified");
+  });
+
+  it("uses the absolute snapshot path for relative tool arguments", () => {
+    const changes = deriveChanges(
+      [call("relative", "write_file", { path: "report.md" })],
+      [result("relative", "write_file")],
+      [snapshot("/p/report.md", true)],
+      "run-1",
+    );
+    expect(changes).toEqual([
+      expect.objectContaining({ path: "/p/report.md", changeType: "modified" }),
+    ]);
   });
 
   it("keeps a created file 'added' across later edits in the same run", () => {

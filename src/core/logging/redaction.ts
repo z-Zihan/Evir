@@ -23,6 +23,21 @@ const SECRET_VALUE_PATTERNS: RegExp[] = [
   /\bBearer\s+[A-Za-z0-9._~+/=-]{8,}\b/gi,
 ];
 
+const URL_LIKE_KEY_PATTERN = /^(?:url|target|href|location)$/i;
+
+export function redactUrlForLog(value: string): string {
+  try {
+    const url = new URL(value);
+    url.username = "";
+    url.password = "";
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return value.split(/[?#]/, 1)[0] ?? "";
+  }
+}
+
 export function redactLogValue(value: unknown, seen: WeakSet<object> = new WeakSet()): unknown {
   if (typeof value === "string") {
     return SECRET_VALUE_PATTERNS.reduce(
@@ -41,10 +56,13 @@ export function redactLogValue(value: unknown, seen: WeakSet<object> = new WeakS
     if (seen.has(value)) return "[CIRCULAR]";
     seen.add(value);
     return Object.fromEntries(
-      Object.entries(value).map(([key, entryValue]) => [
-        key,
-        isSensitiveKey(key) ? "[REDACTED]" : redactLogValue(entryValue, seen),
-      ]),
+      Object.entries(value).map(([key, entryValue]) => {
+        if (isSensitiveKey(key)) return [key, "[REDACTED]"];
+        if (URL_LIKE_KEY_PATTERN.test(key) && typeof entryValue === "string") {
+          return [key, redactUrlForLog(entryValue)];
+        }
+        return [key, redactLogValue(entryValue, seen)];
+      }),
     );
   }
 

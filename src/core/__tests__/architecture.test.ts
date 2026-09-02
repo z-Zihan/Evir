@@ -217,7 +217,9 @@ describe("architecture dependency direction", () => {
       "about.description",
       "about.github",
       "about.license",
-      "about.mit",
+      "about.notDeclared",
+      "diagnostics.createEvidenceMarker",
+      "diagnostics.evidenceMarkerCreated",
     ];
 
     for (const locale of ["en.json", "zh-CN.json"]) {
