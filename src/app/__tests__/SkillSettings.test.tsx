@@ -159,8 +159,8 @@ describe("SkillSettings", () => {
       expect(screen.queryByText("common.loading")).toBeNull();
     });
 
-    const checkboxes = screen.getAllByRole("checkbox");
-    fireEvent.click(checkboxes[0]!);
+    const switches = screen.getAllByRole("switch");
+    fireEvent.click(switches[0]!);
     expect(mockToggleSkill).toHaveBeenCalledWith("bug-fix");
   });
 

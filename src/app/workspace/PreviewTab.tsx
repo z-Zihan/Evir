@@ -12,6 +12,7 @@ import {
   Play,
   Square,
 } from "lucide-react";
+import { Button } from "../../components/ui";
 import { useWorkspacePanelStore } from "../../features/workspace/workspace-panel-store";
 import {
   workspaceResourceKey,
@@ -307,19 +308,15 @@ function ResourceEmpty() {
           </div>
           <div className="app-preview-actions">
             {controller.active ? (
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => void controller.stop()}
-              >
+              <Button variant="secondary" size="lg" onClick={() => void controller.stop()}>
                 <Square size={12} aria-hidden="true" />
                 {t("workspace.devServer.stop")}
-              </button>
+              </Button>
             ) : (
               controller.plan && (
-                <button
-                  type="button"
-                  className="primary-button"
+                <Button
+                  variant="primary"
+                  size="lg"
                   disabled={controller.starting}
                   onClick={beginStart}
                 >
@@ -331,18 +328,18 @@ function ResourceEmpty() {
                   {controller.starting
                     ? t("workspace.previewApp.starting")
                     : t("workspace.previewApp.start")}
-                </button>
+                </Button>
               )
             )}
             {controller.server?.status === "crashed" && (
-              <button
-                type="button"
-                className="secondary-button"
+              <Button
+                variant="secondary"
+                size="lg"
                 disabled={controller.starting}
                 onClick={beginStart}
               >
                 {t("workspace.devServer.retry")}
-              </button>
+              </Button>
             )}
           </div>
         </section>
@@ -411,26 +408,28 @@ export function PreviewTab() {
       {activeResource && (
         <header className="workspace-resource-header">
           <div className="workspace-resource-nav">
-            <button
-              type="button"
-              className="workspace-icon-button"
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              className="disabled:opacity-35"
               onClick={goBack}
               disabled={!canGoBack}
               aria-label={t("workspace.back")}
               data-tip={t("workspace.back")}
             >
               <ChevronLeft size={14} aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              className="workspace-icon-button"
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              className="disabled:opacity-35"
               onClick={goForward}
               disabled={!canGoForward}
               aria-label={t("workspace.forward")}
               data-tip={t("workspace.forward")}
             >
               <ChevronRight size={14} aria-hidden="true" />
-            </button>
+            </Button>
           </div>
           <span className="workspace-resource-title" title={workspaceResourceTitle(activeResource)}>
             {workspaceResourceTitle(activeResource)}
@@ -460,9 +459,9 @@ export function PreviewTab() {
                 </button>
               </div>
             )}
-            <button
-              type="button"
-              className="workspace-icon-button"
+            <Button
+              variant="ghost"
+              size="icon-xs"
               onClick={togglePin}
               aria-label={isPinned ? t("workspace.unpin") : t("workspace.pin")}
               aria-pressed={isPinned}
@@ -473,7 +472,7 @@ export function PreviewTab() {
               ) : (
                 <Pin size={14} aria-hidden="true" />
               )}
-            </button>
+            </Button>
           </div>
         </header>
       )}

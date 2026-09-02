@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BookOpenText, FileUp, Plus, Search, ShieldCheck, Trash2, X } from "lucide-react";
+import { Button, Switch } from "../components/ui";
 import { useSkillStore } from "../features/skills/skill-store";
 import type { SkillManifest, SkillRiskLevel } from "../core/skills/types";
 import { useConfirmationDialog } from "./useConfirmationDialog";
@@ -205,17 +206,19 @@ export function SkillSettings() {
             className="hidden"
             onChange={(e) => void handleFileChange(e)}
           />
-          <button
-            type="button"
-            className="secondary-button"
+          <Button
+            variant="secondary"
+            size="lg"
+            className="secondary-button h-auto"
             onClick={() => fileInputRef.current?.click()}
           >
             <FileUp size={14} aria-hidden="true" />
             {t("skill.installFromFile")}
-          </button>
-          <button
-            type="button"
-            className={showCreate ? "secondary-button" : "primary-button"}
+          </Button>
+          <Button
+            variant={showCreate ? "secondary" : "primary"}
+            size="lg"
+            className={`h-auto ${showCreate ? "secondary-button" : "primary-button"}`}
             onClick={() => setShowCreate(!showCreate)}
           >
             {showCreate ? (
@@ -224,7 +227,7 @@ export function SkillSettings() {
               <Plus size={14} aria-hidden="true" />
             )}
             {showCreate ? t("skill.cancel") : t("skill.create")}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -385,13 +388,11 @@ export function SkillSettings() {
                       </button>
                     )}
                     <label className="skill-toggle">
-                      <input
-                        type="checkbox"
+                      <Switch
                         checked={isEnabled}
+                        onCheckedChange={() => void toggleSkill(skill.manifest.id)}
                         aria-label={`${displayName}: ${isEnabled ? t("skill.enabled") : t("skill.disabled")}`}
-                        onChange={() => void toggleSkill(skill.manifest.id)}
                       />
-                      <span aria-hidden="true" />
                     </label>
                   </div>
                 </li>

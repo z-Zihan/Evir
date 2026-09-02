@@ -11,6 +11,7 @@ import {
   SlidersHorizontal,
   Trash2,
 } from "lucide-react";
+import { Button, Switch } from "../components/ui";
 import { PROVIDER_PRESETS } from "../core/providers/provider-presets";
 import type { ProviderPreset, ProviderRegion } from "../core/providers/types";
 import {
@@ -293,9 +294,14 @@ export function ProviderSettings() {
               <h4>{t("provider.configured")}</h4>
               <span>{t("provider.configuredDescription")}</span>
             </div>
-            <button className="secondary-button" type="button" onClick={openAdd}>
+            <Button
+              variant="secondary"
+              size="lg"
+              className="secondary-button h-auto"
+              onClick={openAdd}
+            >
               <Plus size={14} /> {t("provider.add")}
-            </button>
+            </Button>
           </div>
           <div className="provider-connection-list">
             {providers.map((provider) => (
@@ -508,16 +514,15 @@ export function ProviderSettings() {
                 )}
               </label>
               <label className="provider-field-wide provider-capability-toggle">
-                <input
-                  type="checkbox"
-                  checked={form.toolCalling}
-                  onChange={(event) => updateField("toolCalling", event.target.checked)}
-                />
                 <span>
                   <strong>{t("provider.toolCalling")}</strong>
                   <small>{t("provider.toolCallingDescription")}</small>
                 </span>
-                <i className="provider-capability-switch" aria-hidden="true" />
+                <Switch
+                  checked={form.toolCalling}
+                  onCheckedChange={(checked) => updateField("toolCalling", checked)}
+                  aria-label={t("provider.toolCalling")}
+                />
               </label>
               <label className="provider-field-wide">
                 <span>{t("provider.maxContextTokens")}</span>
@@ -564,14 +569,15 @@ export function ProviderSettings() {
                     aria-invalid={Boolean(errors.modelId)}
                     onChange={(event) => updateField("modelId", event.target.value)}
                   />
-                  <button
+                  <Button
+                    variant="secondary"
+                    size="lg"
                     className="secondary-button"
-                    type="button"
                     disabled={fetchingModels}
                     onClick={() => void handleFetchModels()}
                   >
                     {fetchingModels ? t("provider.fetchingModels") : t("provider.fetchModels")}
-                  </button>
+                  </Button>
                 </div>
                 {fieldError("modelId") && (
                   <small className="field-error">{fieldError("modelId")}</small>
@@ -589,21 +595,22 @@ export function ProviderSettings() {
               </div>
             )}
             <div className="form-actions dialog-form-actions">
-              <button
-                className="secondary-button"
-                type="button"
+              <Button
+                variant="secondary"
+                size="lg"
+                className="secondary-button h-auto"
                 disabled={testing}
                 onClick={() => void handleTest()}
               >
                 {testing ? "…" : t("provider.testConnection")}
-              </button>
+              </Button>
               <span />
               <button className="text-button" type="button" onClick={resetDialog}>
                 {t("provider.cancel")}
               </button>
-              <button className="primary-button" type="submit">
+              <Button variant="primary" size="lg" className="primary-button h-auto" type="submit">
                 {editingId ? t("provider.saveChanges") : t("provider.save")}
-              </button>
+              </Button>
             </div>
           </form>
         </SettingsFormDialog>

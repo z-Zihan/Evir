@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Camera, ImagePlus, ShieldCheck, Trash2, UserRound } from "lucide-react";
+import { Button } from "../components/ui";
 import {
   AVATAR_COLORS,
   DEFAULT_PERSONALIZATION_PREFERENCES,
@@ -236,11 +237,11 @@ export function LocalIdentityPanel() {
             >
               {t("personalization.resetIdentity")}
             </button>
-            <button className="primary-button" type="submit">
+            <Button variant="primary" size="lg" className="primary-button h-auto" type="submit">
               {status === "saving"
                 ? t("personalization.saving")
                 : t("personalization.saveIdentity")}
-            </button>
+            </Button>
           </div>
         </fieldset>
         {error && (

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useOverlayBrowserGuard } from "./workspace/use-overlay-browser-guard";
 import { FolderPlus, ShieldCheck, X } from "lucide-react";
+import { Button } from "../components/ui";
 import type { PermissionProfile, ProjectRecord } from "../core/storage/db";
 import { useProjectStore } from "../features/projects/project-store";
 import { getRuntime } from "../runtime/use-runtime";
@@ -120,10 +121,10 @@ export function ProjectPermissionPanel({ project, onClose }: ProjectPermissionPa
           <div className="project-access-roots">
             <div className="project-access-roots-header">
               <strong>{t("project.accessRoots")}</strong>
-              <button type="button" className="secondary-button" onClick={() => void addRoot()}>
+              <Button variant="secondary" size="lg" onClick={() => void addRoot()}>
                 <FolderPlus size={13} aria-hidden="true" />
                 {t("project.addAccessRoot")}
-              </button>
+              </Button>
             </div>
             <p className="project-access-roots-hint">{t("project.accessRootsHint")}</p>
             {project.additionalAccessRoots.length === 0 ? (

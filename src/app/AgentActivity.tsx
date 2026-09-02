@@ -16,6 +16,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Button } from "../components/ui";
 import type { MessageRecord, ToolCallRecord, ToolResultRecord } from "../core/storage/db";
 import {
   TOOL_DENIED,
@@ -322,22 +323,26 @@ export function AgentActivity({
             )}
           </div>
           <div className="approval-actions">
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="lg"
               className="secondary-button"
               disabled={isApprovalConversationStreaming}
               onClick={() => void denyTool()}
             >
               {t("tools.deny")}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="primary"
+              size="lg"
               className="primary-button"
               disabled={isApprovalConversationStreaming}
               onClick={() => void approveTool()}
             >
               {t("tools.approveOnce")}
-            </button>
+            </Button>
           </div>
         </div>
       )}

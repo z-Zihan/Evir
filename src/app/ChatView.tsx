@@ -23,6 +23,7 @@ import {
   Play,
   X,
 } from "lucide-react";
+import { Button } from "../components/ui";
 import { useChatStore, type ChatState } from "../features/chat/chat-store";
 import { useShallow } from "zustand/react/shallow";
 import { useProviderStore } from "../features/provider/provider-store";
@@ -545,15 +546,17 @@ export function ChatView({
   const header = (
     <header className="workspace-header">
       <div className="workspace-heading">
-        <button
-          className="header-icon-button"
+        <Button
+          variant="ghost"
+          size="icon"
           type="button"
+          className="header-icon-button"
           onClick={onToggleSidebar}
           aria-label={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")}
           data-tip={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")}
         >
           <PanelLeft size={18} aria-hidden="true" />
-        </button>
+        </Button>
         <div className="workspace-title-block">
           <h1>{conversationTitle}</h1>
           <span className="workspace-context">
@@ -565,16 +568,18 @@ export function ChatView({
       </div>
       <div className="workspace-controls">
         {runtime.target === "desktop" && (
-          <button
-            className="header-icon-button workspace-toggle"
+          <Button
+            variant="ghost"
+            size="icon"
             type="button"
+            className="header-icon-button workspace-toggle"
             onClick={() => togglePanel()}
             aria-label={panelOpen ? t("workspace.close") : t("workspace.open")}
             aria-pressed={panelOpen}
             data-tip={panelOpen ? t("workspace.close") : t("workspace.open")}
           >
             <PanelRight size={18} aria-hidden="true" />
-          </button>
+          </Button>
         )}
         <ModelSwitcher
           activeProvider={effectiveProvider}
@@ -602,10 +607,16 @@ export function ChatView({
             <h2>{t("chat.noProviderTitle")}</h2>
             <p>{t("chat.noProviderDescription")}</p>
           </div>
-          <button className="primary-button" type="button" onClick={onOpenSettings}>
+          <Button
+            variant="primary"
+            size="lg"
+            type="button"
+            className="primary-button"
+            onClick={onOpenSettings}
+          >
             <Settings2 size={16} aria-hidden="true" />
             {t("chat.addProviderFirst")}
-          </button>
+          </Button>
         </section>
       </main>
     );
@@ -647,8 +658,10 @@ export function ChatView({
                 currentAgentRun.status === "needs_verification") &&
               !isCurrentConversationStreaming && (
                 <div className="plan-execute-row">
-                  <button
+                  <Button
                     type="button"
+                    variant="primary"
+                    size="lg"
                     className="primary-button"
                     onClick={() => {
                       setMode("agent");
@@ -658,7 +671,7 @@ export function ChatView({
                   >
                     <Play size={14} aria-hidden="true" />
                     {t("plan.executePlan")}
-                  </button>
+                  </Button>
                   <span className="plan-execute-hint">{t("plan.executeHint")}</span>
                 </div>
               )}
@@ -817,16 +830,17 @@ export function ChatView({
           />
           <div className="composer-footer">
             <div className="composer-tools">
-              <button
+              <Button
                 type="button"
-                className="composer-tool-button"
+                variant="ghost"
+                className="composer-tool-button size-[30px] rounded-[7px] font-normal"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isCurrentConversationStreaming}
                 aria-label={t("chat.attachFile")}
                 data-tip={t("chat.attachFile")}
               >
                 <Paperclip size={16} />
-              </button>
+              </Button>
 
               <SkillPicker
                 mode={runtime.target === "web" ? "ask" : effectiveConversationMode}
@@ -849,9 +863,11 @@ export function ChatView({
               </span>
             </div>
             {isCurrentConversationStreaming ? (
-              <button
+              <Button
                 type="button"
-                className="send-button stop-button"
+                variant="contrast"
+                size="default"
+                className="send-button stop-button h-[31px] rounded-lg px-3 text-[11.5px] bg-danger hover:bg-danger text-white"
                 onClick={(event) => {
                   // The send button morphs into Stop after the first click. Ignore the
                   // second click of the same physical double-click so a rapid submit
@@ -862,11 +878,13 @@ export function ChatView({
               >
                 <Square size={14} />
                 {t("chat.stop")}
-              </button>
+              </Button>
             ) : (
-              <button
+              <Button
                 type="button"
-                className="send-button"
+                variant="contrast"
+                size="default"
+                className="send-button h-[31px] rounded-lg px-3 text-[11.5px]"
                 aria-label={t("chat.send")}
                 disabled={
                   isCurrentConversationStreaming ||
@@ -876,7 +894,7 @@ export function ChatView({
               >
                 {t("chat.send")}
                 <ArrowUp size={15} aria-hidden="true" />
-              </button>
+              </Button>
             )}
           </div>
           <input

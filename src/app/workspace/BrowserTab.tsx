@@ -14,6 +14,7 @@ import {
   Unplug,
   X,
 } from "lucide-react";
+import { Button } from "../../components/ui";
 import {
   panelAnnotate,
   panelLayoutUpdate,
@@ -345,36 +346,39 @@ export function BrowserTab() {
   return (
     <div className="workspace-browser-tab">
       <header className="workspace-browser-toolbar">
-        <button
-          type="button"
-          className="workspace-icon-button"
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          className="disabled:opacity-35"
           disabled={!activeTab}
           onClick={() => activeTab && void panelTabHistory(activeTab.id, "back")}
           aria-label={t("browser.back")}
           data-tip={t("browser.back")}
         >
           <ArrowLeft size={14} aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          className="workspace-icon-button"
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          className="disabled:opacity-35"
           disabled={!activeTab}
           onClick={() => activeTab && void panelTabHistory(activeTab.id, "forward")}
           aria-label={t("browser.forward")}
           data-tip={t("browser.forward")}
         >
           <ArrowRight size={14} aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          className="workspace-icon-button"
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          className="disabled:opacity-35"
           disabled={!activeTab}
           onClick={() => activeTab && void panelTabHistory(activeTab.id, "reload")}
           aria-label={t("browser.reload")}
           data-tip={t("browser.reload")}
         >
           <RotateCw size={14} aria-hidden="true" />
-        </button>
+        </Button>
         <form
           className="workspace-browser-address"
           onSubmit={(event) => {
@@ -396,19 +400,21 @@ export function BrowserTab() {
             spellCheck={false}
           />
         </form>
-        <button
-          type="button"
-          className="workspace-icon-button"
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          className="disabled:opacity-35"
           disabled={!tabs.length}
           onClick={() => void panelTabNew("about:blank").then(() => panelTabList().then(setTabs))}
           aria-label={t("workspace.newTab")}
           data-tip={t("workspace.newTab")}
         >
           <Plus size={14} aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          className={`workspace-icon-button${annotating ? " active" : ""}`}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          className={`workspace-icon-button disabled:opacity-35${annotating ? " active" : ""}`}
           disabled={!activeTab}
           aria-pressed={annotating}
           aria-label={t("workspace.annotate")}
@@ -420,7 +426,7 @@ export function BrowserTab() {
           }}
         >
           <MousePointerClick size={14} aria-hidden="true" />
-        </button>
+        </Button>
         {agentUsingPage && (
           <span className="workspace-browser-agent-chip" role="status">
             <Bot size={11} aria-hidden="true" />
@@ -479,14 +485,14 @@ export function BrowserTab() {
                 : t("browser.networkFailedDetail", { url: pageError.url })}
             </p>
             <div className="workspace-browser-error-actions">
-              <button
-                type="button"
-                className="secondary-button"
+              <Button
+                variant="secondary"
+                size="lg"
                 onClick={() => void navigate(pageError.url, { skipProbe: true })}
               >
                 <RotateCw size={12} aria-hidden="true" />
                 {t("browser.retry")}
-              </button>
+              </Button>
             </div>
           </div>
         ) : tabs.length === 0 ? (
@@ -513,23 +519,23 @@ export function BrowserTab() {
                 {t(`workspace.devServer.${dev.server.status}`)}
                 {dev.server.url ? ` · ${dev.server.url}` : ""}
               </span>
-              <button type="button" className="secondary-button" onClick={() => void dev.stop()}>
+              <Button variant="secondary" size="lg" onClick={() => void dev.stop()}>
                 <Square size={12} aria-hidden="true" />
                 {t("workspace.devServer.stop")}
-              </button>
+              </Button>
             </div>
           ) : dev.server.status === "crashed" ? (
             <div className="devserver-state">
               <span className="devserver-dot crashed" aria-hidden="true" />
               <span className="devserver-copy">{t("workspace.devServer.crashed")}</span>
-              <button
-                type="button"
-                className="secondary-button"
+              <Button
+                variant="secondary"
+                size="lg"
                 disabled={dev.starting}
                 onClick={() => void dev.start()}
               >
                 {t("workspace.devServer.retry")}
-              </button>
+              </Button>
             </div>
           ) : null}
           {devServerFailure && <span className="devserver-error">{devServerFailure}</span>}

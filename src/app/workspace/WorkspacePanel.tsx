@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
+import { Button } from "../../components/ui";
 import {
   useWorkspacePanelStore,
   type WorkspaceTab,
@@ -94,15 +95,16 @@ export function WorkspacePanel() {
               {tab.badge === "dot" && <span className="workspace-tab-dot" aria-hidden="true" />}
             </button>
           ))}
-        <button
-          type="button"
-          className="workspace-panel-close"
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          className="ml-auto"
           onClick={closePanel}
           aria-label={t("workspace.close")}
           data-tip={t("workspace.close")}
         >
           <X size={14} aria-hidden="true" />
-        </button>
+        </Button>
       </div>
       <div
         className="workspace-panel-content"

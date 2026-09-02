@@ -22,13 +22,16 @@ export const buttonVariants = cva(
         destructive: "border-danger bg-danger text-white hover:opacity-90",
         "ghost-destructive":
           "text-muted hover:border-danger/40 hover:bg-surface-hover hover:text-danger",
+        /** Foreground-on-surface contrast action (composer send). */
+        contrast: "bg-foreground text-surface hover:bg-foreground/90",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
         sm: "h-7 px-2.5 text-[11.5px]",
         default: "h-8 px-3 text-[12.5px]",
         lg: "h-[38px] px-3.5 text-[12.5px]",
-        "icon-sm": "size-7",
+        "icon-xs": "size-6 rounded-md",
+        "icon-sm": "size-7 rounded-md",
         icon: "size-8",
         "icon-lg": "size-[38px]",
       },

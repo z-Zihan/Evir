@@ -9,6 +9,7 @@ import {
   Settings2,
   X,
 } from "lucide-react";
+import { Button } from "../components/ui";
 import type { PersonalizationPreferences } from "../core/personalization/types";
 import { isMac } from "../core/shortcuts/platform";
 import type { ProjectRecord } from "../core/storage/db";
@@ -253,15 +254,16 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
             <strong className="brand-name">Evir</strong>
             <span className="brand-caption">{t("sidebar.localAi")}</span>
           </div>
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             className="sidebar-close"
-            type="button"
             onClick={onClose}
             aria-label={t("sidebar.hide")}
             data-tip={t("sidebar.hide")}
           >
             <X size={17} />
-          </button>
+          </Button>
         </div>
 
         <div className="sidebar-search">
@@ -280,16 +282,17 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
           )}
         </div>
 
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           className="sidebar-sort-toggle"
-          type="button"
           onClick={() => setSortOrder(sortOrder === "recent" ? "name" : "recent")}
           aria-label={t("sidebar.sortToggle")}
           data-tip={t("sidebar.sortToggle")}
         >
           {sortOrder === "recent" ? t("sidebar.sortRecent") : t("sidebar.sortName")}
           <ChevronDown size={12} aria-hidden="true" />
-        </button>
+        </Button>
 
         <div className="sidebar-scroll">
           {getRuntime().target === "desktop" && (
@@ -300,15 +303,15 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
             >
               <div className="section-label-row">
                 <div className="section-label">{t("sidebar.projects")}</div>
-                <button
-                  className="section-add"
-                  type="button"
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
                   onClick={() => void handleAddProject()}
                   aria-label={t("sidebar.addProject")}
                   data-tip={t("sidebar.addProject")}
                 >
                   <FolderPlus size={13} />
-                </button>
+                </Button>
               </div>
               {visibleProjects.length === 0 ? (
                 <div className="empty-list">{t("sidebar.noProjects")}</div>
@@ -390,15 +393,15 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
           >
             <div className="section-label-row">
               <div className="section-label">{t("sidebar.chats")}</div>
-              <button
-                className="section-add"
-                type="button"
+              <Button
+                variant="ghost"
+                size="icon-xs"
                 onClick={handleNewChat}
                 aria-label={t("sidebar.newChat")}
                 data-tip={`${t("sidebar.newChat")} (${shortcutModifier}N)`}
               >
                 <MessageSquarePlus size={13} />
-              </button>
+              </Button>
             </div>
             {standaloneChats.length === 0 ? (
               <div className="empty-list">{t("sidebar.noConversations")}</div>
@@ -448,9 +451,9 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
             </span>
             <ChevronRight size={14} aria-hidden="true" />
           </button>
-          <button
+          <Button
+            variant="ghost"
             className="settings-button"
-            type="button"
             onClick={() => onOpenSettings()}
             aria-label={t("settings.title")}
           >
@@ -459,7 +462,7 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
             <span className="settings-shortcut" aria-hidden="true">
               {shortcutModifier},
             </span>
-          </button>
+          </Button>
         </div>
       </aside>
       {permissionProject && (

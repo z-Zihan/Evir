@@ -24,6 +24,7 @@ import {
 } from "../core/context/crash-recovery";
 import { getRuntime } from "../runtime/use-runtime";
 import { logger } from "../core/logging/logger";
+import { Button } from "../components/ui";
 
 export function App() {
   const { t } = useTranslation();
@@ -243,13 +244,15 @@ export function App() {
             <button type="button" onClick={() => void dismissRecovery(unfinishedRuns[0]!)}>
               {t("recovery.dismiss")}
             </button>
-            <button
-              className="primary-button"
+            <Button
+              variant="primary"
+              size="lg"
               type="button"
+              className="primary-button"
               onClick={() => void resumeRecovery(unfinishedRuns[0]!)}
             >
               {t("recovery.resume")}
-            </button>
+            </Button>
           </div>
         </aside>
       )}

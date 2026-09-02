@@ -7,6 +7,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
 } from "lucide-react";
+import { Switch } from "../components/ui";
 import {
   DEFAULT_PERSONALIZATION_PREFERENCES,
   type PersonalizationPreferences,
@@ -122,13 +123,12 @@ export function PersonalizationPanel() {
               <strong>{t("personalization.enable")}</strong>
               <small>{form.enabled ? t("personalization.on") : t("personalization.off")}</small>
             </span>
-            <input
-              type="checkbox"
+            <Switch
               checked={form.enabled}
               disabled={status !== "idle"}
-              onChange={(event) => update("enabled", event.target.checked)}
+              onCheckedChange={(checked) => update("enabled", checked)}
+              aria-label={t("personalization.enable")}
             />
-            <i aria-hidden="true" />
           </label>
         </div>
 

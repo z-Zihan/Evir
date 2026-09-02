@@ -1,6 +1,7 @@
 import { memo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pencil, Pin, Trash2 } from "lucide-react";
+import { Button } from "../components/ui";
 import type { ConversationRecord } from "../core/storage/db";
 import type { ConversationRunStatus } from "./useConversationStatus";
 
@@ -99,18 +100,18 @@ export const SidebarConversationItem = memo(function SidebarConversationItem({
       {!renaming && status && <StatusMark status={status} />}
       {!renaming && (
         <div className="conversation-actions" onClick={(event) => event.stopPropagation()}>
-          <button
-            className="conversation-action-btn"
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon-xs"
             aria-label={conversation.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
             data-tip={conversation.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
             onClick={onTogglePin}
           >
             <Pin size={13} />
-          </button>
-          <button
-            className="conversation-action-btn"
-            type="button"
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-xs"
             aria-label={t("sidebar.rename")}
             data-tip={t("sidebar.rename")}
             onClick={() => {
@@ -119,16 +120,17 @@ export const SidebarConversationItem = memo(function SidebarConversationItem({
             }}
           >
             <Pencil size={13} />
-          </button>
-          <button
-            className="conversation-action-btn conversation-delete"
-            type="button"
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="conversation-delete"
             aria-label={t("provider.delete")}
             data-tip={t("provider.delete")}
             onClick={onDelete}
           >
             <Trash2 size={14} />
-          </button>
+          </Button>
         </div>
       )}
     </div>

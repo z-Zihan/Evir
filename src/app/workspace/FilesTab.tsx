@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FileCode2, FolderSearch, RefreshCw, Search } from "lucide-react";
+import { Button } from "../../components/ui";
 import { useFilesTabStore } from "../../features/workspace/files-tab-store";
 import { useRunWorkspaceStore } from "../../features/workspace/workspace-run-store";
 import { useWorkspacePanelStore } from "../../features/workspace/workspace-panel-store";
@@ -96,9 +97,9 @@ export function FilesTab() {
         <header className="workspace-section-header">
           <h2>{t("workspace.projectFiles")}</h2>
           <span className="workspace-changes-summary">{isRepo ? (gitBranch ?? "") : ""}</span>
-          <button
-            type="button"
-            className="workspace-icon-button"
+          <Button
+            variant="ghost"
+            size="icon-xs"
             onClick={() => {
               void reloadDir(root);
               void refreshGitStatus(root);
@@ -108,7 +109,7 @@ export function FilesTab() {
             data-tip={t("workspace.refresh")}
           >
             <RefreshCw size={13} aria-hidden="true" />
-          </button>
+          </Button>
         </header>
         <div className="workspace-file-search">
           <Search size={13} aria-hidden="true" />

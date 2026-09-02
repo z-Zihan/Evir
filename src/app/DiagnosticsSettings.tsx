@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import packageJson from "../../package.json";
+import { Button } from "../components/ui";
 import { DiagnosticExportCancelledError } from "../core/logging/diagnostic-port";
 import { logger } from "../core/logging/logger";
 import type { DiagnosticExportOptions, LogLevel } from "../core/logging/types";
@@ -171,17 +172,17 @@ export function DiagnosticsSettings() {
           <p>{t("settingsDescriptions.diagnostics")}</p>
         </div>
         <div className="flex gap-2">
-          <button type="button" className="secondary-button" onClick={handleEvidenceMarker}>
+          <Button variant="secondary" size="lg" onClick={handleEvidenceMarker}>
             {t("diagnostics.createEvidenceMarker")}
-          </button>
+          </Button>
           {getRuntime().target === "desktop" && (
-            <button type="button" className="secondary-button" onClick={handleBundleExport}>
+            <Button variant="secondary" size="lg" onClick={handleBundleExport}>
               {t("diagnostics.exportBundle")}
-            </button>
+            </Button>
           )}
-          <button type="button" className="secondary-button" onClick={() => void handleExport()}>
+          <Button variant="secondary" size="lg" onClick={() => void handleExport()}>
             {t("diagnostics.export")}
-          </button>
+          </Button>
           <button
             type="button"
             className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg cursor-pointer text-sm hover:bg-surface-hover transition danger"

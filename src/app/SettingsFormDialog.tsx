@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { X } from "lucide-react";
+import { Button } from "../components/ui";
 
 interface SettingsFormDialogProps {
   title: string;
@@ -113,14 +114,14 @@ export function SettingsFormDialog({
           >
             <span>{discardPrompt?.message ?? "Unsaved changes will be lost."}</span>
             <div className="settings-form-discard-actions">
-              <button
+              <Button
                 ref={keepRef}
-                type="button"
-                className="secondary-button"
+                variant="secondary"
+                size="lg"
                 onClick={() => setConfirmingDiscard(false)}
               >
                 {discardPrompt?.keepLabel ?? "Keep editing"}
-              </button>
+              </Button>
               <button type="button" className="danger-button" onClick={() => onCloseRef.current()}>
                 {discardPrompt?.discardLabel ?? "Discard changes"}
               </button>

@@ -11,6 +11,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { Button } from "../components/ui";
 import {
   activateTab as activateTabCommand,
   clearSiteData as clearSiteDataCommand,
@@ -121,9 +122,9 @@ export function BrowserWorkbench() {
   return (
     <div className="browser-workbench">
       <header className="browser-toolbar" role="toolbar" aria-label={t("browser.toolbar")}>
-        <button
-          type="button"
-          className="browser-tool-button"
+        <Button
+          variant="ghost"
+          className="h-7 w-[30px] rounded-md disabled:opacity-40"
           aria-label={t("browser.back")}
           disabled={!activeTab}
           onClick={() => {
@@ -131,10 +132,10 @@ export function BrowserWorkbench() {
           }}
         >
           <ArrowLeft size={15} />
-        </button>
-        <button
-          type="button"
-          className="browser-tool-button"
+        </Button>
+        <Button
+          variant="ghost"
+          className="h-7 w-[30px] rounded-md disabled:opacity-40"
           aria-label={t("browser.forward")}
           disabled={!activeTab}
           onClick={() => {
@@ -142,10 +143,10 @@ export function BrowserWorkbench() {
           }}
         >
           <ArrowRight size={15} />
-        </button>
-        <button
-          type="button"
-          className="browser-tool-button"
+        </Button>
+        <Button
+          variant="ghost"
+          className="h-7 w-[30px] rounded-md disabled:opacity-40"
           aria-label={t("browser.reload")}
           disabled={!activeTab}
           onClick={() => {
@@ -153,7 +154,7 @@ export function BrowserWorkbench() {
           }}
         >
           <RotateCw size={14} />
-        </button>
+        </Button>
         <form
           className="browser-address-form"
           onSubmit={(event) => {
@@ -176,24 +177,24 @@ export function BrowserWorkbench() {
             spellCheck={false}
           />
           {activeTab && (
-            <button
-              type="button"
-              className="browser-tool-button browser-external"
+            <Button
+              variant="ghost"
+              className="h-7 w-[30px] rounded-md disabled:opacity-40"
               aria-label={t("browser.openExternal")}
               onClick={() => void openExternal(activeTab.url).catch(() => undefined)}
             >
               <ExternalLink size={13} />
-            </button>
+            </Button>
           )}
         </form>
-        <button
-          type="button"
-          className="browser-tool-button"
+        <Button
+          variant="ghost"
+          className="h-7 w-[30px] rounded-md disabled:opacity-40"
           aria-label={t("browser.newTab")}
           onClick={() => void run(() => newTabCommand("https://duckduckgo.com"))}
         >
           <Plus size={15} />
-        </button>
+        </Button>
       </header>
       <div className="browser-tabbar" role="tablist" aria-label={t("browser.tabs")}>
         {tabs.map((tab) => (
@@ -205,9 +206,9 @@ export function BrowserWorkbench() {
             onClick={() => void run(() => activateTabCommand(tab.id))}
           >
             <span className="browser-tab-title">{tab.title || hostOf(tab.url)}</span>
-            <button
-              type="button"
-              className="browser-tab-close"
+            <Button
+              variant="ghost"
+              className="h-auto rounded-sm p-px"
               aria-label={t("browser.closeTab")}
               onClick={(event) => {
                 event.stopPropagation();
@@ -215,7 +216,7 @@ export function BrowserWorkbench() {
               }}
             >
               <X size={11} />
-            </button>
+            </Button>
           </div>
         ))}
         {tabs.length === 0 && <span className="browser-empty-hint">{t("browser.emptyHint")}</span>}
@@ -226,13 +227,13 @@ export function BrowserWorkbench() {
           <div className="browser-start">
             <Globe size={28} aria-hidden="true" />
             <p>{t("browser.startHint")}</p>
-            <button
-              type="button"
-              className="primary-button"
+            <Button
+              variant="primary"
+              size="lg"
               onClick={() => void run(() => newTabCommand("https://duckduckgo.com"))}
             >
               {t("browser.openStartPage")}
-            </button>
+            </Button>
           </div>
         )}
       </div>

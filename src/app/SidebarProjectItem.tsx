@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   Trash2,
 } from "lucide-react";
+import { Button } from "../components/ui";
 import type { ProjectRecord } from "../core/storage/db";
 
 interface SidebarProjectItemProps {
@@ -108,46 +109,46 @@ export const SidebarProjectItem = memo(function SidebarProjectItem({
             onClick={(event) => event.stopPropagation()}
           >
             {folderMissing && (
-              <button
-                className="conversation-action-btn"
-                type="button"
+              <Button
+                variant="ghost"
+                size="icon-xs"
                 aria-label={t("sidebar.locateFolder")}
                 data-tip={t("sidebar.locateFolder")}
                 onClick={onLocate}
               >
                 <FolderSearch size={13} />
-              </button>
+              </Button>
             )}
-            <button
-              className="conversation-action-btn"
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon-xs"
               aria-label={t("sidebar.newTask")}
               data-tip={t("sidebar.newTask")}
               onClick={onNewTask}
             >
               <Plus size={13} />
-            </button>
-            <button
-              className="conversation-action-btn"
-              type="button"
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-xs"
               aria-label={t("sidebar.permission")}
               data-tip={t("sidebar.permission")}
               onClick={onPermission}
             >
               <ShieldCheck size={13} />
-            </button>
-            <button
-              className="conversation-action-btn"
-              type="button"
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-xs"
               aria-label={project.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
               data-tip={project.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
               onClick={onTogglePin}
             >
               <Pin size={13} />
-            </button>
-            <button
-              className="conversation-action-btn"
-              type="button"
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-xs"
               aria-label={t("sidebar.rename")}
               data-tip={t("sidebar.rename")}
               onClick={() => {
@@ -156,16 +157,17 @@ export const SidebarProjectItem = memo(function SidebarProjectItem({
               }}
             >
               <Pencil size={13} />
-            </button>
-            <button
-              className="conversation-action-btn conversation-delete"
-              type="button"
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              className="conversation-delete"
               aria-label={t("sidebar.removeProject")}
               data-tip={t("sidebar.removeProject")}
               onClick={onRemove}
             >
               <Trash2 size={14} />
-            </button>
+            </Button>
           </div>
         )}
       </div>

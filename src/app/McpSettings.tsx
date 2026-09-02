@@ -11,6 +11,7 @@ import {
   Terminal,
   Trash2,
 } from "lucide-react";
+import { Button, Switch } from "../components/ui";
 import type { McpTool, McpTransport } from "../core/mcp/types";
 import type { ToolResult } from "../core/providers/tool-registry";
 import { useMcpStore, type McpServerEntry } from "../features/mcp/mcp-store";
@@ -248,9 +249,9 @@ export function McpSettings() {
           <span className="settings-count-badge">
             {t("mcp.serverSummary", { enabled: enabledCount, total: servers.length })}
           </span>
-          <button className="primary-button" type="button" onClick={openAdd}>
+          <Button variant="primary" size="lg" className="primary-button h-auto" onClick={openAdd}>
             <Plus size={14} /> {t("mcp.add")}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -268,9 +269,9 @@ export function McpSettings() {
           </span>
           <strong>{t("mcp.noServers")}</strong>
           <p>{t("settingsDescriptions.mcpEmpty")}</p>
-          <button className="secondary-button" type="button" onClick={openAdd}>
+          <Button variant="secondary" size="lg" onClick={openAdd}>
             <Plus size={14} /> {t("mcp.add")}
-          </button>
+          </Button>
         </div>
       ) : (
         <ul className="mcp-list">
@@ -401,15 +402,16 @@ export function McpSettings() {
                                       {test.error}
                                     </p>
                                   )}
-                                  <button
-                                    className="secondary-button"
-                                    type="button"
+                                  <Button
+                                    variant="secondary"
+                                    size="lg"
+                                    className="secondary-button h-auto"
                                     disabled={test.running}
                                     onClick={() => requestToolTest(server, tool)}
                                   >
                                     <Play size={13} />
                                     {test.running ? t("mcp.testingTool") : t("mcp.testTool")}
-                                  </button>
+                                  </Button>
                                   {test.result && (
                                     <pre
                                       className={
@@ -433,15 +435,16 @@ export function McpSettings() {
                       <span>
                         {server.enabled ? t("mcp.configurationEnabled") : t("mcp.disabled")}
                       </span>
-                      <input
-                        type="checkbox"
+                      <Switch
                         checked={server.enabled}
-                        onChange={() => {
+                        onCheckedChange={() => {
                           clearServerToolTests(server.id);
                           void toggleServer(server.id);
                         }}
+                        aria-label={
+                          server.enabled ? t("mcp.configurationEnabled") : t("mcp.disabled")
+                        }
                       />
-                      <i aria-hidden="true" />
                     </label>
                     <div className="mcp-item-actions">
                       <button
@@ -608,9 +611,9 @@ export function McpSettings() {
               <button className="text-button" type="button" onClick={closeDialog}>
                 {t("mcp.cancel")}
               </button>
-              <button className="primary-button" type="submit">
+              <Button variant="primary" size="lg" type="submit">
                 {editingId ? t("mcp.saveChanges") : t("mcp.save")}
-              </button>
+              </Button>
             </div>
           </form>
         </SettingsFormDialog>

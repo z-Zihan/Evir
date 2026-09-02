@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Cropper, { type Area, type Point } from "react-easy-crop";
 import { useTranslation } from "react-i18next";
 import { ImagePlus, Minus, Plus, X } from "lucide-react";
+import { Button } from "../components/ui";
 import { cropAvatarImage } from "./avatar-image";
 
 interface AvatarCropDialogProps {
@@ -139,14 +140,15 @@ export function AvatarCropDialog({ imageUrl, onCancel, onSave }: AvatarCropDialo
           <button type="button" onClick={onCancel} disabled={saving}>
             {t("personalization.cancelCrop")}
           </button>
-          <button
-            className="primary-button"
-            type="button"
+          <Button
+            variant="primary"
+            size="lg"
+            className="primary-button h-auto"
             onClick={() => void handleSave()}
             disabled={saving || !croppedArea}
           >
             {saving ? t("personalization.processing") : t("personalization.usePhoto")}
-          </button>
+          </Button>
         </footer>
       </section>
     </div>

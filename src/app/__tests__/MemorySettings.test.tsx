@@ -94,7 +94,7 @@ describe("MemorySettings", () => {
     const { MemorySettings } = await import("../MemorySettings");
     render(<MemorySettings conversationId={null} workspacePath={null} />);
 
-    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("switch"));
 
     await waitFor(() => expect(setMemoryEnabled).toHaveBeenCalledWith(false));
   });

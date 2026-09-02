@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Search, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Button } from "../components/ui";
 import type { InteractionMode } from "../core/providers/tool-registry";
 import type { InstalledSkill } from "../core/skills/types";
 import { useChatStore } from "../features/chat/chat-store";
@@ -85,10 +86,11 @@ export function SkillPicker({ mode, disabled }: SkillPickerProps) {
 
   return (
     <div className="composer-skill-picker" ref={rootRef}>
-      <button
+      <Button
         ref={triggerRef}
         type="button"
-        className={`composer-tool-button${selectedSkillIds.size > 0 ? " active" : ""}`}
+        variant="ghost"
+        className={`composer-tool-button size-[30px] rounded-[7px] font-normal${selectedSkillIds.size > 0 ? " active" : ""}`}
         onClick={() => setOpen((value) => !value)}
         disabled={disabled}
         aria-label={t("skill.chooseForMessage")}
@@ -99,7 +101,7 @@ export function SkillPicker({ mode, disabled }: SkillPickerProps) {
         {selectedSkillIds.size > 0 && (
           <span className="composer-skill-count">{selectedSkillIds.size}</span>
         )}
-      </button>
+      </Button>
       {open && (
         <div className="composer-skill-menu" role="dialog" aria-label={t("skill.chooseForMessage")}>
           <label className="composer-skill-search">

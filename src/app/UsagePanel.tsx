@@ -11,6 +11,7 @@ import {
   MessageSquareText,
   Trash2,
 } from "lucide-react";
+import { Button } from "../components/ui";
 import { useUsageStore } from "../features/usage/usage-store";
 import { getStructuredStorage } from "../runtime/structured-storage";
 import {
@@ -177,9 +178,10 @@ export function UsagePanel() {
           <span className="settings-page-eyebrow">{t("usage.insights")}</span>
           <p>{t("usage.description")}</p>
         </div>
-        <button
-          className="quiet-danger-button"
-          type="button"
+        <Button
+          variant="ghost-destructive"
+          size="sm"
+          className="quiet-danger-button h-auto"
           onClick={() =>
             requestConfirmation(
               {
@@ -194,7 +196,7 @@ export function UsagePanel() {
         >
           <Trash2 size={14} />
           {t("usage.clear")}
-        </button>
+        </Button>
       </div>
 
       <div className="usage-metrics">

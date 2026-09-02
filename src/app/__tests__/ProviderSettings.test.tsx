@@ -58,7 +58,7 @@ describe("ProviderSettings", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /provider.custom/ }));
     expect(screen.getByText("provider.formDescription")).toBeDefined();
-    expect(screen.getByRole("checkbox", { name: /provider.toolCalling/ })).toBeDefined();
+    expect(screen.getByRole("switch", { name: /provider.toolCalling/ })).toBeDefined();
   });
 
   it("blocks save and marks every empty required field", async () => {

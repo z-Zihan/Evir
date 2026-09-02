@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Eye, EyeOff, Pencil, Pin, PinOff, Trash2 } from "lucide-react";
+import { Button, Switch } from "../components/ui";
 import { useMemoryStore, type MemoryRecord } from "../features/memory/memory-store";
 import { useConfirmationDialog } from "./useConfirmationDialog";
 
@@ -100,12 +101,12 @@ export function MemorySettings({ conversationId, workspacePath }: MemorySettings
           <span>{t("memory.recallDescription")}</span>
         </div>
         <label className="memory-master-toggle">
-          <input
-            type="checkbox"
+          <Switch
             checked={enabled}
-            onChange={(event) => {
-              void setMemoryEnabled(event.target.checked).catch(() => undefined);
+            onCheckedChange={(checked) => {
+              void setMemoryEnabled(checked).catch(() => undefined);
             }}
+            aria-label={enabled ? t("memory.enabled") : t("memory.disabled")}
           />
           <span>{enabled ? t("memory.enabled") : t("memory.disabled")}</span>
         </label>
@@ -158,14 +159,15 @@ export function MemorySettings({ conversationId, workspacePath }: MemorySettings
             rows={2}
           />
         </label>
-        <button
-          className="primary-button"
-          type="button"
+        <Button
+          variant="primary"
+          size="lg"
+          className="primary-button h-auto"
           onClick={() => void handleAdd().catch(() => undefined)}
           disabled={!newKey.trim() || !newContent.trim()}
         >
           {t("memory.add")}
-        </button>
+        </Button>
       </div>
 
       {error && (
@@ -281,9 +283,10 @@ export function MemorySettings({ conversationId, workspacePath }: MemorySettings
               </li>
             ))}
           </ul>
-          <button
-            className="secondary-button danger memory-clear-button"
-            type="button"
+          <Button
+            variant="secondary"
+            size="lg"
+            className="danger memory-clear-button"
             onClick={() =>
               requestConfirmation(
                 {
@@ -296,7 +299,7 @@ export function MemorySettings({ conversationId, workspacePath }: MemorySettings
             }
           >
             {t("memory.clearAll")}
-          </button>
+          </Button>
         </>
       )}
       {confirmationDialog}

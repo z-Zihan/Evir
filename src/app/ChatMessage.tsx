@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Brain, Pencil, RotateCcw, Sparkles, Copy } from "lucide-react";
 
+import { Button } from "../components/ui";
 import type { MessageRecord } from "../core/storage/db";
 import { AgentActivity } from "./AgentActivity";
 import { MarkdownContent } from "./MarkdownContent";
@@ -133,14 +134,16 @@ export function ChatMessage({
                 <button type="button" onClick={cancelEdit}>
                   {t("chat.cancel")}
                 </button>
-                <button
+                <Button
                   type="button"
+                  variant="primary"
+                  size="lg"
                   className="primary-button"
                   onClick={saveEdit}
                   disabled={!canSave}
                 >
                   {t("chat.save")}
-                </button>
+                </Button>
               </div>
             </div>
           ) : isAssistant ? (
@@ -162,15 +165,17 @@ export function ChatMessage({
           {message.status === "error" && message.errorMessage && (
             <div className="message-state message-state-error">
               {displayError(message.errorMessage)}
-              <button
+              <Button
                 type="button"
-                className="message-retry-button"
+                variant="ghost"
+                size="sm"
+                className="message-retry-button h-[26px] gap-[5px] rounded-md px-[7px] text-[10.5px] font-normal"
                 onClick={() => void onRegenerate()}
                 disabled={disabled}
               >
                 <RotateCcw size={13} />
                 {t("chat.retry")}
-              </button>
+              </Button>
             </div>
           )}
         </div>

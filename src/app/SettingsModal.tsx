@@ -60,6 +60,7 @@ const UsagePanel = lazy(() => import("./UsagePanel").then((m) => ({ default: m.U
 const BrowserSettings = lazy(() =>
   import("./BrowserSettings").then((m) => ({ default: m.BrowserSettings })),
 );
+import { Button } from "../components/ui";
 import { downloadBlob, exportConversations } from "../features/chat/conversation-export";
 import { importConversations } from "../features/chat/conversation-import";
 import { getRuntime } from "../runtime/use-runtime";
@@ -340,20 +341,16 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
                         <p>{t("settings.portabilityDescription")}</p>
                       </div>
                       <div className="settings-data-buttons">
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          onClick={() => void handleExport()}
-                        >
+                        <Button variant="secondary" size="lg" onClick={() => void handleExport()}>
                           {t("settings.exportAll")}
-                        </button>
-                        <button
-                          type="button"
-                          className="secondary-button"
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="lg"
                           onClick={() => fileInputRef.current?.click()}
                         >
                           {t("settings.importAll")}
-                        </button>
+                        </Button>
                         <input
                           ref={fileInputRef}
                           type="file"

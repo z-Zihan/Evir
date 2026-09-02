@@ -16,6 +16,7 @@ import {
   TerminalSquare,
   XCircle,
 } from "lucide-react";
+import { Button } from "../components/ui";
 import { getRuntime } from "../runtime/use-runtime";
 import {
   runVerification,
@@ -204,34 +205,40 @@ export function AgentRunSummary({
       <div className="agent-run-details">
         <div className="result-summary-actions">
           {outputs.length > 0 && (
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="lg"
               className="primary-button result-view-outputs"
               onClick={() => openPanel("outputs")}
             >
               <PackageOpen size={14} aria-hidden="true" />
               {t("workspace.viewOutputs")}
-            </button>
+            </Button>
           )}
           {changes.length > 0 && record.status !== "rolled_back" && (
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="lg"
               className="primary-button result-review-changes"
               onClick={() => openPanel("changes")}
             >
               <GitCompareArrows size={14} aria-hidden="true" />
               {t("workspace.reviewChanges")}
-            </button>
+            </Button>
           )}
           {snapshots.length > 0 && record.status !== "rolled_back" && (
-            <button
+            <Button
               type="button"
-              className="quiet-danger-button summary-rollback"
+              variant="ghost-destructive"
+              size="sm"
+              className="quiet-danger-button summary-rollback font-normal"
               onClick={requestRollback}
             >
               <RotateCcw size={14} />
               {t("agent.rollback")}
-            </button>
+            </Button>
           )}
         </div>
 

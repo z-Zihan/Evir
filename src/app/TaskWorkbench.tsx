@@ -16,6 +16,7 @@ import {
   X,
   XCircle,
 } from "lucide-react";
+import { Button } from "../components/ui";
 import { getRuntime } from "../runtime/use-runtime";
 import { useChatStore } from "../features/chat/chat-store";
 import {
@@ -133,15 +134,17 @@ function EditableStep({ node }: { node: PlanNode }) {
         )}
       </div>
       {node.status === "pending" && !editing && (
-        <button
-          className="task-icon-button"
+        <Button
+          variant="ghost"
+          size="icon-sm"
           type="button"
+          className="task-icon-button"
           onClick={() => setEditing(true)}
           aria-label={t("orchestration.editStep")}
           data-tip={t("orchestration.editStep")}
         >
           <Pencil size={13} />
-        </button>
+        </Button>
       )}
     </li>
   );
@@ -240,9 +243,11 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
             <span>{t(`orchestration.preparing.${preparationKey}Description`)}</span>
             {elapsedSeconds >= 15 && <small>{t("orchestration.preparing.slow")}</small>}
           </div>
-          <button
+          <Button
             type="button"
-            className="task-preparation-stop"
+            variant="ghost"
+            size="sm"
+            className="task-preparation-stop font-normal"
             onClick={() => {
               stopGeneration();
               cancelTaskPreparation(preparing.conversationId);
@@ -252,7 +257,7 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
           >
             <X size={14} aria-hidden="true" />
             <span>{t("chat.stop")}</span>
-          </button>
+          </Button>
         </div>
       </section>
     );
@@ -362,31 +367,37 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
             ))}
           </ul>
           <div className="preference-candidate-actions">
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="lg"
               className="secondary-button"
               onClick={() => void savePreference("global")}
             >
               {t("preference.rememberGlobal")}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="secondary"
+              size="lg"
               className="secondary-button"
               disabled={!projectRootForPreference}
               data-tip={!projectRootForPreference ? t("preference.noProject") : undefined}
               onClick={() => void savePreference("project")}
             >
               {t("preference.rememberProject")}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="secondary"
+              size="lg"
               className="secondary-button"
               onClick={() =>
                 setPreferenceChoice((choices) => ({ ...choices, [snapshot.runId]: "dismissed" }))
               }
             >
               {t("preference.ignore")}
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -421,28 +432,54 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
         </div>
         <div className="task-status-actions">
           {snapshot.phase === "execution" && (
-            <button type="button" className="secondary-button" onClick={() => pauseCurrentRun()}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="lg"
+              className="secondary-button"
+              onClick={() => pauseCurrentRun()}
+            >
               {t("orchestration.pause")}
-            </button>
+            </Button>
           )}
           {snapshot.phase === "paused" && (
-            <button type="button" className="primary-button" onClick={() => void resume()}>
+            <Button
+              type="button"
+              variant="primary"
+              size="lg"
+              className="primary-button"
+              onClick={() => void resume()}
+            >
               {t("orchestration.resume")}
-            </button>
+            </Button>
           )}
           {snapshot.phase !== "finished" && (
-            <button type="button" className="secondary-button" onClick={stop}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="lg"
+              className="secondary-button"
+              onClick={stop}
+            >
               {t("orchestration.stop")}
-            </button>
+            </Button>
           )}
           {retryable && (
-            <button type="button" className="primary-button" onClick={() => void retry()}>
+            <Button
+              type="button"
+              variant="primary"
+              size="lg"
+              className="primary-button"
+              onClick={() => void retry()}
+            >
               {t("orchestration.retryTask")}
-            </button>
+            </Button>
           )}
           {finished && (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon-sm"
               className="task-icon-button"
               aria-expanded={showFinishedDetails}
               aria-label={t(
@@ -458,7 +495,7 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
                 size={14}
                 aria-hidden="true"
               />
-            </button>
+            </Button>
           )}
         </div>
       </header>
@@ -560,13 +597,15 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
             </fieldset>
           ))}
           <div className="task-actions clarification-actions">
-            <button
+            <Button
+              variant="primary"
+              size="lg"
               className="primary-button"
               type="submit"
               disabled={questions.some(({ id }) => !answers[id]?.trim())}
             >
               {t("orchestration.continue")}
-            </button>
+            </Button>
           </div>
         </form>
       )}
@@ -581,9 +620,15 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
             </div>
           </div>
           <div className="task-actions">
-            <button type="button" className="secondary-button" onClick={stop}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="lg"
+              className="secondary-button"
+              onClick={stop}
+            >
               {t("common.cancel")}
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -608,16 +653,25 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
                 (node) => node.kind === "approval" && node.status === "blocked",
               ))) && (
             <div className="task-actions">
-              <button ref={rejectPlanRef} type="button" className="secondary-button" onClick={stop}>
-                {t("common.cancel")}
-              </button>
-              <button
+              <Button
+                ref={rejectPlanRef}
                 type="button"
+                variant="secondary"
+                size="lg"
+                className="secondary-button"
+                onClick={stop}
+              >
+                {t("common.cancel")}
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                size="lg"
                 className="primary-button"
                 onClick={() => void confirmCurrentPlan()}
               >
                 {t("orchestration.confirmPlan")}
-              </button>
+              </Button>
             </div>
           )}
           <details className="graph-inspector">
