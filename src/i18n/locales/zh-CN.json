@@ -760,7 +760,18 @@
     "outputsHoursAgo": "{{count}} 小时前生成",
     "outputsDaysAgo": "{{count}} 天前生成",
     "outputsScreenshot": "截图",
-    "viewOutputs": "查看产出"
+    "viewOutputs": "查看产出",
+    "previewFileTitle": "预览文件",
+    "previewApp": {
+      "title": "预览应用",
+      "start": "启动预览",
+      "starting": "正在启动预览…",
+      "running": "运行中",
+      "detected": "检测到启动脚本：{{script}}",
+      "noScript": "此项目没有可识别的 Web 启动脚本。",
+      "confirmTitle": "允许运行本地启动脚本？",
+      "confirmDescription": "Evir 将在项目目录启动开发服务器，并在面板浏览器中打开预览。"
+    }
   },
   "startup": {
     "failed": "本地数据初始化失败",

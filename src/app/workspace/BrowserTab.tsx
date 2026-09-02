@@ -25,15 +25,7 @@ import {
   subscribePanelTabs,
   type PanelBrowserTab,
 } from "../../features/workspace/browser-panel-service";
-import {
-  detectDevScript,
-  devServerList,
-  devServerStart,
-  devServerStop,
-  subscribeDevServerStatus,
-  type DevScriptPlan,
-  type DevServerState,
-} from "../../features/workspace/dev-server-service";
+import { devServerFailureText, useDevServerUi } from "./use-dev-server-ui";
 import {
   useWorkspacePanelStore,
   selectOverlayBlocked,
@@ -42,7 +34,6 @@ import { useActiveWorkspaceRoot } from "../../features/workspace/workspace-bridg
 import { useProjectStore } from "../../features/projects/project-store";
 import { useRunWorkspaceStore } from "../../features/workspace/workspace-run-store";
 import { logger } from "../../core/logging/logger";
-import { useConfirmationDialog } from "../useConfirmationDialog";
 
 function normalizeInput(input: string): string {
   const trimmed = input.trim();
@@ -84,16 +75,9 @@ export function BrowserTab() {
   const [tabs, setTabs] = useState<PanelBrowserTab[]>([]);
   const [address, setAddress] = useState("");
   const [annotating, setAnnotating] = useState(false);
-  const [starting, setStarting] = useState(false);
-  const [devPlan, setDevPlan] = useState<DevScriptPlan | null>(null);
-  const [devServer, setDevServer] = useState<DevServerState | null>(null);
-  const [devError, setDevError] = useState<string | null>(null);
+  const dev = useDevServerUi();
   const contentRef = useRef<HTMLDivElement>(null);
   const layoutRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
-  const {
-    requestConfirmation: requestDevServerConfirmation,
-    confirmationDialog: devServerConfirmation,
-  } = useConfirmationDialog();
   const activeTab = tabs.find((tab) => tab.active) ?? tabs[0];
   const activeBrowserSessionId = activeTab?.id;
   const activeBrowserUrl = activeTab?.url;
@@ -114,44 +98,27 @@ export function BrowserTab() {
   }, [activeBrowserSessionId, activeBrowserUrl, currentProjectId]);
 
   useEffect(() => {
-    setDevServer(null);
-    setDevError(null);
-    setStarting(false);
     void panelTabList()
       .then(setTabs)
       .catch(() => setTabs([]));
     const unsubscribe = subscribePanelTabs((next) => setTabs(next)).catch(() => undefined);
-    const unsubscribeStatus = subscribeDevServerStatus((state) => {
-      if (state.projectId === (project?.id ?? "")) setDevServer(state);
-    }).catch(() => undefined);
     return () => {
       void unsubscribe?.then((fn) => fn?.());
-      void unsubscribeStatus?.then((fn) => fn?.());
     };
   }, [project?.id]);
 
-  // Events are the primary channel; polling re-syncs when a push is missed
-  // (listener registered late, emit raced a reload) so "starting" can never
-  // wedge the card forever. Tabs get the same treatment: a lost
-  // browser-panel-tabs event must not blank the toolbar.
+  // A lost browser-panel-tabs event must not blank the toolbar: poll as a
+  // re-sync backstop (the dev-server status lives in useDevServerUi).
   useEffect(() => {
     if (!project) return;
     let cancelled = false;
     const sync = () => {
-      void devServerList()
-        .then((servers) => {
-          if (cancelled) return;
-          const match = servers.find((server) => server.projectId === project.id);
-          setDevServer(match ?? null);
-        })
-        .catch(() => undefined);
       void panelTabList()
         .then((next) => {
           if (!cancelled) setTabs(next);
         })
         .catch(() => undefined);
     };
-    sync();
     const timer = window.setInterval(sync, 2000);
     return () => {
       cancelled = true;
@@ -170,17 +137,6 @@ export function BrowserTab() {
     setBrowserContextUrl(activeTab?.url ?? null);
     return () => setBrowserContextUrl(null);
   }, [activeTab?.url, setBrowserContextUrl]);
-
-  useEffect(() => {
-    if (!root) return;
-    let cancelled = false;
-    void detectDevScript(root).then((plan) => {
-      if (!cancelled) setDevPlan(plan);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [root]);
 
   const lastLoggedLayout = useRef<{
     visible: boolean;
@@ -340,71 +296,9 @@ export function BrowserTab() {
     }
   };
 
-  const startDevServer = () => {
-    if (!devPlan || !root || !project) return;
-    // §44: detect → show command → Evir permission → start. The ask profile
-    // gates every start behind an explicit confirmation.
-    if (project.permissionProfile === "ask") {
-      requestDevServerConfirmation(
-        {
-          title: t("workspace.devServer.confirmTitle"),
-          description: t("workspace.devServer.confirmDescription", {
-            command: `${devPlan.program} ${devPlan.args.join(" ")}`,
-            cwd: root,
-          }),
-          confirmLabel: t("workspace.devServer.run"),
-          tone: "warning",
-        },
-        () => void invokeDevServerStart(),
-      );
-      return;
-    }
-    void invokeDevServerStart();
-  };
-
-  const invokeDevServerStart = async () => {
-    if (!devPlan || !root || !project) return;
-    setStarting(true);
-    setDevError(null);
-    try {
-      const state = await devServerStart({
-        projectId: project.id,
-        cwd: root,
-        program: devPlan.program,
-        args: devPlan.args,
-        workspaceRoot: root,
-      });
-      // The invoke resolves with the Starting snapshot; the ready event often
-      // lands first, and overwriting it here would flip the card back to
-      // "starting" after readiness was already shown.
-      setDevServer((current) => (current?.status === "ready" ? current : state));
-    } catch (error) {
-      setDevError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setStarting(false);
-    }
-  };
-
-  // When the dev server turns ready, open its URL (user-initiated flow).
-  useEffect(() => {
-    if (devServer?.status === "ready" && devServer.url) {
-      void navigate(devServer.url);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [devServer?.status, devServer?.url]);
-
   const screenshotOutputs = outputs.filter((output) => output.kind === "screenshot").slice(-3);
-  const devServerActive =
-    devServer?.status === "starting" ||
-    devServer?.status === "ready" ||
-    devServer?.status === "running";
-  const devServerStarting = starting || devServer?.status === "starting";
-  const devServerFailure =
-    devError ??
-    (devServer?.status === "crashed"
-      ? devServer.lastOutput.at(-1)?.replace(/^(out|err):\s*/, "") ||
-        t("workspace.devServer.crashedHint")
-      : null);
+  const devServerStarting = dev.starting;
+  const devServerFailure = devServerFailureText(dev, t("workspace.devServer.crashedHint"));
 
   return (
     <div className="workspace-browser-tab">
@@ -542,64 +436,34 @@ export function BrowserTab() {
           </div>
         )}
       </div>
-      {root && (
+      {root && dev.server && (
         <footer className="workspace-devserver-card">
-          {devServerActive ? (
+          {dev.active ? (
             <div className="devserver-state">
-              <span className={`devserver-dot ${devServer?.status}`} aria-hidden="true" />
+              <span className={`devserver-dot ${dev.server.status}`} aria-hidden="true" />
               <span className="devserver-copy">
-                {t(`workspace.devServer.${devServer?.status}`)}
-                {devServer?.url ? ` · ${devServer.url}` : ""}
+                {t(`workspace.devServer.${dev.server.status}`)}
+                {dev.server.url ? ` · ${dev.server.url}` : ""}
               </span>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => {
-                  if (!project) return;
-                  void devServerStop(project.id);
-                }}
-              >
+              <button type="button" className="secondary-button" onClick={() => void dev.stop()}>
                 <Square size={12} aria-hidden="true" />
                 {t("workspace.devServer.stop")}
               </button>
             </div>
-          ) : devServer?.status === "crashed" && devPlan ? (
+          ) : dev.server.status === "crashed" ? (
             <div className="devserver-state">
               <span className="devserver-dot crashed" aria-hidden="true" />
               <span className="devserver-copy">{t("workspace.devServer.crashed")}</span>
               <button
                 type="button"
                 className="secondary-button"
-                disabled={starting}
-                onClick={startDevServer}
+                disabled={dev.starting}
+                onClick={() => void dev.start()}
               >
                 {t("workspace.devServer.retry")}
               </button>
             </div>
-          ) : devPlan ? (
-            <div className="devserver-state">
-              {starting ? (
-                <LoaderCircle size={13} className="spin" aria-hidden="true" />
-              ) : (
-                <MonitorPlay size={13} aria-hidden="true" />
-              )}
-              <span className="devserver-copy">
-                {t("workspace.devServer.detect", {
-                  script: `${devPlan.program} ${devPlan.args.join(" ")}`,
-                })}
-              </span>
-              <button
-                type="button"
-                className="secondary-button"
-                disabled={starting}
-                onClick={startDevServer}
-              >
-                {t("workspace.devServer.run")}
-              </button>
-            </div>
-          ) : (
-            <span className="devserver-copy muted">{t("workspace.devServer.none")}</span>
-          )}
+          ) : null}
           {devServerFailure && <span className="devserver-error">{devServerFailure}</span>}
           {screenshotOutputs.length > 0 && (
             <div className="devserver-screenshots" aria-label={t("workspace.recentScreenshots")}>
@@ -622,7 +486,6 @@ export function BrowserTab() {
           )}
         </footer>
       )}
-      {devServerConfirmation}
     </div>
   );
 }

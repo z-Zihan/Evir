@@ -760,7 +760,18 @@
     "outputsHoursAgo": "Generated {{count}}h ago",
     "outputsDaysAgo": "Generated {{count}}d ago",
     "outputsScreenshot": "Screenshot",
-    "viewOutputs": "View outputs"
+    "viewOutputs": "View outputs",
+    "previewFileTitle": "Preview a file",
+    "previewApp": {
+      "title": "Preview App",
+      "start": "Start preview",
+      "starting": "Starting preview…",
+      "running": "Running",
+      "detected": "Detected start script: {{script}}",
+      "noScript": "This project has no recognizable web start script.",
+      "confirmTitle": "Allow the local start script?",
+      "confirmDescription": "Evir will start the dev server in the project directory and open the preview in the panel browser."
+    }
   },
   "startup": {
     "failed": "Local data could not be initialized",

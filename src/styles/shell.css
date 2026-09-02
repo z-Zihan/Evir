@@ -1052,6 +1052,88 @@
 }
 
 
+
+/* ── Preview tab empty state: file guidance + Preview App entry (§26-33) ── */
+.workspace-preview-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 16px;
+  align-items: stretch;
+  justify-content: center;
+  min-height: 100%;
+}
+
+.workspace-preview-empty-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 22px 16px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  text-align: center;
+  color: var(--muted-foreground);
+}
+
+.workspace-preview-empty-block h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.workspace-preview-empty-block p {
+  margin: 0;
+  font-size: 12px;
+  max-width: 40ch;
+}
+
+.app-preview-card {
+  flex-direction: row;
+  text-align: left;
+  gap: 12px;
+  align-items: center;
+  border-style: solid;
+  background: var(--surface);
+}
+
+.app-preview-card > svg {
+  flex: none;
+  color: var(--primary, #3b82f6);
+}
+
+.app-preview-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.app-preview-state {
+  font-size: 11.5px;
+  color: var(--muted-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-preview-failure {
+  font-size: 11px;
+  color: #dc2626;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.app-preview-actions {
+  flex: none;
+  display: flex;
+  gap: 6px;
+}
+
 /* ── Outputs tab: desktop-resource list (§19-23, §47) ── */
 .workspace-outputs-empty .workspace-empty-hint {
   margin: 2px 0 0;

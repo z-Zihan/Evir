@@ -6,8 +6,11 @@ import {
   Eye,
   FileQuestion,
   LoaderCircle,
+  MonitorPlay,
   Pin,
   PinOff,
+  Play,
+  Square,
 } from "lucide-react";
 import { useWorkspacePanelStore } from "../../features/workspace/workspace-panel-store";
 import {
@@ -24,6 +27,9 @@ import {
 } from "../../features/workspace/workspace-services";
 import { readScreenshotBase64 } from "../../features/workspace/browser-panel-service";
 import { useActiveWorkspaceRoot } from "../../features/workspace/workspace-bridge";
+import { useProjectStore } from "../../features/projects/project-store";
+import { useConfirmationDialog } from "../useConfirmationDialog";
+import { devServerFailureText, useDevServerUi } from "./use-dev-server-ui";
 import { normalizeFenceLanguage, previewRegistry } from "../../features/preview/preview-registry";
 import { ArtifactPreview } from "../../features/preview/ArtifactPreview";
 import { isHighlightable, useShikiHighlight } from "../../features/preview/use-shiki";
@@ -240,10 +246,108 @@ function CodeView({ text, language }: { text: string; language: string }) {
 
 function ResourceEmpty() {
   const { t } = useTranslation();
+  const root = useActiveWorkspaceRoot();
+  const projects = useProjectStore((state) => state.projects);
+  const currentProjectId = useProjectStore((state) => state.currentProjectId);
+  const project = projects.find(({ id }) => id === currentProjectId);
+  const {
+    requestConfirmation: requestDevServerConfirmation,
+    confirmationDialog: devServerConfirmation,
+  } = useConfirmationDialog();
+
+  const controller = useDevServerUi();
+  const failure = devServerFailureText(controller, t("workspace.devServer.crashedHint"));
+  const beginStart = () => {
+    if (!project) return;
+    if (project.permissionProfile === "ask") {
+      requestDevServerConfirmation(
+        {
+          title: t("workspace.previewApp.confirmTitle"),
+          description: t("workspace.previewApp.confirmDescription"),
+          confirmLabel: t("workspace.previewApp.start"),
+          tone: "warning",
+        },
+        () => void controller.start(),
+      );
+      return;
+    }
+    void controller.start();
+  };
+
   return (
-    <div className="workspace-empty">
-      <Eye size={20} aria-hidden="true" />
-      <p>{t("workspace.previewEmpty")}</p>
+    <div className="workspace-preview-empty">
+      <section className="workspace-preview-empty-block">
+        <Eye size={20} aria-hidden="true" />
+        <h3>{t("workspace.previewFileTitle")}</h3>
+        <p>{t("workspace.previewEmpty")}</p>
+      </section>
+      {root && (
+        <section className="workspace-preview-empty-block app-preview-card">
+          <MonitorPlay size={20} aria-hidden="true" />
+          <div className="app-preview-copy">
+            <h3>{t("workspace.previewApp.title")}</h3>
+            {controller.active ? (
+              <p className="app-preview-state">
+                {controller.starting
+                  ? t("workspace.previewApp.starting")
+                  : controller.server?.url
+                    ? controller.server.url
+                    : t("workspace.previewApp.running")}
+              </p>
+            ) : controller.plan ? (
+              <p className="app-preview-state">
+                {t("workspace.previewApp.detected", {
+                  script: `${controller.plan.program} ${controller.plan.args.join(" ")}`,
+                })}
+              </p>
+            ) : (
+              <p className="app-preview-state">{t("workspace.previewApp.noScript")}</p>
+            )}
+            {failure && <p className="app-preview-failure">{failure}</p>}
+          </div>
+          <div className="app-preview-actions">
+            {controller.active ? (
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => void controller.stop()}
+              >
+                <Square size={12} aria-hidden="true" />
+                {t("workspace.devServer.stop")}
+              </button>
+            ) : (
+              controller.plan && (
+                <button
+                  type="button"
+                  className="primary-button"
+                  disabled={controller.starting}
+                  onClick={beginStart}
+                >
+                  {controller.starting ? (
+                    <LoaderCircle size={13} className="spin" aria-hidden="true" />
+                  ) : (
+                    <Play size={13} aria-hidden="true" />
+                  )}
+                  {controller.starting
+                    ? t("workspace.previewApp.starting")
+                    : t("workspace.previewApp.start")}
+                </button>
+              )
+            )}
+            {controller.server?.status === "crashed" && (
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={controller.starting}
+                onClick={beginStart}
+              >
+                {t("workspace.devServer.retry")}
+              </button>
+            )}
+          </div>
+        </section>
+      )}
+      {devServerConfirmation}
     </div>
   );
 }
