@@ -27,6 +27,7 @@ import type { EvirRuntime } from "../../runtime/types";
 import { toApprovalRecord, type PendingToolApproval } from "./tool-approval";
 import { toMessage, sorted } from "./chat-helpers";
 import { collectWorkspaceContext } from "../workspace/workspace-context";
+import { TOOL_DENIED } from "../../core/tools/tool-executor";
 import { createContextBudgetManager } from "../../core/context/context-budget-manager";
 import { compactToolOutputs } from "../../core/context/compact-tool-outputs";
 import {
@@ -743,7 +744,16 @@ async function runStreamResponse(
     get().privateSession,
   );
   if (result.turns.length === 0) {
-    if (visibleForConversation(get, conversationId)) set({ error: "chat.streamEnded" });
+    // A user denial (or stop) deliberately ends the run here; surfacing the
+    // generic "stream ended unexpectedly" error for it would be wrong.
+    const lastMessage = get()
+      .messages.filter((m) => m.conversationId === conversationId)
+      .at(-1);
+    const endedByDenial =
+      lastMessage?.toolResults?.some(({ error }) => error === TOOL_DENIED) ?? false;
+    if (!endedByDenial && visibleForConversation(get, conversationId)) {
+      set({ error: "chat.streamEnded" });
+    }
     return;
   }
 

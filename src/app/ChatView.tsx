@@ -615,7 +615,7 @@ export function ChatView({
 
   if (!provider) {
     return (
-      <main className="workspace flex min-w-0 flex-1 flex-col">
+      <main className="workspace flex min-h-0 min-w-0 flex-1 flex-col">
         {header}
         <section className="provider-empty-state flex flex-1 flex-col items-center justify-center gap-3 px-6 py-12 text-center">
           <div
@@ -645,7 +645,7 @@ export function ChatView({
   }
 
   return (
-    <main className="workspace flex min-w-0 flex-1 flex-col">
+    <main className="workspace flex min-h-0 min-w-0 flex-1 flex-col">
       {header}
       <MessageScroller
         ref={scrollerRef}
@@ -676,7 +676,7 @@ export function ChatView({
               </Suspense>
             )}
             {currentAgentRun && !hasCurrentTaskWorkbench && (
-              <div className="ml-[34px] min-w-0 max-w-[820px]">
+              <div className="ml-[34px] mr-3 min-w-0 max-w-[820px]">
                 <AgentRunSummary record={currentAgentRun} onLayoutChange={scrollToBottom} />
               </div>
             )}
@@ -747,12 +747,12 @@ export function ChatView({
           </div>
         )}
       </MessageScroller>
-      {error && !hasMessageError && (
-        <div className="chat-error mx-4 mb-1.5 rounded-lg border border-danger/35 bg-danger/[0.07] px-3 py-2 text-[12px] text-danger">
-          {displayError(error)}
-        </div>
-      )}
-      <footer className="composer-wrap mx-auto w-full min-w-0 max-w-[760px] px-0 pb-3 pt-1.5 max-[860px]:px-4">
+      <footer className="composer-wrap mx-auto w-full min-w-0 max-w-[760px] shrink-0 px-0 pb-3 pt-1.5 max-[860px]:px-4">
+        {error && !hasMessageError && (
+          <div className="chat-error mb-1.5 flex items-start gap-1.5 rounded-lg border border-danger/35 bg-danger/[0.07] px-3 py-2 text-[12px] leading-relaxed text-danger">
+            {displayError(error)}
+          </div>
+        )}
         <PromptInput
           className={dragOver ? "drag-over border-primary/60 shadow-sm" : undefined}
           onDrop={handleDrop}

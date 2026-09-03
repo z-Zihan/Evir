@@ -235,7 +235,7 @@ export function App() {
             />
           )}
           <ResizablePanel id={CHAT_PANEL_ID} minSize={CONVERSATION_MIN_WIDTH}>
-            <div className="main-area">
+            <div className="main-area flex min-h-0 flex-col">
               <ChatView
                 input={messageInput}
                 onInputChange={setMessageInput}

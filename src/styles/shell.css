@@ -347,17 +347,6 @@
 
 /* Conversation and composer */
 
-.messages-area {
-  min-height: 0;
-  min-width: 0;
-  padding: 34px 24px 18px;
-}
-
-.message-list {
-  max-width: 760px;
-  gap: 28px;
-}
-
 /* "/" command palette above the composer */
 
 .workspace-selector {
@@ -2102,13 +2091,6 @@
 }
 
 /* Conversation workbench */
-
-.message-list {
-  width: min(900px, 100%);
-  max-width: 900px;
-  min-width: 0;
-  gap: 38px;
-}
 
 /* Overflow root-cause guards: unbroken strings (10k chars, URLs, hashes)
  * must wrap inside the bubble; code blocks, tables, and diffs keep their own

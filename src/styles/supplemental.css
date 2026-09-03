@@ -357,26 +357,6 @@
   padding: var(--space-6) var(--space-4);
 }
 
-.message-list {
-  max-width: 780px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-}
-
-.message {
-  max-width: 780px;
-  margin: 0 auto;
-  width: 100%;
-}
-
-.message-stopped {
-  color: var(--muted-foreground);
-  font-size: var(--font-size-xs);
-  font-style: italic;
-}
-
 .message-error {
   color: var(--danger);
   font-size: var(--font-size-sm);
