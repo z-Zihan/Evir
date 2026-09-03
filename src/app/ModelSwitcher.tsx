@@ -161,7 +161,7 @@ export function ModelSwitcher({
         <button
           ref={triggerRef}
           type="button"
-          className="model-switcher-button inline-flex h-7 max-w-[240px] cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 text-[11.5px] transition-colors select-none hover:border-border-strong focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
+          className="model-switcher-button inline-flex h-7 max-w-[240px] cursor-pointer items-center gap-1.5 overflow-hidden rounded-lg border border-border bg-surface px-2.5 text-[11.5px] whitespace-nowrap transition-colors select-none hover:border-border-strong focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
           aria-label={[current.name, shownModelId].filter(Boolean).join(" ")}
           aria-haspopup="listbox"
           aria-expanded={open}
@@ -183,7 +183,9 @@ export function ModelSwitcher({
             }
           }}
         >
-          {otherProviders.length > 0 && <span className="font-medium">{current.name}</span>}
+          {otherProviders.length > 0 && (
+            <span className="min-w-0 truncate font-medium">{current.name}</span>
+          )}
           <span className="model-switcher-model min-w-0 truncate text-muted">{shownModelId}</span>
           <ChevronDown
             size={12}
