@@ -83,6 +83,28 @@ async function readScreenshotDataUrl(path: string): Promise<string> {
   return `data:image/png;base64,${base64}`;
 }
 
+const IMAGE_MIME: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  ico: "image/x-icon",
+  bmp: "image/bmp",
+};
+
+/**
+ * Workspace image: read the actual file bytes from the project root. The
+ * previous implementation reused the screenshot reader, which resolves
+ * against the app-data browser-screenshots directory, so workspace images
+ * never loaded.
+ */
+async function readWorkspaceImageDataUrl(path: string): Promise<string> {
+  const base64 = await readBinaryBase64(path);
+  const mime = IMAGE_MIME[fileExtension(path)] ?? "application/octet-stream";
+  return `data:${mime};base64,${base64}`;
+}
+
 function useResolvedResource(
   resource: WorkspaceResource | null,
   root: string | null,
@@ -179,7 +201,9 @@ function useResolvedResource(
             base64: null,
             diff: null,
             rendererId: null,
-            imageDataUrl: await readScreenshotDataUrl(resource.path).catch(() => {
+            // Workspace file: read the real bytes from the project root. The
+            // screenshot reader resolves against app-data and never matches here.
+            imageDataUrl: await readWorkspaceImageDataUrl(resource.path).catch(() => {
               throw new Error("binary-preview-unavailable");
             }),
           } satisfies ResolvedContent;

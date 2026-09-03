@@ -88,6 +88,7 @@ const ACTIVITY_BADGE: Record<string, string> = {
   running: "border-primary/30 bg-primary/[0.07] text-primary",
   approval: "border-warning/40 bg-warning/[0.09] text-warning",
   cancelled: "border-border bg-surface-hover text-muted",
+  denied: "border-danger/30 bg-danger/[0.05] text-danger/90",
   failed: "border-danger/35 bg-danger/[0.07] text-danger",
   complete: "border-success/30 bg-success/[0.07] text-success",
 };
@@ -134,13 +135,20 @@ export function AgentActivity({
   }
 
   const groups = groupToolCalls(toolCalls, toolResults);
+  // §Approval resolved state: a permission request whose call was executed in
+  // a later message (approved) or denied is RESOLVED — the group badge must
+  // not keep the waiting appearance after the decision.
   const completed = toolCalls.filter((call) => {
     const result = resultsByCallId.get(call.id);
-    return result && result.error !== TOOL_PERMISSION_REQUIRED;
+    if (result && result.error !== TOOL_PERMISSION_REQUIRED) return true;
+    return resolvedState.get(call.id) === "approved";
   }).length;
-  const hasPending = toolCalls.some(
-    (call) => resultsByCallId.get(call.id)?.error === TOOL_PERMISSION_REQUIRED,
-  );
+  const hasDenied = toolCalls.some((call) => resolvedState.get(call.id) === "denied");
+  const hasPending = toolCalls.some((call) => {
+    if (resultsByCallId.get(call.id)?.error !== TOOL_PERMISSION_REQUIRED) return false;
+    if (isActivePending && pendingApproval?.toolCallId === call.id) return true;
+    return !resolvedState.has(call.id);
+  });
   const hasFailed = toolResults.some(
     (result) =>
       !result.success && result.error !== TOOL_PERMISSION_REQUIRED && result.error !== TOOL_DENIED,
@@ -154,13 +162,17 @@ export function AgentActivity({
           ? "running"
           : hasFailed || messageStatus === "error"
             ? "failed"
-            : completed < toolCalls.length
-              ? "cancelled"
-              : "complete";
+            : hasDenied
+              ? "denied"
+              : completed < toolCalls.length
+                ? "cancelled"
+                : "complete";
   const statusLabel =
     status === "approval"
       ? t("tools.waitingApproval")
-      : status === "running"
+      : status === "denied"
+        ? t("tools.permissionDenied")
+        : status === "running"
         ? t("agent.processing")
         : status === "cancelled"
           ? t("chat.stopped")

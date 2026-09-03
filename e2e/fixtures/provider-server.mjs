@@ -153,6 +153,40 @@ const G2_SCRIPT = [
   { tool: "read_file", args: { path: "g2-report.md" } },
 ];
 
+const OUTPUTS6_SCRIPT = [
+  {
+    tool: "write_file",
+    args: {
+      path: "report.pdf",
+      content:
+        "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 100]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj\n4 0 obj<</Length 44>>stream\nBT /F1 14 Tf 20 60 Td (Evir PDF preview sample) Tj ET\nendstream\nendobj\n5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\nxref\n0 6\ntrailer<</Size 6/Root 1 0 R>>\nstartxref\n0\n%%EOF\n",
+    },
+  },
+  {
+    tool: "write_file",
+    args: { path: "table.csv", content: "name,role,risk\nbrowser_open,read,L1\nwrite_file,mutate,L3\n" },
+  },
+  {
+    tool: "write_file",
+    args: {
+      path: "page.html",
+      content: "<!DOCTYPE html><html><body style=\"font-family:sans-serif\"><h1>Evir HTML output</h1><p>Six-type outputs verification.</p></body></html>\n",
+    },
+  },
+  {
+    tool: "write_file",
+    args: { path: "summary.md", content: "# Outputs summary\n\nAll six artifact families render through Task → Outputs → Preview.\n" },
+  },
+  {
+    tool: "write_file",
+    args: {
+      path: "diagram.svg",
+      content: "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"220\" height=\"90\"><rect width=\"220\" height=\"90\" fill=\"#eef3ff\"/><text x=\"24\" y=\"50\" font-size=\"16\" fill=\"#1b4fd8\">Evir SVG output</text></svg>\n",
+    },
+  },
+  { tool: "read_file", args: { path: "photo.png" } },
+];
+
 // Tag → { artifact, nodeScript, verify } for desktop orchestration runs.
 // Every agent-mode send in the desktop app flows through intake → plan →
 // node loops, so the fixture answers each structured protocol in turn.
@@ -176,6 +210,18 @@ const ORCH_TAGS = [
   { tag: "[g2-pass]", artifact: "g2-report.md", script: G2_SCRIPT, verify: "PASSED" },
   { tag: "[g2-fail]", artifact: "g2-report.md", script: G2_SCRIPT, verify: "FAILED" },
   { tag: "[g2-partial]", artifact: "g2-report.md", script: G2_SCRIPT, verify: "PARTIAL" },
+  {
+    tag: "[outputs-png]",
+    artifact: "photo.png",
+    script: [{ tool: "read_file", args: { path: "photo.png" } }],
+    verify: "PASSED",
+  },
+  {
+    tag: "[outputs-6]",
+    artifact: "summary.md",
+    script: OUTPUTS6_SCRIPT,
+    verify: "PASSED",
+  },
 ];
 
 function findOrchTag(prompt) {
