@@ -27,6 +27,20 @@
   --color-warning: #985600;
   --color-accent: #2678e8;
 
+  /* shadcn-standard aliases used by vendored AI Elements sources
+   * (Apache-2.0, vercel/ai-elements) so their classes resolve to the
+   * Evir palette without editing vendored files. */
+  --color-secondary: #eef1f4;
+  --color-secondary-foreground: #171a1f;
+  --color-muted-foreground: #606975;
+  --color-accent-foreground: #171a1f;
+  --color-destructive: #c93632;
+  --color-destructive-foreground: #ffffff;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #171a1f;
+  --color-card: #ffffff;
+  --color-card-foreground: #171a1f;
+
   /* Elevation scale — one shadow language for tooltips / popovers / dialogs.
    * Defined in @theme so Tailwind emits shadow-* utilities; .dark overrides below. */
   --shadow-tooltip: 0 2px 8px rgb(0 0 0 / 0.08);
@@ -62,6 +76,17 @@
   --color-danger: #ff7770;
   --color-warning: #e7a751;
   --color-accent: #70a2ff;
+
+  --color-secondary: #20262e;
+  --color-secondary-foreground: #f1f4f7;
+  --color-muted-foreground: #98a2ae;
+  --color-accent-foreground: #f1f4f7;
+  --color-destructive: #ff7770;
+  --color-destructive-foreground: #0f1217;
+  --color-popover: #1a2028;
+  --color-popover-foreground: #f1f4f7;
+  --color-card: #1a2028;
+  --color-card-foreground: #f1f4f7;
 }
 
 :root {

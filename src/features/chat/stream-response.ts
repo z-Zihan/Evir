@@ -746,7 +746,9 @@ async function runStreamResponse(
   if (result.turns.length === 0) {
     // A user denial (or stop) deliberately ends the run here; surfacing the
     // generic "stream ended unexpectedly" error for it would be wrong.
-    const recent = get().messages.filter((m) => m.conversationId === conversationId).slice(-8);
+    const recent = get()
+      .messages.filter((m) => m.conversationId === conversationId)
+      .slice(-8);
     const endedByDenial = recent.some((m) =>
       m.toolResults?.some(({ error }) => error === TOOL_DENIED),
     );

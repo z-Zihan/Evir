@@ -4,16 +4,12 @@ import { Brain, Copy, Pencil, RotateCcw, Sparkles } from "lucide-react";
 
 import {
   Message,
+  MessageAction,
   MessageActions,
-  MessageActionButton,
-  MessageAuthor,
-  MessageBody,
   MessageContent,
-  MessageHeader,
   MessageRail,
   MessageRoleMark,
   MessageState,
-  MessageTime,
 } from "../components/ai";
 import { Button, Textarea } from "../components/ui";
 import type { MessageRecord } from "../core/storage/db";
@@ -75,25 +71,30 @@ export function ChatMessage({
   const role = isAssistant ? "assistant" : message.role === "system" ? "system" : "user";
   const roleLabel = isAssistant ? "Evir" : localUserName;
   const localInitial = Array.from(localUserName.trim())[0]?.toLocaleUpperCase(i18n.language) ?? "•";
+  // Assistant rows keep Evir's left role rail (AI Elements Message is
+  // column-direction; flex-row restores the rail + content line).
+  const messageClass =
+    role === "user"
+      ? `${groupedWithPrevious ? "message-grouped " : ""}${groupedWithNext ? "message-group-continues " : ""}py-1.5`
+      : `flex-row items-start ${groupedWithPrevious ? "message-grouped " : ""}${groupedWithNext ? "message-group-continues " : ""}py-1.5`;
 
   return (
-    <Message role={role} {...(groupedWithPrevious ? { grouped: true } : {})} className="py-1.5">
+    <Message from={role} className={`message-row message-${role} ${messageClass}`}>
       {role === "user" ? (
-        // User: right-aligned bubble; rail is unused but keeps row rhythm.
-        <MessageBody className="items-end">
+        <div className="message-main flex min-w-0 flex-col items-end gap-1">
           {!groupedWithPrevious && (
-            <MessageHeader className="justify-end">
-              <MessageTime dateTime={new Date(message.createdAt).toISOString()}>
+            <header className="message-header flex h-5 items-center gap-2 text-[11px] text-muted">
+              <time className="text-muted/80" dateTime={new Date(message.createdAt).toISOString()}>
                 {new Date(message.createdAt).toLocaleTimeString(i18n.language, {
                   hour: "2-digit",
                   minute: "2-digit",
                   hour12: false,
                 })}
-              </MessageTime>
-              <MessageAuthor>{roleLabel}</MessageAuthor>
-            </MessageHeader>
+              </time>
+              <span className="message-author font-medium text-foreground/85">{roleLabel}</span>
+            </header>
           )}
-          <MessageContent role="user" bubble>
+          <MessageContent className="message-content max-w-[min(560px,88%)]">
             {message.activeSkills && message.activeSkills.length > 0 && (
               <div
                 className="mb-1 flex items-center justify-end gap-1.5 text-[11px] text-muted"
@@ -156,20 +157,27 @@ export function ChatMessage({
           </MessageContent>
           {!isEditing && !groupedWithNext && (
             <MessageActions className="justify-end">
-              <MessageActionButton
+              <MessageAction
+                tooltip={copied ? t("chat.copied") : t("chat.copyMessage")}
+                aria-label={t("chat.copyMessage")}
                 onClick={() => {
                   void navigator.clipboard.writeText(message.content).then(() => {
                     setCopied(true);
                     setTimeout(() => setCopied(false), 1500);
                   });
                 }}
-                aria-label={t("chat.copyMessage")}
               >
-                <Copy size={12} />
-                {copied ? t("chat.copied") : t("chat.copyMessage")}
-              </MessageActionButton>
+                <Copy size={13} />
+              </MessageAction>
               {onRemember && (
-                <MessageActionButton
+                <MessageAction
+                  tooltip={
+                    rememberState === "saved"
+                      ? t("chat.remembered")
+                      : rememberState === "error"
+                        ? t("chat.rememberFailed")
+                        : t("chat.remember")
+                  }
                   disabled={disabled || rememberState === "saving" || rememberState === "saved"}
                   onClick={() => {
                     setRememberState("saving");
@@ -180,25 +188,21 @@ export function ChatMessage({
                   }}
                   aria-label={t("chat.remember")}
                 >
-                  <Brain size={12} />
-                  {rememberState === "saving"
-                    ? t("chat.remembering")
-                    : rememberState === "saved"
-                      ? t("chat.remembered")
-                      : rememberState === "error"
-                        ? t("chat.rememberFailed")
-                        : t("chat.remember")}
-                </MessageActionButton>
+                  <Brain size={13} />
+                </MessageAction>
               )}
-              <MessageActionButton onClick={() => setIsEditing(true)} disabled={disabled}>
-                <Pencil size={12} />
-                {t("chat.edit")}
-              </MessageActionButton>
+              <MessageAction
+                tooltip={t("chat.edit")}
+                disabled={disabled}
+                onClick={() => setIsEditing(true)}
+                aria-label={t("chat.edit")}
+              >
+                <Pencil size={13} />
+              </MessageAction>
             </MessageActions>
           )}
-        </MessageBody>
+        </div>
       ) : (
-        // Assistant/system: flat content-first block with a left role rail.
         <>
           <MessageRail>
             {!groupedWithPrevious && (
@@ -213,20 +217,23 @@ export function ChatMessage({
               </MessageRoleMark>
             )}
           </MessageRail>
-          <MessageBody className="flex-1">
+          <div className="message-main flex min-w-0 max-w-full flex-1 flex-col gap-1">
             {!groupedWithPrevious && (
-              <MessageHeader>
-                <MessageAuthor>{roleLabel}</MessageAuthor>
-                <MessageTime dateTime={new Date(message.createdAt).toISOString()}>
+              <header className="message-header flex h-5 items-center gap-2 text-[11px] text-muted">
+                <span className="message-author font-medium text-foreground/85">{roleLabel}</span>
+                <time
+                  className="text-muted/80"
+                  dateTime={new Date(message.createdAt).toISOString()}
+                >
                   {new Date(message.createdAt).toLocaleTimeString(i18n.language, {
                     hour: "2-digit",
                     minute: "2-digit",
                     hour12: false,
                   })}
-                </MessageTime>
-              </MessageHeader>
+                </time>
+              </header>
             )}
-            <MessageContent role={role}>
+            <MessageContent className="message-content w-full">
               {message.activeSkills && message.activeSkills.length > 0 && (
                 <div
                   className="mb-1.5 flex items-center gap-1.5 text-[11.5px] text-muted"
@@ -276,27 +283,31 @@ export function ChatMessage({
             </MessageContent>
             {!isEditing && !groupedWithNext && (
               <MessageActions>
-                <MessageActionButton
+                <MessageAction
+                  tooltip={t("chat.copyMessage")}
+                  aria-label={t("chat.copyMessage")}
                   onClick={() => {
                     void navigator.clipboard.writeText(message.content).then(() => {
                       setCopied(true);
                       setTimeout(() => setCopied(false), 1500);
                     });
                   }}
-                  aria-label={t("chat.copyMessage")}
                 >
-                  <Copy size={12} />
-                  {copied ? t("chat.copied") : t("chat.copyMessage")}
-                </MessageActionButton>
+                  <Copy size={13} />
+                </MessageAction>
                 {isAssistant && (
-                  <MessageActionButton onClick={() => void onRegenerate()} disabled={disabled}>
-                    <RotateCcw size={12} />
-                    {t("chat.regenerate")}
-                  </MessageActionButton>
+                  <MessageAction
+                    tooltip={t("chat.regenerate")}
+                    disabled={disabled}
+                    onClick={() => void onRegenerate()}
+                    aria-label={t("chat.regenerate")}
+                  >
+                    <RotateCcw size={13} />
+                  </MessageAction>
                 )}
               </MessageActions>
             )}
-          </MessageBody>
+          </div>
         </>
       )}
     </Message>

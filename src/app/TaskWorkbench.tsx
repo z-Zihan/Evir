@@ -230,7 +230,7 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
     const preparationKey = preparing.stage === "planning" ? "planning" : "intake";
     return (
       <section
-        className="task-workbench task-workbench-preparing mt-1 ml-[34px] max-w-[820px] min-w-0"
+        className="task-workbench task-workbench-preparing mt-1 ml-8 max-w-[820px] min-w-0"
         aria-labelledby="task-workbench-title"
       >
         <TaskPauseStrip
@@ -330,7 +330,7 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
   return (
     <section
       className={cn(
-        "task-workbench mt-1.5 ml-[34px] flex max-w-[820px] min-w-0 flex-col",
+        "task-workbench mt-1.5 ml-8 flex max-w-[820px] min-w-0 flex-col",
         finished ? "task-workbench-finished" : "",
       )}
       aria-labelledby="task-workbench-title"

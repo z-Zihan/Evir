@@ -246,7 +246,9 @@ test("Desktop Agent renders the event-driven task workbench", async ({ page }, t
     expect((bounds?.x ?? 0) + (bounds?.width ?? viewport.width + 1)).toBeLessThanOrEqual(
       viewport.width,
     );
-    const assistantContent = await page.locator(".message-assistant .message-main").boundingBox();
+    const assistantLocator = page.locator(".message-assistant .message-main").first();
+    await expect(assistantLocator).toBeVisible();
+    const assistantContent = await assistantLocator.boundingBox();
     expect(assistantContent).not.toBeNull();
     expect(Math.abs((bounds?.x ?? 0) - (assistantContent?.x ?? 0))).toBeLessThanOrEqual(1);
     expect(bounds?.width ?? 821).toBeLessThanOrEqual(820);
@@ -272,8 +274,10 @@ test("groups multi-tool activity and shows one approval surface", async ({ page 
   // Summary-first groups (§40): expand before counting per-call rows.
   await page.locator(".tool-group-header").first().click();
   await expect(page.locator(".execution-step")).toHaveCount(3);
-  await expect(page.locator(".approval-panel")).toHaveCount(1);
-  await expect(page.getByRole("button", { name: /Allow once/i })).toHaveCount(1);
+  // §Approval resolved state: a persisted permission request without a live
+  // pending approval renders read-only (no actionable card, no dead buttons).
+  await expect(page.locator(".approval-panel")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Allow once/i })).toHaveCount(0);
   await expect(page.locator(".agent-activity pre")).toHaveCount(0);
 });
 

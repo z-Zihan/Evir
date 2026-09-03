@@ -208,7 +208,9 @@
       "browser": "浏览器操作 · {{count}} 次",
       "other": "其他 · {{count}} 次"
     },
-    "failedCount": "{{count}} 失败"
+    "failedCount": "{{count}} 失败",
+    "permissionApproved": "已批准",
+    "permissionDenied": "已拒绝"
   },
   "errors": {
     "detail": "详情：{{message}}",
@@ -268,7 +270,7 @@
     "general": "通用",
     "providers": "模型供应商",
     "personalization": "个性化",
-    "identity": "本地身份",
+    "identity": "身份",
     "agent": "Agent",
     "skills": "Skill",
     "mcp": "MCP",

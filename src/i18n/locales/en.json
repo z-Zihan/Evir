@@ -208,7 +208,9 @@
       "browser": "Browser · {{count}} actions",
       "other": "Other · {{count}} calls"
     },
-    "failedCount": "{{count}} failed"
+    "failedCount": "{{count}} failed",
+    "permissionApproved": "Approved",
+    "permissionDenied": "Denied"
   },
   "errors": {
     "detail": "Details: {{message}}",
@@ -268,7 +270,7 @@
     "general": "General",
     "providers": "Model providers",
     "personalization": "Personalization",
-    "identity": "Local identity",
+    "identity": "Identity",
     "agent": "Agent",
     "skills": "Skills",
     "mcp": "MCP",

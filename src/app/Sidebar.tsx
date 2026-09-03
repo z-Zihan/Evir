@@ -481,13 +481,10 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
                 localInitial
               )}
             </span>
-            <span className="sidebar-identity-copy flex min-w-0 flex-1 flex-col leading-tight">
+            <span className="sidebar-identity-copy flex min-w-0 flex-1 items-center leading-tight">
               <strong className="truncate text-[12px] font-medium text-foreground">
                 {localName}
               </strong>
-              <small className="truncate text-[10.5px] text-muted">
-                {t("sidebar.localIdentity")}
-              </small>
             </span>
             <ChevronRight size={13} aria-hidden="true" className="shrink-0 text-muted" />
           </button>

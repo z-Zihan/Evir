@@ -1,44 +1,52 @@
-export { ThinkingDots, BusyIndicator } from "./loader";
+/**
+ * Evir AI presentation layer.
+ *
+ * Message / PromptInput / Tool / Confirmation / Task are VENDORED from
+ * vercel/ai-elements (Apache-2.0) with documented adaptations — see
+ * src/components/ai/elements/*. Evir domain state remains the single source
+ * of truth; adapters live in features/app, not here. glue.tsx holds small
+ * Evir-specific presentation pieces without an upstream equivalent.
+ */
 export {
+  ConversationContent,
+  ConversationEmptyState,
   Message,
-  MessageRail,
-  MessageRoleMark,
-  MessageBody,
-  MessageHeader,
-  MessageAuthor,
-  MessageTime,
   MessageContent,
   MessageActions,
-  MessageActionButton,
-  MessageState,
-} from "./message";
-export {
+  MessageAction,
+  MessageToolbar,
   PromptInput,
-  PromptInputChips,
-  PromptInputChip,
-  PromptInputThumb,
+  PromptInputProvider,
+  PromptInputBody,
   PromptInputTextarea,
   PromptInputFooter,
   PromptInputTools,
-  PromptInputContext,
-  PromptInputAttach,
+  PromptInputButton,
   PromptInputSubmit,
-} from "./prompt-input";
-export { ToolGroupHeader, ToolGroupCalls, ToolRow, ToolTimeline, type ToolStatus } from "./tool";
-export {
-  ConfirmationCard,
-  ConfirmationHeader,
-  ConfirmationIcon,
+  Tool,
+  ToolHeader,
+  ToolContent,
+  ToolInput,
+  ToolOutput,
+  getStatusBadge,
+  Confirmation,
   ConfirmationTitle,
-  ConfirmationDescription,
-  ConfirmationFacts,
-  ConfirmationFact,
-  ConfirmationFactLabel,
-  ConfirmationFactValue,
+  ConfirmationRequest,
+  ConfirmationAccepted,
+  ConfirmationRejected,
   ConfirmationActions,
-  ConfirmationDenyButton,
-  ConfirmationApproveButton,
-} from "./confirmation";
+  ConfirmationAction,
+  Task,
+  TaskTrigger,
+  TaskContent,
+  TaskItem,
+  TaskItemFile,
+  type ChatStatus,
+} from "./elements";
+
+/** Evir-specific presentation pieces without an upstream equivalent. */
+export { ThinkingDots, BusyIndicator } from "./loader";
+export { MessageRail, MessageRoleMark, MessageState } from "./glue";
 export {
   PlanNodeIcon,
   TaskCard,
@@ -52,3 +60,10 @@ export {
   PauseIcon,
   type PlanNodeStatus,
 } from "./task";
+/**
+ * Grouped, summary-first tool timeline: Evir aggregates calls by domain
+ * (inspect/change/command/browser) with localized summaries, while the
+ * upstream Tool component is per-call. Kept as an Evir adapter on top of
+ * the same primitives; see the acceptance report comparison table.
+ */
+export { ToolGroupHeader, ToolGroupCalls, ToolRow, ToolTimeline, type ToolStatus } from "./tool";

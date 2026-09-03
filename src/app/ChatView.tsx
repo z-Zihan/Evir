@@ -26,21 +26,13 @@ import {
 import { Button, Tip } from "../components/ui";
 import {
   Message,
-  MessageAuthor,
-  MessageBody,
   MessageContent,
-  MessageHeader,
   MessageRail,
   MessageRoleMark,
-  MessageTime,
   PromptInput,
-  PromptInputChip,
-  PromptInputChips,
-  PromptInputContext,
   PromptInputFooter,
   PromptInputSubmit,
   PromptInputTextarea,
-  PromptInputThumb,
   PromptInputTools,
   ThinkingDots,
 } from "../components/ai";
@@ -676,7 +668,7 @@ export function ChatView({
               </Suspense>
             )}
             {currentAgentRun && !hasCurrentTaskWorkbench && (
-              <div className="ml-[34px] mr-3 min-w-0 max-w-[820px]">
+              <div className="ml-8 min-w-0 max-w-[calc(95%-44px)]">
                 <AgentRunSummary record={currentAgentRun} onLayoutChange={scrollToBottom} />
               </div>
             )}
@@ -705,15 +697,15 @@ export function ChatView({
                 </div>
               )}
             {isCurrentConversationStreaming && (
-              <Message role="assistant" className="message-streaming py-1.5" aria-live="polite">
+              <Message from="assistant" className="message-streaming py-1.5" aria-live="polite">
                 <MessageRail>
                   <MessageRoleMark>
                     <img src="/evir-mark.svg" alt="" className="size-full" />
                   </MessageRoleMark>
                 </MessageRail>
-                <MessageBody className="flex-1">
-                  <MessageHeader>
-                    <MessageAuthor>Evir</MessageAuthor>
+                <div className="message-main flex min-w-0 flex-1 flex-col gap-1">
+                  <div className="message-header flex h-5 items-center gap-2 text-[11px] text-muted">
+                    <span className="message-author font-medium text-foreground/85">Evir</span>
                     <span className="stream-status flex items-center gap-1.5 text-[11px] text-muted">
                       <span
                         className="signal-dot size-1.5 animate-pulse rounded-full bg-success"
@@ -724,12 +716,12 @@ export function ChatView({
                         : streamingContent
                           ? t("chat.responding")
                           : t("chat.preparingResponse")}
-                      <MessageTime>
+                      <time className="text-muted/80">
                         {t("chat.elapsed", { seconds: streamElapsedSeconds })}
-                      </MessageTime>
+                      </time>
                     </span>
-                  </MessageHeader>
-                  <MessageContent role="assistant" className="stream-surface">
+                  </div>
+                  <MessageContent className="stream-surface w-full">
                     {streamingContent ? (
                       <MarkdownContent content={streamingContent} streaming />
                     ) : (
@@ -741,7 +733,7 @@ export function ChatView({
                       </div>
                     )}
                   </MessageContent>
-                </MessageBody>
+                </div>
               </Message>
             )}
           </div>
@@ -754,31 +746,59 @@ export function ChatView({
           </div>
         )}
         <PromptInput
-          className={dragOver ? "drag-over border-primary/60 shadow-sm" : undefined}
+          className={`composer ${dragOver ? "drag-over border-primary/60 shadow-sm" : ""}`}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSendMessage();
+          }}
         >
           {(pendingAttachments.length > 0 || selectedSkillIds.size > 0) && (
-            <PromptInputChips className={selectedSkillIds.size === 0 ? "" : "flex-wrap gap-y-1"}>
+            <div className="flex flex-wrap items-center gap-y-1 gap-x-1.5 px-3 pt-2.5">
               {pendingAttachments.map((att) =>
                 att.type === "image" ? (
-                  <PromptInputChip
+                  <span
                     key={att.id}
-                    media={<PromptInputThumb src={att.data} alt={att.fileName} />}
-                    removeLabel={t("chat.removeAttachment")}
-                    onRemove={() => removeAttachment(att.id)}
+                    className="inline-flex max-w-[220px] items-center gap-1.5 rounded-md border border-border bg-surface-hover py-1 pr-1 pl-2 text-[11.5px] text-foreground"
                   >
-                    {att.fileName}
-                  </PromptInputChip>
+                    <img
+                      src={att.data}
+                      alt={att.fileName}
+                      className="size-6 rounded-sm border border-border object-cover"
+                    />
+                    <span className="truncate">{att.fileName}</span>
+                    <Tip content={t("chat.removeAttachment")}>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        aria-label={t("chat.removeAttachment")}
+                        onClick={() => removeAttachment(att.id)}
+                        className="text-muted hover:text-foreground"
+                      >
+                        <X size={11} />
+                      </Button>
+                    </Tip>
+                  </span>
                 ) : (
-                  <PromptInputChip
+                  <span
                     key={att.id}
-                    removeLabel={t("chat.removeAttachment")}
-                    onRemove={() => removeAttachment(att.id)}
+                    className="inline-flex max-w-[220px] items-center gap-1.5 rounded-md border border-border bg-surface-hover py-1 pr-1 pl-2 text-[11.5px] text-foreground"
                   >
-                    {att.fileName}
-                  </PromptInputChip>
+                    <span className="truncate">{att.fileName}</span>
+                    <Tip content={t("chat.removeAttachment")}>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        aria-label={t("chat.removeAttachment")}
+                        onClick={() => removeAttachment(att.id)}
+                        className="text-muted hover:text-foreground"
+                      >
+                        <X size={11} />
+                      </Button>
+                    </Tip>
+                  </span>
                 ),
               )}
               {selectedSkillIds.size > 0 &&
@@ -789,18 +809,27 @@ export function ChatView({
                     const name =
                       skill.manifest.localizations?.[locale]?.name ?? skill.manifest.name;
                     return (
-                      <PromptInputChip
+                      <span
                         key={skill.manifest.id}
-                        media={<Sparkles size={11} aria-hidden="true" className="text-primary" />}
-                        removeLabel={t("skill.removeSelected", { name })}
-                        onRemove={() => toggleSelectedSkill(skill.manifest.id)}
-                        className="pending-skill-chip border-primary/30 bg-primary/[0.06]"
+                        className="inline-flex max-w-[220px] items-center gap-1.5 rounded-md border border-primary/30 bg-primary/[0.06] py-1 pr-1 pl-2 text-[11.5px] text-foreground"
                       >
-                        {name}
-                      </PromptInputChip>
+                        <Sparkles size={11} aria-hidden="true" className="shrink-0 text-primary" />
+                        <span className="truncate">{name}</span>
+                        <Tip content={t("skill.removeSelected", { name })}>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label={t("skill.removeSelected", { name })}
+                            onClick={() => toggleSelectedSkill(skill.manifest.id)}
+                            className="text-muted hover:text-foreground"
+                          >
+                            <X size={11} />
+                          </Button>
+                        </Tip>
+                      </span>
                     );
                   })}
-            </PromptInputChips>
+            </div>
           )}
           {slashOpen && (
             <SlashPalette
@@ -853,6 +882,7 @@ export function ChatView({
             onChange={(e) => onInputChange(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={isCurrentConversationStreaming}
+            className="max-h-[200px] min-h-[52px] w-full resize-none bg-transparent px-3.5 py-3 text-[13.5px] leading-relaxed text-foreground outline-none placeholder:text-muted disabled:opacity-60"
           />
           <PromptInputFooter>
             <PromptInputTools>
@@ -875,7 +905,7 @@ export function ChatView({
                 disabled={isCurrentConversationStreaming}
               />
             </PromptInputTools>
-            <PromptInputContext>
+            <div className="flex min-w-0 items-center gap-1.5">
               {projectScoped && runtime.target === "desktop" && conversationProject && (
                 <PermissionSwitcher project={conversationProject} />
               )}
@@ -893,7 +923,8 @@ export function ChatView({
               </span>
               {isCurrentConversationStreaming ? (
                 <PromptInputSubmit
-                  streaming
+                  status="streaming"
+                  onStop={() => stopGeneration(currentConversationId ?? undefined)}
                   type="button"
                   aria-label={t("chat.stop")}
                   onClick={(event) => {
@@ -918,7 +949,7 @@ export function ChatView({
                   <ArrowUp size={14} aria-hidden="true" />
                 </PromptInputSubmit>
               )}
-            </PromptInputContext>
+            </div>
           </PromptInputFooter>
           <input
             ref={fileInputRef}

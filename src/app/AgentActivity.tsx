@@ -6,22 +6,15 @@ import {
   Eye,
   FilePenLine,
   Globe,
+  ShieldAlert as ShieldAlertIcon,
   SquareTerminal,
   Wrench,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
+  Confirmation,
+  ConfirmationAction,
   ConfirmationActions,
-  ConfirmationApproveButton,
-  ConfirmationCard,
-  ConfirmationDenyButton,
-  ConfirmationDescription,
-  ConfirmationFact,
-  ConfirmationFactLabel,
-  ConfirmationFactValue,
-  ConfirmationFacts,
-  ConfirmationHeader,
-  ConfirmationIcon,
   ConfirmationTitle,
   ToolGroupCalls,
   ToolGroupHeader,
@@ -120,8 +113,25 @@ export function AgentActivity({
   const approveTool = useChatStore((state) => state.approveTool);
   const denyTool = useChatStore((state) => state.denyTool);
   const pendingApproval = useChatStore((state) => state.pendingToolApproval);
+  const conversationMessages = useChatStore((state) => state.messages) ?? [];
   const resultsByCallId = new Map(toolResults.map((result) => [result.toolCallId, result]));
   const approvalArguments = pendingApproval ? JSON.stringify(pendingApproval.args) : "";
+
+  // §Approval resolved state: the actionable card exists ONLY while this
+  // message's permission request is the conversation's active pending
+  // approval (toolCallIds are unique per conversation). Historical
+  // permission requests derive their resolution from the conversation's
+  // persisted records and render read-only — never a stale actionable card.
+  const callsById = new Set(toolCalls.map(({ id }) => id));
+  const isActivePending = pendingApproval !== null && callsById.has(pendingApproval.toolCallId);
+  const resolvedState = new Map<string, "approved" | "denied">();
+  for (const message of conversationMessages) {
+    for (const result of message.toolResults ?? []) {
+      if (!callsById.has(result.toolCallId)) continue;
+      if (result.error === TOOL_PERMISSION_REQUIRED) continue;
+      resolvedState.set(result.toolCallId, result.error === TOOL_DENIED ? "denied" : "approved");
+    }
+  }
 
   const groups = groupToolCalls(toolCalls, toolResults);
   const completed = toolCalls.filter((call) => {
@@ -212,7 +222,19 @@ export function AgentActivity({
               {groupOpen && (
                 <ToolGroupCalls>
                   {group.calls.map(({ call, result }) => {
-                    const toolStatus: ToolStatus = deriveToolStatus(call, result, isStreaming);
+                    let toolStatus: ToolStatus = deriveToolStatus(call, result, isStreaming);
+                    const permissionRow =
+                      toolStatus === "waiting-approval" &&
+                      (!isActivePending || pendingApproval?.toolCallId !== call.id);
+                    let resolvedLabel: string | null = null;
+                    if (permissionRow) {
+                      // Historical permission request: show its resolution.
+                      resolvedLabel =
+                        resolvedState.get(call.id) === "denied"
+                          ? t("tools.permissionDenied")
+                          : t("tools.permissionApproved");
+                      toolStatus = resolvedState.get(call.id) === "denied" ? "denied" : "completed";
+                    }
                     const toolKey = `tools.${call.toolName}`;
                     const toolName = i18n.exists(toolKey) ? t(toolKey) : call.toolName;
                     const summaryText = getArgumentSummary(call);
@@ -226,7 +248,7 @@ export function AgentActivity({
                         detailTitle={summaryText}
                         statusLabel={
                           <>
-                            {statusLabelRow}
+                            {resolvedLabel ?? statusLabelRow}
                             {result?.durationMs !== undefined &&
                               ` · ${(result.durationMs / 1000).toFixed(1)}s`}
                           </>
@@ -241,85 +263,102 @@ export function AgentActivity({
         })}
       </ToolTimeline>
 
-      {hasPending && (
-        <ConfirmationCard className="mt-1">
-          <ConfirmationHeader>
-            <ConfirmationIcon />
+      {hasPending && isActivePending && pendingApproval && (
+        <Confirmation
+          className="approval-panel mt-1 gap-0 border-warning/45"
+          state="approval-requested"
+          approval={{ id: pendingApproval.toolCallId }}
+        >
+          <div className="flex items-start gap-2.5 px-3.5 pt-3">
+            <span
+              className="mt-px flex size-6 shrink-0 items-center justify-center rounded-md bg-warning/15 text-warning"
+              aria-hidden="true"
+            >
+              <ShieldAlertIcon />
+            </span>
             <div className="min-w-0">
-              <ConfirmationTitle>{t("tools.approvalTitle")}</ConfirmationTitle>
-              <ConfirmationDescription>{t("tools.approvalDescription")}</ConfirmationDescription>
+              <ConfirmationTitle className="!text-foreground">
+                <strong className="text-[13px] font-semibold">{t("tools.approvalTitle")}</strong>
+              </ConfirmationTitle>
+              <p className="mt-0.5 text-[12px] leading-relaxed text-muted">
+                {t("tools.approvalDescription")}
+              </p>
             </div>
-          </ConfirmationHeader>
-          {pendingApproval && (
-            <ConfirmationFacts>
-              <ConfirmationFact>
-                <ConfirmationFactLabel>{t("tools.approvalTool")}</ConfirmationFactLabel>
-                <ConfirmationFactValue>{pendingApproval.toolName}</ConfirmationFactValue>
-              </ConfirmationFact>
-              {pendingApproval.riskLevel && (
-                <ConfirmationFact>
-                  <ConfirmationFactLabel>{t("tools.approvalRisk")}</ConfirmationFactLabel>
-                  <ConfirmationFactValue>
-                    <Badge variant="warning" className="h-4.5 px-1.5 text-[10.5px]">
-                      {pendingApproval.riskLevel}
-                    </Badge>
-                  </ConfirmationFactValue>
-                </ConfirmationFact>
-              )}
-              {pendingApproval.approval?.target && (
-                <ConfirmationFact>
-                  <ConfirmationFactLabel>{t("tools.approvalTarget")}</ConfirmationFactLabel>
-                  <ConfirmationFactValue>{pendingApproval.approval.target}</ConfirmationFactValue>
-                </ConfirmationFact>
-              )}
-              {pendingApproval.approval?.dataDestination && (
-                <ConfirmationFact>
-                  <ConfirmationFactLabel>{t("tools.dataDestination")}</ConfirmationFactLabel>
-                  <ConfirmationFactValue>
-                    {pendingApproval.approval.dataDestination}
-                  </ConfirmationFactValue>
-                </ConfirmationFact>
-              )}
-              {pendingApproval.approval?.impact && (
-                <ConfirmationFact>
-                  <ConfirmationFactLabel>{t("tools.approvalImpact")}</ConfirmationFactLabel>
-                  <ConfirmationFactValue>
-                    {t(`tools.approvalImpacts.${pendingApproval.approval.impact}`)}
-                  </ConfirmationFactValue>
-                </ConfirmationFact>
-              )}
-              {pendingApproval.approval && (
-                <ConfirmationFact>
-                  <ConfirmationFactLabel>{t("tools.reversible")}</ConfirmationFactLabel>
-                  <ConfirmationFactValue>
-                    {pendingApproval.approval.reversible ? t("common.yes") : t("common.no")}
-                  </ConfirmationFactValue>
-                </ConfirmationFact>
-              )}
-              <ConfirmationFact>
-                <ConfirmationFactLabel>{t("tools.arguments")}</ConfirmationFactLabel>
-                <ConfirmationFactValue className="font-mono text-[11px] text-muted">
-                  {approvalArguments.slice(0, 500)}
-                  {approvalArguments.length > 500 ? "…" : ""}
-                </ConfirmationFactValue>
-              </ConfirmationFact>
-            </ConfirmationFacts>
-          )}
-          <ConfirmationActions>
-            <ConfirmationDenyButton
+          </div>
+          <dl className="approval-facts grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 px-3.5 pb-3 text-[11.5px]">
+            <div className="contents">
+              <dt className="text-muted">{t("tools.approvalTool")}</dt>
+              <dd className="min-w-0 break-all font-medium text-foreground/90">
+                {pendingApproval.toolName}
+              </dd>
+            </div>
+            {pendingApproval.riskLevel && (
+              <div className="contents">
+                <dt className="text-muted">{t("tools.approvalRisk")}</dt>
+                <dd className="min-w-0 break-all font-medium text-foreground/90">
+                  <Badge variant="warning" className="px-1.5 text-[10.5px]">
+                    {pendingApproval.riskLevel}
+                  </Badge>
+                </dd>
+              </div>
+            )}
+            {pendingApproval.approval?.target && (
+              <div className="contents">
+                <dt className="text-muted">{t("tools.approvalTarget")}</dt>
+                <dd className="min-w-0 break-all font-medium text-foreground/90">
+                  {pendingApproval.approval.target}
+                </dd>
+              </div>
+            )}
+            {pendingApproval.approval?.dataDestination && (
+              <div className="contents">
+                <dt className="text-muted">{t("tools.dataDestination")}</dt>
+                <dd className="min-w-0 break-all font-medium text-foreground/90">
+                  {pendingApproval.approval.dataDestination}
+                </dd>
+              </div>
+            )}
+            {pendingApproval.approval?.impact && (
+              <div className="contents">
+                <dt className="text-muted">{t("tools.approvalImpact")}</dt>
+                <dd className="min-w-0 break-all font-medium text-foreground/90">
+                  {t(`tools.approvalImpacts.${pendingApproval.approval.impact}`)}
+                </dd>
+              </div>
+            )}
+            {pendingApproval.approval && (
+              <div className="contents">
+                <dt className="text-muted">{t("tools.reversible")}</dt>
+                <dd className="min-w-0 break-all font-medium text-foreground/90">
+                  {pendingApproval.approval.reversible ? t("common.yes") : t("common.no")}
+                </dd>
+              </div>
+            )}
+            <div className="contents">
+              <dt className="text-muted">{t("tools.arguments")}</dt>
+              <dd className="min-w-0 break-all font-mono text-[11px] text-muted">
+                {approvalArguments.slice(0, 500)}
+                {approvalArguments.length > 500 ? "…" : ""}
+              </dd>
+            </div>
+          </dl>
+          <ConfirmationActions className="border-t border-border px-3.5 pb-3 pt-2.5">
+            <ConfirmationAction
+              variant="outline"
               disabled={isApprovalConversationStreaming}
               onClick={() => void denyTool()}
             >
               {t("tools.deny")}
-            </ConfirmationDenyButton>
-            <ConfirmationApproveButton
+            </ConfirmationAction>
+            <ConfirmationAction
+              variant="primary"
               disabled={isApprovalConversationStreaming}
               onClick={() => void approveTool()}
             >
               {t("tools.approveOnce")}
-            </ConfirmationApproveButton>
+            </ConfirmationAction>
           </ConfirmationActions>
-        </ConfirmationCard>
+        </Confirmation>
       )}
 
       {expanded && (
