@@ -1,64 +1,29 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  AlertTriangle,
-  Cable,
-  Globe2,
-  Pencil,
-  Play,
-  Plus,
-  RefreshCw,
-  Terminal,
-  Trash2,
-} from "lucide-react";
-import { Button, Input, Switch, Textarea, Tip } from "../components/ui";
-import type { McpTool, McpTransport } from "../core/mcp/types";
-import type { ToolResult } from "../core/providers/tool-registry";
+import { AlertTriangle, Cable, Plus } from "lucide-react";
+import { Button } from "../components/ui";
+import { SettingsPage, SettingsPageIntro } from "../components/settings";
+import { LoadingState, EmptyState } from "../components/feedback";
+import type { McpTool } from "../core/mcp/types";
 import { useMcpStore, type McpServerEntry } from "../features/mcp/mcp-store";
-import { SettingsFormDialog } from "./SettingsFormDialog";
 import { useConfirmationDialog } from "./useConfirmationDialog";
+import {
+  buildMcpConfig,
+  EMPTY_MCP_FORM,
+  MAX_CONFIRMATION_ARGS_CHARS,
+  toolTestKey,
+  validateMcpForm,
+  type McpFormErrors,
+  type McpFormState,
+  type McpToolTestState,
+} from "./mcp/form-model";
+import { McpServerCard } from "./mcp/McpServerCard";
+import { McpServerFormDialog } from "./mcp/McpServerFormDialog";
 
-interface FormState {
-  name: string;
-  transport: McpTransport;
-  command: string;
-  args: string;
-  cwd: string;
-  url: string;
-}
-
-const EMPTY_FORM: FormState = {
-  name: "",
-  transport: "stdio",
-  command: "",
-  args: "",
-  cwd: "",
-  url: "",
-};
-
-type FormErrors = Partial<Record<"name" | "command" | "url", string>>;
-
-interface ToolTestState {
-  input: string;
-  running?: boolean | undefined;
-  error?: string | undefined;
-  result?: ToolResult | undefined;
-}
-
-const MAX_SCHEMA_PREVIEW_CHARS = 4_000;
-const MAX_CONFIRMATION_ARGS_CHARS = 500;
-
-function toolTestKey(serverId: string, toolName: string): string {
-  return `${serverId}\0${toolName}`;
-}
-
-function schemaPreview(tool: McpTool): string {
-  const value = JSON.stringify(tool.inputSchema, null, 2);
-  return value.length <= MAX_SCHEMA_PREVIEW_CHARS
-    ? value
-    : `${value.slice(0, MAX_SCHEMA_PREVIEW_CHARS)}\n…`;
-}
-
+/**
+ * MCP settings page: server list orchestration + add/edit dialog. The server
+ * card and the form dialog are presentational components in ./mcp/.
+ */
 export function McpSettings() {
   const { t, i18n } = useTranslation();
   const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
@@ -78,9 +43,9 @@ export function McpSettings() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<FormState>({ ...EMPTY_FORM });
-  const [errors, setErrors] = useState<FormErrors>({});
-  const [toolTests, setToolTests] = useState<Record<string, ToolTestState>>({});
+  const [form, setForm] = useState<McpFormState>({ ...EMPTY_MCP_FORM });
+  const [errors, setErrors] = useState<McpFormErrors>({});
+  const [toolTests, setToolTests] = useState<Record<string, McpToolTestState>>({});
   const [testingServerId, setTestingServerId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -90,7 +55,7 @@ export function McpSettings() {
   const closeDialog = () => {
     setDialogOpen(false);
     setEditingId(null);
-    setForm({ ...EMPTY_FORM });
+    setForm({ ...EMPTY_MCP_FORM });
     setErrors({});
   };
 
@@ -113,54 +78,19 @@ export function McpSettings() {
     setDialogOpen(true);
   };
 
-  const update = <Key extends keyof FormState>(key: Key, value: FormState[Key]) => {
+  const update = <Key extends keyof McpFormState>(key: Key, value: McpFormState[Key]) => {
     setForm((current) => ({ ...current, [key]: value }));
     if (key === "name" || key === "command" || key === "url") {
       setErrors((current) => ({ ...current, [key]: undefined }));
     }
   };
 
-  const validate = (): FormErrors => {
-    const next: FormErrors = {};
-    if (!form.name.trim()) next.name = t("mcp.required");
-    if (form.transport === "stdio" && !form.command.trim()) next.command = t("mcp.required");
-    if (form.transport === "streamable-http") {
-      try {
-        const url = new URL(form.url);
-        if (url.protocol !== "http:" && url.protocol !== "https:") next.url = t("mcp.invalidUrl");
-      } catch {
-        next.url = form.url.trim() ? t("mcp.invalidUrl") : t("mcp.required");
-      }
-    }
-    return next;
-  };
-
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const nextErrors = validate();
+    const nextErrors = validateMcpForm(form, t);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
-
-    const config =
-      form.transport === "stdio"
-        ? {
-            name: form.name.trim(),
-            transport: "stdio" as const,
-            command: form.command.trim(),
-            args: form.args
-              .split(",")
-              .map((item) => item.trim())
-              .filter(Boolean),
-            ...(form.cwd.trim() ? { cwd: form.cwd.trim() } : {}),
-            envSecretRefs: {},
-          }
-        : {
-            name: form.name.trim(),
-            transport: "streamable-http" as const,
-            url: form.url.trim(),
-            headerSecretRefs: {},
-          };
-
+    const config = buildMcpConfig(form);
     if (editingId) await updateServer(editingId, config);
     else await addServer(config);
     closeDialog();
@@ -183,7 +113,7 @@ export function McpSettings() {
       timeStyle: "medium",
     }).format(value);
 
-  const updateToolTest = (key: string, update: Partial<ToolTestState>) => {
+  const updateToolTest = (key: string, update: Partial<McpToolTestState>) => {
     setToolTests((current) => ({
       ...current,
       [key]: { input: current[key]?.input ?? "{}", ...current[key], ...update },
@@ -239,389 +169,98 @@ export function McpSettings() {
   };
 
   return (
-    <section className="mcp-settings">
-      <div className="settings-page-intro compact mcp-overview">
-        <div>
-          <span className="settings-page-eyebrow">{t("settingsDescriptions.toolConnections")}</span>
-          <p>{t("settingsDescriptions.mcp")}</p>
-        </div>
-        <div className="mcp-overview-actions">
-          <span className="settings-count-badge">
-            {t("mcp.serverSummary", { enabled: enabledCount, total: servers.length })}
-          </span>
-          <Button variant="primary" size="lg" onClick={openAdd}>
-            <Plus size={14} /> {t("mcp.add")}
-          </Button>
-        </div>
-      </div>
+    <SettingsPage className="mcp-settings">
+      <SettingsPageIntro
+        eyebrow={t("settingsDescriptions.toolConnections")}
+        description={t("settingsDescriptions.mcp")}
+        action={
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="rounded-md border border-border px-2 py-1 text-[9.5px] whitespace-nowrap text-muted">
+              {t("mcp.serverSummary", { enabled: enabledCount, total: servers.length })}
+            </span>
+            <Button variant="primary" size="lg" onClick={openAdd}>
+              <Plus size={14} /> {t("mcp.add")}
+            </Button>
+          </div>
+        }
+      />
 
-      <div className="mcp-security-notice">
-        <AlertTriangle size={14} />
+      <div className="flex items-center gap-1.5 rounded-lg border border-warning/35 bg-warning/[0.07] px-3 py-2 text-[11.5px] text-warning">
+        <AlertTriangle size={14} aria-hidden="true" />
         <span>{t("mcp.runtimeNotice")}</span>
       </div>
 
       {loading ? (
-        <p>{t("common.loading")}</p>
+        <LoadingState label={t("common.loading")} />
       ) : servers.length === 0 ? (
-        <div className="mcp-empty-state">
-          <span className="mcp-empty-icon">
-            <Cable size={20} />
-          </span>
-          <strong>{t("mcp.noServers")}</strong>
-          <p>{t("settingsDescriptions.mcpEmpty")}</p>
-          <Button variant="secondary" size="lg" onClick={openAdd}>
-            <Plus size={14} /> {t("mcp.add")}
-          </Button>
-        </div>
+        <EmptyState
+          icon={<Cable />}
+          title={t("mcp.noServers")}
+          description={t("settingsDescriptions.mcpEmpty")}
+          primaryAction={
+            <Button variant="secondary" size="lg" onClick={openAdd}>
+              <Plus size={14} aria-hidden="true" /> {t("mcp.add")}
+            </Button>
+          }
+          className="rounded-xl border border-dashed border-border-strong"
+        />
       ) : (
-        <ul className="mcp-list">
+        <ul className="m-0 flex list-none flex-col gap-3 p-0">
           {servers.map((server) => (
-            <li key={server.id} className="mcp-item">
-              {(() => {
-                const snapshot = runtimeSnapshots[server.id];
-                const connectionTest = connectionTests[server.id];
-                const runtimeState = server.enabled
-                  ? (snapshot?.state ?? "notStarted")
-                  : "disabled";
-                return (
-                  <>
-                    <span
-                      className={`mcp-status-dot${runtimeState === "ready" ? " enabled" : ""}`}
-                      aria-hidden="true"
-                    />
-                    <span className="mcp-transport-icon" aria-hidden="true">
-                      {server.transport === "stdio" ? <Terminal size={16} /> : <Globe2 size={16} />}
-                    </span>
-                    <div className="mcp-item-copy">
-                      <div>
-                        <strong>{server.name}</strong>
-                        <span>
-                          {server.transport === "stdio"
-                            ? t("mcp.localProcess")
-                            : t("mcp.remoteServer")}
-                        </span>
-                        <span>{t(`mcp.states.${runtimeState}`)}</span>
-                        {snapshot?.state === "ready" && (
-                          <span>{t("mcp.toolCount", { count: snapshot.tools.length })}</span>
-                        )}
-                      </div>
-                      <p>
-                        {server.transport === "stdio"
-                          ? `${server.command} ${server.args.join(" ")}`.trim()
-                          : server.url}
-                      </p>
-                      {snapshot?.error && <p className="mcp-runtime-error">{snapshot.error}</p>}
-                      {connectionTest && (
-                        <p
-                          className={
-                            connectionTest.success
-                              ? "mcp-connection-test-result"
-                              : "mcp-runtime-error"
-                          }
-                          role={connectionTest.success ? "status" : "alert"}
-                        >
-                          {connectionTest.success
-                            ? t("mcp.connectionTestPassed", {
-                                count: connectionTest.toolCount ?? 0,
-                                time: formatTimestamp(connectionTest.testedAt),
-                              })
-                            : t("mcp.connectionTestFailed", {
-                                error: connectionTest.error,
-                              })}
-                        </p>
-                      )}
-                      {snapshot && (
-                        <dl className="mcp-runtime-metadata">
-                          {snapshot.pid !== undefined && (
-                            <div>
-                              <dt>{t("mcp.processId")}</dt>
-                              <dd>{snapshot.pid}</dd>
-                            </div>
-                          )}
-                          {snapshot.protocolVersion && (
-                            <div>
-                              <dt>{t("mcp.protocolVersion")}</dt>
-                              <dd>{snapshot.protocolVersion}</dd>
-                            </div>
-                          )}
-                          {snapshot.serverInfo?.name && (
-                            <div>
-                              <dt>{t("mcp.serverIdentity")}</dt>
-                              <dd>
-                                {snapshot.serverInfo.name}
-                                {snapshot.serverInfo.version
-                                  ? ` ${snapshot.serverInfo.version}`
-                                  : ""}
-                              </dd>
-                            </div>
-                          )}
-                          {snapshot.lastReadyAt !== undefined && (
-                            <div>
-                              <dt>{t("mcp.lastReady")}</dt>
-                              <dd>{formatTimestamp(snapshot.lastReadyAt)}</dd>
-                            </div>
-                          )}
-                        </dl>
-                      )}
-                      {snapshot?.state === "ready" && snapshot.tools.length > 0 && (
-                        <details className="mcp-tool-details">
-                          <summary>{t("mcp.inspectTools")}</summary>
-                          <div className="mcp-tool-list">
-                            {snapshot.tools.map((tool) => {
-                              const key = toolTestKey(server.id, tool.name);
-                              const test = toolTests[key] ?? { input: "{}" };
-                              return (
-                                <section key={tool.name} className="mcp-tool-test">
-                                  <div>
-                                    <strong>{tool.name}</strong>
-                                    {tool.description && <p>{tool.description}</p>}
-                                  </div>
-                                  <details>
-                                    <summary>{t("mcp.inputSchema")}</summary>
-                                    <pre>{schemaPreview(tool)}</pre>
-                                  </details>
-                                  <label>
-                                    <span>{t("mcp.testArguments")}</span>
-                                    <Textarea
-                                      value={test.input}
-                                      aria-invalid={Boolean(test.error)}
-                                      autoCapitalize="off"
-                                      autoCorrect="off"
-                                      spellCheck={false}
-                                      onChange={(event) =>
-                                        updateToolTest(key, {
-                                          input: event.target.value,
-                                          error: undefined,
-                                          result: undefined,
-                                        })
-                                      }
-                                    />
-                                  </label>
-                                  {test.error && (
-                                    <p className="mcp-runtime-error" role="alert">
-                                      {test.error}
-                                    </p>
-                                  )}
-                                  <Button
-                                    variant="secondary"
-                                    size="lg"
-                                    disabled={test.running}
-                                    onClick={() => requestToolTest(server, tool)}
-                                  >
-                                    <Play size={13} />
-                                    {test.running ? t("mcp.testingTool") : t("mcp.testTool")}
-                                  </Button>
-                                  {test.result && (
-                                    <pre
-                                      className={
-                                        test.result.success
-                                          ? "mcp-test-result"
-                                          : "mcp-test-result error"
-                                      }
-                                      role={test.result.success ? "status" : "alert"}
-                                    >
-                                      {test.result.output}
-                                    </pre>
-                                  )}
-                                </section>
-                              );
-                            })}
-                          </div>
-                        </details>
-                      )}
-                    </div>
-                    <label className="mcp-toggle">
-                      <span>
-                        {server.enabled ? t("mcp.configurationEnabled") : t("mcp.disabled")}
-                      </span>
-                      <Switch
-                        checked={server.enabled}
-                        onCheckedChange={() => {
-                          clearServerToolTests(server.id);
-                          void toggleServer(server.id);
-                        }}
-                        aria-label={
-                          server.enabled ? t("mcp.configurationEnabled") : t("mcp.disabled")
-                        }
-                      />
-                    </label>
-                    <div className="mcp-item-actions">
-                      <Tip content={t("mcp.testConnection")}>
-                        <button
-                          type="button"
-                          disabled={testingServerId === server.id}
-                          onClick={() => void runConnectionTest(server.id)}
-                          aria-label={t("mcp.testConnection")}
-                        >
-                          <Play size={14} />
-                        </button>
-                      </Tip>
-                      {server.enabled && (
-                        <Tip content={t("mcp.restart")}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              clearServerToolTests(server.id);
-                              void restartServer(server.id);
-                            }}
-                            aria-label={t("mcp.restart")}
-                          >
-                            <RefreshCw size={14} />
-                          </button>
-                        </Tip>
-                      )}
-                      <Tip content={t("mcp.edit")}>
-                        <button
-                          type="button"
-                          onClick={() => openEdit(server)}
-                          aria-label={t("mcp.edit")}
-                        >
-                          <Pencil size={14} />
-                        </button>
-                      </Tip>
-                      <Tip content={t("mcp.delete")}>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            requestConfirmation(
-                              {
-                                title: t("confirmation.deleteTitle"),
-                                description: t("confirmation.deleteDescription", {
-                                  item: server.name,
-                                }),
-                                confirmLabel: t("mcp.delete"),
-                              },
-                              () => removeServer(server.id),
-                            )
-                          }
-                          aria-label={t("mcp.delete")}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </Tip>
-                    </div>
-                  </>
-                );
-              })()}
-            </li>
+            <McpServerCard
+              key={server.id}
+              server={server}
+              snapshot={runtimeSnapshots[server.id]}
+              connectionTest={connectionTests[server.id]}
+              testingConnection={testingServerId === server.id}
+              toolTest={(toolName) =>
+                toolTests[toolTestKey(server.id, toolName)] ?? { input: "{}" }
+              }
+              formatTimestamp={formatTimestamp}
+              onToolTestInput={(toolName, input) =>
+                updateToolTest(toolTestKey(server.id, toolName), {
+                  input,
+                  error: undefined,
+                  result: undefined,
+                })
+              }
+              onRequestToolTest={requestToolTest}
+              onToggle={() => {
+                clearServerToolTests(server.id);
+                void toggleServer(server.id);
+              }}
+              onTestConnection={() => void runConnectionTest(server.id)}
+              onRestart={() => {
+                clearServerToolTests(server.id);
+                void restartServer(server.id);
+              }}
+              onEdit={() => openEdit(server)}
+              onDelete={() =>
+                requestConfirmation(
+                  {
+                    title: t("confirmation.deleteTitle"),
+                    description: t("confirmation.deleteDescription", { item: server.name }),
+                    confirmLabel: t("mcp.delete"),
+                  },
+                  () => removeServer(server.id),
+                )
+              }
+            />
           ))}
         </ul>
       )}
 
       {dialogOpen && (
-        <SettingsFormDialog
-          title={editingId ? t("mcp.editServer") : t("mcp.addServer")}
-          description={t("mcp.dialogDescription")}
+        <McpServerFormDialog
+          editing={Boolean(editingId)}
+          form={form}
+          errors={errors}
+          onFieldChange={update}
+          onSubmit={(event) => void handleSubmit(event)}
           onClose={closeDialog}
-        >
-          <form
-            className="mcp-form modal-form"
-            noValidate
-            onSubmit={(event) => void handleSubmit(event)}
-          >
-            <div
-              className="mcp-transport-options"
-              role="radiogroup"
-              aria-label={t("mcp.transport")}
-            >
-              {(["stdio", "streamable-http"] as const).map((transport) => (
-                <button
-                  key={transport}
-                  type="button"
-                  role="radio"
-                  aria-checked={form.transport === transport}
-                  className={form.transport === transport ? "active" : ""}
-                  onClick={() => update("transport", transport)}
-                >
-                  {transport === "stdio" ? <Terminal size={17} /> : <Globe2 size={17} />}
-                  <span>
-                    <strong>
-                      {transport === "stdio" ? t("mcp.localProcess") : t("mcp.remoteServer")}
-                    </strong>
-                    <small>
-                      {transport === "stdio" ? t("mcp.stdioDescription") : t("mcp.httpDescription")}
-                    </small>
-                  </span>
-                </button>
-              ))}
-            </div>
-            <div className="mcp-form-fields">
-              <label>
-                <span>
-                  {t("mcp.name")} <em>*</em>
-                </span>
-                <Input
-                  autoFocus
-                  value={form.name}
-                  aria-invalid={Boolean(errors.name)}
-                  onChange={(event) => update("name", event.target.value)}
-                  placeholder={t("mcp.namePlaceholder")}
-                />
-                {errors.name && <small className="field-error">{errors.name}</small>}
-              </label>
-              {form.transport === "stdio" ? (
-                <>
-                  <label>
-                    <span>
-                      {t("mcp.command")} <em>*</em>
-                    </span>
-                    <Input
-                      value={form.command}
-                      aria-invalid={Boolean(errors.command)}
-                      onChange={(event) => update("command", event.target.value)}
-                      placeholder="npx"
-                    />
-                    {errors.command && <small className="field-error">{errors.command}</small>}
-                  </label>
-                  <label>
-                    <span>{t("mcp.arguments")}</span>
-                    <Input
-                      value={form.args}
-                      onChange={(event) => update("args", event.target.value)}
-                      placeholder="-y, @modelcontextprotocol/server-filesystem"
-                    />
-                    <small>{t("mcp.argumentsHint")}</small>
-                  </label>
-                  <label>
-                    <span>{t("mcp.workingDirectory")}</span>
-                    <Input
-                      value={form.cwd}
-                      onChange={(event) => update("cwd", event.target.value)}
-                      placeholder="/optional/cwd"
-                    />
-                  </label>
-                </>
-              ) : (
-                <label>
-                  <span>
-                    {t("mcp.url")} <em>*</em>
-                  </span>
-                  <Input
-                    value={form.url}
-                    aria-invalid={Boolean(errors.url)}
-                    onChange={(event) => update("url", event.target.value)}
-                    placeholder="https://example.com/mcp"
-                  />
-                  {errors.url && <small className="field-error">{errors.url}</small>}
-                </label>
-              )}
-            </div>
-            <div className="mcp-default-note">
-              <AlertTriangle size={13} /> {t("mcp.disabledByDefault")}
-            </div>
-            <div className="form-actions dialog-form-actions">
-              <span />
-              <button className="text-button" type="button" onClick={closeDialog}>
-                {t("mcp.cancel")}
-              </button>
-              <Button variant="primary" size="lg" type="submit">
-                {editingId ? t("mcp.saveChanges") : t("mcp.save")}
-              </Button>
-            </div>
-          </form>
-        </SettingsFormDialog>
+        />
       )}
       {confirmationDialog}
-    </section>
+    </SettingsPage>
   );
 }

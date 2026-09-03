@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Button, Tip } from "../../../components/ui";
+import {
+  PreviewError,
+  PreviewShell,
+  PreviewToolbar,
+  PreviewToolbarActions,
+  PreviewToolbarMeta,
+} from "../PreviewChrome";
 
 export const MAX_PDF_BYTES = 100_000_000;
 
@@ -132,38 +141,46 @@ export function PdfPreview({ data }: PdfPreviewProps) {
 
   if (error) {
     return (
-      <div className="pdf-error">
-        <p className="preview-parse-error">{error}</p>
-      </div>
+      <PreviewShell className="min-h-0 flex-1">
+        <PreviewError message={error} />
+      </PreviewShell>
     );
   }
 
   return (
-    <div className="pdf-preview">
-      <div className="pdf-toolbar">
-        <button
-          type="button"
-          disabled={currentPage <= 1 || pageCount === null}
-          onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-          aria-label={t("preview.pdfPrevPage")}
-        >
-          ‹
-        </button>
-        <span className="pdf-page-indicator">
+    <PreviewShell className="pdf-preview min-h-0 flex-1">
+      <PreviewToolbar>
+        <PreviewToolbarMeta>
           {pageCount === null
             ? (progress ?? "…")
             : t("preview.pdfPageIndicator", { current: currentPage, total: pageCount })}
-        </span>
-        <button
-          type="button"
-          disabled={pageCount === null || currentPage >= pageCount}
-          onClick={() => setCurrentPage((page) => Math.min(pageCount ?? 1, page + 1))}
-          aria-label={t("preview.pdfNextPage")}
-        >
-          ›
-        </button>
-      </div>
-      <div className="pdf-scroll" ref={containerRef}>
+        </PreviewToolbarMeta>
+        <PreviewToolbarActions>
+          <Tip content={t("preview.pdfPrevPage")}>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              disabled={currentPage <= 1 || pageCount === null}
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              aria-label={t("preview.pdfPrevPage")}
+            >
+              <ChevronLeft size={15} />
+            </Button>
+          </Tip>
+          <Tip content={t("preview.pdfNextPage")}>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              disabled={pageCount === null || currentPage >= pageCount}
+              onClick={() => setCurrentPage((page) => Math.min(pageCount ?? 1, page + 1))}
+              aria-label={t("preview.pdfNextPage")}
+            >
+              <ChevronRight size={15} />
+            </Button>
+          </Tip>
+        </PreviewToolbarActions>
+      </PreviewToolbar>
+      <div className="pdf-scroll min-h-0 flex-1 overflow-auto" ref={containerRef}>
         {pageCount !== null &&
           Array.from({ length: pageCount }, (_, index) => (
             <div
@@ -177,6 +194,6 @@ export function PdfPreview({ data }: PdfPreviewProps) {
             />
           ))}
       </div>
-    </div>
+    </PreviewShell>
   );
 }

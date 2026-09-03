@@ -1,0 +1,92 @@
+/* ===== Code blocks ===== */
+
+.code-block {
+  position: relative;
+  margin: var(--space-3) 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.code-block pre {
+  margin: 0;
+  padding: var(--space-3);
+  background: var(--surface);
+  overflow-x: auto;
+}
+
+.code-block:hover .code-block-copy {
+  opacity: 1;
+}
+
+/* Shell column layout is owned by the react-resizable-panels Group in */
+
+.main-area {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-width: 0;
+}
+
+.markdown-image-button {
+  display: block;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  cursor: zoom-in;
+  overflow: hidden;
+}
+
+.markdown-image-button img,
+.message-content img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.markdown-video {
+  display: block;
+  margin: var(--space-3) 0;
+}
+
+.markdown-video video {
+  width: 100%;
+  max-width: 560px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: black;
+}
+
+.image-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-modal) + 40);
+  display: grid;
+  place-items: center;
+  padding: var(--space-6);
+  background: color-mix(in srgb, black 78%, transparent);
+  cursor: zoom-out;
+}
+
+.image-lightbox img {
+  max-width: min(92vw, 1200px);
+  max-height: 88vh;
+  border-radius: var(--radius-md);
+  cursor: default;
+}
+
+.image-lightbox-close {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--foreground);
+  cursor: pointer;
+}

@@ -77,7 +77,7 @@ export function VegaPreview({ source, mode }: VegaPreviewProps) {
   if (error) {
     return (
       <div className="vega-error">
-        <p className="preview-parse-error">{t("preview.vegaError")}</p>
+        <p className="m-0 max-w-[520px] text-[11px] text-muted">{t("preview.vegaError")}</p>
         <p className="vega-error-detail">{error.slice(0, 300)}</p>
       </div>
     );
@@ -87,7 +87,7 @@ export function VegaPreview({ source, mode }: VegaPreviewProps) {
     <div className="vega-preview" aria-label={t("preview.vegaChart")}>
       {/* Childless imperative host: React must never reconcile its children. */}
       <div className="vega-canvas-host" ref={hostRef} />
-      {busy && <p className="preview-loading-text">{t("preview.rendering")}</p>}
+      {busy && <p className="m-0 text-[11px] text-muted">{t("preview.rendering")}</p>}
     </div>
   );
 }

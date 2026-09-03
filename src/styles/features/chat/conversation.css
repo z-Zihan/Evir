@@ -1,0 +1,331 @@
+.conversation-search {
+  min-height: 34px;
+  margin: 9px 0 6px;
+  padding: 0 10px;
+  border-color: transparent;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 68%, transparent);
+}
+
+.conversation-search:focus-within {
+  border-color: color-mix(in srgb, var(--primary) 45%, transparent);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 9%, transparent);
+}
+
+.conversation-search input {
+  color: var(--foreground);
+}
+
+.conversation-search input::placeholder {
+  color: color-mix(in srgb, var(--muted-foreground) 78%, transparent);
+}
+
+/* ── Sidebar live task status (§10-12: running / approval / unread / failed) ── */
+
+.conversation-status-streaming .conversation-status-dot,
+.conversation-status-preparing .conversation-status-dot {
+  background: var(--primary, #3b82f6);
+  animation: conversation-status-pulse 1.6s var(--ease-out) infinite;
+}
+
+.conversation-status-streaming .conversation-status-label,
+.conversation-status-preparing .conversation-status-label,
+.conversation-status-approval .conversation-status-label,
+.conversation-status-waiting-user .conversation-status-label {
+  color: color-mix(in srgb, var(--foreground) 72%, var(--muted-foreground));
+}
+
+.conversation-status-approval .conversation-status-dot {
+  background: #d97706;
+  animation: conversation-status-pulse 1.2s var(--ease-out) infinite;
+}
+
+.conversation-status-failed .conversation-status-dot {
+  background: #dc2626;
+}
+
+.conversation-status-unread .conversation-status-dot {
+  background: var(--primary, #3b82f6);
+}
+
+.conversation-status-waiting-user .conversation-status-dot {
+  background: var(--warning, #985600);
+}
+
+.conversation-status-stopped .conversation-status-dot {
+  background: var(--muted, #606975);
+}
+
+@keyframes conversation-status-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.72);
+  }
+}
+
+/* Overflow root-cause guards: unbroken strings (10k chars, URLs, hashes) */
+
+.message-list,
+.message-row,
+.message-content,
+.message-content p,
+.message-content li,
+.message-content h1,
+.message-content h2,
+.message-content h3,
+.message-content h4,
+.message-content blockquote,
+.message-content td,
+.message-content th,
+.message-content summary {
+  min-width: 0;
+}
+
+/* Prose wrap guards (kept behavior, not skin): unbroken strings (10k chars, */
+
+.message-content p,
+.message-content li,
+.message-content h1,
+.message-content h2,
+.message-content h3,
+.message-content h4,
+.message-content blockquote,
+.message-content td,
+.message-content th,
+.message-content summary {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.message-content :where(a, code) {
+  overflow-wrap: anywhere;
+}
+
+/* Jump-to-latest pill (MessageScroller): a zero-height sticky anchor floats */
+
+.jump-to-latest-anchor {
+  position: sticky;
+  bottom: 18px;
+  z-index: 5;
+  display: flex;
+  height: 0;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.jump-to-latest {
+  position: absolute;
+  bottom: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 94%, var(--background));
+  color: var(--foreground);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 550;
+  box-shadow: var(--shadow-md);
+  pointer-events: auto;
+}
+
+.jump-to-latest:hover {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+  color: var(--primary);
+}
+
+.message-state-error {
+  border-left-color: var(--danger);
+  color: var(--danger);
+}
+
+@keyframes signal-sweep {
+  to {
+    transform: translateX(410%);
+  }
+}
+
+@keyframes signal-pulse {
+  0%,
+  100% {
+    opacity: 0.32;
+    transform: scale(0.86);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (max-width: 640px) {
+  .message-list {
+    gap: 26px;
+  }
+  .task-workbench,
+  .message-list > .agent-run-summary {
+    width: calc(100vw - 61px);
+    max-width: calc(100vw - 61px);
+    margin-left: 33px;
+  }
+  .settings-data-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+/* Conversation search */
+
+.conversation-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.conversation-search input {
+  border: 0;
+  background: transparent;
+  outline: 0;
+  width: 100%;
+  font-size: var(--font-size-sm);
+}
+
+.conversation-search svg {
+  color: var(--muted-foreground);
+  flex-shrink: 0;
+}
+
+/* ===== Messages ===== */
+
+.messages-area {
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--space-6) var(--space-4);
+}
+
+.message-error {
+  color: var(--danger);
+  font-size: var(--font-size-sm);
+  padding: var(--space-2) var(--space-3);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  border-radius: var(--radius-md);
+  margin-top: var(--space-2);
+}
+
+.message-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  padding: var(--space-1) var(--space-2);
+  margin-top: var(--space-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    opacity var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.message-retry:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.message-retry:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Message meta + actions */
+
+.message-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  padding: 0 var(--space-1);
+}
+
+.message-timestamp {
+  font-size: var(--font-size-xs);
+  color: var(--muted-foreground);
+  opacity: 0.6;
+}
+
+.message:hover .message-actions {
+  opacity: 1;
+}
+
+/* Message edit */
+
+.message-edit-save {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-color: var(--primary);
+}
+
+/* Typing indicator */
+
+.message-typing {
+  color: var(--muted-foreground);
+  font-size: var(--font-size-lg);
+  letter-spacing: 3px;
+  animation: pulse 1.4s infinite;
+}
+
+@keyframes pulse {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+  }
+  30% {
+    opacity: 1;
+  }
+}
+
+/* ===== Modal ===== */
+
+.tab {
+  padding: var(--space-3) var(--space-3);
+  border: 0;
+  background: none;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    opacity var(--transition-fast),
+    transform var(--transition-fast);
+  white-space: nowrap;
+}
+
+.tab:hover {
+  color: var(--foreground);
+}
+
+.tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}

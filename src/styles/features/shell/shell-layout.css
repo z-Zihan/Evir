@@ -1,0 +1,8 @@
+/* The shell root is a plain block; the column layout comes from the */
+
+.app-shell {
+  min-height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--background);
+}

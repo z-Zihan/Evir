@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import { useOverlayBrowserGuard } from "./workspace/use-overlay-browser-guard";
 import { FolderPlus, ShieldCheck, X } from "lucide-react";
 import { Button, Dialog, DialogContent, DialogTitle } from "../components/ui";
+import { SettingsDescription, SettingsOptionCard, SettingsSection } from "../components/settings";
+import { InlineError, notify } from "../components/feedback";
 import type { PermissionProfile, ProjectRecord } from "../core/storage/db";
 import { useProjectStore } from "../features/projects/project-store";
 import { getRuntime } from "../runtime/use-runtime";
@@ -38,7 +40,7 @@ export function ProjectPermissionPanel({ project, onClose }: ProjectPermissionPa
   const setPermissionProfile = useProjectStore((state) => state.setPermissionProfile);
   const addAccessRoot = useProjectStore((state) => state.addAccessRoot);
   const removeAccessRoot = useProjectStore((state) => state.removeAccessRoot);
-  const [status, setStatus] = useState<string | null>(null);
+  const [accessRootError, setAccessRootError] = useState<string | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   const chooseProfile = (profile: PermissionProfile) => {
@@ -63,7 +65,11 @@ export function ProjectPermissionPanel({ project, onClose }: ProjectPermissionPa
     const selected = await runtime.selectWorkspaceDirectory?.();
     if (!selected) return;
     const ok = await addAccessRoot(project.id, selected);
-    setStatus(ok ? t("project.accessRootAdded") : t("project.accessRootInvalid"));
+    if (ok) {
+      notify.success(t("project.accessRootAdded"));
+    } else {
+      setAccessRootError(t("project.accessRootInvalid"));
+    }
   };
 
   return (
@@ -96,35 +102,30 @@ export function ProjectPermissionPanel({ project, onClose }: ProjectPermissionPa
           </button>
         </header>
         <div className="project-permission-body">
-          {PROFILES.map(({ id, labelKey, hintKey }) => (
-            <label
-              key={id}
-              className={`project-permission-option${project.permissionProfile === id ? " selected" : ""}`}
-            >
-              <input
-                type="radio"
-                name={`permission-${project.id}`}
-                checked={project.permissionProfile === id}
-                onChange={() => chooseProfile(id)}
+          <div className="flex flex-col gap-2">
+            {PROFILES.map(({ id, labelKey, hintKey }) => (
+              <SettingsOptionCard
+                key={id}
+                title={t(labelKey)}
+                description={t(hintKey)}
+                selected={project.permissionProfile === id}
+                onClick={() => chooseProfile(id)}
               />
-              <span className="project-permission-copy">
-                <strong>{t(labelKey)}</strong>
-                <small>{t(hintKey)}</small>
-              </span>
-            </label>
-          ))}
+            ))}
+          </div>
 
-          <div className="project-access-roots">
-            <div className="project-access-roots-header">
-              <strong>{t("project.accessRoots")}</strong>
+          <SettingsSection
+            title={t("project.accessRoots")}
+            description={t("project.accessRootsHint")}
+            action={
               <Button variant="secondary" size="lg" onClick={() => void addRoot()}>
                 <FolderPlus size={13} aria-hidden="true" />
                 {t("project.addAccessRoot")}
               </Button>
-            </div>
-            <p className="project-access-roots-hint">{t("project.accessRootsHint")}</p>
+            }
+          >
             {project.additionalAccessRoots.length === 0 ? (
-              <p className="text-xs text-muted">{t("project.noAccessRoots")}</p>
+              <SettingsDescription>{t("project.noAccessRoots")}</SettingsDescription>
             ) : (
               <ul className="project-access-root-list">
                 {project.additionalAccessRoots.map((root) => (
@@ -141,12 +142,8 @@ export function ProjectPermissionPanel({ project, onClose }: ProjectPermissionPa
                 ))}
               </ul>
             )}
-            {status && (
-              <p className="text-xs text-muted" role="status">
-                {status}
-              </p>
-            )}
-          </div>
+            {accessRootError && <InlineError message={accessRootError} />}
+          </SettingsSection>
         </div>
         {confirmationDialog}
       </DialogContent>

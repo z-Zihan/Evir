@@ -1,7 +1,7 @@
 import { lazy, Suspense } from "react";
-import { useTranslation } from "react-i18next";
 import type { PreviewRendererId } from "./types";
 import { PreviewErrorBoundary } from "./PreviewErrorBoundary";
+import { PreviewLoading, PreviewShell } from "./PreviewChrome";
 
 const HtmlPreview = lazy(() =>
   import("./renderers/HtmlPreview").then((m) => ({ default: m.HtmlPreview })),
@@ -76,20 +76,43 @@ function RendererBody({ rendererId, source, data }: ArtifactPreviewProps) {
   }
 }
 
+/** Display names for renderer ids — proper nouns, shown raw in error copy. */
+const RENDERER_NAMES: Record<string, string> = {
+  html: "HTML",
+  svg: "SVG",
+  mermaid: "Mermaid",
+  graphviz: "Graphviz",
+  json: "JSON",
+  yaml: "YAML",
+  toml: "TOML",
+  xml: "XML",
+  csv: "CSV",
+  tsv: "TSV",
+  vega: "Vega",
+  "vega-lite": "Vega-Lite",
+  diff: "Diff",
+  markdown: "Markdown",
+  markmap: "Markmap",
+  image: "Image",
+  pdf: "PDF",
+};
+
 /**
  * Single entry point for artifact previews: wraps the lazily-imported
  * renderer in its own error boundary and suspense fallback so any renderer
  * failure or slow chunk load stays contained to this artifact.
  */
 export function ArtifactPreview(props: ArtifactPreviewProps) {
-  const { t } = useTranslation();
   return (
-    <div className="artifact-preview">
-      <PreviewErrorBoundary renderer={props.rendererId}>
-        <Suspense fallback={<p className="preview-loading-text">{t("preview.loading")}</p>}>
+    <PreviewShell className="artifact-preview min-h-0 flex-1">
+      <PreviewErrorBoundary
+        renderer={props.rendererId}
+        rendererName={RENDERER_NAMES[props.rendererId] ?? props.rendererId}
+      >
+        <Suspense fallback={<PreviewLoading />}>
           <RendererBody {...props} />
         </Suspense>
       </PreviewErrorBoundary>
-    </div>
+    </PreviewShell>
   );
 }

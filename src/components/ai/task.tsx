@@ -29,7 +29,7 @@ export function PlanNodeIcon({ status, size = 14 }: { status: PlanNodeStatus; si
     return <ShieldAlert size={size} className="text-warning" aria-hidden="true" />;
   if (status === "ready")
     return <CircleDashed size={size} className="text-primary/80" aria-hidden="true" />;
-  return <Circle size={size} className="text-muted/70" aria-hidden="true" />;
+  return <Circle size={size} className="text-muted" aria-hidden="true" />;
 }
 
 /** Rounded container card used by TaskWorkbench / summaries / clarification forms. */

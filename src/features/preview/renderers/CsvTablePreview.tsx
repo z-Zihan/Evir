@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { PreviewError, PreviewFooterNote, PreviewNotice, PreviewShell } from "../PreviewChrome";
 
 export const CSV_RENDER_ROW_LIMIT = 500;
 export const MAX_CSV_BYTES = 20_000_000;
@@ -104,53 +105,62 @@ export function CsvTablePreview({ source, delimiter }: CsvTablePreviewProps) {
     };
   }, [source, delimiter, papa, t]);
 
-  if (outcome.error === "too-large") {
-    return <p className="preview-fallback-text">{t("preview.tooLarge")}</p>;
-  }
-  if (loadError) {
-    return <p className="preview-fallback-text">{t("preview.parserUnavailable")}</p>;
-  }
+  // `.preview-fallback-text` is kept as an e2e/test hook on the notice path.
+  const notice = (message: string) => (
+    <PreviewShell className="min-h-0 flex-1">
+      <PreviewNotice message={message} className="preview-fallback-text" />
+    </PreviewShell>
+  );
+
+  if (outcome.error === "too-large") return notice(t("preview.tooLarge"));
+  if (loadError) return notice(t("preview.parserUnavailable"));
   if (outcome.error !== undefined) {
     return (
-      <div className="csv-table-error">
-        <p className="preview-parse-error">{t("preview.malformedCsv")}</p>
-        <p className="csv-table-error-detail">{outcome.error.slice(0, 200)}</p>
-      </div>
+      <PreviewShell className="min-h-0 flex-1">
+        <PreviewError message={t("preview.malformedCsv")} detail={outcome.error.slice(0, 200)} />
+      </PreviewShell>
     );
   }
   if (outcome.headers.length === 0 && outcome.rows.length === 0) {
-    return <p className="preview-fallback-text">{t("preview.emptyContent")}</p>;
+    return notice(t("preview.emptyContent"));
   }
 
   return (
-    <div className="csv-table-wrap" role="region" aria-label={t("preview.csvTable")} tabIndex={0}>
-      <table className="csv-table">
-        <thead>
-          <tr>
-            <th className="csv-table-rownum" aria-hidden="true">
-              #
-            </th>
-            {outcome.headers.map((header, index) => (
-              <th key={index}>{header}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {outcome.rows.map((row, rowIndex) => (
-            <tr key={rowIndex}>
-              <td className="csv-table-rownum">{rowIndex + 1}</td>
-              {row.map((cell, cellIndex) => (
-                <td key={cellIndex}>{cell}</td>
+    <PreviewShell className="csv-table-wrap min-h-0 flex-1">
+      <div
+        className="min-h-0 flex-1 overflow-auto"
+        role="region"
+        aria-label={t("preview.csvTable")}
+        tabIndex={0}
+      >
+        <table className="csv-table">
+          <thead>
+            <tr>
+              <th className="csv-table-rownum" aria-hidden="true">
+                #
+              </th>
+              {outcome.headers.map((header, index) => (
+                <th key={index}>{header}</th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {outcome.rows.map((row, rowIndex) => (
+              <tr key={rowIndex}>
+                <td className="csv-table-rownum">{rowIndex + 1}</td>
+                {row.map((cell, cellIndex) => (
+                  <td key={cellIndex}>{cell}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {outcome.truncated && (
-        <p className="csv-table-truncated">
+        <PreviewFooterNote className="csv-table-truncated">
           {t("preview.rowsTruncated", { shown: CSV_RENDER_ROW_LIMIT, total: outcome.totalRows })}
-        </p>
+        </PreviewFooterNote>
       )}
-    </div>
+    </PreviewShell>
   );
 }

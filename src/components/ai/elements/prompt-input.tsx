@@ -182,7 +182,12 @@ export const PromptInputTextarea = ({
 export type PromptInputFooterProps = HTMLAttributes<HTMLDivElement>;
 
 export const PromptInputFooter = ({ className, ...props }: PromptInputFooterProps) => (
-  <div className={cn("flex items-center justify-between gap-1", className)} {...props} />
+  // Upstream padds the footer through InputGroupAddon's inset; Evir keeps the
+  // equivalent inset on the footer itself since the form root is direct.
+  <div
+    className={cn("flex items-center justify-between gap-1 px-2.5 pb-2.5", className)}
+    {...props}
+  />
 );
 
 export type PromptInputToolsProps = HTMLAttributes<HTMLDivElement>;
@@ -297,5 +302,19 @@ export const PromptInput = ({ className, onSubmit, ...props }: PromptInputProps)
     void onSubmit(event);
   };
 
-  return <form className={cn("w-full", className)} onSubmit={handleSubmit} {...props} />;
+  // Upstream wraps children in shadcn's InputGroup, which carries the visible
+  // container (rounded border, surface background, focus-within ring). The
+  // trimmed core subset renders the form directly, so the container contract
+  // lives here with Evir's tokens instead of an InputGroup dependency.
+  return (
+    <form
+      className={cn(
+        "w-full rounded-xl border border-border bg-surface shadow-xs transition-[border-color,box-shadow]",
+        "focus-within:border-border-strong focus-within:shadow-sm",
+        className,
+      )}
+      onSubmit={handleSubmit}
+      {...props}
+    />
+  );
 };

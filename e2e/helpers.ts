@@ -119,7 +119,11 @@ export async function seedFixture(
     await expect(page.getByRole("heading", { name: fixtureConversation.title })).toBeVisible();
     const viewport = page.viewportSize();
     if (viewport && viewport.width <= 820) {
-      await page.locator(".sidebar-backdrop").click();
+      // Click near the right edge: the drawer itself may cover the center at
+      // phone widths (min(100vw, 390px)).
+      await page.locator(".sidebar-backdrop").click({
+        position: { x: Math.max(viewport.width - 30, 0), y: 120 },
+      });
     }
   }
 }

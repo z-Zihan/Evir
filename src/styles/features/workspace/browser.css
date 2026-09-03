@@ -1,0 +1,221 @@
+/* ── Browser tab: error card + agent-active chip (§39-41) ── */
+
+.workspace-browser-error .workspace-browser-error-detail {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  word-break: break-all;
+}
+
+.workspace-browser-error-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.workspace-browser-agent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  color: var(--primary, #3b82f6);
+  background: color-mix(in srgb, var(--primary, #3b82f6) 10%, transparent);
+}
+
+/* Browser tab */
+
+.workspace-browser-tab {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.workspace-browser-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  flex: none;
+}
+
+.workspace-browser-address {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.workspace-browser-origin {
+  display: inline-flex;
+  color: var(--success);
+  flex: none;
+}
+
+.workspace-browser-origin.local {
+  color: var(--warning);
+}
+
+.workspace-browser-address input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 11.5px;
+  color: inherit;
+}
+
+.workspace-browser-tabbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  flex: none;
+  min-height: 28px;
+}
+
+.workspace-browser-tab-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 160px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  flex: none;
+}
+
+.workspace-browser-tab-pill.active {
+  border-color: var(--accent);
+}
+
+.tab-pill-main {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  padding: 3px 7px;
+  font-size: 11px;
+  cursor: pointer;
+  color: inherit;
+}
+
+.tab-pill-title {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-pill-close {
+  border: none;
+  background: transparent;
+  padding: 3px 5px;
+  display: inline-flex;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.tab-pill-close:hover {
+  color: var(--danger);
+}
+
+.workspace-browser-content {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  background: var(--background);
+}
+
+.workspace-browser-content .workspace-empty {
+  position: absolute;
+  inset: 0;
+}
+
+.workspace-devserver-card {
+  flex: none;
+  border-top: 1px solid var(--border);
+  padding: 7px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.devserver-state {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+}
+
+.devserver-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.devserver-dot.starting {
+  background: var(--warning);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.devserver-dot.ready,
+.devserver-dot.running {
+  background: var(--success);
+}
+
+.devserver-dot.failed,
+.devserver-dot.crashed {
+  background: var(--danger);
+}
+
+.devserver-copy {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+}
+
+.devserver-copy.muted {
+  color: var(--muted-foreground);
+}
+
+.devserver-error {
+  font-size: 11px;
+  color: var(--danger);
+}
+
+.devserver-screenshots {
+  display: flex;
+  gap: 4px;
+}
+
+.devserver-screenshot-chip {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: transparent;
+  padding: 2px 7px;
+  font-size: 10.5px;
+  cursor: pointer;
+  color: var(--muted-foreground);
+}
+
+.devserver-screenshot-chip:hover {
+  background: var(--surface-hover);
+  color: inherit;
+}

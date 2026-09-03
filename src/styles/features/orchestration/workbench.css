@@ -1,0 +1,236 @@
+/* 时间线连接线：把步骤列表串成 Claude Code 式 TODO 进度 */
+
+.task-step-completed .task-step-marker {
+  color: var(--success);
+}
+
+.task-step-completed .task-step-copy strong {
+  color: var(--muted-foreground);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--muted-foreground) 55%, transparent);
+  text-decoration-thickness: 1px;
+}
+
+.task-step-running .task-step-copy strong {
+  color: var(--foreground);
+}
+
+.task-step-running {
+  background: color-mix(in srgb, var(--primary) 5%, transparent);
+  border-radius: var(--radius-sm);
+}
+
+.task-step-failed .task-step-marker,
+.task-step-blocked .task-step-marker {
+  color: var(--danger);
+}
+
+.task-run-summary-completed .task-section-heading > svg {
+  color: var(--success);
+}
+
+.task-run-summary-failed .task-section-heading > svg,
+.task-run-summary-partial .task-section-heading > svg,
+.task-run-summary-cancelled .task-section-heading > svg {
+  color: var(--danger);
+}
+
+/* Shell columns (Navigation | Thread | Workspace) are laid out by the */
+
+.startup-notice {
+  position: fixed;
+  z-index: 80;
+  top: 14px;
+  left: 50%;
+  display: flex;
+  width: min(620px, calc(100vw - 28px));
+  min-height: 58px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 12px 10px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-dialog);
+  transform: translateX(-50%);
+}
+
+.startup-notice > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.startup-notice strong {
+  font-size: 12px;
+}
+
+.startup-notice span {
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+}
+
+.startup-notice.error {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+}
+
+.startup-notice-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 7px;
+}
+
+@media (max-width: 640px) {
+  .startup-notice {
+    top: auto;
+    bottom: 12px;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .startup-notice-actions {
+    justify-content: flex-end;
+  }
+}
+
+.main-area {
+  min-height: 0;
+  height: 100dvh;
+}
+
+/* Agent execution timeline */
+
+.agent-activity-running::before {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  width: 32%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--signal), transparent);
+  content: "";
+  transform: translateX(-110%);
+  animation: signal-sweep 1.8s linear infinite;
+}
+
+.agent-activity-running .activity-state-icon,
+.execution-step.is-running .execution-marker {
+  color: var(--primary);
+}
+
+.agent-activity-running .activity-state-icon svg,
+.execution-step.is-running .execution-marker svg,
+.summary-loading svg {
+  animation: execution-spin 0.9s linear infinite;
+}
+
+.agent-activity-approval .activity-state-icon,
+.execution-step.is-pending .execution-marker {
+  color: var(--warning);
+}
+
+.agent-activity-failed .activity-state-icon {
+  color: var(--danger);
+}
+
+.agent-activity-cancelled .activity-state-icon {
+  color: var(--muted-foreground);
+}
+
+.agent-activity-complete .activity-state-icon {
+  color: var(--success);
+}
+
+@keyframes execution-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Completion evidence */
+
+.message-list > .agent-run-summary:last-child {
+  margin-bottom: 18px;
+}
+
+.summary-state-completed {
+  background: color-mix(in srgb, var(--success) 10%, transparent);
+  color: var(--success);
+}
+
+.summary-state-failed,
+.summary-state-needs_verification {
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  color: var(--warning);
+}
+
+.summary-rollback {
+  margin: 10px 13px 0 auto;
+}
+
+.summary-warning,
+.summary-loading,
+.summary-section h4,
+.result-ok,
+.result-fail {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signal-dot,
+  .stream-surface::after,
+  .agent-activity-running::before,
+  .agent-activity-running .activity-state-icon svg,
+  .execution-step.is-running .execution-marker svg,
+  .summary-loading svg {
+    animation: none;
+  }
+
+  .stream-surface::after,
+  .agent-activity-running::before {
+    opacity: 0.45;
+    transform: none;
+  }
+}
+
+.preference-choice-row button.active {
+  border-color: color-mix(in srgb, var(--primary) 58%, var(--border));
+  box-shadow: inset 2px 0 0 var(--primary);
+}
+
+.preference-stack button.active .preference-radio {
+  border: 4px solid var(--primary);
+}
+
+.detail-lines {
+  display: grid;
+  gap: 2px;
+}
+
+.detail-lines i {
+  display: block;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--border-strong);
+}
+
+.detail-lines i:nth-child(2) {
+  width: 16px;
+}
+
+.detail-lines.concise i:nth-child(3) {
+  display: none;
+}
+
+.detail-lines.detailed i:nth-child(2) {
+  width: 21px;
+}
+
+.preference-stack button.active .detail-lines i {
+  background: var(--primary);
+}

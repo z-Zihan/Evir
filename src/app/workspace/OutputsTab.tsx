@@ -150,7 +150,7 @@ export function OutputsTab() {
       <div className="workspace-empty workspace-outputs-empty flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center text-muted">
         <PackageOpen size={22} aria-hidden="true" />
         <p className="m-0 text-[12.5px] font-medium">{t("workspace.outputsEmptyTitle")}</p>
-        <p className="workspace-empty-hint m-0 text-[11.5px] text-muted/80">
+        <p className="workspace-empty-hint m-0 text-[11.5px] text-muted">
           {t("workspace.outputsEmptyHint")}
         </p>
       </div>

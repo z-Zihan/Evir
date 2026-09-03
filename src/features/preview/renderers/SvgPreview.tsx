@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { PreviewNotice, PreviewShell } from "../PreviewChrome";
 
 interface SvgPreviewProps {
   source: string;
@@ -25,12 +26,18 @@ export function SvgPreview({ source }: SvgPreviewProps) {
   }, [source]);
 
   if (!url) {
-    return <p className="preview-fallback-text">{t("preview.tooLarge")}</p>;
+    return (
+      <PreviewShell className="min-h-0 flex-1">
+        <PreviewNotice message={t("preview.tooLarge")} className="preview-fallback-text" />
+      </PreviewShell>
+    );
   }
 
   return (
-    <div className="svg-preview">
-      <img src={url} alt={t("preview.svgImage")} />
-    </div>
+    <PreviewShell className="svg-preview min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-4">
+        <img src={url} alt={t("preview.svgImage")} />
+      </div>
+    </PreviewShell>
   );
 }

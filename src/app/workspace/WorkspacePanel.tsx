@@ -21,6 +21,8 @@ interface TabDefinition {
   /** Project-scoped tabs are hidden in standalone chats (§54). */
   requiresProject: boolean;
   badge?: number | "dot" | undefined;
+  /** i18n key for the badge's accessible count label (defaults to changes). */
+  badgeLabelKey?: string | undefined;
 }
 
 /**
@@ -44,8 +46,20 @@ export function WorkspacePanel() {
   if (getRuntime().target !== "desktop" || !open) return null;
 
   const tabs: TabDefinition[] = [
-    { id: "outputs", label: t("workspace.outputs"), requiresProject: true, badge: outputsCount },
-    { id: "changes", label: t("workspace.changes"), requiresProject: true, badge: changesCount },
+    {
+      id: "outputs",
+      label: t("workspace.outputs"),
+      requiresProject: true,
+      badge: outputsCount,
+      badgeLabelKey: "workspace.outputsCount",
+    },
+    {
+      id: "changes",
+      label: t("workspace.changes"),
+      requiresProject: true,
+      badge: changesCount,
+      badgeLabelKey: "workspace.changesCount",
+    },
     { id: "files", label: t("workspace.files"), requiresProject: true },
     {
       id: "preview",
@@ -87,7 +101,9 @@ export function WorkspacePanel() {
                 {typeof tab.badge === "number" && tab.badge > 0 && (
                   <span
                     className="workspace-tab-badge"
-                    aria-label={t("workspace.changesCount", { count: tab.badge })}
+                    aria-label={t(tab.badgeLabelKey ?? "workspace.changesCount", {
+                      count: tab.badge,
+                    })}
                   >
                     {tab.badge > 99 ? "99+" : tab.badge}
                   </span>

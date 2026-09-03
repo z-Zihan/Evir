@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 export const MAX_JSON_BYTES = 5_000_000;
 export const MAX_JSON_DEPTH = 64;
 import { TreeNode } from "./TreeView";
+import { PreviewError, PreviewNotice, PreviewShell } from "../PreviewChrome";
 
 interface JsonTreePreviewProps {
   source: string;
@@ -37,10 +38,18 @@ export function JsonTreePreview({ source }: JsonTreePreviewProps) {
   const parsed = useMemo(() => parseJson(source), [source]);
 
   if (parsed.error === "too-large") {
-    return <p className="preview-fallback-text">{t("preview.tooLarge")}</p>;
+    return (
+      <PreviewShell className="min-h-0 flex-1">
+        <PreviewNotice message={t("preview.tooLarge")} className="preview-fallback-text" />
+      </PreviewShell>
+    );
   }
   if (parsed.error === "depth") {
-    return <p className="preview-parse-error">{t("preview.jsonDepthExceeded")}</p>;
+    return (
+      <PreviewShell className="min-h-0 flex-1">
+        <PreviewError message={t("preview.jsonDepthExceeded")} />
+      </PreviewShell>
+    );
   }
   if (parsed.error !== undefined) {
     return (

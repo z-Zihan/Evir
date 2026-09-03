@@ -1,90 +1,28 @@
-import { useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  ArrowLeft,
-  Check,
-  ChevronRight,
-  Pencil,
-  Plus,
-  Search,
-  Server,
-  SlidersHorizontal,
-  Trash2,
-} from "lucide-react";
-import { Button, Input, Switch, Tip } from "../components/ui";
+import { Pencil, Plus, Server, Trash2 } from "lucide-react";
+import { Button, Tip } from "../components/ui";
+import { SettingsPage, SettingsPageIntro, SettingsSection } from "../components/settings";
 import { PROVIDER_PRESETS } from "../core/providers/provider-presets";
-import type { ProviderPreset, ProviderRegion } from "../core/providers/types";
-import {
-  providerSchema,
-  useProviderStore,
-  type ProviderConfigInput,
-} from "../features/provider/provider-store";
-import { SettingsFormDialog } from "./SettingsFormDialog";
+import type { ProviderPreset } from "../core/providers/types";
+import { useProviderStore, type ProviderConfigInput } from "../features/provider/provider-store";
 import { useConfirmationDialog } from "./useConfirmationDialog";
+import {
+  EMPTY_FORM,
+  providerInitial,
+  supportedProtocol,
+  validationErrors,
+  type DialogStep,
+  type FieldErrors,
+  type ProviderField,
+} from "./provider/form-model";
+import { ProviderCatalogDialog } from "./provider/ProviderCatalogDialog";
+import { ProviderFormDialog } from "./provider/ProviderFormDialog";
 
-type ProviderField = keyof ProviderConfigInput;
-type FieldErrors = Partial<Record<ProviderField, "required" | "url">>;
-type PresetFilter = "all" | Exclude<ProviderRegion, "custom">;
-type DialogStep = "closed" | "presets" | "form";
-
-const SUPPORTED_PROTOCOLS = new Set<ProviderConfigInput["protocolId"]>([
-  "openai-chat-completions",
-  "openai-compatible-chat",
-  "openai-responses",
-  "anthropic-messages",
-  "gemini-generate-content",
-]);
-
-const PROTOCOL_OPTIONS: Array<{
-  id: ProviderConfigInput["protocolId"];
-  label: string;
-}> = [
-  { id: "openai-chat-completions", label: "OpenAI Chat Completions" },
-  { id: "openai-compatible-chat", label: "OpenAI Compatible" },
-  { id: "openai-responses", label: "OpenAI Responses" },
-  { id: "anthropic-messages", label: "Anthropic Messages" },
-  { id: "gemini-generate-content", label: "Gemini GenerateContent" },
-];
-
-const EMPTY_FORM: ProviderConfigInput = {
-  name: "",
-  protocolId: "openai-compatible-chat",
-  baseUrl: "",
-  apiKey: "",
-  modelId: "",
-  toolCalling: false,
-};
-
-function supportedProtocol(preset: ProviderPreset): ProviderConfigInput["protocolId"] | null {
-  if (SUPPORTED_PROTOCOLS.has(preset.recommendedProtocol as ProviderConfigInput["protocolId"])) {
-    return preset.recommendedProtocol as ProviderConfigInput["protocolId"];
-  }
-  return (
-    (preset.protocols.find((protocol) =>
-      SUPPORTED_PROTOCOLS.has(protocol as ProviderConfigInput["protocolId"]),
-    ) as ProviderConfigInput["protocolId"] | undefined) ?? null
-  );
-}
-
-function validationErrors(form: ProviderConfigInput, required?: ProviderField[]): FieldErrors {
-  const result = providerSchema.safeParse(form);
-  if (result.success) return {};
-  const fields = required ? new Set(required) : null;
-  const errors: FieldErrors = {};
-  for (const field of ["name", "baseUrl", "apiKey", "modelId"] as const) {
-    if ((!fields || fields.has(field)) && !form[field].trim()) errors[field] = "required";
-  }
-  for (const issue of result.error.issues) {
-    const field = issue.path[0];
-    if (typeof field !== "string" || (fields && !fields.has(field as ProviderField))) continue;
-    const typed = field as ProviderField;
-    if (!errors[typed]) errors[typed] = issue.code === "invalid_format" ? "url" : "required";
-  }
-  return errors;
-}
-
-const providerInitial = (name: string) => name.trim().slice(0, 1).toUpperCase();
-
+/**
+ * Providers settings page: configured-connection list plus the two-step
+ * setup dialogs (catalog → form), which live in ./provider/.
+ */
 export function ProviderSettings() {
   const { t } = useTranslation();
   const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
@@ -107,8 +45,6 @@ export function ProviderSettings() {
   const [step, setStep] = useState<DialogStep>("closed");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
-  const [presetFilter, setPresetFilter] = useState<PresetFilter>("all");
-  const [presetQuery, setPresetQuery] = useState("");
   const [form, setForm] = useState<ProviderConfigInput>({ ...EMPTY_FORM });
   const [baselineForm, setBaselineForm] = useState<ProviderConfigInput>({ ...EMPTY_FORM });
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -116,13 +52,11 @@ export function ProviderSettings() {
   const [testResult, setTestResult] = useState<string | null>(null);
   const [models, setModels] = useState<string[]>([]);
   const [fetchingModels, setFetchingModels] = useState(false);
-  const protocolButtons = useRef<Array<HTMLButtonElement | null>>([]);
 
   const resetDialog = () => {
     setStep("closed");
     setEditingId(null);
     setSelectedPresetId(null);
-    setPresetQuery("");
     setForm({ ...EMPTY_FORM });
     setBaselineForm({ ...EMPTY_FORM });
     setErrors({});
@@ -185,29 +119,6 @@ export function ProviderSettings() {
     setTestResult(null);
   };
 
-  const handleProtocolKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
-    const lastIndex = PROTOCOL_OPTIONS.length - 1;
-    let nextIndex: number | null = null;
-    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-      nextIndex = index === lastIndex ? 0 : index + 1;
-    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-      nextIndex = index === 0 ? lastIndex : index - 1;
-    } else if (event.key === "Home") {
-      nextIndex = 0;
-    } else if (event.key === "End") {
-      nextIndex = lastIndex;
-    }
-    if (nextIndex === null) return;
-    const nextOption = PROTOCOL_OPTIONS[nextIndex];
-    if (!nextOption) return;
-    event.preventDefault();
-    updateField("protocolId", nextOption.id);
-    protocolButtons.current[nextIndex]?.focus();
-  };
-
-  const fieldError = (field: ProviderField) =>
-    errors[field] ? t(`provider.validation.${errors[field]}`) : null;
-
   const handleSave = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const nextErrors = validationErrors(form);
@@ -260,356 +171,147 @@ export function ProviderSettings() {
     setFetchingModels(false);
   };
 
-  const filteredPresets = presets.filter((preset) => {
-    const query = presetQuery.trim().toLowerCase();
-    return (
-      (presetFilter === "all" || preset.region === presetFilter) &&
-      (!query || preset.name.toLowerCase().includes(query))
-    );
-  });
-
   const formDirty = useMemo(
     () => JSON.stringify(form) !== JSON.stringify(baselineForm),
     [form, baselineForm],
   );
 
   return (
-    <div className="provider-settings">
-      <div className="settings-page-intro compact">
-        <div>
-          <span className="settings-page-eyebrow">
-            {t("settingsDescriptions.modelConnections")}
+    <SettingsPage className="provider-settings">
+      <SettingsPageIntro
+        eyebrow={t("settingsDescriptions.modelConnections")}
+        description={t("provider.addDescription")}
+        action={
+          <span className="shrink-0 rounded-md border border-border px-2 py-1 text-[9.5px] whitespace-nowrap text-muted">
+            {t("settingsDescriptions.providerCount", { count: providers.length })}
           </span>
-          <p>{t("provider.addDescription")}</p>
-        </div>
-        <span className="settings-count-badge">
-          {t("settingsDescriptions.providerCount", { count: providers.length })}
-        </span>
-      </div>
+        }
+      />
 
       {providers.length ? (
-        <section className="provider-connections" aria-label={t("provider.configured")}>
-          <div className="provider-section-heading">
-            <div>
-              <h4>{t("provider.configured")}</h4>
-              <span>{t("provider.configuredDescription")}</span>
-            </div>
-            <Button variant="secondary" size="lg" onClick={openAdd}>
-              <Plus size={14} /> {t("provider.add")}
-            </Button>
-          </div>
-          <div className="provider-connection-list">
-            {providers.map((provider) => (
-              <article className="provider-connection-row" key={provider.id}>
-                <span className="provider-monogram" aria-hidden="true">
-                  {providerInitial(provider.name)}
-                </span>
-                <div className="provider-connection-copy">
-                  <strong>{provider.name}</strong>
-                  <span>
-                    {provider.modelId} · {provider.protocolId}
+        <section className="flex flex-col gap-3" aria-label={t("provider.configured")}>
+          <SettingsSection
+            title={t("provider.configured")}
+            description={t("provider.configuredDescription")}
+            action={
+              <Button variant="secondary" size="lg" onClick={openAdd}>
+                <Plus size={14} /> {t("provider.add")}
+              </Button>
+            }
+          >
+            <div className="flex flex-col px-1">
+              {providers.map((provider) => (
+                <article
+                  className="provider-connection-row grid min-h-14 grid-cols-[30px_minmax(0,1fr)_auto_auto] items-center gap-2.5 border-b border-border py-2 last:border-b-0"
+                  key={provider.id}
+                >
+                  <span
+                    className="grid size-7.5 place-items-center rounded-lg bg-surface-hover text-[10.5px] font-bold text-foreground"
+                    aria-hidden="true"
+                  >
+                    {providerInitial(provider.name)}
                   </span>
-                </div>
-                {provider.isDefault && (
-                  <span className="provider-default-badge">{t("provider.default")}</span>
-                )}
-                <div className="provider-connection-actions">
-                  {!provider.isDefault && (
-                    <button type="button" onClick={() => void setDefaultProvider(provider.id)}>
-                      {t("provider.setDefault")}
-                    </button>
+                  <div className="min-w-0">
+                    <strong className="block truncate text-[12.5px] font-semibold text-foreground">
+                      {provider.name}
+                    </strong>
+                    <span className="block truncate text-[10.5px] text-muted">
+                      {provider.modelId} · {provider.protocolId}
+                    </span>
+                  </div>
+                  {provider.isDefault && (
+                    <span className="rounded-md border border-primary/40 bg-primary/[0.08] px-2 py-0.5 text-[9.5px] font-semibold text-primary">
+                      {t("provider.default")}
+                    </span>
                   )}
-                  <button type="button" onClick={() => openEdit(provider.id)}>
-                    <Pencil size={13} /> <span>{t("provider.edit")}</span>
-                  </button>
-                  <Tip content={t("provider.delete")}>
-                    <button
-                      type="button"
-                      aria-label={t("provider.delete")}
-                      onClick={() =>
-                        requestConfirmation(
-                          {
-                            title: t("confirmation.deleteTitle"),
-                            description: t("confirmation.deleteDescription", {
-                              item: provider.name,
-                            }),
-                            confirmLabel: t("provider.delete"),
-                          },
-                          () => deleteProvider(provider.id),
-                        )
-                      }
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </Tip>
-                </div>
-              </article>
-            ))}
-          </div>
+                  <div className="flex items-center gap-1">
+                    {!provider.isDefault && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => void setDefaultProvider(provider.id)}
+                      >
+                        {t("provider.setDefault")}
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="sm" onClick={() => openEdit(provider.id)}>
+                      <Pencil size={13} aria-hidden="true" /> <span>{t("provider.edit")}</span>
+                    </Button>
+                    <Tip content={t("provider.delete")}>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={t("provider.delete")}
+                        onClick={() =>
+                          requestConfirmation(
+                            {
+                              title: t("confirmation.deleteTitle"),
+                              description: t("confirmation.deleteDescription", {
+                                item: provider.name,
+                              }),
+                              confirmLabel: t("provider.delete"),
+                            },
+                            () => deleteProvider(provider.id),
+                          )
+                        }
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </Tip>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </SettingsSection>
         </section>
       ) : (
-        <div className="provider-empty-panel">
-          <div className="provider-empty-panel-icon" aria-hidden="true">
+        <div className="flex min-h-62.5 flex-col items-center justify-center rounded-xl border border-dashed border-border-strong bg-surface-subtle p-8.5 text-center">
+          <div
+            className="mb-3.5 grid size-10.5 place-items-center rounded-xl border border-border bg-surface text-primary"
+            aria-hidden="true"
+          >
             <Server size={20} />
           </div>
-          <strong>{t("provider.noProviders")}</strong>
-          <p>{t("provider.addDescription")}</p>
-          <button type="button" onClick={openAdd}>
-            <Plus size={15} /> {t("provider.add")}
-          </button>
+          <strong className="text-[14px] font-semibold text-foreground">
+            {t("provider.noProviders")}
+          </strong>
+          <p className="mt-2 mb-4.5 max-w-[420px] text-[12px] leading-relaxed text-muted">
+            {t("provider.addDescription")}
+          </p>
+          <Button variant="primary" size="default" onClick={openAdd}>
+            <Plus size={15} aria-hidden="true" /> {t("provider.add")}
+          </Button>
         </div>
       )}
 
       {step === "presets" && (
-        <SettingsFormDialog
-          title={t("provider.chooseProvider")}
-          description={t("provider.presetsDescription")}
+        <ProviderCatalogDialog
+          presets={presets}
+          selectedPresetId={selectedPresetId}
+          onChoose={choosePreset}
           onClose={resetDialog}
-          wide
-        >
-          <div className="provider-catalog-toolbar">
-            <div className="provider-region-tabs" role="group" aria-label={t("provider.region")}>
-              {(["all", "international", "china", "local"] as const).map((region) => (
-                <button
-                  type="button"
-                  key={region}
-                  className={presetFilter === region ? "active" : ""}
-                  aria-pressed={presetFilter === region}
-                  onClick={() => setPresetFilter(region)}
-                >
-                  {t(`provider.regions.${region}`)}
-                </button>
-              ))}
-            </div>
-            <label className="provider-preset-search">
-              <Search size={14} />
-              <Input
-                type="search"
-                value={presetQuery}
-                placeholder={t("provider.searchPresets")}
-                aria-label={t("provider.searchPresets")}
-                onChange={(event) => setPresetQuery(event.target.value)}
-              />
-            </label>
-          </div>
-          <div className="provider-preset-grid">
-            <button
-              className="provider-preset-tile custom"
-              type="button"
-              onClick={() => choosePreset(null)}
-            >
-              <SlidersHorizontal size={16} />
-              <span>
-                <strong>{t("provider.custom")}</strong>
-                <small>{t("provider.customDescription")}</small>
-              </span>
-              <ChevronRight size={14} />
-            </button>
-            {filteredPresets.map((preset) => (
-              <button
-                className="provider-preset-tile"
-                type="button"
-                key={preset.id}
-                onClick={() => choosePreset(preset)}
-              >
-                <span className="provider-preset-mark">{providerInitial(preset.name)}</span>
-                <span>
-                  <strong>{preset.name}</strong>
-                  <small>{t(`provider.regions.${preset.region}`)}</small>
-                </span>
-                {selectedPresetId === preset.id ? <Check size={14} /> : <ChevronRight size={14} />}
-              </button>
-            ))}
-          </div>
-        </SettingsFormDialog>
+        />
       )}
 
       {step === "form" && (
-        <SettingsFormDialog
-          title={editingId ? t("provider.editProvider") : t("provider.configureProvider")}
-          description={t("provider.formDescription")}
+        <ProviderFormDialog
+          editing={Boolean(editingId)}
+          form={form}
+          errors={errors}
+          models={models}
+          fetchingModels={fetchingModels}
+          testing={testing}
+          testResult={testResult}
+          formDirty={formDirty}
+          onBack={() => setStep("presets")}
+          onFieldChange={updateField}
+          onFetchModels={() => void handleFetchModels()}
+          onTest={() => void handleTest()}
+          onSave={(event) => void handleSave(event)}
           onClose={resetDialog}
-          dirty={formDirty}
-          discardPrompt={{
-            message: t("provider.discardChangesMessage"),
-            keepLabel: t("provider.keepEditing"),
-            discardLabel: t("provider.discardChanges"),
-          }}
-        >
-          <form
-            className="provider-form modal-form"
-            noValidate
-            onSubmit={(event) => void handleSave(event)}
-          >
-            {!editingId && (
-              <button
-                className="dialog-back-button"
-                type="button"
-                onClick={() => setStep("presets")}
-              >
-                <ArrowLeft size={14} /> {t("provider.backToPresets")}
-              </button>
-            )}
-            <div className="provider-form-grid">
-              <label>
-                <span>
-                  {t("provider.name")} <em>*</em>
-                </span>
-                <Input
-                  autoFocus
-                  value={form.name}
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck={false}
-                  aria-invalid={Boolean(errors.name)}
-                  onChange={(event) => updateField("name", event.target.value)}
-                />
-                {fieldError("name") && <small className="field-error">{fieldError("name")}</small>}
-              </label>
-              <fieldset className="provider-protocol-picker provider-field-wide">
-                <legend>
-                  {t("provider.protocol")} <em>*</em>
-                </legend>
-                <div className="provider-protocol-options">
-                  {PROTOCOL_OPTIONS.map((option, index) => {
-                    const selected = form.protocolId === option.id;
-                    return (
-                      <button
-                        key={option.id}
-                        ref={(element) => {
-                          protocolButtons.current[index] = element;
-                        }}
-                        type="button"
-                        aria-pressed={selected}
-                        tabIndex={selected ? 0 : -1}
-                        onClick={() => updateField("protocolId", option.id)}
-                        onKeyDown={(event) => handleProtocolKeyDown(event, index)}
-                      >
-                        <span>{option.label}</span>
-                        {selected && <Check size={13} aria-hidden="true" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </fieldset>
-              <label className="provider-field-wide">
-                <span>
-                  {t("provider.baseUrl")} <em>*</em>
-                </span>
-                <Input
-                  value={form.baseUrl}
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck={false}
-                  aria-invalid={Boolean(errors.baseUrl)}
-                  placeholder="https://api.example.com/v1"
-                  onChange={(event) => updateField("baseUrl", event.target.value)}
-                />
-                {fieldError("baseUrl") && (
-                  <small className="field-error">{fieldError("baseUrl")}</small>
-                )}
-              </label>
-              <label className="provider-field-wide provider-capability-toggle">
-                <span>
-                  <strong>{t("provider.toolCalling")}</strong>
-                  <small>{t("provider.toolCallingDescription")}</small>
-                </span>
-                <Switch
-                  checked={form.toolCalling}
-                  onCheckedChange={(checked) => updateField("toolCalling", checked)}
-                  aria-label={t("provider.toolCalling")}
-                />
-              </label>
-              <label className="provider-field-wide">
-                <span>{t("provider.maxContextTokens")}</span>
-                <Input
-                  type="number"
-                  min={1024}
-                  step={1024}
-                  value={form.maxContextTokens ?? ""}
-                  onChange={(event) =>
-                    updateField(
-                      "maxContextTokens",
-                      event.target.value ? Number(event.target.value) : undefined,
-                    )
-                  }
-                />
-                <small>{t("provider.maxContextTokensDescription")}</small>
-              </label>
-              <label className="provider-field-wide">
-                <span>
-                  {t("provider.apiKey")} <em>*</em>
-                </span>
-                <Input
-                  type="password"
-                  autoComplete="off"
-                  value={form.apiKey}
-                  aria-invalid={Boolean(errors.apiKey)}
-                  onChange={(event) => updateField("apiKey", event.target.value)}
-                />
-                {fieldError("apiKey") && (
-                  <small className="field-error">{fieldError("apiKey")}</small>
-                )}
-              </label>
-              <label className="provider-field-wide">
-                <span>
-                  {t("provider.modelId")} <em>*</em>
-                </span>
-                <div className="model-input-row">
-                  <Input
-                    list="provider-model-options"
-                    value={form.modelId}
-                    autoCorrect="off"
-                    autoCapitalize="off"
-                    spellCheck={false}
-                    aria-invalid={Boolean(errors.modelId)}
-                    onChange={(event) => updateField("modelId", event.target.value)}
-                  />
-                  <Button
-                    variant="secondary"
-                    size="lg"
-                    disabled={fetchingModels}
-                    onClick={() => void handleFetchModels()}
-                  >
-                    {fetchingModels ? t("provider.fetchingModels") : t("provider.fetchModels")}
-                  </Button>
-                </div>
-                {fieldError("modelId") && (
-                  <small className="field-error">{fieldError("modelId")}</small>
-                )}
-                <datalist id="provider-model-options">
-                  {models.map((model) => (
-                    <option key={model} value={model} />
-                  ))}
-                </datalist>
-              </label>
-            </div>
-            {testResult && (
-              <div className="form-message" role="status">
-                {testResult}
-              </div>
-            )}
-            <div className="form-actions dialog-form-actions">
-              <Button
-                variant="secondary"
-                size="lg"
-                disabled={testing}
-                onClick={() => void handleTest()}
-              >
-                {testing ? "…" : t("provider.testConnection")}
-              </Button>
-              <span />
-              <button className="text-button" type="button" onClick={resetDialog}>
-                {t("provider.cancel")}
-              </button>
-              <Button variant="primary" size="lg" type="submit">
-                {editingId ? t("provider.saveChanges") : t("provider.save")}
-              </Button>
-            </div>
-          </form>
-        </SettingsFormDialog>
+        />
       )}
       {confirmationDialog}
-    </div>
+    </SettingsPage>
   );
 }

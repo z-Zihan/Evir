@@ -322,7 +322,7 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
               aria-label={t("sidebar.projects")}
             >
               <div className="section-label-row flex h-7 shrink-0 items-center justify-between pl-1.5">
-                <div className="section-label text-[10.5px] font-semibold tracking-wide text-muted/90 uppercase">
+                <div className="section-label text-[10.5px] font-semibold tracking-wide text-muted uppercase">
                   {t("sidebar.projects")}
                 </div>
                 <Tip content={t("sidebar.addProject")}>
@@ -337,7 +337,7 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
                 </Tip>
               </div>
               {visibleProjects.length === 0 ? (
-                <div className="empty-list px-2 py-2 text-[11.5px] text-muted/80">
+                <div className="empty-list px-2 py-2 text-[11.5px] text-muted">
                   {t("sidebar.noProjects")}
                 </div>
               ) : (
@@ -401,7 +401,7 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
                             ))}
                           </div>
                         ) : (
-                          <div className="empty-list project-empty px-3 py-1.5 text-[11.5px] text-muted/80">
+                          <div className="empty-list project-empty px-3 py-1.5 text-[11.5px] text-muted">
                             {t("sidebar.emptyProject")}
                           </div>
                         ))}
@@ -417,7 +417,7 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
             aria-label={t("sidebar.chats")}
           >
             <div className="section-label-row flex h-7 shrink-0 items-center justify-between pl-1.5">
-              <div className="section-label text-[10.5px] font-semibold tracking-wide text-muted/90 uppercase">
+              <div className="section-label text-[10.5px] font-semibold tracking-wide text-muted uppercase">
                 {t("sidebar.chats")}
               </div>
               <Tip content={`${t("sidebar.newChat")} (${shortcutModifier}N)`}>
@@ -432,7 +432,7 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
               </Tip>
             </div>
             {standaloneChats.length === 0 ? (
-              <div className="empty-list px-2 py-2 text-[11.5px] text-muted/80">
+              <div className="empty-list px-2 py-2 text-[11.5px] text-muted">
                 {t("sidebar.noConversations")}
               </div>
             ) : (
@@ -496,10 +496,7 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
           >
             <Settings2 size={15} />
             <span>{t("settings.title")}</span>
-            <span
-              className="settings-shortcut ml-auto text-[10px] text-muted/70"
-              aria-hidden="true"
-            >
+            <span className="settings-shortcut ml-auto text-[10px] text-muted" aria-hidden="true">
               {shortcutModifier},
             </span>
           </Button>

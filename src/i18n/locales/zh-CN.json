@@ -5,7 +5,8 @@
     "cancel": "取消",
     "close": "关闭",
     "yes": "是",
-    "no": "否"
+    "no": "否",
+    "retry": "重试"
   },
   "sidebar": {
     "newChat": "新建对话",
@@ -60,7 +61,9 @@
     "cancel": "取消",
     "close": "关闭确认窗口",
     "processing": "处理中…",
-    "failed": "操作失败，数据未完成变更。请重试。"
+    "failed": "操作失败，数据未完成变更。请重试。",
+    "dangerHint": "此操作具有破坏性，且无法撤销。",
+    "warningHint": "这会重置当前对话的执行配置。"
   },
   "chat": {
     "title": "新对话",
@@ -716,7 +719,7 @@
     "searchEmpty": "没有匹配的文件",
     "refresh": "刷新",
     "previewEmpty": "在聊天或文件列表中点击预览，即可在这里查看。",
-    "artifactUnavailable": "此产物内容已不可用，请回到聊天消息重新打开。",
+    "artifactUnavailable": "此产出内容已不可用，请回到聊天消息重新打开。",
     "previewFailed": "无法加载此资源。",
     "diffNoRepo": "此项目不是 git 仓库，无法生成差异对比。",
     "diffUnavailable": "没有可显示的差异。",
@@ -963,7 +966,7 @@
       "unresolvedItems": "未解决事项",
       "viewOutputs": "查看产出",
       "reviewChanges": "查看变更",
-      "outputsCount": "{{count}} 个文件",
+      "outputsCount": "{{count}} 个产出",
       "changesCount": "{{count}} 个文件 · +{{additions}} −{{deletions}}"
     },
     "agentStatus": {
@@ -1173,5 +1176,10 @@
     "runCompleted": "任务已完成",
     "runFailed": "任务失败",
     "approvalRequired": "等待你的审批"
+  },
+  "notify": {
+    "working": "正在处理…",
+    "done": "已完成",
+    "failed": "出了点问题"
   }
 }

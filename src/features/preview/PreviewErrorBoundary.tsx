@@ -1,10 +1,13 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { PreviewError, PreviewShell } from "./PreviewChrome";
 
 interface PreviewErrorBoundaryProps {
   children: ReactNode;
   /** Renderer id for diagnostics. */
   renderer: string;
+  /** Human-readable renderer name for the user-facing headline. */
+  rendererName?: string | undefined;
 }
 
 interface PreviewErrorBoundaryState {
@@ -37,19 +40,34 @@ export class PreviewErrorBoundary extends Component<
   render(): ReactNode {
     if (this.state.error) {
       return (
-        <PreviewRendererError message={this.state.error.message} renderer={this.props.renderer} />
+        <PreviewRendererError
+          message={this.state.error.message}
+          renderer={this.props.renderer}
+          rendererName={this.props.rendererName}
+        />
       );
     }
     return this.props.children;
   }
 }
 
-export function PreviewRendererError({ message, renderer }: { message: string; renderer: string }) {
+export function PreviewRendererError({
+  message,
+  renderer,
+  rendererName,
+}: {
+  message: string;
+  renderer: string;
+  rendererName?: string | undefined;
+}) {
   const { t } = useTranslation();
   return (
-    <div className="preview-renderer-error" role="alert">
-      <p className="preview-renderer-error-title">{t("preview.rendererFailed", { renderer })}</p>
-      <p className="preview-renderer-error-detail">{message.slice(0, 300)}</p>
-    </div>
+    // `.preview-renderer-error` is a test/e2e hook class.
+    <PreviewShell className="preview-renderer-error min-h-0 flex-1">
+      <PreviewError
+        message={t("preview.rendererFailed", { renderer: rendererName ?? renderer })}
+        detail={message.slice(0, 300)}
+      />
+    </PreviewShell>
   );
 }

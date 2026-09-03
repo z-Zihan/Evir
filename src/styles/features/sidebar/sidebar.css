@@ -1,0 +1,120 @@
+@media (max-width: 820px) {
+  /* Sidebar renders as a fixed overlay drawer: App renders it (plus the
+   * backdrop) outside the resizable Group below this breakpoint. Drawer
+   * positioning is structural (kept); the drawer skin itself lives in the
+   * migrated Sidebar component utilities. */
+  .sidebar {
+    position: fixed;
+    z-index: 70;
+    inset: 0 auto 0 0;
+    /* Full-width drawer on phones; capped on small tablets. */
+    width: min(100vw, 390px);
+    box-shadow: 16px 0 42px color-mix(in srgb, black 18%, transparent);
+  }
+
+  .sidebar-backdrop {
+    position: fixed;
+    z-index: 60;
+    inset: 0;
+    display: block;
+    border: 0;
+    background: color-mix(in srgb, black 24%, transparent);
+  }
+}
+
+/* Project actions float above the row so the name can use the full width at */
+
+.project-item.folder-missing:hover .project-name,
+.project-item.folder-missing.active .project-name,
+.project-item.folder-missing:focus-within .project-name {
+  padding-right: 164px;
+}
+
+/* ===== Project permission panel ===== */
+
+.project-permission-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(460px, calc(100vw - 40px));
+  max-height: min(560px, 84dvh);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg, 0 18px 50px rgba(0, 0, 0, 0.24));
+  overflow: hidden;
+}
+
+.project-permission-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.project-permission-header > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--foreground);
+}
+
+.project-permission-header h3 {
+  margin: 0;
+  font-size: 13.5px;
+}
+
+.project-permission-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px 18px;
+  overflow-y: auto;
+}
+
+.project-permission-option.selected {
+  border-color: color-mix(in srgb, var(--signal) 45%, var(--border));
+  background: color-mix(in srgb, var(--surface-hover) 55%, transparent);
+}
+
+.project-access-root-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.project-access-root-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 11px;
+}
+
+.project-access-root-list code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-access-root-list button {
+  display: grid;
+  place-items: center;
+  padding: 2px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.project-access-root-list button:hover {
+  color: var(--foreground);
+  background: var(--surface-hover);
+}

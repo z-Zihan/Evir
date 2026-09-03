@@ -42,7 +42,7 @@ export function ChatEmptyState({ onSendMessage }: ChatEmptyStateProps) {
             </span>
             <span className="min-w-0 flex-1 truncate">{t(`chat.suggestions.${key}`)}</span>
             <ArrowUpRight
-              className="suggestion-arrow shrink-0 text-muted/60 transition-transform group-hover/sug:translate-x-0.5 group-hover/sug:text-primary"
+              className="suggestion-arrow shrink-0 text-muted transition-transform group-hover/sug:translate-x-0.5 group-hover/sug:text-primary"
               size={14}
               aria-hidden="true"
             />

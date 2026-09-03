@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Command,
   Keyboard,
   MessageSquarePlus,
   PanelLeft,
@@ -10,6 +9,13 @@ import {
   Square,
   type LucideIcon,
 } from "lucide-react";
+import { Kbd } from "../components/ui";
+import {
+  SettingsGroup,
+  SettingsPage,
+  SettingsPageIntro,
+  SettingsSection,
+} from "../components/settings";
 import { DEFAULT_SHORTCUTS } from "../core/shortcuts/default-shortcuts";
 import type { ShortcutDefinition } from "../core/shortcuts/types";
 import { currentPlatform, isMac } from "../core/shortcuts/platform";
@@ -84,11 +90,11 @@ function ShortcutKeys({ accelerator }: { accelerator: string }) {
   const label = acceleratorLabel(tokens);
 
   return (
-    <div className="shortcut-keys" aria-label={label}>
+    <div className="flex shrink-0 items-center gap-1" aria-label={label}>
       <span className="sr-only">{label}</span>
-      <span className="shortcut-keycaps" aria-hidden="true">
+      <span className="flex items-center gap-1" aria-hidden="true">
         {tokens.map((token, index) => (
-          <kbd key={`${token}-${index}`}>{token}</kbd>
+          <Kbd key={`${token}-${index}`}>{token}</Kbd>
         ))}
       </span>
     </div>
@@ -101,13 +107,20 @@ function ShortcutRow({ shortcut }: { shortcut: ShortcutDefinition }) {
   const Icon = presentation?.icon;
 
   return (
-    <li className="shortcut-item">
-      <span className="shortcut-action-icon" aria-hidden="true">
+    <li className="flex items-center gap-3 px-4 py-3">
+      <span
+        aria-hidden="true"
+        className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-muted"
+      >
         {Icon ? <Icon size={15} strokeWidth={1.7} /> : null}
       </span>
-      <span className="shortcut-copy">
-        <strong>{t(shortcut.labelKey)}</strong>
-        <span>{presentation ? t(presentation.descriptionKey) : ""}</span>
+      <span className="min-w-0 flex-1">
+        <strong className="block text-[12.5px] font-medium text-foreground">
+          {t(shortcut.labelKey)}
+        </strong>
+        <span className="block text-[11px] text-muted">
+          {presentation ? t(presentation.descriptionKey) : ""}
+        </span>
       </span>
       <ShortcutKeys accelerator={shortcut.defaultAccelerator} />
     </li>
@@ -120,49 +133,49 @@ export function ShortcutsSettings() {
   const platform = currentPlatform();
 
   return (
-    <section className="shortcuts-settings">
-      <div className="shortcut-overview">
-        <div className="shortcut-overview-mark" aria-hidden="true">
-          <Command size={19} strokeWidth={1.6} />
-        </div>
-        <div>
-          <span className="settings-page-eyebrow">{t("settingsDescriptions.keyboard")}</span>
-          <h3>{t("shortcuts.title")}</h3>
-          <p>{t("settingsDescriptions.shortcuts")}</p>
-        </div>
-        <div className="shortcut-platform-summary">
-          <strong>{t(`shortcuts.platform.${platform}`)}</strong>
-          <span>{t("shortcuts.availableCount", { count: shortcuts.length })}</span>
-        </div>
-      </div>
+    <SettingsPage>
+      <SettingsPageIntro
+        eyebrow={t("settingsDescriptions.keyboard")}
+        description={t("settingsDescriptions.shortcuts")}
+        action={
+          <div className="flex flex-col items-end">
+            <strong className="text-[12.5px] text-foreground">
+              {t(`shortcuts.platform.${platform}`)}
+            </strong>
+            <span className="text-[11px] text-muted">
+              {t("shortcuts.availableCount", { count: shortcuts.length })}
+            </span>
+          </div>
+        }
+      />
 
-      <div className="shortcut-map">
-        {GROUP_ORDER.map((group) => {
-          const groupShortcuts = shortcuts.filter(
-            (shortcut) => SHORTCUT_PRESENTATION[shortcut.id]?.group === group,
-          );
-          if (groupShortcuts.length === 0) return null;
+      {GROUP_ORDER.map((group) => {
+        const groupShortcuts = shortcuts.filter(
+          (shortcut) => SHORTCUT_PRESENTATION[shortcut.id]?.group === group,
+        );
+        if (groupShortcuts.length === 0) return null;
 
-          return (
-            <section className="shortcuts-group" key={group}>
-              <div className="shortcut-group-header">
-                <h4>{t(`shortcuts.groups.${group}`)}</h4>
-                <span>{t(`shortcuts.groupDescriptions.${group}`)}</span>
-              </div>
-              <ul className="shortcuts-list">
+        return (
+          <SettingsSection
+            key={group}
+            title={t(`shortcuts.groups.${group}`)}
+            description={t(`shortcuts.groupDescriptions.${group}`)}
+          >
+            <SettingsGroup>
+              <ul className="divide-y divide-border">
                 {groupShortcuts.map((shortcut) => (
                   <ShortcutRow key={shortcut.id} shortcut={shortcut} />
                 ))}
               </ul>
-            </section>
-          );
-        })}
-      </div>
+            </SettingsGroup>
+          </SettingsSection>
+        );
+      })}
 
-      <div className="shortcuts-note">
+      <div className="flex items-center gap-2 text-[11.5px] text-muted">
         <Keyboard size={14} aria-hidden="true" />
         <span>{t("shortcuts.comingSoon")}</span>
       </div>
-    </section>
+    </SettingsPage>
   );
 }

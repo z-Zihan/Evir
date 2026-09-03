@@ -209,7 +209,7 @@ export const SlashPalette = forwardRef<SlashPaletteHandle, SlashPaletteProps>(fu
           {skillItems.map(renderItem)}
         </>
       )}
-      <div className="slash-hint border-t border-border px-3 py-1.5 text-[10.5px] text-muted/80">
+      <div className="slash-hint border-t border-border px-3 py-1.5 text-[10.5px] text-muted">
         {t("slash.hint")}
       </div>
     </div>

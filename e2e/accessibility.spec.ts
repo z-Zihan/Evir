@@ -158,7 +158,7 @@ test("avatar crop dialog contains focus and does not close its parent settings d
   await seedFixture(page);
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const settingsDialog = page.getByRole("dialog", { name: "Settings", exact: true });
-  await settingsDialog.getByRole("button", { name: "Local identity", exact: true }).click();
+  await settingsDialog.getByRole("button", { name: "Identity", exact: true }).click();
   const choosePhoto = settingsDialog.getByRole("button", { name: "Choose photo", exact: true });
   await choosePhoto.focus();
   await settingsDialog.locator('input[type="file"]').setInputFiles({

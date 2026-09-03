@@ -12,6 +12,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "../components/ui";
+import { EmptyState } from "../components/feedback";
+import { SettingsGroup, SettingsPage, SettingsPageIntro } from "../components/settings";
 import { useUsageStore } from "../features/usage/usage-store";
 import { getStructuredStorage } from "../runtime/structured-storage";
 import {
@@ -172,32 +174,32 @@ export function UsagePanel() {
   ];
 
   return (
-    <section className="usage-dashboard">
-      <div className="settings-page-intro">
-        <div>
-          <span className="settings-page-eyebrow">{t("usage.insights")}</span>
-          <p>{t("usage.description")}</p>
-        </div>
-        <Button
-          variant="ghost-destructive"
-          size="sm"
-          className="quiet-danger-button h-auto"
-          onClick={() =>
-            requestConfirmation(
-              {
-                title: t("confirmation.clearTitle"),
-                description: t("confirmation.clearDescription", { item: t("usage.data") }),
-                confirmLabel: t("usage.clear"),
-              },
-              clearRecords,
-            )
-          }
-          disabled={isClearing || records.length === 0}
-        >
-          <Trash2 size={14} />
-          {t("usage.clear")}
-        </Button>
-      </div>
+    <SettingsPage>
+      <SettingsPageIntro
+        eyebrow={t("usage.insights")}
+        description={t("usage.description")}
+        className="max-sm:flex-col"
+        action={
+          <Button
+            variant="ghost-destructive"
+            size="sm"
+            onClick={() =>
+              requestConfirmation(
+                {
+                  title: t("confirmation.clearTitle"),
+                  description: t("confirmation.clearDescription", { item: t("usage.data") }),
+                  confirmLabel: t("usage.clear"),
+                },
+                clearRecords,
+              )
+            }
+            disabled={isClearing || records.length === 0}
+          >
+            <Trash2 size={14} />
+            {t("usage.clear")}
+          </Button>
+        }
+      />
 
       <div className="usage-metrics">
         {metrics.map(({ label, value, icon: Icon }) => (
@@ -209,18 +211,28 @@ export function UsagePanel() {
         ))}
       </div>
 
-      <section className="settings-section-card usage-activity-card">
-        <div className="settings-card-heading">
-          <div>
-            <h4>{t("usage.activity")}</h4>
-            <p>{t("usage.activityDescription")}</p>
+      <SettingsGroup>
+        <div className="flex min-h-[58px] items-center justify-between gap-4 px-[13px] py-2.5 max-sm:flex-col max-sm:items-start">
+          <div className="min-w-0">
+            <h4 className="m-0 text-xs font-semibold">{t("usage.activity")}</h4>
+            <p className="mt-1 text-[9.5px] leading-[1.45] text-muted">
+              {t("usage.activityDescription")}
+            </p>
           </div>
-          <div className="segmented-control" role="group" aria-label={t("usage.range")}>
+          <div
+            className="flex flex-none gap-[2px] rounded-[7px] border border-border bg-background p-[2px]"
+            role="group"
+            aria-label={t("usage.range")}
+          >
             {(["daily", "weekly", "cumulative"] as const).map((value) => (
               <button
                 key={value}
                 type="button"
-                className={range === value ? "active" : ""}
+                className={`min-h-[26px] cursor-pointer rounded-[5px] border-0 px-2 text-[9.5px] transition-colors ${
+                  range === value
+                    ? "bg-surface text-foreground shadow-[0_1px_3px_color-mix(in_srgb,black_7%,transparent)]"
+                    : "bg-transparent text-muted"
+                }`}
                 aria-pressed={range === value}
                 onClick={() => setRange(value)}
               >
@@ -230,17 +242,19 @@ export function UsagePanel() {
           </div>
         </div>
         {records.length === 0 ? (
-          <div className="usage-empty">{t("usage.noData")}</div>
+          <EmptyState title={t("usage.noData")} />
         ) : (
           <UsageChart points={series} range={range} locale={locale} />
         )}
-      </section>
+      </SettingsGroup>
 
-      <section className="settings-section-card heatmap-card">
-        <div className="settings-card-heading">
-          <div>
-            <h4>{t("usage.yearActivity")}</h4>
-            <p>{t("usage.yearActivityDescription")}</p>
+      <SettingsGroup>
+        <div className="flex min-h-[58px] items-center justify-between gap-4 px-[13px] py-2.5 max-sm:flex-col max-sm:items-start">
+          <div className="min-w-0">
+            <h4 className="m-0 text-xs font-semibold">{t("usage.yearActivity")}</h4>
+            <p className="mt-1 text-[9.5px] leading-[1.45] text-muted">
+              {t("usage.yearActivityDescription")}
+            </p>
           </div>
           <span className="usage-streak-note">
             {t("usage.longestStreak", { count: analytics.longestStreak })}
@@ -262,20 +276,22 @@ export function UsagePanel() {
             ))}
           </div>
         </div>
-      </section>
+      </SettingsGroup>
 
-      <section className="settings-section-card models-card">
-        <div className="settings-card-heading">
-          <div>
-            <h4>{t("usage.byModel")}</h4>
-            <p>{t("usage.byModelDescription")}</p>
+      <SettingsGroup>
+        <div className="flex min-h-[58px] items-center justify-between gap-4 px-[13px] py-2.5 max-sm:flex-col max-sm:items-start">
+          <div className="min-w-0">
+            <h4 className="m-0 text-xs font-semibold">{t("usage.byModel")}</h4>
+            <p className="mt-1 text-[9.5px] leading-[1.45] text-muted">
+              {t("usage.byModelDescription")}
+            </p>
           </div>
           <span className="usage-streak-note">
             {t("usage.modelCount", { count: analytics.models.length })}
           </span>
         </div>
         {analytics.models.length === 0 ? (
-          <div className="usage-empty">{t("usage.noData")}</div>
+          <EmptyState title={t("usage.noData")} />
         ) : (
           <div className="model-usage-list">
             {analytics.models.map((model) => (
@@ -306,8 +322,8 @@ export function UsagePanel() {
             ))}
           </div>
         )}
-      </section>
+      </SettingsGroup>
       {confirmationDialog}
-    </section>
+    </SettingsPage>
   );
 }

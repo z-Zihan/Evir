@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import packageJson from "../../package.json";
 import { Button } from "../components/ui";
+import { SettingsPage, SettingsPageIntro } from "../components/settings";
 import { DiagnosticExportCancelledError } from "../core/logging/diagnostic-port";
 import { logger } from "../core/logging/logger";
 import type { DiagnosticExportOptions, LogLevel } from "../core/logging/types";
@@ -163,46 +164,45 @@ export function DiagnosticsSettings() {
   };
 
   return (
-    <section className="diagnostics-settings settings-designed-page">
-      <div className="settings-page-intro compact">
-        <div>
-          <span className="settings-page-eyebrow">
-            {t("settingsDescriptions.localDiagnostics")}
-          </span>
-          <p>{t("settingsDescriptions.diagnostics")}</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" size="lg" onClick={handleEvidenceMarker}>
-            {t("diagnostics.createEvidenceMarker")}
-          </Button>
-          {getRuntime().target === "desktop" && (
-            <Button variant="secondary" size="lg" onClick={handleBundleExport}>
-              {t("diagnostics.exportBundle")}
+    <SettingsPage>
+      <SettingsPageIntro
+        eyebrow={t("settingsDescriptions.localDiagnostics")}
+        description={t("settingsDescriptions.diagnostics")}
+        className="max-sm:flex-col"
+        action={
+          <>
+            <Button variant="secondary" size="lg" onClick={handleEvidenceMarker}>
+              {t("diagnostics.createEvidenceMarker")}
             </Button>
-          )}
-          <Button variant="secondary" size="lg" onClick={() => void handleExport()}>
-            {t("diagnostics.export")}
-          </Button>
-          <button
-            type="button"
-            className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg cursor-pointer text-sm hover:bg-surface-hover transition danger"
-            onClick={() =>
-              requestConfirmation(
-                {
-                  title: t("confirmation.clearTitle"),
-                  description: t("confirmation.clearDescription", {
-                    item: t("diagnostics.data"),
-                  }),
-                  confirmLabel: t("diagnostics.clear"),
-                },
-                handleClear,
-              )
-            }
-          >
-            {t("diagnostics.clear")}
-          </button>
-        </div>
-      </div>
+            {getRuntime().target === "desktop" && (
+              <Button variant="secondary" size="lg" onClick={handleBundleExport}>
+                {t("diagnostics.exportBundle")}
+              </Button>
+            )}
+            <Button variant="secondary" size="lg" onClick={() => void handleExport()}>
+              {t("diagnostics.export")}
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() =>
+                requestConfirmation(
+                  {
+                    title: t("confirmation.clearTitle"),
+                    description: t("confirmation.clearDescription", {
+                      item: t("diagnostics.data"),
+                    }),
+                    confirmLabel: t("diagnostics.clear"),
+                  },
+                  handleClear,
+                )
+              }
+            >
+              {t("diagnostics.clear")}
+            </Button>
+          </>
+        }
+      />
       {exportResult && (
         <p className="text-sm text-muted" role="status">
           {exportResult}
@@ -240,7 +240,11 @@ export function DiagnosticsSettings() {
           </div>
         )}
       </div>
-      <div className="flex gap-2 flex-wrap" role="group" aria-label={t("diagnostics.filter")}>
+      <div
+        className="flex gap-2 flex-wrap self-start rounded-lg border border-border bg-background p-[3px]"
+        role="group"
+        aria-label={t("diagnostics.filter")}
+      >
         {FILTERS.map((f) => (
           <button
             key={f}
@@ -261,7 +265,7 @@ export function DiagnosticsSettings() {
         <p className="text-sm text-muted p-4">{t("diagnostics.empty")}</p>
       ) : (
         <ul
-          className="flex flex-col gap-1 border border-border rounded-lg max-h-96 overflow-y-auto"
+          className="m-0 flex flex-col gap-1 border border-border rounded-lg max-h-96 overflow-y-auto bg-[color-mix(in_srgb,var(--background)_28%,var(--surface))]"
           tabIndex={0}
           aria-label={t("diagnostics.data")}
         >
@@ -285,6 +289,6 @@ export function DiagnosticsSettings() {
         </ul>
       )}
       {confirmationDialog}
-    </section>
+    </SettingsPage>
   );
 }

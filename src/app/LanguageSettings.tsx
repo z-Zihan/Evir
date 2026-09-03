@@ -1,5 +1,11 @@
+import { Languages } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Check, Languages } from "lucide-react";
+import {
+  SettingsOptionCard,
+  SettingsOptionCardGrid,
+  SettingsPage,
+  SettingsPageIntro,
+} from "../components/settings";
 
 export function LanguageSettings() {
   const { t, i18n } = useTranslation();
@@ -17,33 +23,24 @@ export function LanguageSettings() {
     },
   ];
   return (
-    <section className="settings-designed-page">
-      <div className="settings-page-intro compact">
-        <div>
-          <span className="settings-page-eyebrow">{t("settingsDescriptions.localization")}</span>
-          <p>{t("settingsDescriptions.language")}</p>
-        </div>
-      </div>
-      <div className="language-choice-list">
+    <SettingsPage>
+      <SettingsPageIntro
+        eyebrow={t("settingsDescriptions.localization")}
+        description={t("settingsDescriptions.language")}
+      />
+      <SettingsOptionCardGrid>
         {options.map((option) => (
-          <button
+          <SettingsOptionCard
             key={option.value}
-            type="button"
-            className={`language-choice${current === option.value ? " active" : ""}`}
-            aria-pressed={current === option.value}
+            icon={<Languages />}
+            title={option.label}
+            description={option.sample}
+            selected={current === option.value}
+            aria-label={option.label}
             onClick={() => void i18n.changeLanguage(option.value)}
-          >
-            <span className="choice-card-icon">
-              <Languages size={18} />
-            </span>
-            <span>
-              <strong>{option.label}</strong>
-              <small>{option.sample}</small>
-            </span>
-            {current === option.value && <Check size={16} />}
-          </button>
+          />
         ))}
-      </div>
-    </section>
+      </SettingsOptionCardGrid>
+    </SettingsPage>
   );
 }

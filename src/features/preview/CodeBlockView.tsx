@@ -1,7 +1,7 @@
 import { memo, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Copy, ExternalLink, WrapText } from "lucide-react";
-import { Tip } from "../../components/ui";
+import { Check, Copy, ExternalLink, WrapText } from "lucide-react";
+import { Button, Tip } from "../../components/ui";
 import { normalizeFenceLanguage, previewRegistry } from "./preview-registry";
 import { isHighlightable, useShikiHighlight } from "./use-shiki";
 import { useWorkspacePanelStore } from "../workspace/workspace-panel-store";
@@ -95,35 +95,40 @@ export const CodeBlockView = memo(function CodeBlockView({
       <div className="code-block-header">
         <span className="code-block-language">{normalized || t("preview.plainText")}</span>
         <div className="code-block-actions">
-          <button
-            type="button"
-            className={`code-block-action${wrap ? " active" : ""}`}
-            onClick={() => setWrap(!wrap)}
-            aria-label={t("preview.toggleWrap")}
-            aria-pressed={wrap}
-          >
-            <WrapText size={13} />
-          </button>
-          <button
-            type="button"
-            className="code-block-action"
+          <Tip content={t("preview.toggleWrap")}>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              className={wrap ? "text-primary" : "text-muted"}
+              onClick={() => setWrap(!wrap)}
+              aria-label={t("preview.toggleWrap")}
+              aria-pressed={wrap}
+            >
+              <WrapText size={13} />
+            </Button>
+          </Tip>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="text-muted"
             onClick={copy}
             aria-label={t("chat.copyCode")}
           >
-            <Copy size={13} />
+            {copied ? <Check size={13} className="text-success" /> : <Copy size={13} />}
             <span>{copied ? t("chat.copied") : t("chat.copyCode")}</span>
-          </button>
+          </Button>
           {!streaming && (
             <Tip content={t("preview.openInWorkspace")}>
-              <button
-                type="button"
-                className="code-block-action workspace-open-action"
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                className="workspace-open-action text-muted"
                 onClick={openInWorkspace}
                 aria-label={t("preview.openInWorkspace")}
               >
                 <ExternalLink size={13} />
                 <span>{t("preview.previewTab")}</span>
-              </button>
+              </Button>
             </Tip>
           )}
         </div>

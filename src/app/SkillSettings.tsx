@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BookOpenText, FileUp, Plus, Search, ShieldCheck, Trash2, X } from "lucide-react";
-import { Button, Input, Switch, Textarea, Tip } from "../components/ui";
+import { Badge, Button, Input, Switch, Textarea, Tip } from "../components/ui";
+import { EmptyState, InlineError, LoadingState } from "../components/feedback";
+import {
+  SettingsGroup,
+  SettingsPage,
+  SettingsPageIntro,
+  SettingsRow,
+  SettingsSection,
+} from "../components/settings";
 import { useSkillStore } from "../features/skills/skill-store";
 import type { SkillManifest, SkillRiskLevel } from "../core/skills/types";
 import { useConfirmationDialog } from "./useConfirmationDialog";
@@ -123,7 +131,7 @@ export function SkillSettings() {
     }
   };
 
-  if (loading) return <p>{t("common.loading")}</p>;
+  if (loading) return <LoadingState label={t("common.loading")} />;
 
   const enabledCount = skills.filter((skill) => enabledSkillIds.has(skill.manifest.id)).length;
   const customCount = skills.filter((skill) => !skill.builtIn).length;
@@ -154,166 +162,183 @@ export function SkillSettings() {
   };
 
   return (
-    <section className="skill-settings settings-designed-page">
-      <div className="skill-overview">
-        <div className="skill-overview-copy">
-          <span className="settings-page-eyebrow">
-            {t("settingsDescriptions.optionalCapabilities")}
-          </span>
-          <h3>{t("skill.library")}</h3>
-          <p>{t("settingsDescriptions.skills")}</p>
-        </div>
-        <div className="skill-overview-stats" aria-label={t("skill.summary")}>
-          <div>
-            <strong>{skills.length}</strong>
-            <span>{t("skill.installed")}</span>
+    <SettingsPage>
+      <SettingsPageIntro
+        eyebrow={t("settingsDescriptions.optionalCapabilities")}
+        description={t("settingsDescriptions.skills")}
+        action={
+          <div className="flex items-center gap-5" aria-label={t("skill.summary")}>
+            <div className="flex flex-col items-center">
+              <strong className="text-[15px] font-semibold text-foreground">{skills.length}</strong>
+              <span className="text-[10px] text-muted">{t("skill.installed")}</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <strong className="text-[15px] font-semibold text-foreground">{enabledCount}</strong>
+              <span className="text-[10px] text-muted">{t("skill.active")}</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <strong className="text-[15px] font-semibold text-foreground">{customCount}</strong>
+              <span className="text-[10px] text-muted">{t("skill.custom")}</span>
+            </div>
           </div>
-          <div>
-            <strong>{enabledCount}</strong>
-            <span>{t("skill.active")}</span>
-          </div>
-          <div>
-            <strong>{customCount}</strong>
-            <span>{t("skill.custom")}</span>
-          </div>
-        </div>
-        <div className="skill-toolbar">
-          <label className="skill-filter-search">
-            <Search size={14} aria-hidden="true" />
-            <Input
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder={t("skill.search")}
-              aria-label={t("skill.search")}
-            />
-          </label>
-          <select
-            className="form-select h-8 rounded-lg border border-border bg-surface px-2.5 text-[12.5px] focus-visible:border-primary focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
-            value={categoryFilter}
-            onChange={(event) => setCategoryFilter(event.target.value)}
-            aria-label={t("skill.filterCategory")}
-          >
-            <option value="all">{t("skill.allCategories")}</option>
-            {categories.map((categoryId) => (
-              <option key={categoryId} value={categoryId}>
-                {categoryLabel(categoryId)}
-              </option>
-            ))}
-          </select>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".md,.txt"
-            className="hidden"
-            onChange={(e) => void handleFileChange(e)}
+        }
+      />
+
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="relative flex min-w-52 flex-1 items-center">
+          <Search
+            size={14}
+            aria-hidden="true"
+            className="pointer-events-none absolute left-2.5 text-muted"
           />
-          <Button variant="secondary" size="lg" onClick={() => fileInputRef.current?.click()}>
-            <FileUp size={14} aria-hidden="true" />
-            {t("skill.installFromFile")}
-          </Button>
-          <Button
-            variant={showCreate ? "secondary" : "primary"}
-            size="lg"
-            onClick={() => setShowCreate(!showCreate)}
-          >
-            {showCreate ? (
-              <X size={14} aria-hidden="true" />
-            ) : (
-              <Plus size={14} aria-hidden="true" />
-            )}
-            {showCreate ? t("skill.cancel") : t("skill.create")}
-          </Button>
-        </div>
+          <Input
+            className="pl-7.5"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder={t("skill.search")}
+            aria-label={t("skill.search")}
+          />
+        </label>
+        <select
+          className="form-select h-8 rounded-lg border border-border bg-surface px-2.5 text-[12.5px] focus-visible:border-primary focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
+          value={categoryFilter}
+          onChange={(event) => setCategoryFilter(event.target.value)}
+          aria-label={t("skill.filterCategory")}
+        >
+          <option value="all">{t("skill.allCategories")}</option>
+          {categories.map((categoryId) => (
+            <option key={categoryId} value={categoryId}>
+              {categoryLabel(categoryId)}
+            </option>
+          ))}
+        </select>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".md,.txt"
+          className="hidden"
+          onChange={(e) => void handleFileChange(e)}
+        />
+        <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
+          <FileUp size={14} aria-hidden="true" />
+          {t("skill.installFromFile")}
+        </Button>
+        <Button
+          variant={showCreate ? "secondary" : "primary"}
+          onClick={() => setShowCreate(!showCreate)}
+        >
+          {showCreate ? <X size={14} aria-hidden="true" /> : <Plus size={14} aria-hidden="true" />}
+          {showCreate ? t("skill.cancel") : t("skill.create")}
+        </Button>
       </div>
 
-      {importError && (
-        <p className="m-0 p-2 text-sm text-danger bg-danger/8 border border-danger/20 rounded-lg">
-          {importError}
-        </p>
-      )}
+      {importError && <InlineError message={importError} />}
 
       {showCreate && (
-        <div className="skill-create-form">
-          <div className="skill-create-heading">
-            <div>
-              <strong>{t("skill.createTitle")}</strong>
-              <span>{t("skill.createDescription")}</span>
-            </div>
-            <BookOpenText size={17} aria-hidden="true" />
+        <SettingsSection
+          title={
+            <span className="flex items-center gap-2">
+              <BookOpenText size={17} aria-hidden="true" className="text-primary" />
+              {t("skill.createTitle")}
+            </span>
+          }
+          description={t("skill.createDescription")}
+        >
+          <SettingsGroup>
+            <SettingsRow
+              label={t("skill.name")}
+              htmlFor="skill-create-name"
+              control={
+                <Input
+                  id="skill-create-name"
+                  className="sm:w-64"
+                  placeholder={t("skill.namePlaceholder")}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              }
+            />
+            <SettingsRow
+              label={t("skill.description")}
+              htmlFor="skill-create-description"
+              control={
+                <Input
+                  id="skill-create-description"
+                  className="sm:w-64"
+                  placeholder={t("skill.descPlaceholder")}
+                  value={desc}
+                  onChange={(e) => setDesc(e.target.value)}
+                />
+              }
+            />
+            <SettingsRow
+              label={t("skill.category")}
+              htmlFor="skill-create-category"
+              control={
+                <>
+                  <Input
+                    id="skill-create-category"
+                    className="sm:w-64"
+                    list="skill-category-options"
+                    value={category}
+                    onChange={(event) => setCategory(event.target.value)}
+                    placeholder={t("skill.categoryPlaceholder")}
+                  />
+                  <datalist id="skill-category-options">
+                    {BUILTIN_SKILL_CATEGORIES.map((categoryId) => (
+                      <option key={categoryId} value={categoryId}>
+                        {t(`skillCategories.${categoryId}`)}
+                      </option>
+                    ))}
+                  </datalist>
+                </>
+              }
+            />
+          </SettingsGroup>
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="skill-create-instructions"
+              className="block text-[12.5px] font-medium text-foreground"
+            >
+              {t("skill.instructions")}
+            </label>
+            <Textarea
+              id="skill-create-instructions"
+              placeholder={t("skill.contentPlaceholder")}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              rows={7}
+            />
           </div>
-          <div className="skill-create-fields">
-            <label>
-              <span>{t("skill.name")}</span>
-              <Input
-                placeholder={t("skill.namePlaceholder")}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </label>
-            <label>
-              <span>{t("skill.description")}</span>
-              <Input
-                placeholder={t("skill.descPlaceholder")}
-                value={desc}
-                onChange={(e) => setDesc(e.target.value)}
-              />
-            </label>
-            <label>
-              <span>{t("skill.category")}</span>
-              <Input
-                list="skill-category-options"
-                value={category}
-                onChange={(event) => setCategory(event.target.value)}
-                placeholder={t("skill.categoryPlaceholder")}
-              />
-              <datalist id="skill-category-options">
-                {BUILTIN_SKILL_CATEGORIES.map((categoryId) => (
-                  <option key={categoryId} value={categoryId}>
-                    {t(`skillCategories.${categoryId}`)}
-                  </option>
-                ))}
-              </datalist>
-            </label>
-            <label className="skill-instructions-field">
-              <span>{t("skill.instructions")}</span>
-              <Textarea
-                placeholder={t("skill.contentPlaceholder")}
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                rows={7}
-              />
-            </label>
-          </div>
-          <div className="skill-create-actions">
-            <span>{t("skill.localOnly")}</span>
-            <button
-              type="button"
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="text-[11px] text-muted">{t("skill.localOnly")}</span>
+            <Button
+              variant="primary"
+              size="sm"
               onClick={() => void handleCreate()}
               disabled={!name.trim() || !content.trim()}
             >
               {t("skill.save")}
-            </button>
+            </Button>
           </div>
-        </div>
+        </SettingsSection>
       )}
 
       {skills.length === 0 ? (
-        <div className="settings-empty-state">
-          <strong>{t("skill.noSkills")}</strong>
-          <span>{t("settingsDescriptions.skillsEmpty")}</span>
-        </div>
+        <EmptyState
+          title={t("skill.noSkills")}
+          description={t("settingsDescriptions.skillsEmpty")}
+        />
       ) : (
-        <>
-          <div className="skill-library-heading">
-            <div>
-              <h4>{t("skill.installedSkills")}</h4>
-              <span>
-                {t("skill.filteredCount", { visible: visibleSkills.length, total: skills.length })}
-              </span>
-            </div>
-            <ShieldCheck size={16} aria-hidden="true" />
-          </div>
-          <ul className="skill-list">
+        <SettingsSection
+          title={t("skill.installedSkills")}
+          description={t("skill.filteredCount", {
+            visible: visibleSkills.length,
+            total: skills.length,
+          })}
+          action={<ShieldCheck size={16} aria-hidden="true" className="text-muted" />}
+        >
+          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface-subtle">
             {visibleSkills.map((skill) => {
               const isEnabled = enabledSkillIds.has(skill.manifest.id);
               const riskLevel = skill.manifest.riskLevel;
@@ -322,49 +347,59 @@ export function SkillSettings() {
               const localization = skill.manifest.localizations?.[locale];
               const displayName = localization?.name ?? skill.manifest.name;
               const displayDescription = localization?.description ?? skill.manifest.description;
+              const riskVariant =
+                riskLevel === "high" ? "danger" : riskLevel === "medium" ? "warning" : "success";
 
               return (
-                <li key={skill.manifest.id} className={`skill-item ${isEnabled ? "enabled" : ""}`}>
-                  <span className="skill-glyph" aria-hidden="true">
+                <li
+                  key={skill.manifest.id}
+                  className="skill-item flex items-start gap-3 px-4 py-3.5"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-[12px] font-semibold text-muted"
+                  >
                     {displayName.slice(0, 1).toUpperCase()}
                   </span>
-                  <div className="skill-item-copy">
-                    <div className="skill-item-title">
-                      <strong>{displayName}</strong>
-                      <span className={`skill-risk ${riskLevel}`}>{t(`skill.${riskLevel}`)}</span>
-                      <span className="skill-source">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <strong className="text-[12.5px] text-foreground">{displayName}</strong>
+                      <Badge variant={riskVariant}>{t(`skill.${riskLevel}`)}</Badge>
+                      <Badge variant="secondary">
                         {skill.manifest.attribution
                           ? t("skill.community")
                           : skill.builtIn
                             ? t("skill.builtin")
                             : t("skill.custom")}
-                      </span>
-                      <span className="skill-source">
+                      </Badge>
+                      <Badge variant="secondary">
                         {categoryLabel(skill.manifest.category ?? "other")}
-                      </span>
+                      </Badge>
                       {skill.manifest.platforms?.length === 1 &&
                         skill.manifest.platforms[0] === "desktop" && (
-                          <span className="skill-source">{t("skill.desktopOnly")}</span>
+                          <Badge variant="secondary">{t("skill.desktopOnly")}</Badge>
                         )}
                     </div>
-                    <p>{displayDescription}</p>
-                    <span className="skill-version">
+                    <p className="mt-1 text-[11.5px] leading-relaxed text-muted">
+                      {displayDescription}
+                    </p>
+                    <span className="mt-1 block text-[10.5px] text-muted">
                       v{skill.manifest.version} ·{" "}
                       {t("skill.capabilityCount", { count: skill.manifest.capabilities.length })}
                     </span>
                     {skill.manifest.attribution && (
-                      <span className="skill-version">
+                      <span className="block text-[10.5px] text-muted">
                         {skill.manifest.attribution.author} · {skill.manifest.attribution.license}
                         {skill.manifest.attribution.adapted ? ` · ${t("skill.adapted")}` : ""}
                       </span>
                     )}
                   </div>
-                  <div className="skill-item-actions">
+                  <div className="flex shrink-0 items-center gap-1.5">
                     {isCustom && (
                       <Tip content={t("skill.uninstall")}>
-                        <button
-                          type="button"
-                          className="skill-delete-button"
+                        <Button
+                          variant="ghost-destructive"
+                          size="icon-xs"
                           aria-label={t("skill.uninstall")}
                           onClick={() =>
                             requestConfirmation(
@@ -380,10 +415,10 @@ export function SkillSettings() {
                           }
                         >
                           <Trash2 size={14} />
-                        </button>
+                        </Button>
                       </Tip>
                     )}
-                    <label className="skill-toggle">
+                    <label className="skill-toggle flex cursor-pointer items-center">
                       <Switch
                         checked={isEnabled}
                         onCheckedChange={() => void toggleSkill(skill.manifest.id)}
@@ -395,12 +430,14 @@ export function SkillSettings() {
               );
             })}
             {visibleSkills.length === 0 && (
-              <li className="settings-empty-state">{t("skill.noSearchResults")}</li>
+              <li className="flex items-center justify-center px-4 py-6 text-[12px] text-muted">
+                {t("skill.noSearchResults")}
+              </li>
             )}
           </ul>
-        </>
+        </SettingsSection>
       )}
       {confirmationDialog}
-    </section>
+    </SettingsPage>
   );
 }

@@ -1,6 +1,12 @@
+import { Monitor, Moon, Sun, type LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Check, Monitor, Moon, Sun, type LucideIcon } from "lucide-react";
 import { useThemeStore } from "../features/settings/theme-store";
+import {
+  SettingsOptionCard,
+  SettingsOptionCardGrid,
+  SettingsPage,
+  SettingsPageIntro,
+} from "../components/settings";
 
 export function ThemeSettings() {
   const { t } = useTranslation();
@@ -31,31 +37,24 @@ export function ThemeSettings() {
     },
   ];
   return (
-    <section className="settings-designed-page">
-      <div className="settings-page-intro compact">
-        <div>
-          <span className="settings-page-eyebrow">{t("settingsDescriptions.appearance")}</span>
-          <p>{t("settingsDescriptions.theme")}</p>
-        </div>
-      </div>
-      <div className="choice-card-grid">
+    <SettingsPage>
+      <SettingsPageIntro
+        eyebrow={t("settingsDescriptions.appearance")}
+        description={t("settingsDescriptions.theme")}
+      />
+      <SettingsOptionCardGrid>
         {options.map(({ value, label, description, icon: Icon }) => (
-          <button
+          <SettingsOptionCard
             key={value}
-            type="button"
-            className={`choice-card${theme === value ? " active" : ""}`}
-            aria-pressed={theme === value}
+            icon={<Icon />}
+            title={label}
+            description={description}
+            selected={theme === value}
+            aria-label={label}
             onClick={() => setTheme(value)}
-          >
-            <span className="choice-card-icon">
-              <Icon size={18} />
-            </span>
-            <strong>{label}</strong>
-            <span>{description}</span>
-            {theme === value && <Check className="choice-check" size={15} />}
-          </button>
+          />
         ))}
-      </div>
-    </section>
+      </SettingsOptionCardGrid>
+    </SettingsPage>
   );
 }

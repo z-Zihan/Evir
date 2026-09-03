@@ -1,15 +1,5 @@
 import { logger } from "../../core/logging/logger";
-
-/**
- * Sonner stays out of the initial bundle: the bridge dynamically imports it
- * the first time a toast actually fires.
- */
-type ToastModule = typeof import("sonner");
-let toastModule: Promise<ToastModule> | null = null;
-function toastApi(): Promise<ToastModule> {
-  toastModule ??= import("sonner");
-  return toastModule;
-}
+import { notify } from "../../components/feedback";
 import i18n from "../../i18n/config";
 import { useChatStore } from "./chat-store";
 
@@ -45,16 +35,14 @@ export function startRunToastBridge(): void {
       if (seenOutcomeKeys.size > 200) seenOutcomeKeys.clear();
       if (!isBackground(conversationId)) continue;
       if (outcome.status === "completed" || outcome.status === "failed") {
-        void toastApi().then((sonner) => {
-          const description = useChatStore
-            .getState()
-            .conversations.find(({ id }) => id === conversationId)?.title;
-          if (outcome.status === "completed") {
-            sonner.toast.success(i18n.t("toast.runCompleted"), { description });
-          } else {
-            sonner.toast.error(i18n.t("toast.runFailed"), { description });
-          }
-        });
+        const description = useChatStore
+          .getState()
+          .conversations.find(({ id }) => id === conversationId)?.title;
+        if (outcome.status === "completed") {
+          notify.success(i18n.t("toast.runCompleted"), { description });
+        } else {
+          notify.error(i18n.t("toast.runFailed"), { description });
+        }
       }
     }
     for (const [conversationId, pending] of Object.entries(pendingApprovals)) {
@@ -62,11 +50,7 @@ export function startRunToastBridge(): void {
       seenApprovalIds.add(pending.toolCallId);
       if (seenApprovalIds.size > 200) seenApprovalIds.clear();
       if (!isBackground(conversationId)) continue;
-      void toastApi().then((sonner) => {
-        sonner.toast.warning(i18n.t("toast.approvalRequired"), {
-          description: pending.toolName,
-        });
-      });
+      notify.warning(i18n.t("toast.approvalRequired"), { description: pending.toolName });
     }
   };
   check(useChatStore.getState());

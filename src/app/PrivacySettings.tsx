@@ -1,7 +1,15 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LockKeyhole, UnlockKeyhole } from "lucide-react";
-import { Tip } from "../components/ui";
+import { Button, Tip } from "../components/ui";
+import { InlineError } from "../components/feedback";
+import {
+  SettingsDangerZone,
+  SettingsGroup,
+  SettingsPage,
+  SettingsPageIntro,
+  SettingsRow,
+} from "../components/settings";
 import type { ProviderRecord, SettingRecord } from "../core/storage/db";
 import { useChatStore } from "../features/chat/chat-store";
 import { useConfirmationDialog } from "./useConfirmationDialog";
@@ -133,143 +141,154 @@ export function PrivacySettings() {
     });
 
   return (
-    <section className="privacy-settings">
-      <div className="settings-page-intro compact">
-        <div>
-          <span className="settings-page-eyebrow">{t("settingsDescriptions.localData")}</span>
-          <p>{t("settingsDescriptions.privacy")}</p>
-        </div>
-      </div>
-      <div className="privacy-session-card">
-        <span className="text-sm">{t("chat.privateSession")}</span>
-        <Tip content={t("chat.privateSession")}>
-          <button
-            type="button"
-            className={`grid place-items-center w-8 h-8 rounded-lg text-muted hover:bg-surface-hover hover:text-foreground transition${privateSession ? " active" : ""}`}
-            onClick={togglePrivateSession}
-            aria-label={t("chat.privateSession")}
-            aria-pressed={privateSession}
+    <SettingsPage>
+      <SettingsPageIntro
+        eyebrow={t("settingsDescriptions.localData")}
+        description={t("settingsDescriptions.privacy")}
+      />
+      <SettingsGroup>
+        <SettingsRow
+          label={t("chat.privateSession")}
+          control={
+            <div className="flex items-center">
+              <Tip content={t("chat.privateSession")}>
+                <button
+                  type="button"
+                  className={`grid place-items-center w-8 h-8 rounded-lg text-muted hover:bg-surface-hover hover:text-foreground transition${privateSession ? " active" : ""}`}
+                  onClick={togglePrivateSession}
+                  aria-label={t("chat.privateSession")}
+                  aria-pressed={privateSession}
+                >
+                  {privateSession ? <LockKeyhole size={15} /> : <UnlockKeyhole size={15} />}
+                </button>
+              </Tip>
+            </div>
+          }
+        />
+      </SettingsGroup>
+      <SettingsDangerZone title={t("privacy.dangerZone")} description={t("privacy.confirmClear")}>
+        <div className="grid gap-[7px] sm:grid-cols-2">
+          <Button
+            variant="outline"
+            size="lg"
+            className="justify-start"
+            disabled={resultKey === "clearing"}
+            onClick={() =>
+              requestConfirmation(
+                {
+                  title: t("confirmation.clearTitle"),
+                  description: t("confirmation.clearDescription", {
+                    item: t("privacy.conversationsData"),
+                  }),
+                  confirmLabel: t("privacy.clearConversations"),
+                },
+                clearConversations,
+              )
+            }
           >
-            {privateSession ? <LockKeyhole size={15} /> : <UnlockKeyhole size={15} />}
-          </button>
-        </Tip>
-      </div>
-      <div className="danger-zone-heading">
-        <strong>{t("privacy.dangerZone")}</strong>
-        <span>{t("privacy.confirmClear")}</span>
-      </div>
-      <div className="privacy-actions">
-        <button
-          type="button"
-          className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg cursor-pointer text-sm hover:bg-surface-hover transition danger"
-          disabled={resultKey === "clearing"}
-          onClick={() =>
-            requestConfirmation(
-              {
-                title: t("confirmation.clearTitle"),
-                description: t("confirmation.clearDescription", {
-                  item: t("privacy.conversationsData"),
-                }),
-                confirmLabel: t("privacy.clearConversations"),
-              },
-              clearConversations,
-            )
-          }
-        >
-          {t("privacy.clearConversations")}
-        </button>
-        <button
-          type="button"
-          className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg cursor-pointer text-sm hover:bg-surface-hover transition danger"
-          disabled={resultKey === "clearing"}
-          onClick={() =>
-            requestConfirmation(
-              {
-                title: t("confirmation.clearTitle"),
-                description: t("confirmation.clearDescription", {
-                  item: t("privacy.providersData"),
-                }),
-                confirmLabel: t("privacy.clearProviders"),
-              },
-              clearProviders,
-            )
-          }
-        >
-          {t("privacy.clearProviders")}
-        </button>
-        <button
-          type="button"
-          className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg cursor-pointer text-sm hover:bg-surface-hover transition danger"
-          disabled={resultKey === "clearing"}
-          onClick={() =>
-            requestConfirmation(
-              {
-                title: t("confirmation.clearTitle"),
-                description: t("confirmation.clearDescription", {
-                  item: t("privacy.usageData"),
-                }),
-                confirmLabel: t("privacy.clearUsage"),
-              },
-              clearUsage,
-            )
-          }
-        >
-          {t("privacy.clearUsage")}
-        </button>
-        <button
-          type="button"
-          className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg cursor-pointer text-sm hover:bg-surface-hover transition danger"
-          disabled={resultKey === "clearing"}
-          onClick={() =>
-            requestConfirmation(
-              {
-                title: t("confirmation.clearTitle"),
-                description: t("confirmation.clearDescription", {
-                  item: t("privacy.mcpData"),
-                }),
-                confirmLabel: t("privacy.clearMcp"),
-              },
-              clearMcp,
-            )
-          }
-        >
-          {t("privacy.clearMcp")}
-        </button>
-        <button
-          type="button"
-          className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg cursor-pointer text-sm hover:bg-surface-hover transition danger severe"
-          disabled={resultKey === "clearing"}
-          onClick={() =>
-            requestConfirmation(
-              {
-                title: t("confirmation.clearAllTitle"),
-                description: t("confirmation.clearAllDescription"),
-                confirmLabel: t("privacy.clearAll"),
-              },
-              clearAll,
-            )
-          }
-        >
-          {t("privacy.clearAll")}
-        </button>
-      </div>
-      {resultKey === "clearing" && (
-        <div className="text-sm p-2 rounded-lg mt-1" role="alert">
-          {t("privacy.confirmClear")}
+            {t("privacy.clearConversations")}
+          </Button>
+          <Button
+            variant="outline"
+            size="lg"
+            className="justify-start"
+            disabled={resultKey === "clearing"}
+            onClick={() =>
+              requestConfirmation(
+                {
+                  title: t("confirmation.clearTitle"),
+                  description: t("confirmation.clearDescription", {
+                    item: t("privacy.providersData"),
+                  }),
+                  confirmLabel: t("privacy.clearProviders"),
+                },
+                clearProviders,
+              )
+            }
+          >
+            {t("privacy.clearProviders")}
+          </Button>
+          <Button
+            variant="outline"
+            size="lg"
+            className="justify-start"
+            disabled={resultKey === "clearing"}
+            onClick={() =>
+              requestConfirmation(
+                {
+                  title: t("confirmation.clearTitle"),
+                  description: t("confirmation.clearDescription", {
+                    item: t("privacy.usageData"),
+                  }),
+                  confirmLabel: t("privacy.clearUsage"),
+                },
+                clearUsage,
+              )
+            }
+          >
+            {t("privacy.clearUsage")}
+          </Button>
+          <Button
+            variant="outline"
+            size="lg"
+            className="justify-start"
+            disabled={resultKey === "clearing"}
+            onClick={() =>
+              requestConfirmation(
+                {
+                  title: t("confirmation.clearTitle"),
+                  description: t("confirmation.clearDescription", {
+                    item: t("privacy.mcpData"),
+                  }),
+                  confirmLabel: t("privacy.clearMcp"),
+                },
+                clearMcp,
+              )
+            }
+          >
+            {t("privacy.clearMcp")}
+          </Button>
+          <Button
+            variant="outline"
+            size="lg"
+            className="justify-start sm:col-span-2"
+            disabled={resultKey === "clearing"}
+            onClick={() =>
+              requestConfirmation(
+                {
+                  title: t("confirmation.clearAllTitle"),
+                  description: t("confirmation.clearAllDescription"),
+                  confirmLabel: t("privacy.clearAll"),
+                },
+                clearAll,
+              )
+            }
+          >
+            {t("privacy.clearAll")}
+          </Button>
         </div>
+      </SettingsDangerZone>
+      {resultKey === "clearing" && (
+        <p className="m-0 rounded-lg p-2 text-sm" role="alert">
+          {t("privacy.confirmClear")}
+        </p>
       )}
       {resultKey === "success" && (
-        <div className="text-sm p-2 rounded-lg mt-1 success" role="alert">
+        <p className="m-0 rounded-lg p-2 text-sm text-success" role="alert">
           {t("privacy.cleared")}
-        </div>
+        </p>
       )}
       {resultKey === "error" && (
-        <div className="text-sm p-2 rounded-lg mt-1 error" role="alert">
-          {t("privacy.clearFailed")}
-          {errorMessage ? `: ${errorMessage}` : ""}
-        </div>
+        <InlineError
+          message={
+            <>
+              {t("privacy.clearFailed")}
+              {errorMessage ? `: ${errorMessage}` : ""}
+            </>
+          }
+        />
       )}
       {confirmationDialog}
-    </section>
+    </SettingsPage>
   );
 }

@@ -61,6 +61,8 @@ const BrowserSettings = lazy(() =>
   import("./BrowserSettings").then((m) => ({ default: m.BrowserSettings })),
 );
 import { Button, Dialog, DialogContent, DialogTitle, Tip } from "../components/ui";
+import { LoadingState } from "../components/feedback";
+import { SettingsGroup, SettingsPage, SettingsRow } from "../components/settings";
 import { downloadBlob, exportConversations } from "../features/chat/conversation-export";
 import { importConversations } from "../features/chat/conversation-import";
 import { getRuntime } from "../runtime/use-runtime";
@@ -115,11 +117,7 @@ const SETTINGS_GROUPS: Array<{ labelKey: string; items: SettingsNavItem[] }> = [
 
 function SettingsPanelFallback() {
   const { t } = useTranslation();
-  return (
-    <p className="text-sm text-muted p-4" role="status">
-      {t("common.loading")}
-    </p>
-  );
+  return <LoadingState label={t("common.loading")} />;
 }
 
 interface SettingsModalProps {
@@ -215,15 +213,16 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
             <DialogTitle>{t("settings.title")}</DialogTitle>
           </div>
           <Tip content={t("settings.close")} side="bottom">
-            <button
+            <Button
               ref={closeButtonRef}
+              variant="ghost"
+              size="icon"
               className="settings-close"
-              type="button"
               onClick={closeSettings}
               aria-label={t("settings.close")}
             >
               <X size={17} />
-            </button>
+            </Button>
           </Tip>
         </header>
         <div className="settings-layout">
@@ -286,43 +285,49 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
                 {effectiveActiveTab === "browser" && <BrowserSettings />}
                 {effectiveActiveTab === "usage" && <UsagePanel />}
                 {effectiveActiveTab === "privacy" && (
-                  <div className="data-privacy-settings">
-                    <section className="settings-data-actions">
-                      <div>
-                        <h4>{t("settings.portability")}</h4>
-                        <p>{t("settings.portabilityDescription")}</p>
-                      </div>
-                      <div className="settings-data-buttons">
-                        <Button variant="secondary" size="lg" onClick={() => void handleExport()}>
-                          {t("settings.exportAll")}
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="lg"
-                          onClick={() => fileInputRef.current?.click()}
-                        >
-                          {t("settings.importAll")}
-                        </Button>
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept="application/json,.json"
-                          className="hidden"
-                          onChange={(event) => {
-                            const file = event.target.files?.[0];
-                            if (file) void handleImport(file);
-                            if (fileInputRef.current) fileInputRef.current.value = "";
-                          }}
-                        />
-                      </div>
+                  <SettingsPage>
+                    <SettingsGroup>
+                      <SettingsRow
+                        label={t("settings.portability")}
+                        description={t("settings.portabilityDescription")}
+                        control={
+                          <>
+                            <Button
+                              variant="secondary"
+                              size="lg"
+                              onClick={() => void handleExport()}
+                            >
+                              {t("settings.exportAll")}
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              size="lg"
+                              onClick={() => fileInputRef.current?.click()}
+                            >
+                              {t("settings.importAll")}
+                            </Button>
+                            <input
+                              ref={fileInputRef}
+                              type="file"
+                              accept="application/json,.json"
+                              className="hidden"
+                              onChange={(event) => {
+                                const file = event.target.files?.[0];
+                                if (file) void handleImport(file);
+                                if (fileInputRef.current) fileInputRef.current.value = "";
+                              }}
+                            />
+                          </>
+                        }
+                      />
                       {importResult && (
                         <div className="form-message" role="alert">
                           {importResult}
                         </div>
                       )}
-                    </section>
+                    </SettingsGroup>
                     <PrivacySettings />
-                  </div>
+                  </SettingsPage>
                 )}
                 {effectiveActiveTab === "about" && <AboutSettings />}
                 {effectiveActiveTab === "theme" && <ThemeSettings />}

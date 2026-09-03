@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TreeNode } from "./TreeView";
+import { PreviewNotice, PreviewShell } from "../PreviewChrome";
 
 export const MAX_STRUCTURED_BYTES = 2_000_000;
 export const MAX_STRUCTURED_DEPTH = 64;
@@ -103,10 +104,18 @@ export function DataTreePreview({ source, format }: DataTreePreviewProps) {
   }, [source, format, yamlParser, tomlParser]);
 
   if (loadError) {
-    return <p className="preview-fallback-text">{t("preview.parserUnavailable")}</p>;
+    return (
+      <PreviewShell className="min-h-0 flex-1">
+        <PreviewNotice message={t("preview.parserUnavailable")} className="preview-fallback-text" />
+      </PreviewShell>
+    );
   }
   if (parsed.error === "too-large") {
-    return <p className="preview-fallback-text">{t("preview.tooLarge")}</p>;
+    return (
+      <PreviewShell className="min-h-0 flex-1">
+        <PreviewNotice message={t("preview.tooLarge")} className="preview-fallback-text" />
+      </PreviewShell>
+    );
   }
   if (parsed.error === "depth") {
     return <p className="preview-parse-error">{t("preview.depthExceeded")}</p>;

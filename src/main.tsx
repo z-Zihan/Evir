@@ -9,8 +9,16 @@ import { BrowserWorkbench } from "./app/BrowserWorkbench";
 import { ErrorBoundary } from "./app/ErrorBoundary";
 import "./i18n/config";
 import "./styles/app.css";
-import "./styles/supplemental.css";
-import "./styles/shell.css";
+// Feature-scoped CSS (§8): each file serves one feature domain; shared tokens
+// and reset live in app.css, preview renderers in styles/preview.css.
+import "./styles/features/shell/shell-layout.css";
+import "./styles/features/sidebar/sidebar.css";
+import "./styles/features/chat/conversation.css";
+import "./styles/features/chat/markdown.css";
+import "./styles/features/orchestration/workbench.css";
+import "./styles/features/settings/settings.css";
+import "./styles/features/workspace/preview.css";
+import "./styles/features/workspace/browser.css";
 import "./styles/preview.css";
 
 // The Browser Workbench window boots the same bundle under #browser and

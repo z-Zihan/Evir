@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronDown, ChevronRight, Copy } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Copy } from "lucide-react";
+import { notify } from "../../../components/feedback";
+import { Button } from "../../../components/ui";
 
 export const MAX_TREE_CHILDREN = 500;
 
@@ -42,14 +44,7 @@ function TreeNode({ name, value, depth }: TreeNodeProps) {
       <div className="json-tree-leaf">
         {name !== null && <span className="json-tree-key">{renderKey(name)}:</span>}
         <span className={`json-tree-value json-tree-value-${kind}`}>{display}</span>
-        <button
-          type="button"
-          className="json-tree-copy"
-          aria-label={t("preview.copyValue")}
-          onClick={() => void navigator.clipboard.writeText(copyValue(value))}
-        >
-          <Copy size={11} />
-        </button>
+        <TreeCopyButton value={copyValue(value)} label={t("preview.copyValue")} />
       </div>
     );
   }
@@ -90,6 +85,28 @@ function TreeNode({ name, value, depth }: TreeNodeProps) {
         </div>
       )}
     </div>
+  );
+}
+
+/** Copy affordance with transient check morph + toast for quiet confirmation. */
+function TreeCopyButton({ value, label }: { value: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <Button
+      variant="ghost"
+      size="icon-xs"
+      className="json-tree-copy text-muted hover:text-foreground"
+      aria-label={label}
+      onClick={() => {
+        void navigator.clipboard.writeText(value).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+          notify.success(label);
+        });
+      }}
+    >
+      {copied ? <Check size={11} /> : <Copy size={11} />}
+    </Button>
   );
 }
 

@@ -5,7 +5,8 @@
     "cancel": "Cancel",
     "close": "Close",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "retry": "Retry"
   },
   "sidebar": {
     "newChat": "New chat",
@@ -60,7 +61,9 @@
     "cancel": "Cancel",
     "close": "Close confirmation dialog",
     "processing": "Working…",
-    "failed": "The action failed and the change was not completed. Please try again."
+    "failed": "The action failed and the change was not completed. Please try again.",
+    "dangerHint": "This action is destructive and cannot be undone.",
+    "warningHint": "This will restart the current configuration for this conversation."
   },
   "chat": {
     "title": "New conversation",
@@ -137,7 +140,7 @@
     "remember": "Remember",
     "remembering": "Saving…",
     "remembered": "Remembered",
-    "rememberFailed": "Try again",
+    "rememberFailed": "Retry",
     "you": "You",
     "localUser": "Me",
     "responding": "Writing response",
@@ -173,7 +176,6 @@
     "approve": "Approve",
     "deny": "Deny",
     "notAvailable": "This tool is not available in browser mode.",
-    "retriedTimes": "retried {{count}} time",
     "repeatedFailures": "The same operation kept failing, so Evir stopped retrying. Review the error above or adjust the approach.",
     "notAllowedByStep": "This tool is not granted for the current step. High-risk tools such as writes run only in their own step and after your approval.",
     "maxIterations": "Maximum tool call iterations reached.",
@@ -210,7 +212,9 @@
     },
     "failedCount": "{{count}} failed",
     "permissionApproved": "Approved",
-    "permissionDenied": "Denied"
+    "permissionDenied": "Denied",
+    "retriedTimes_one": "retried {{count}} time",
+    "retriedTimes_other": "retried {{count}} times"
   },
   "errors": {
     "detail": "Details: {{message}}",
@@ -716,7 +720,7 @@
     "searchEmpty": "No matching files",
     "refresh": "Refresh",
     "previewEmpty": "Click a preview in chat or the file list to view it here.",
-    "artifactUnavailable": "This artifact's content is no longer available — re-open it from the chat message.",
+    "artifactUnavailable": "This output's content is no longer available — re-open it from the chat message.",
     "previewFailed": "Could not load this resource.",
     "diffNoRepo": "This project is not a git repository, so no diff can be produced.",
     "diffUnavailable": "No diff available.",
@@ -737,7 +741,7 @@
     "removeContext": "Remove this context",
     "devServer": {
       "detect": "Detected dev script: {{script}}",
-      "run": "Run Preview",
+      "run": "Start preview",
       "stop": "Stop",
       "none": "No dev-server script detected for this project",
       "starting": "Starting…",
@@ -773,7 +777,7 @@
     "viewOutputs": "View outputs",
     "previewFileTitle": "Preview a file",
     "previewApp": {
-      "title": "Preview App",
+      "title": "App preview",
       "start": "Start preview",
       "starting": "Starting preview…",
       "running": "Running",
@@ -963,7 +967,7 @@
       "unresolvedItems": "Unresolved items",
       "viewOutputs": "View outputs",
       "reviewChanges": "Review changes",
-      "outputsCount": "{{count}} files",
+      "outputsCount": "{{count}} outputs",
       "changesCount": "{{count}} files · +{{additions}} −{{deletions}}"
     },
     "agentStatus": {
@@ -1173,5 +1177,10 @@
     "runCompleted": "Task completed",
     "runFailed": "Task failed",
     "approvalRequired": "Waiting for your approval"
+  },
+  "notify": {
+    "working": "Working…",
+    "done": "Done",
+    "failed": "Something went wrong"
   }
 }

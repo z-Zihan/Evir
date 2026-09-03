@@ -10,7 +10,6 @@ import {
   DialogContent,
   DialogTitle,
   Tip,
-  buttonVariants,
 } from "../components/ui";
 
 interface SettingsFormDialogProps {
@@ -24,6 +23,11 @@ interface SettingsFormDialogProps {
   discardPrompt?: { message: string; keepLabel: string; discardLabel: string };
 }
 
+/**
+ * Provider/MCP record editor shell. The chrome is utilities on the shared
+ * Dialog primitive; the distinctive behavior is the dirty-close guard, which
+ * raises an AlertDialog before discarding unsaved changes.
+ */
 export function SettingsFormDialog({
   title,
   description,
@@ -58,22 +62,38 @@ export function SettingsFormDialog({
       }}
     >
       <DialogContent
-        className={`settings-form-dialog${wide ? " wide" : ""} max-w-none p-0`}
+        className={[
+          "grid max-h-[min(720px,calc(100vh-48px))] max-w-none grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-[14px] p-0 shadow-[0_24px_70px_rgb(0_0_0/0.24)]",
+          wide
+            ? "h-[min(620px,calc(100vh-96px))] w-[min(760px,calc(100vw-48px))]"
+            : "w-[min(560px,calc(100vw-48px))]",
+        ].join(" ")}
         showCloseButton={false}
         initialFocus={closeRef}
       >
-        <header className="settings-form-dialog-header">
-          <div>
-            <DialogTitle render={<h4 />}>{title}</DialogTitle>
-            {description && <p>{description}</p>}
+        <header className="flex items-start justify-between gap-4.5 border-b border-border px-5 pt-4.5 pb-4">
+          <div className="min-w-0">
+            <DialogTitle render={<h4 />} className="m-0 text-[15px] font-semibold tracking-tight">
+              {title}
+            </DialogTitle>
+            {description && (
+              <p className="mt-1.5 text-[10.5px] leading-normal text-muted">{description}</p>
+            )}
           </div>
           <Tip content={title}>
-            <button ref={closeRef} type="button" onClick={requestClose} aria-label={title}>
-              <X size={17} />
-            </button>
+            <Button
+              ref={closeRef}
+              variant="ghost"
+              size="icon"
+              type="button"
+              onClick={requestClose}
+              aria-label={title}
+            >
+              <X size={16} />
+            </Button>
           </Tip>
         </header>
-        <div className="settings-form-dialog-body">{children}</div>
+        <div className="min-h-0 overflow-y-auto">{children}</div>
       </DialogContent>
       {confirmingDiscard && (
         <AlertDialog
@@ -82,19 +102,18 @@ export function SettingsFormDialog({
             if (!nextOpen) setConfirmingDiscard(false);
           }}
         >
-          <AlertDialogContent className="settings-form-discard" initialFocus={keepRef}>
+          <AlertDialogContent
+            className="flex items-center justify-between gap-3.5 border-border bg-surface-hover px-4.5 py-2.5 text-[13.5px] text-foreground"
+            initialFocus={keepRef}
+          >
             <AlertDialogTitle render={<span />}>
               {discardPrompt?.message ?? "Unsaved changes will be lost."}
             </AlertDialogTitle>
-            <div className="settings-form-discard-actions">
-              <AlertDialogCancel
-                ref={keepRef}
-                className={buttonVariants({ size: "lg" })}
-                onClick={() => setConfirmingDiscard(false)}
-              >
+            <div className="flex shrink-0 gap-2">
+              <AlertDialogCancel ref={keepRef} className="h-9 rounded-lg px-3.5 text-[13px]">
                 {discardPrompt?.keepLabel ?? "Keep editing"}
               </AlertDialogCancel>
-              <Button variant="destructive" onClick={() => onCloseRef.current()}>
+              <Button variant="destructive" size="default" onClick={() => onCloseRef.current()}>
                 {discardPrompt?.discardLabel ?? "Discard changes"}
               </Button>
             </div>

@@ -84,7 +84,7 @@ export function ChatMessage({
         <div className="message-main flex min-w-0 flex-col items-end gap-1">
           {!groupedWithPrevious && (
             <header className="message-header flex h-5 items-center gap-2 text-[11px] text-muted">
-              <time className="text-muted/80" dateTime={new Date(message.createdAt).toISOString()}>
+              <time className="text-muted" dateTime={new Date(message.createdAt).toISOString()}>
                 {new Date(message.createdAt).toLocaleTimeString(i18n.language, {
                   hour: "2-digit",
                   minute: "2-digit",
@@ -221,10 +221,7 @@ export function ChatMessage({
             {!groupedWithPrevious && (
               <header className="message-header flex h-5 items-center gap-2 text-[11px] text-muted">
                 <span className="message-author font-medium text-foreground/85">{roleLabel}</span>
-                <time
-                  className="text-muted/80"
-                  dateTime={new Date(message.createdAt).toISOString()}
-                >
+                <time className="text-muted" dateTime={new Date(message.createdAt).toISOString()}>
                   {new Date(message.createdAt).toLocaleTimeString(i18n.language, {
                     hour: "2-digit",
                     minute: "2-digit",

@@ -138,7 +138,7 @@ export function ToolRow({
           {detail}
         </span>
       )}
-      <span className="ml-auto shrink-0 text-[11px] text-muted/85">{statusLabel}</span>
+      <span className="ml-auto shrink-0 text-[11px] text-muted">{statusLabel}</span>
     </div>
   );
 }
