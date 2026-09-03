@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronDown } from "lucide-react";
-import { Tip } from "../components/ui";
+import { Button, Input, Tip } from "../components/ui";
+import { cn } from "../components/ui/utils";
 import { useProviderStore } from "../features/provider/provider-store";
 import { listModelsForProtocol } from "../core/providers/adapter-registry";
 import type { ProviderRecord } from "../core/storage/db";
@@ -145,8 +146,8 @@ export function ModelSwitcher({
 
   if (!current) {
     return (
-      <span className="model-label empty">
-        <span className="model-status-dot" aria-hidden="true" />
+      <span className="model-label empty inline-flex h-7 items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 text-[11.5px] text-muted">
+        <span className="model-status-dot size-1.5 rounded-full bg-muted" aria-hidden="true" />
         {t("chat.modelPlaceholder")}
       </span>
     );
@@ -155,12 +156,12 @@ export function ModelSwitcher({
   const otherProviders = enabled.filter((p) => p.id !== current.id);
 
   return (
-    <div className="model-switcher" ref={containerRef}>
+    <div className="model-switcher relative" ref={containerRef}>
       <Tip content={t("chat.switchModel")} side="bottom">
         <button
           ref={triggerRef}
           type="button"
-          className="model-switcher-button"
+          className="model-switcher-button inline-flex h-7 max-w-[240px] cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 text-[11.5px] transition-colors select-none hover:border-border-strong focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
           aria-label={[current.name, shownModelId].filter(Boolean).join(" ")}
           aria-haspopup="listbox"
           aria-expanded={open}
@@ -182,20 +183,28 @@ export function ModelSwitcher({
             }
           }}
         >
-          {otherProviders.length > 0 && <span>{current.name}</span>}
-          <span className="model-switcher-model">{shownModelId}</span>
-          <ChevronDown size={12} className={`model-switcher-chevron${open ? " open" : ""}`} />
+          {otherProviders.length > 0 && <span className="font-medium">{current.name}</span>}
+          <span className="model-switcher-model min-w-0 truncate text-muted">{shownModelId}</span>
+          <ChevronDown
+            size={12}
+            className={cn(
+              "model-switcher-chevron shrink-0 text-muted transition-transform",
+              open && "rotate-180",
+            )}
+          />
         </button>
       </Tip>
       {open && (
         <div
           ref={listRef}
-          className="model-switcher-dropdown"
+          className="model-switcher-dropdown absolute top-9 right-0 z-40 max-h-[320px] w-64 overflow-y-auto rounded-xl border border-border bg-surface-elevated py-1 shadow-popover"
           role="listbox"
           aria-label={t("chat.switchModel")}
           onKeyDown={handleListKeyDown}
         >
-          <div className="model-switcher-group-label">{t("chat.modelPickerModels")}</div>
+          <div className="model-switcher-group-label px-3 pt-1.5 pb-1 text-[10.5px] font-semibold tracking-wide text-muted uppercase">
+            {t("chat.modelPickerModels")}
+          </div>
           {knownModels.map((modelId) => {
             const selected = modelId === shownModelId;
             return (
@@ -204,19 +213,22 @@ export function ModelSwitcher({
                 type="button"
                 role="option"
                 aria-selected={selected}
-                className={`model-switcher-item model-switcher-item-row${selected ? " active" : ""}`}
+                className={cn(
+                  "model-switcher-item model-switcher-item-row flex w-full cursor-pointer items-center gap-2 px-3 py-1.5 text-left text-[12px] transition-colors select-none hover:bg-surface-hover focus-visible:bg-surface-hover focus-visible:outline-none",
+                  selected && "active text-primary",
+                )}
                 onClick={() => {
                   setOpen(false);
                   if (!selected) onSwitchModel(current, modelId);
                 }}
               >
-                <span className="model-switcher-item-name">{modelId}</span>
-                {selected && <Check size={13} aria-hidden="true" />}
+                <span className="model-switcher-item-name min-w-0 flex-1 truncate">{modelId}</span>
+                {selected && <Check size={13} aria-hidden="true" className="shrink-0" />}
               </button>
             );
           })}
-          <div className="model-switcher-custom">
-            <input
+          <div className="model-switcher-custom m-1.5 mt-1 flex items-center gap-1.5 border-t border-border pt-2">
+            <Input
               type="text"
               value={customModel}
               placeholder={t("chat.modelPickerCustomPlaceholder")}
@@ -229,21 +241,24 @@ export function ModelSwitcher({
                 }
                 event.stopPropagation();
               }}
+              className="h-7 flex-1 text-[11.5px]"
             />
             <Tip content={t("chat.modelPickerUse")}>
-              <button
+              <Button
                 type="button"
+                variant="secondary"
+                size="sm"
                 disabled={!customModel.trim()}
                 onClick={commitCustomModel}
                 aria-label={t("chat.modelPickerUse")}
               >
                 {t("chat.modelPickerUse")}
-              </button>
+              </Button>
             </Tip>
           </div>
           {otherProviders.length > 0 && (
             <>
-              <div className="model-switcher-group-label">
+              <div className="model-switcher-group-label px-3 pt-1.5 pb-1 text-[10.5px] font-semibold tracking-wide text-muted uppercase">
                 {t("chat.modelPickerOtherProviders")}
               </div>
               {otherProviders.map((provider) => (
@@ -252,14 +267,16 @@ export function ModelSwitcher({
                   type="button"
                   role="option"
                   aria-selected={false}
-                  className="model-switcher-item"
+                  className="model-switcher-item flex w-full cursor-pointer flex-col gap-px px-3 py-1.5 text-left transition-colors select-none hover:bg-surface-hover focus-visible:bg-surface-hover focus-visible:outline-none"
                   onClick={() => {
                     onSwitch(provider);
                     setOpen(false);
                   }}
                 >
-                  <span className="model-switcher-item-name">{provider.name}</span>
-                  <span className="model-switcher-item-detail">
+                  <span className="model-switcher-item-name text-[12px] font-medium">
+                    {provider.name}
+                  </span>
+                  <span className="model-switcher-item-detail truncate text-[10.5px] text-muted">
                     {provider.protocolId} — {provider.modelId}
                   </span>
                 </button>

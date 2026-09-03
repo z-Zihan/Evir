@@ -11,7 +11,7 @@ import {
   SlidersHorizontal,
   Trash2,
 } from "lucide-react";
-import { Button, Switch, Tip } from "../components/ui";
+import { Button, Input, Switch, Tip } from "../components/ui";
 import { PROVIDER_PRESETS } from "../core/providers/provider-presets";
 import type { ProviderPreset, ProviderRegion } from "../core/providers/types";
 import {
@@ -294,12 +294,7 @@ export function ProviderSettings() {
               <h4>{t("provider.configured")}</h4>
               <span>{t("provider.configuredDescription")}</span>
             </div>
-            <Button
-              variant="secondary"
-              size="lg"
-              className="secondary-button h-auto"
-              onClick={openAdd}
-            >
+            <Button variant="secondary" size="lg" onClick={openAdd}>
               <Plus size={14} /> {t("provider.add")}
             </Button>
           </div>
@@ -388,7 +383,7 @@ export function ProviderSettings() {
             </div>
             <label className="provider-preset-search">
               <Search size={14} />
-              <input
+              <Input
                 type="search"
                 value={presetQuery}
                 placeholder={t("provider.searchPresets")}
@@ -460,7 +455,7 @@ export function ProviderSettings() {
                 <span>
                   {t("provider.name")} <em>*</em>
                 </span>
-                <input
+                <Input
                   autoFocus
                   value={form.name}
                   autoCorrect="off"
@@ -501,7 +496,7 @@ export function ProviderSettings() {
                 <span>
                   {t("provider.baseUrl")} <em>*</em>
                 </span>
-                <input
+                <Input
                   value={form.baseUrl}
                   autoCorrect="off"
                   autoCapitalize="off"
@@ -527,7 +522,7 @@ export function ProviderSettings() {
               </label>
               <label className="provider-field-wide">
                 <span>{t("provider.maxContextTokens")}</span>
-                <input
+                <Input
                   type="number"
                   min={1024}
                   step={1024}
@@ -545,7 +540,7 @@ export function ProviderSettings() {
                 <span>
                   {t("provider.apiKey")} <em>*</em>
                 </span>
-                <input
+                <Input
                   type="password"
                   autoComplete="off"
                   value={form.apiKey}
@@ -561,7 +556,7 @@ export function ProviderSettings() {
                   {t("provider.modelId")} <em>*</em>
                 </span>
                 <div className="model-input-row">
-                  <input
+                  <Input
                     list="provider-model-options"
                     value={form.modelId}
                     autoCorrect="off"
@@ -573,7 +568,6 @@ export function ProviderSettings() {
                   <Button
                     variant="secondary"
                     size="lg"
-                    className="secondary-button"
                     disabled={fetchingModels}
                     onClick={() => void handleFetchModels()}
                   >
@@ -599,7 +593,6 @@ export function ProviderSettings() {
               <Button
                 variant="secondary"
                 size="lg"
-                className="secondary-button h-auto"
                 disabled={testing}
                 onClick={() => void handleTest()}
               >
@@ -609,7 +602,7 @@ export function ProviderSettings() {
               <button className="text-button" type="button" onClick={resetDialog}>
                 {t("provider.cancel")}
               </button>
-              <Button variant="primary" size="lg" className="primary-button h-auto" type="submit">
+              <Button variant="primary" size="lg" type="submit">
                 {editingId ? t("provider.saveChanges") : t("provider.save")}
               </Button>
             </div>

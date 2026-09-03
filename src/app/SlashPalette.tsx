@@ -4,6 +4,7 @@ import { Terminal } from "lucide-react";
 import type { InstalledSkill } from "../core/skills/types";
 import { useSkillStore } from "../features/skills/skill-store";
 import { useChatStore } from "../features/chat/chat-store";
+import { cn } from "../components/ui/utils";
 
 export type SlashCommandId = "plan" | "goal" | "agent" | "model";
 
@@ -157,7 +158,10 @@ export const SlashPalette = forwardRef<SlashPaletteHandle, SlashPaletteProps>(fu
         type="button"
         role="option"
         aria-selected={index === highlight}
-        className={`slash-item${index === highlight ? " active" : ""}`}
+        className={cn(
+          "slash-item flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors select-none hover:bg-surface-hover focus-visible:bg-surface-hover focus-visible:outline-none",
+          index === highlight && "active bg-surface-hover",
+        )}
         onMouseEnter={() => setHighlight(index)}
         onClick={() => {
           if (item.kind === "command" && item.commandId) onCommand(item.commandId);
@@ -167,11 +171,11 @@ export const SlashPalette = forwardRef<SlashPaletteHandle, SlashPaletteProps>(fu
           onDone();
         }}
       >
-        <span className="slash-item-label">
+        <span className="slash-item-label text-[12.5px] font-medium text-foreground">
           {item.kind === "command" && <Terminal size={12} aria-hidden="true" />}
           {item.label}
         </span>
-        <span className="slash-item-description">
+        <span className="slash-item-description min-w-0 flex-1 truncate text-[11px] text-muted">
           {selected ? t("slash.skillSelected") : item.description}
         </span>
       </button>
@@ -179,21 +183,35 @@ export const SlashPalette = forwardRef<SlashPaletteHandle, SlashPaletteProps>(fu
   };
 
   return (
-    <div className="slash-palette" role="listbox" aria-label={t("slash.paletteLabel")}>
-      {items.length === 0 && <div className="slash-empty">{t("slash.noMatches")}</div>}
+    <div
+      className="slash-palette mb-1.5 w-full overflow-hidden rounded-xl border border-border bg-surface-elevated shadow-popover"
+      role="listbox"
+      aria-label={t("slash.paletteLabel")}
+    >
+      {items.length === 0 && (
+        <div className="slash-empty px-3 py-2.5 text-[11.5px] text-muted">
+          {t("slash.noMatches")}
+        </div>
+      )}
       {commandItems.length > 0 && (
         <>
-          <div className="model-switcher-group-label">{t("slash.commandsGroup")}</div>
+          <div className="px-3 pt-2 pb-1 text-[10px] font-semibold tracking-wide text-muted uppercase">
+            {t("slash.commandsGroup")}
+          </div>
           {commandItems.map(renderItem)}
         </>
       )}
       {skillItems.length > 0 && (
         <>
-          <div className="model-switcher-group-label">{t("slash.skillsGroup")}</div>
+          <div className="px-3 pt-2 pb-1 text-[10px] font-semibold tracking-wide text-muted uppercase">
+            {t("slash.skillsGroup")}
+          </div>
           {skillItems.map(renderItem)}
         </>
       )}
-      <div className="slash-hint">{t("slash.hint")}</div>
+      <div className="slash-hint border-t border-border px-3 py-1.5 text-[10.5px] text-muted/80">
+        {t("slash.hint")}
+      </div>
     </div>
   );
 });

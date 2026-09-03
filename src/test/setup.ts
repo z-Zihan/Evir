@@ -1,3 +1,40 @@
+// jsdom lacks ResizeObserver/scrollIntoView; Base UI popup positioners and
+// scroll-into-view behaviors need them at popup open time.
+if (typeof window !== "undefined" && typeof window.ResizeObserver !== "function") {
+  class ResizeObserverStub {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  Object.defineProperty(window, "ResizeObserver", {
+    configurable: true,
+    value: ResizeObserverStub,
+  });
+  Object.defineProperty(globalThis, "ResizeObserver", {
+    configurable: true,
+    value: ResizeObserverStub,
+  });
+}
+if (typeof window !== "undefined" && !window.HTMLElement.prototype.scrollIntoView) {
+  window.HTMLElement.prototype.scrollIntoView = () => {};
+}
+
+// jsdom lacks PointerEvent; Base UI press handling (popups, menus) listens for
+// pointerdown/pointerup with pointer metadata.
+if (typeof window !== "undefined" && typeof window.PointerEvent !== "function") {
+  class PointerEventStub extends MouseEvent {
+    pointerId: number;
+    constructor(type: string, params: PointerEventInit = {}) {
+      super(type, params);
+      this.pointerId = params.pointerId ?? 1;
+    }
+  }
+  Object.defineProperty(window, "PointerEvent", {
+    configurable: true,
+    value: PointerEventStub,
+  });
+}
+
 // jsdom lacks URL.createObjectURL/revokeObjectURL; preview renderers rely on it.
 if (typeof URL.createObjectURL !== "function") {
   Object.defineProperty(URL, "createObjectURL", {

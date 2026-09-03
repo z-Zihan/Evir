@@ -10,6 +10,7 @@
 
   --color-background: #f6f7f8;
   --color-surface: #ffffff;
+  --color-surface-subtle: #fafbfc;
   --color-surface-hover: #f0f3f6;
   --color-surface-elevated: #ffffff;
   --color-foreground: #171a1f;
@@ -32,22 +33,20 @@
   --shadow-popover: 0 4px 16px rgb(0 0 0 / 0.1), 0 1px 4px rgb(0 0 0 / 0.06);
   --shadow-dialog: 0 12px 40px rgb(0 0 0 / 0.16), 0 2px 8px rgb(0 0 0 / 0.08);
 
-  /* Radius scale — makes rounded-* utilities render the app's current radius
-   * language instead of Tailwind defaults. Values match the legacy
-   * supplemental.css --radius-* definitions (4/8/12/16) so shell.css var()
-   * consumers keep their current rendering. Divergence note: a proposed
-   * 6/8/10/12 scale was NOT applied because it would change legacy var()
-   * consumers; revisit after migrating those consumers. */
-  --radius-sm: 4px;
+  /* Radius scale — 2026-09-03 shadcn migration: tighter desktop radii
+   * (6/8/10/12) replacing the legacy 4/8/12/16 scale. Legacy var() consumers
+   * were migrated to rounded-* utilities in the same round. */
+  --radius-sm: 6px;
   --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
 }
 
 /* Dark mode tokens — applied via .dark class on :root */
 :root.dark {
   --color-background: #0f1217;
   --color-surface: #161a20;
+  --color-surface-subtle: #131720;
   --color-surface-hover: #20262e;
   --color-surface-elevated: #1a2028;
   --color-foreground: #f1f4f7;

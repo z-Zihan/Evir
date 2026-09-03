@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Camera, ImagePlus, ShieldCheck, Trash2, UserRound } from "lucide-react";
-import { Button, Tip } from "../components/ui";
+import { Button, Input, Tip } from "../components/ui";
 import {
   AVATAR_COLORS,
   DEFAULT_PERSONALIZATION_PREFERENCES,
@@ -173,7 +173,7 @@ export function LocalIdentityPanel() {
             <div className="identity-details-column">
               <label className="identity-name-field">
                 <span>{t("personalization.displayName")}</span>
-                <input
+                <Input
                   type="text"
                   value={form.displayName}
                   maxLength={40}
@@ -237,7 +237,7 @@ export function LocalIdentityPanel() {
             >
               {t("personalization.resetIdentity")}
             </button>
-            <Button variant="primary" size="lg" className="primary-button h-auto" type="submit">
+            <Button variant="primary" size="lg" type="submit">
               {status === "saving"
                 ? t("personalization.saving")
                 : t("personalization.saveIdentity")}

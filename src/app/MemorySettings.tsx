@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Eye, EyeOff, Pencil, Pin, PinOff, Trash2 } from "lucide-react";
-import { Button, Switch, Tip } from "../components/ui";
+import { Button, Input, Switch, Textarea, Tip } from "../components/ui";
 import { useMemoryStore, type MemoryRecord } from "../features/memory/memory-store";
 import { useConfirmationDialog } from "./useConfirmationDialog";
 
@@ -115,9 +115,13 @@ export function MemorySettings({ conversationId, workspacePath }: MemorySettings
       <div className="memory-create-card">
         <label>
           <span>{t("memory.scope")}</span>
+          {/* Native select keeps platform/IME consistency in forms; styled with
+              the same control tokens as SelectTrigger. */}
           <select
+            className="form-select h-8 w-full rounded-lg border border-border bg-surface px-2.5 text-[12.5px] focus-visible:border-primary focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
             value={scopeChoice}
             onChange={(event) => setScopeChoice(event.target.value as MemoryScopeChoice)}
+            aria-label={t("memory.scope")}
           >
             <option value="global">{t("memory.scopeGlobal")}</option>
             <option value="workspace" disabled={!workspacePath}>
@@ -131,8 +135,10 @@ export function MemorySettings({ conversationId, workspacePath }: MemorySettings
         <label>
           <span>{t("memory.expiry")}</span>
           <select
+            className="form-select h-8 w-full rounded-lg border border-border bg-surface px-2.5 text-[12.5px] focus-visible:border-primary focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
             value={expiryChoice}
             onChange={(event) => setExpiryChoice(event.target.value as MemoryExpiryChoice)}
+            aria-label={t("memory.expiry")}
           >
             <option value="never">{t("memory.expiryNever")}</option>
             <option value="7">{t("memory.expiryDays", { count: 7 })}</option>
@@ -142,7 +148,7 @@ export function MemorySettings({ conversationId, workspacePath }: MemorySettings
         </label>
         <label>
           <span>{t("memory.key")}</span>
-          <input
+          <Input
             placeholder={t("memory.keyPlaceholder")}
             value={newKey}
             maxLength={80}
@@ -151,7 +157,7 @@ export function MemorySettings({ conversationId, workspacePath }: MemorySettings
         </label>
         <label>
           <span>{t("memory.content")}</span>
-          <textarea
+          <Textarea
             placeholder={t("memory.contentPlaceholder")}
             value={newContent}
             maxLength={4000}
@@ -162,7 +168,6 @@ export function MemorySettings({ conversationId, workspacePath }: MemorySettings
         <Button
           variant="primary"
           size="lg"
-          className="primary-button h-auto"
           onClick={() => void handleAdd().catch(() => undefined)}
           disabled={!newKey.trim() || !newContent.trim()}
         >
@@ -195,7 +200,7 @@ export function MemorySettings({ conversationId, workspacePath }: MemorySettings
               >
                 {editingId === memory.id ? (
                   <div className="memory-edit-form">
-                    <textarea
+                    <Textarea
                       aria-label={t("memory.content")}
                       value={editContent}
                       maxLength={4000}

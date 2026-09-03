@@ -11,6 +11,7 @@ export default tseslint.config(
       "**/dist",
       "artifacts",
       "**/artifacts",
+      "gui-test-screenshots",
       "**/.vscode-test",
       "src-tauri/target",
       "scripts",

@@ -312,7 +312,6 @@ export function App() {
                 variant="primary"
                 size="lg"
                 type="button"
-                className="primary-button"
                 onClick={() => void resumeRecovery(unfinishedRuns[0]!)}
               >
                 {t("recovery.resume")}

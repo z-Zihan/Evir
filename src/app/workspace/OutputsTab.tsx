@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FileCode2, FolderSearch, ImageIcon, PackageOpen } from "lucide-react";
-import { Tip } from "../../components/ui";
+import {
+  ItemInteractive,
+  ItemMedia,
+  ItemContent,
+  ItemTitle,
+  ItemDescription,
+  Tip,
+} from "../../components/ui";
 import { useRunWorkspaceStore } from "../../features/workspace/workspace-run-store";
 import { useWorkspacePanelStore } from "../../features/workspace/workspace-panel-store";
 import { useActiveWorkspaceRoot } from "../../features/workspace/workspace-bridge";
@@ -121,9 +128,9 @@ export function OutputsTab() {
 
   if (!root) {
     return (
-      <div className="workspace-empty">
+      <div className="workspace-empty flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center text-muted">
         <FolderSearch size={20} aria-hidden="true" />
-        <p>{t("workspace.filesNoProject")}</p>
+        <p className="m-0 text-[12px]">{t("workspace.filesNoProject")}</p>
       </div>
     );
   }
@@ -140,40 +147,48 @@ export function OutputsTab() {
 
   if (outputs.length === 0) {
     return (
-      <div className="workspace-empty workspace-outputs-empty">
+      <div className="workspace-empty workspace-outputs-empty flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center text-muted">
         <PackageOpen size={22} aria-hidden="true" />
-        <p>{t("workspace.outputsEmptyTitle")}</p>
-        <p className="workspace-empty-hint">{t("workspace.outputsEmptyHint")}</p>
+        <p className="m-0 text-[12.5px] font-medium">{t("workspace.outputsEmptyTitle")}</p>
+        <p className="workspace-empty-hint m-0 text-[11.5px] text-muted/80">
+          {t("workspace.outputsEmptyHint")}
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="workspace-tab-scroll">
-      <section className="workspace-outputs-primary" aria-label={t("workspace.outputsTitle")}>
-        <header className="workspace-section-header">
-          <h2>{t("workspace.outputsTitle")}</h2>
-          <span className="workspace-changes-summary">
+    <div className="workspace-tab-scroll flex min-h-0 flex-1 flex-col overflow-y-auto p-2">
+      <section
+        className="workspace-outputs-primary flex flex-col gap-1.5"
+        aria-label={t("workspace.outputsTitle")}
+      >
+        <header className="workspace-section-header flex items-baseline justify-between px-1">
+          <h2 className="m-0 text-[12px] font-semibold text-foreground">
+            {t("workspace.outputsTitle")}
+          </h2>
+          <span className="workspace-changes-summary text-[11px] text-muted">
             {t("workspace.outputsCount", { count: outputs.length })}
           </span>
         </header>
-        <ul className="workspace-output-list-primary">
+        <ul className="workspace-output-list-primary m-0 flex list-none flex-col gap-0.5 p-0">
           {outputs.map((output) => {
             const size = formatSize(sizes[output.id]);
             return (
               <li key={output.id}>
                 <Tip content={output.path}>
-                  <button
-                    type="button"
-                    className="workspace-output-row-primary"
+                  <ItemInteractive
+                    className="workspace-output-row-primary group/row"
                     onClick={() => openOutputResource(output, root)}
                   >
-                    <span className="workspace-output-icon">{outputIcon(output)}</span>
-                    <span className="workspace-output-copy">
-                      <span className="workspace-output-name">
+                    <ItemMedia className="workspace-output-icon text-muted">
+                      {outputIcon(output)}
+                    </ItemMedia>
+                    <ItemContent className="workspace-output-copy">
+                      <ItemTitle className="workspace-output-name">
                         {output.path.split("/").pop() ?? output.path}
-                      </span>
-                      <span className="workspace-output-meta">
+                      </ItemTitle>
+                      <ItemDescription className="workspace-output-meta">
                         {[
                           relativeTime(output.createdAt),
                           size,
@@ -183,10 +198,12 @@ export function OutputsTab() {
                         ]
                           .filter(Boolean)
                           .join(" · ")}
-                      </span>
+                      </ItemDescription>
+                    </ItemContent>
+                    <span className="workspace-output-chip ml-auto shrink-0 rounded-full border border-border bg-surface-hover px-1.5 py-px text-[9.5px] font-semibold tracking-wide text-muted">
+                      {typeChip(output)}
                     </span>
-                    <span className="workspace-output-chip">{typeChip(output)}</span>
-                  </button>
+                  </ItemInteractive>
                 </Tip>
               </li>
             );

@@ -4,19 +4,29 @@ import {
   CheckCircle2,
   ChevronRight,
   Circle,
-  CircleDashed,
-  CircleSlash2,
   Crosshair,
   GitFork,
   LoaderCircle,
-  PauseCircle,
   Pencil,
   ShieldAlert,
+  Sparkles,
   Users,
   X,
   XCircle,
 } from "lucide-react";
-import { Button, Tip } from "../components/ui";
+import { Button, Input, Tip } from "../components/ui";
+import {
+  PlanNodeIcon,
+  PlanStep,
+  PlanStepMarker,
+  PlanTimeline,
+  TaskPauseStrip,
+  TaskSectionCaption,
+  TaskSectionHeading,
+  TaskSectionTitle,
+  type PlanNodeStatus,
+} from "../components/ai";
+import { cn } from "../components/ui/utils";
 import { getRuntime } from "../runtime/use-runtime";
 import { useChatStore } from "../features/chat/chat-store";
 import {
@@ -40,7 +50,6 @@ import { useMemoryStore } from "../features/memory/memory-store";
 import { getActiveWorkspaceRoot } from "../core/workspace/active-root";
 import { getStructuredStorage } from "../runtime/structured-storage";
 import type { UsageRecord } from "../core/storage/db";
-import { Sparkles } from "lucide-react";
 import { TaskRunSummary } from "./TaskRunSummary";
 
 type FinishedStatus = "completed" | "partial" | "failed" | "cancelled";
@@ -62,21 +71,8 @@ function reconcileFinishedStatus(
   return "partial";
 }
 
-function NodeIcon({ status }: { status: NodeStatus }) {
-  if (status === "running") return <LoaderCircle size={14} className="spin" />;
-  if (status === "completed") return <CheckCircle2 size={14} />;
-  if (status === "failed") return <XCircle size={14} />;
-  if (status === "cancelled" || status === "skipped") return <CircleSlash2 size={14} />;
-  if (status === "blocked") return <ShieldAlert size={14} />;
-  if (status === "ready") return <CircleDashed size={14} />;
-  return <Circle size={14} />;
-}
-
-function RunIcon({ status }: { status: PlanGraph["status"] | undefined }) {
-  if (status === "failed") return <XCircle size={16} />;
-  if (status === "cancelled") return <CircleSlash2 size={16} />;
-  if (status === "partial" || status === "paused") return <ShieldAlert size={16} />;
-  return <CheckCircle2 size={16} />;
+function nodeStatusOf(status: NodeStatus): PlanNodeStatus {
+  return status;
 }
 
 function useElapsedSeconds(startedAt: number | undefined): number {
@@ -108,46 +104,53 @@ function EditableStep({ node }: { node: PlanNode }) {
     if (await reviseCurrentPlan(node.id, objective, getRuntime(), privateSession))
       setEditing(false);
   };
+  const tone =
+    node.status === "running"
+      ? "text-primary"
+      : node.status === "failed"
+        ? "text-danger"
+        : "text-foreground";
   return (
-    <li className={`task-step task-step-${node.status}`}>
-      <span className="task-step-marker" aria-hidden="true">
-        <NodeIcon status={node.status} />
-      </span>
-      <div className="task-step-copy">
-        <strong>{node.title}</strong>
+    <PlanStep className={`task-step task-step-${node.status}`}>
+      <PlanStepMarker>
+        <PlanNodeIcon status={nodeStatusOf(node.status)} size={13} />
+      </PlanStepMarker>
+      <div className={cn("task-step-copy min-w-0 flex-1 leading-snug", tone)}>
+        <strong className="block text-[12px] font-semibold">{node.title}</strong>
         {editing ? (
-          <div className="task-step-editor">
-            <input
+          <div className="task-step-editor mt-1 flex items-center gap-1.5">
+            <Input
               value={objective}
               onChange={(event) => setObjective(event.target.value)}
               aria-label={t("orchestration.editStep")}
+              className="h-7 text-[12px]"
             />
-            <button type="button" onClick={() => void save()}>
+            <Button variant="primary" size="sm" onClick={() => void save()}>
               {t("common.save")}
-            </button>
-            <button type="button" onClick={() => setEditing(false)}>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>
               {t("common.cancel")}
-            </button>
+            </Button>
           </div>
         ) : (
-          <span>{node.objective}</span>
+          <span className="text-[11.5px] text-muted">{node.objective}</span>
         )}
       </div>
       {node.status === "pending" && !editing && (
         <Tip content={t("orchestration.editStep")}>
           <Button
             variant="ghost"
-            size="icon-sm"
+            size="icon-xs"
             type="button"
             className="task-icon-button"
             onClick={() => setEditing(true)}
             aria-label={t("orchestration.editStep")}
           >
-            <Pencil size={13} />
+            <Pencil size={12} />
           </Button>
         </Tip>
       )}
-    </li>
+    </PlanStep>
   );
 }
 
@@ -227,22 +230,37 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
     const preparationKey = preparing.stage === "planning" ? "planning" : "intake";
     return (
       <section
-        className="task-workbench task-workbench-preparing"
+        className="task-workbench task-workbench-preparing mt-1 ml-[34px] max-w-[820px] min-w-0"
         aria-labelledby="task-workbench-title"
       >
-        <div className="task-preparation-strip" aria-live="polite" aria-busy="true">
-          <span className="task-preparation-icon" aria-hidden="true">
-            <LoaderCircle size={15} className="spin" />
+        <TaskPauseStrip
+          className="task-preparation-strip rounded-lg border border-border bg-surface-subtle"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <span
+            className="mt-px flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary"
+            aria-hidden="true"
+          >
+            <LoaderCircle size={14} className="animate-spin" />
           </span>
-          <div className="task-preparation-copy">
-            <div className="task-preparation-heading">
-              <strong id="task-workbench-title">
+          <div className="task-preparation-copy min-w-0 flex-1 leading-snug">
+            <div className="task-preparation-heading flex items-baseline gap-2">
+              <strong id="task-workbench-title" className="text-[12.5px] font-semibold">
                 {t(`orchestration.preparing.${preparationKey}Title`)}
               </strong>
-              <span>{t("orchestration.preparing.elapsed", { seconds: elapsedSeconds })}</span>
+              <span className="text-[11px] text-muted">
+                {t("orchestration.preparing.elapsed", { seconds: elapsedSeconds })}
+              </span>
             </div>
-            <span>{t(`orchestration.preparing.${preparationKey}Description`)}</span>
-            {elapsedSeconds >= 15 && <small>{t("orchestration.preparing.slow")}</small>}
+            <span className="text-[11.5px] text-muted">
+              {t(`orchestration.preparing.${preparationKey}Description`)}
+            </span>
+            {elapsedSeconds >= 15 && (
+              <small className="block text-[11px] text-warning">
+                {t("orchestration.preparing.slow")}
+              </small>
+            )}
           </div>
           <Tip content={t("orchestration.stop")}>
             <Button
@@ -256,11 +274,11 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
               }}
               aria-label={t("orchestration.stop")}
             >
-              <X size={14} aria-hidden="true" />
+              <X size={13} aria-hidden="true" />
               <span>{t("chat.stop")}</span>
             </Button>
           </Tip>
-        </div>
+        </TaskPauseStrip>
       </section>
     );
   }
@@ -311,27 +329,32 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
 
   return (
     <section
-      className={`task-workbench${finished ? " task-workbench-finished" : ""}`}
+      className={cn(
+        "task-workbench mt-1.5 ml-[34px] flex max-w-[820px] min-w-0 flex-col",
+        finished ? "task-workbench-finished" : "",
+      )}
       aria-labelledby="task-workbench-title"
     >
       {snapshot.brief.doneWhen && snapshot.brief.doneWhen.length > 0 && (
-        <div className="goal-banner" aria-label={t("goal.bannerLabel")}>
-          <div className="goal-banner-objective">
-            <Crosshair size={13} aria-hidden="true" />
+        <div
+          className="goal-banner flex flex-col gap-1.5 border-b border-border bg-surface-subtle px-3.5 py-2.5"
+          aria-label={t("goal.bannerLabel")}
+        >
+          <div className="goal-banner-objective flex items-center gap-1.5 text-[12px] font-medium">
+            <Crosshair size={13} aria-hidden="true" className="shrink-0 text-primary" />
             <span>{snapshot.brief.objective}</span>
           </div>
-          <ul className="goal-done-when">
+          <ul className="goal-done-when m-0 flex list-none flex-col gap-1 p-0">
             {(snapshot.brief.doneWhenResults ?? []).length > 0
               ? (snapshot.brief.doneWhenResults ?? []).map((result) => (
                   <li
                     key={result.label}
-                    className={
-                      result.status === "passed"
-                        ? "met"
-                        : result.status === "failed"
-                          ? "unmet"
-                          : undefined
-                    }
+                    className={cn(
+                      "flex items-center gap-1.5 text-[11.5px]",
+                      result.status === "passed" ? "met text-success" : undefined,
+                      result.status === "failed" ? "unmet text-danger" : undefined,
+                      !result.status || result.status === "manual" ? "text-muted" : undefined,
+                    )}
                   >
                     {result.status === "passed" ? (
                       <CheckCircle2 size={12} aria-hidden="true" />
@@ -341,16 +364,21 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
                       <Circle size={12} aria-hidden="true" />
                     )}
                     <span>{result.label}</span>
-                    {result.status === "manual" && <small>{t("goal.manualCondition")}</small>}
+                    {result.status === "manual" && (
+                      <small className="text-muted/80">{t("goal.manualCondition")}</small>
+                    )}
                     {result.status === "failed" && result.evidence && (
                       <Tip content={result.evidence}>
-                        <small>{t("goal.conditionFailed")}</small>
+                        <small className="text-danger/85">{t("goal.conditionFailed")}</small>
                       </Tip>
                     )}
                   </li>
                 ))
               : snapshot.brief.doneWhen.map((condition) => (
-                  <li key={condition}>
+                  <li
+                    key={condition}
+                    className="flex items-center gap-1.5 text-[11.5px] text-muted"
+                  >
                     <Circle size={12} aria-hidden="true" />
                     {condition}
                   </li>
@@ -359,32 +387,30 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
         </div>
       )}
       {preferenceCandidate && preferenceChoice[snapshot.runId] === undefined && (
-        <div className="preference-candidate" role="region" aria-label={t("preference.title")}>
-          <div className="preference-candidate-header">
-            <Sparkles size={13} aria-hidden="true" />
+        <div
+          className="preference-candidate flex flex-col gap-1.5 border-b border-border bg-primary/[0.04] px-3.5 py-3"
+          role="region"
+          aria-label={t("preference.title")}
+        >
+          <div className="preference-candidate-header flex items-center gap-1.5 text-[12px] font-semibold">
+            <Sparkles size={13} aria-hidden="true" className="text-primary" />
             <strong>{t("preference.title")}</strong>
           </div>
-          <p>{t("preference.description")}</p>
-          <ul>
+          <p className="m-0 text-[11.5px] text-muted">{t("preference.description")}</p>
+          <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
             {preferenceCandidate.map((constraint) => (
-              <li key={constraint}>{constraint}</li>
+              <li key={constraint} className="text-[11.5px] text-foreground/90">
+                {constraint}
+              </li>
             ))}
           </ul>
-          <div className="preference-candidate-actions">
-            <Button
-              type="button"
-              variant="secondary"
-              size="lg"
-              className="secondary-button"
-              onClick={() => void savePreference("global")}
-            >
+          <div className="preference-candidate-actions flex flex-wrap gap-2">
+            <Button variant="secondary" size="sm" onClick={() => void savePreference("global")}>
               {t("preference.rememberGlobal")}
             </Button>
             <Button
-              type="button"
               variant="secondary"
-              size="lg"
-              className="secondary-button"
+              size="sm"
               disabled={!projectRootForPreference}
               aria-label={!projectRootForPreference ? t("preference.noProject") : undefined}
               onClick={() => void savePreference("project")}
@@ -392,10 +418,8 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
               {t("preference.rememberProject")}
             </Button>
             <Button
-              type="button"
-              variant="secondary"
-              size="lg"
-              className="secondary-button"
+              variant="ghost"
+              size="sm"
               onClick={() =>
                 setPreferenceChoice((choices) => ({ ...choices, [snapshot.runId]: "dismissed" }))
               }
@@ -406,7 +430,10 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
         </div>
       )}
       {preferenceChoice[snapshot.runId]?.startsWith("saved") && (
-        <p className="preference-saved" role="status">
+        <p
+          className="preference-saved m-0 border-b border-border bg-success/[0.06] px-3.5 py-2 text-[11.5px] text-success"
+          role="status"
+        >
           {t(
             preferenceChoice[snapshot.runId] === "saved-global"
               ? "preference.savedGlobal"
@@ -414,68 +441,55 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
           )}
         </p>
       )}
-      <header className="task-status-bar" aria-live="polite">
-        <span className="task-status-icon" aria-hidden="true">
+      <header
+        className="task-status-bar flex min-h-11 items-center gap-2.5 border-b border-border px-3.5 py-2"
+        aria-live="polite"
+      >
+        <span className="task-status-icon shrink-0 text-muted" aria-hidden="true">
           {snapshot.phase === "finished" ? (
-            <RunIcon status={finishedStatus} />
+            finishedStatus === "completed" ? (
+              <CheckCircle2 size={16} className="text-success" />
+            ) : finishedStatus === "failed" ? (
+              <XCircle size={16} className="text-danger" />
+            ) : (
+              <ShieldAlert size={16} className="text-warning" />
+            )
           ) : snapshot.phase === "clarification" ||
             snapshot.phase === "confirmation" ||
             snapshot.phase === "blocked" ? (
-            <PauseCircle size={16} />
+            <ShieldAlert size={16} className="text-warning" />
           ) : (
-            <LoaderCircle size={16} className="spin" />
+            <LoaderCircle size={16} className="animate-spin text-primary" />
           )}
         </span>
-        <div>
-          <strong id="task-workbench-title">
+        <div className="min-w-0 flex-1 leading-tight">
+          <strong className="block text-[12.5px] font-semibold">
             {finished
               ? t(`orchestration.finishedStatus.${finishedStatus}`)
               : t(`orchestration.phase.${snapshot.phase}`)}
           </strong>
-          <span>{active?.title ?? snapshot.brief.objective}</span>
+          <span className="block truncate text-[11.5px] text-muted">
+            {active?.title ?? snapshot.brief.objective}
+          </span>
         </div>
-        <div className="task-status-actions">
+        <div className="task-status-actions flex shrink-0 items-center gap-1.5">
           {snapshot.phase === "execution" && (
-            <Button
-              type="button"
-              variant="secondary"
-              size="lg"
-              className="secondary-button"
-              onClick={() => pauseCurrentRun()}
-            >
+            <Button variant="secondary" size="sm" onClick={() => pauseCurrentRun()}>
               {t("orchestration.pause")}
             </Button>
           )}
           {snapshot.phase === "paused" && (
-            <Button
-              type="button"
-              variant="primary"
-              size="lg"
-              className="primary-button"
-              onClick={() => void resume()}
-            >
+            <Button variant="primary" size="sm" onClick={() => void resume()}>
               {t("orchestration.resume")}
             </Button>
           )}
           {snapshot.phase !== "finished" && (
-            <Button
-              type="button"
-              variant="secondary"
-              size="lg"
-              className="secondary-button"
-              onClick={stop}
-            >
+            <Button variant="secondary" size="sm" onClick={stop}>
               {t("orchestration.stop")}
             </Button>
           )}
           {retryable && (
-            <Button
-              type="button"
-              variant="primary"
-              size="lg"
-              className="primary-button"
-              onClick={() => void retry()}
-            >
+            <Button variant="primary" size="sm" onClick={() => void retry()}>
               {t("orchestration.retryTask")}
             </Button>
           )}
@@ -497,7 +511,7 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
                 onClick={() => setShowFinishedDetails((value) => !value)}
               >
                 <ChevronRight
-                  className={showFinishedDetails ? "task-details-chevron-open" : ""}
+                  className={cn("transition-transform", showFinishedDetails && "rotate-90")}
                   size={14}
                   aria-hidden="true"
                 />
@@ -509,54 +523,54 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
 
       {snapshot.phase === "clarification" && (
         <form
-          className="clarification-card"
+          className="clarification-card flex flex-col gap-2.5 px-3.5 py-3"
           onSubmit={(event) => {
             event.preventDefault();
             void answerCurrentClarifications(answers);
           }}
         >
-          <div className="clarification-heading">
-            <span className="clarification-heading-icon" aria-hidden="true">
-              <ShieldAlert size={15} />
-            </span>
+          <TaskSectionHeading className="p-0">
+            <ShieldAlert size={14} className="mt-0.5 shrink-0 text-warning" />
             <div>
-              <strong>{t("orchestration.clarificationTitle")}</strong>
-              <span>{t("orchestration.clarificationDescription")}</span>
+              <TaskSectionTitle>{t("orchestration.clarificationTitle")}</TaskSectionTitle>
+              <TaskSectionCaption>{t("orchestration.clarificationDescription")}</TaskSectionCaption>
             </div>
-          </div>
+          </TaskSectionHeading>
           {(snapshot.brief.assumptions.length > 0 ||
             snapshot.brief.unknowns.some(({ impact }) => impact === "data")) && (
-            <details className="clarification-context">
-              <summary>
-                <span>{t("orchestration.assumptions")}</span>
-                <small>
+            <details className="clarification-context rounded-lg border border-border bg-surface-subtle px-2.5 py-1.5 text-[12px]">
+              <summary className="flex cursor-pointer list-none items-center gap-2 select-none [&::-webkit-details-marker]:hidden">
+                <span className="font-medium">{t("orchestration.assumptions")}</span>
+                <small className="text-muted">
                   {t("orchestration.assumptionCount", {
                     count:
                       snapshot.brief.assumptions.length +
                       snapshot.brief.unknowns.filter(({ impact }) => impact === "data").length,
                   })}
                 </small>
-                <ChevronRight size={14} aria-hidden="true" />
+                <ChevronRight size={13} aria-hidden="true" className="text-muted" />
               </summary>
-              <div className="clarification-context-details">
+              <div className="clarification-context-details mt-2 grid gap-2 border-t border-border pt-2 md:grid-cols-2">
                 {snapshot.brief.assumptions.length > 0 && (
                   <div>
-                    <strong>{t("orchestration.assumptions")}</strong>
-                    <ul>
+                    <strong className="text-[11.5px]">{t("orchestration.assumptions")}</strong>
+                    <ul className="m-1 mt-1.5 flex list-disc flex-col gap-0.5 pl-4">
                       {snapshot.brief.assumptions.map((assumption) => (
-                        <li key={assumption.id}>{assumption.statement}</li>
+                        <li key={assumption.id} className="text-[11.5px] text-muted">
+                          {assumption.statement}
+                        </li>
                       ))}
                     </ul>
                   </div>
                 )}
                 {snapshot.brief.unknowns.some(({ impact }) => impact === "data") && (
                   <div>
-                    <strong>{t("orchestration.dataDestination")}</strong>
-                    <ul>
+                    <strong className="text-[11.5px]">{t("orchestration.dataDestination")}</strong>
+                    <ul className="m-1 mt-1.5 flex list-disc flex-col gap-0.5 pl-4">
                       {snapshot.brief.unknowns
                         .filter(({ impact }) => impact === "data")
                         .map((unknown) => (
-                          <li key={unknown.id}>
+                          <li key={unknown.id} className="text-[11.5px] text-muted">
                             {unknown.answer ||
                               unknown.suggestedAnswers.join(" / ") ||
                               unknown.question}
@@ -569,45 +583,56 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
             </details>
           )}
           {questions.map((question, index) => (
-            <fieldset className="clarification-question" key={question.id}>
-              <legend>
-                <span aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+            <fieldset
+              className="clarification-question m-0 flex min-w-0 flex-col gap-1.5 border-0 p-0"
+              key={question.id}
+            >
+              <legend className="flex items-baseline gap-2 p-0 text-[12.5px] font-medium">
+                <span aria-hidden="true" className="font-mono text-[11px] text-muted">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
                 {question.question}
               </legend>
               {question.suggestedAnswers.length > 0 && (
-                <div className="clarification-suggestions">
+                <div className="clarification-suggestions flex flex-wrap gap-1.5">
                   {question.suggestedAnswers.map((suggestion) => (
                     <button
                       key={suggestion}
                       type="button"
                       aria-pressed={answers[question.id] === suggestion}
+                      className={cn(
+                        "inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] transition-colors select-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus",
+                        answers[question.id] === suggestion
+                          ? "border-primary bg-primary/[0.08] font-medium text-primary"
+                          : "border-border bg-surface text-muted hover:border-border-strong hover:text-foreground",
+                      )}
                       onClick={() =>
                         setAnswers((value) => ({ ...value, [question.id]: suggestion }))
                       }
                     >
                       <span>{suggestion}</span>
                       {answers[question.id] === suggestion && (
-                        <CheckCircle2 size={14} aria-hidden="true" />
+                        <CheckCircle2 size={13} aria-hidden="true" />
                       )}
                     </button>
                   ))}
                 </div>
               )}
-              <input
+              <Input
                 ref={index === 0 ? firstQuestionRef : undefined}
                 value={answers[question.id] ?? ""}
                 onChange={(event) =>
                   setAnswers((value) => ({ ...value, [question.id]: event.target.value }))
                 }
                 placeholder={t("orchestration.answerPlaceholder")}
+                className="h-8 text-[12.5px]"
               />
             </fieldset>
           ))}
-          <div className="task-actions clarification-actions">
+          <div className="task-actions clarification-actions flex justify-end">
             <Button
               variant="primary"
-              size="lg"
-              className="primary-button"
+              size="default"
               type="submit"
               disabled={questions.some(({ id }) => !answers[id]?.trim())}
             >
@@ -618,22 +643,16 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
       )}
 
       {snapshot.phase === "blocked" && (
-        <div className="clarification-card" role="status">
-          <div className="task-section-heading">
-            <ShieldAlert size={15} />
+        <div className="clarification-card flex flex-col gap-2.5 px-3.5 py-3" role="status">
+          <TaskSectionHeading className="p-0">
+            <ShieldAlert size={14} className="mt-0.5 shrink-0 text-warning" />
             <div>
-              <strong>{t("orchestration.blockedTitle")}</strong>
-              <span>{t("orchestration.blockedDescription")}</span>
+              <TaskSectionTitle>{t("orchestration.blockedTitle")}</TaskSectionTitle>
+              <TaskSectionCaption>{t("orchestration.blockedDescription")}</TaskSectionCaption>
             </div>
-          </div>
-          <div className="task-actions">
-            <Button
-              type="button"
-              variant="secondary"
-              size="lg"
-              className="secondary-button"
-              onClick={stop}
-            >
+          </TaskSectionHeading>
+          <div className="task-actions flex justify-end">
+            <Button variant="secondary" size="sm" onClick={stop}>
               {t("common.cancel")}
             </Button>
           </div>
@@ -641,31 +660,32 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
       )}
 
       {plan && (!finished || showFinishedDetails) && (
-        <div className="plan-timeline">
-          <div className="task-section-heading">
-            <GitFork size={15} />
+        <div className="plan-timeline-wrap flex flex-col gap-1 px-3.5 py-2.5">
+          <TaskSectionHeading className="p-0">
+            <GitFork size={14} className="mt-0.5 shrink-0 text-muted" />
             <div>
-              <strong>{t("orchestration.planTitle")}</strong>
-              <span>{t("orchestration.planRevision", { revision: plan.revision })}</span>
+              <TaskSectionTitle>{t("orchestration.planTitle")}</TaskSectionTitle>
+              <TaskSectionCaption>
+                {t("orchestration.planRevision", { revision: plan.revision })}
+              </TaskSectionCaption>
             </div>
-          </div>
-          <ol>
+          </TaskSectionHeading>
+          <PlanTimeline className="my-1 px-3">
             {plan.nodes.map((node) => (
               <EditableStep key={node.id} node={node} />
             ))}
-          </ol>
+          </PlanTimeline>
           {(snapshot.phase === "confirmation" ||
             (snapshot.phase === "paused" &&
               plan.nodes.some(
                 (node) => node.kind === "approval" && node.status === "blocked",
               ))) && (
-            <div className="task-actions">
+            <div className="task-actions flex justify-end gap-2">
               <Button
                 ref={rejectPlanRef}
                 type="button"
                 variant="secondary"
-                size="lg"
-                className="secondary-button"
+                size="sm"
                 onClick={stop}
               >
                 {t("common.cancel")}
@@ -673,27 +693,29 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
               <Button
                 type="button"
                 variant="primary"
-                size="lg"
-                className="primary-button"
+                size="sm"
                 onClick={() => void confirmCurrentPlan()}
               >
                 {t("orchestration.confirmPlan")}
               </Button>
             </div>
           )}
-          <details className="graph-inspector">
-            <summary>
-              <GitFork size={14} />
+          <details className="graph-inspector rounded-lg border border-border bg-surface-subtle px-2.5 py-1.5 text-[12px]">
+            <summary className="flex cursor-pointer list-none items-center gap-2 text-muted select-none [&::-webkit-details-marker]:hidden">
+              <GitFork size={13} />
               {t("orchestration.graphDetails")}
-              <ChevronRight size={14} />
+              <ChevronRight size={13} />
             </summary>
-            <ul>
+            <ul className="m-1 mt-2 flex list-none flex-col gap-0.5 border-t border-border pt-2 font-mono text-[11px]">
               {plan.edges.map((edge) => (
-                <li key={`${edge.from}:${edge.to}:${edge.when}`}>
-                  <code>{edge.from}</code>
-                  <span>→</span>
-                  <code>{edge.to}</code>
-                  <span>{edge.when}</span>
+                <li
+                  key={`${edge.from}:${edge.to}:${edge.when}`}
+                  className="flex items-center gap-1.5"
+                >
+                  <code className="rounded bg-surface-hover px-1 py-px">{edge.from}</code>
+                  <span className="text-muted">→</span>
+                  <code className="rounded bg-surface-hover px-1 py-px">{edge.to}</code>
+                  <span className="text-muted">{edge.when}</span>
                 </li>
               ))}
             </ul>
@@ -702,16 +724,21 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
       )}
 
       {snapshot.assignments.length > 0 && (!finished || showFinishedDetails) && (
-        <div className="agent-group">
-          <div className="task-section-heading">
-            <Users size={15} />
-            <strong>{t("orchestration.agents")}</strong>
-          </div>
-          <ul>
+        <div className="agent-group flex flex-col gap-1 border-t border-border px-3.5 py-2.5">
+          <TaskSectionHeading className="p-0">
+            <Users size={14} className="mt-0.5 shrink-0 text-muted" />
+            <TaskSectionTitle>{t("orchestration.agents")}</TaskSectionTitle>
+          </TaskSectionHeading>
+          <ul className="m-0 flex list-none flex-col gap-1 p-0">
             {snapshot.assignments.map((assignment) => (
-              <li key={assignment.id}>
-                <span>{assignment.objective}</span>
-                <strong>{t(`orchestration.agentStatus.${assignment.status}`)}</strong>
+              <li
+                key={assignment.id}
+                className="flex items-center justify-between gap-3 rounded-lg bg-surface-subtle px-2.5 py-1.5 text-[11.5px]"
+              >
+                <span className="min-w-0 truncate text-foreground/90">{assignment.objective}</span>
+                <strong className="shrink-0 font-medium text-muted">
+                  {t(`orchestration.agentStatus.${assignment.status}`)}
+                </strong>
               </li>
             ))}
           </ul>
@@ -731,7 +758,10 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
       )}
 
       {goalUsage && (
-        <div className="goal-usage" aria-label={t("goal.usageLabel")}>
+        <div
+          className="goal-usage flex flex-wrap items-center gap-x-3 gap-y-0.5 border-t border-border px-3.5 py-1.5 text-[10.5px] text-muted"
+          aria-label={t("goal.usageLabel")}
+        >
           <span>
             {t("goal.usageElapsed", {
               seconds: Math.max(1, Math.round(goalUsage.elapsedMs / 1000)),
@@ -740,7 +770,9 @@ export function TaskWorkbench({ agentRun }: { agentRun?: AgentRunRecord | undefi
           <span>{t("goal.usageAgents", { count: goalUsage.agentRuns })}</span>
           <span>{t("goal.usageTools", { count: goalUsage.toolCalls })}</span>
           {goalTokens !== null && <span>{t("goal.usageTokens", { count: goalTokens })}</span>}
-          {goalTokens !== null && <small>{t("goal.usageEstimated")}</small>}
+          {goalTokens !== null && (
+            <small className="text-muted/70">{t("goal.usageEstimated")}</small>
+          )}
         </div>
       )}
     </section>

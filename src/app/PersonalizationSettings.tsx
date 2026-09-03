@@ -7,7 +7,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
 } from "lucide-react";
-import { Switch } from "../components/ui";
+import { Switch, Textarea } from "../components/ui";
 import {
   DEFAULT_PERSONALIZATION_PREFERENCES,
   type PersonalizationPreferences,
@@ -226,7 +226,7 @@ export function PersonalizationPanel() {
               </div>
             </div>
             <label>
-              <textarea
+              <Textarea
                 value={form.customInstructions}
                 maxLength={2000}
                 rows={7}

@@ -10,7 +10,8 @@ import {
   ShieldCheck,
   Trash2,
 } from "lucide-react";
-import { Button, Tip } from "../components/ui";
+import { Button, Input, Tip } from "../components/ui";
+import { cn } from "../components/ui/utils";
 import type { ProjectRecord } from "../core/storage/db";
 
 interface SidebarProjectItemProps {
@@ -54,10 +55,15 @@ export const SidebarProjectItem = memo(function SidebarProjectItem({
 
   return (
     <div
-      className={`project-item group${active ? " active" : ""}${project.pinned ? " pinned" : ""}${folderMissing ? " folder-missing" : ""}`}
+      className={cn(
+        "project-item group",
+        active && "active",
+        project.pinned && "pinned",
+        folderMissing && "folder-missing",
+      )}
     >
       <div
-        className="project-row"
+        className="project-row flex min-w-0 cursor-pointer items-center gap-1 rounded-lg py-[5px] pr-1 pl-1 text-[12.5px] font-medium transition-colors select-none hover:bg-surface-hover/70"
         onClick={onSelect}
         onDoubleClick={() => {
           setRenaming(true);
@@ -65,7 +71,7 @@ export const SidebarProjectItem = memo(function SidebarProjectItem({
         }}
       >
         <button
-          className="project-chevron"
+          className="project-chevron grid size-5 shrink-0 cursor-pointer place-items-center rounded-md text-muted transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
           type="button"
           aria-label={expanded ? t("sidebar.collapseProject") : t("sidebar.expandProject")}
           aria-expanded={expanded}
@@ -74,12 +80,14 @@ export const SidebarProjectItem = memo(function SidebarProjectItem({
             onToggleExpand();
           }}
         >
-          {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+          {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         </button>
-        {project.pinned ? <Pin size={11} className="pin-indicator" aria-hidden="true" /> : null}
+        {project.pinned ? (
+          <Pin size={11} className="pin-indicator shrink-0 text-primary/70" aria-hidden="true" />
+        ) : null}
         {renaming ? (
-          <input
-            className="rename-input"
+          <Input
+            className="rename-input mx-0.5 h-6 px-1.5 text-[12px]"
             type="text"
             value={value}
             autoFocus
@@ -97,15 +105,24 @@ export const SidebarProjectItem = memo(function SidebarProjectItem({
           />
         ) : (
           <Tip content={`${project.displayName}\n${project.rootPath}`}>
-            <span className="project-name">{project.displayName}</span>
+            <span
+              className={cn(
+                "project-name min-w-0 flex-1 truncate text-foreground",
+                active && "font-semibold",
+              )}
+            >
+              {project.displayName}
+            </span>
           </Tip>
         )}
         {folderMissing && !renaming && (
-          <span className="project-folder-missing">{t("sidebar.folderMissing")}</span>
+          <span className="project-folder-missing shrink-0 rounded-full bg-warning/12 px-1.5 py-px text-[10px] font-medium text-warning">
+            {t("sidebar.folderMissing")}
+          </span>
         )}
         {!renaming && (
           <div
-            className="conversation-actions project-actions"
+            className="conversation-actions project-actions flex shrink-0 items-center gap-0.5 opacity-0 pointer-events-none transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
             onClick={(event) => event.stopPropagation()}
           >
             {folderMissing && (
@@ -116,7 +133,7 @@ export const SidebarProjectItem = memo(function SidebarProjectItem({
                   aria-label={t("sidebar.locateFolder")}
                   onClick={onLocate}
                 >
-                  <FolderSearch size={13} />
+                  <FolderSearch size={12} />
                 </Button>
               </Tip>
             )}
@@ -127,7 +144,7 @@ export const SidebarProjectItem = memo(function SidebarProjectItem({
                 aria-label={t("sidebar.newTask")}
                 onClick={onNewTask}
               >
-                <Plus size={13} />
+                <Plus size={12} />
               </Button>
             </Tip>
             <Tip content={t("sidebar.permission")}>
@@ -137,7 +154,7 @@ export const SidebarProjectItem = memo(function SidebarProjectItem({
                 aria-label={t("sidebar.permission")}
                 onClick={onPermission}
               >
-                <ShieldCheck size={13} />
+                <ShieldCheck size={12} />
               </Button>
             </Tip>
             <Tip content={project.pinned ? t("sidebar.unpin") : t("sidebar.pin")}>
@@ -147,7 +164,7 @@ export const SidebarProjectItem = memo(function SidebarProjectItem({
                 aria-label={project.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
                 onClick={onTogglePin}
               >
-                <Pin size={13} />
+                <Pin size={12} />
               </Button>
             </Tip>
             <Tip content={t("sidebar.rename")}>
@@ -160,18 +177,18 @@ export const SidebarProjectItem = memo(function SidebarProjectItem({
                   setValue(project.displayName);
                 }}
               >
-                <Pencil size={13} />
+                <Pencil size={12} />
               </Button>
             </Tip>
             <Tip content={t("sidebar.removeProject")}>
               <Button
                 variant="ghost"
                 size="icon-xs"
-                className="conversation-delete"
+                className="conversation-delete hover:text-danger"
                 aria-label={t("sidebar.removeProject")}
                 onClick={onRemove}
               >
-                <Trash2 size={14} />
+                <Trash2 size={13} />
               </Button>
             </Tip>
           </div>

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ChevronDown, ShieldCheck } from "lucide-react";
 import type { PermissionProfile, ProjectRecord } from "../core/storage/db";
 import { Popover, PopoverContent, PopoverTrigger, Tip } from "../components/ui";
+import { cn } from "../components/ui/utils";
 import { useProjectStore } from "../features/projects/project-store";
 import { useConfirmationDialog } from "./useConfirmationDialog";
 
@@ -57,14 +58,17 @@ export function PermissionSwitcher({ project }: PermissionSwitcherProps) {
             render={
               <button
                 type="button"
-                className="permission-switcher-button"
+                className="permission-switcher-button inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 text-[11.5px] transition-colors select-none hover:border-border-strong focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
                 aria-label={t("chat.permissionPickerTitle")}
               />
             }
           >
-            <ShieldCheck size={13} aria-hidden="true" />
+            <ShieldCheck size={12} aria-hidden="true" className="text-muted" />
             <span>{t(`project.permission.${project.permissionProfile}`)}</span>
-            <ChevronDown size={11} className={`model-switcher-chevron${open ? " open" : ""}`} />
+            <ChevronDown
+              size={11}
+              className={cn("text-muted transition-transform", open && "rotate-180")}
+            />
           </PopoverTrigger>
         </Tip>
         <PopoverContent
@@ -79,10 +83,9 @@ export function PermissionSwitcher({ project }: PermissionSwitcherProps) {
               legacy absolute-position offsets in .model-switcher-dropdown —
               placement now comes from the popover positioner. */}
           <div
-            className="model-switcher-dropdown permission-switcher-dropdown"
+            className="permission-switcher-dropdown w-64 rounded-xl border border-border bg-surface-elevated py-1 shadow-popover"
             role="listbox"
             aria-label={t("chat.permissionPickerTitle")}
-            style={{ position: "static" }}
           >
             {PROFILES.map((profile) => {
               const selected = profile.id === project.permissionProfile;
@@ -92,12 +95,19 @@ export function PermissionSwitcher({ project }: PermissionSwitcherProps) {
                   type="button"
                   role="option"
                   aria-selected={selected}
-                  className={`model-switcher-item${selected ? " active" : ""}`}
+                  className={cn(
+                    "flex w-full cursor-pointer flex-col gap-px px-3 py-1.5 text-left transition-colors select-none hover:bg-surface-hover focus-visible:bg-surface-hover focus-visible:outline-none",
+                    selected && "bg-primary/[0.06]",
+                  )}
                   onClick={() => chooseProfile(profile.id)}
                 >
-                  <span className="permission-switcher-copy">
-                    <span className="model-switcher-item-name">{t(profile.labelKey)}</span>
-                    <span className="permission-switcher-hint">{t(profile.hintKey)}</span>
+                  <span className="permission-switcher-copy flex flex-col">
+                    <span className={cn("text-[12px] font-medium", selected && "text-primary")}>
+                      {t(profile.labelKey)}
+                    </span>
+                    <span className="permission-switcher-hint text-[10.5px] text-muted">
+                      {t(profile.hintKey)}
+                    </span>
                   </span>
                 </button>
               );

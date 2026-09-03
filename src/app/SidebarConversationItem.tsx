@@ -2,7 +2,8 @@ import { logger } from "../core/logging/logger";
 import { memo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pencil, Pin, Trash2 } from "lucide-react";
-import { Button, Tip } from "../components/ui";
+import { Button, Input, Tip } from "../components/ui";
+import { cn } from "../components/ui/utils";
 import type { ConversationRecord } from "../core/storage/db";
 import type { ConversationRunStatus } from "./useConversationStatus";
 
@@ -29,6 +30,16 @@ const STATUS_LABEL_KEY: Record<ConversationRunStatus, string> = {
   unread: "sidebar.statusUnread",
 };
 
+const STATUS_DOT_CLASS: Record<ConversationRunStatus, string> = {
+  preparing: "bg-warning animate-pulse",
+  streaming: "bg-success animate-pulse",
+  approval: "bg-warning animate-pulse",
+  "waiting-user": "bg-primary",
+  failed: "bg-danger",
+  stopped: "bg-muted",
+  unread: "bg-primary",
+};
+
 /**
  * Restrained live status mark: a small dot plus an optional one-word label.
  * Running dots pulse; approval uses amber; failures red; unread a plain dot.
@@ -42,9 +53,21 @@ function StatusMark({ status }: { status: ConversationRunStatus }) {
     status === "approval" ||
     status === "waiting-user";
   return (
-    <span className={`conversation-status conversation-status-${status}`}>
-      <span className="conversation-status-dot" aria-hidden="true" />
-      {showLabel && <span className="conversation-status-label">{t(labelKey)}</span>}
+    <span
+      className={`conversation-status conversation-status-${status} flex shrink-0 items-center gap-1`}
+    >
+      <span
+        className={cn(
+          "conversation-status-dot size-1.5 shrink-0 rounded-full",
+          STATUS_DOT_CLASS[status],
+        )}
+        aria-hidden="true"
+      />
+      {showLabel && (
+        <span className="conversation-status-label text-[10px] font-medium text-muted">
+          {t(labelKey)}
+        </span>
+      )}
     </span>
   );
 }
@@ -69,9 +92,17 @@ export const SidebarConversationItem = memo(function SidebarConversationItem({
     setValue(conversation.title);
   };
 
+  const hasLiveRun = status === "streaming" || status === "preparing";
+
   return (
     <div
-      className={`conversation-item group${variant === "thread" ? " project-thread" : ""}${isActive ? " active" : ""}${conversation.pinned ? " pinned" : ""}${status === "streaming" || status === "preparing" ? " has-live-run" : ""}`}
+      className={cn(
+        "conversation-item group flex min-w-0 cursor-pointer items-center gap-1.5 rounded-lg py-[5px] pr-1 pl-2.5 text-[12px] transition-colors select-none",
+        variant === "thread" && "project-thread text-[11.5px]",
+        isActive ? "active bg-surface-hover font-medium" : "hover:bg-surface-hover/70",
+        conversation.pinned && "pinned",
+        hasLiveRun && "has-live-run",
+      )}
       onClick={() => {
         if (!renaming) {
           logger.info("ui", "ui.sidebar.task-open", {
@@ -86,10 +117,12 @@ export const SidebarConversationItem = memo(function SidebarConversationItem({
         setValue(conversation.title);
       }}
     >
-      {conversation.pinned ? <Pin size={12} className="pin-indicator" aria-hidden="true" /> : null}
+      {conversation.pinned ? (
+        <Pin size={11} className="pin-indicator shrink-0 text-primary/70" aria-hidden="true" />
+      ) : null}
       {renaming ? (
-        <input
-          className="rename-input"
+        <Input
+          className="rename-input h-6 px-1.5 text-[12px]"
           type="text"
           value={value}
           autoFocus
@@ -107,12 +140,17 @@ export const SidebarConversationItem = memo(function SidebarConversationItem({
         />
       ) : (
         <Tip content={conversation.title || t("chat.title")}>
-          <span className="conversation-title">{conversation.title || t("chat.title")}</span>
+          <span className="conversation-title min-w-0 flex-1 truncate">
+            {conversation.title || t("chat.title")}
+          </span>
         </Tip>
       )}
       {!renaming && status && <StatusMark status={status} />}
       {!renaming && (
-        <div className="conversation-actions" onClick={(event) => event.stopPropagation()}>
+        <div
+          className="conversation-actions flex shrink-0 items-center gap-0.5 opacity-0 pointer-events-none transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
+          onClick={(event) => event.stopPropagation()}
+        >
           <Tip content={conversation.pinned ? t("sidebar.unpin") : t("sidebar.pin")}>
             <Button
               variant="ghost"
@@ -120,7 +158,7 @@ export const SidebarConversationItem = memo(function SidebarConversationItem({
               aria-label={conversation.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
               onClick={onTogglePin}
             >
-              <Pin size={13} />
+              <Pin size={12} />
             </Button>
           </Tip>
           <Tip content={t("sidebar.rename")}>
@@ -133,18 +171,18 @@ export const SidebarConversationItem = memo(function SidebarConversationItem({
                 setValue(conversation.title);
               }}
             >
-              <Pencil size={13} />
+              <Pencil size={12} />
             </Button>
           </Tip>
           <Tip content={t("provider.delete")}>
             <Button
               variant="ghost"
               size="icon-xs"
-              className="conversation-delete"
+              className="conversation-delete hover:text-danger"
               aria-label={t("provider.delete")}
               onClick={onDelete}
             >
-              <Trash2 size={14} />
+              <Trash2 size={13} />
             </Button>
           </Tip>
         </div>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FileCode2, FolderSearch, RefreshCw, Search } from "lucide-react";
-import { Button, Tip } from "../../components/ui";
+import { Button, Input, Tip } from "../../components/ui";
 import { useFilesTabStore } from "../../features/workspace/files-tab-store";
 import { useRunWorkspaceStore } from "../../features/workspace/workspace-run-store";
 import { useWorkspacePanelStore } from "../../features/workspace/workspace-panel-store";
@@ -80,9 +80,9 @@ export function FilesTab() {
 
   if (!root) {
     return (
-      <div className="workspace-empty">
+      <div className="workspace-empty flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center text-muted">
         <FolderSearch size={20} aria-hidden="true" />
-        <p>{t("workspace.filesNoProject")}</p>
+        <p className="m-0 text-[12px]">{t("workspace.filesNoProject")}</p>
       </div>
     );
   }
@@ -92,11 +92,18 @@ export function FilesTab() {
   };
 
   return (
-    <div className="workspace-tab-scroll">
-      <section className="workspace-project-files" aria-label={t("workspace.projectFiles")}>
-        <header className="workspace-section-header">
-          <h2>{t("workspace.projectFiles")}</h2>
-          <span className="workspace-changes-summary">{isRepo ? (gitBranch ?? "") : ""}</span>
+    <div className="workspace-tab-scroll flex min-h-0 flex-1 flex-col overflow-y-auto p-2">
+      <section
+        className="workspace-project-files flex min-h-0 flex-1 flex-col gap-2"
+        aria-label={t("workspace.projectFiles")}
+      >
+        <header className="workspace-section-header flex items-center gap-2 px-1">
+          <h2 className="m-0 text-[12px] font-semibold text-foreground">
+            {t("workspace.projectFiles")}
+          </h2>
+          <span className="workspace-changes-summary text-[11px] text-muted">
+            {isRepo ? (gitBranch ?? "") : ""}
+          </span>
           <Tip content={t("workspace.refresh")} side="bottom">
             <Button
               variant="ghost"
@@ -112,9 +119,13 @@ export function FilesTab() {
             </Button>
           </Tip>
         </header>
-        <div className="workspace-file-search">
-          <Search size={13} aria-hidden="true" />
-          <input
+        <div className="workspace-file-search relative flex h-8 items-center">
+          <Search
+            size={13}
+            aria-hidden="true"
+            className="pointer-events-none absolute left-2.5 text-muted"
+          />
+          <Input
             type="search"
             value={search}
             placeholder={t("workspace.searchFiles")}
@@ -126,6 +137,7 @@ export function FilesTab() {
                 void runSearch(root);
               }
             }}
+            className="h-8 pl-8"
           />
         </div>
         {search.trim() !== "" && searchResults !== null ? (

@@ -6,6 +6,8 @@ import { useRunWorkspaceStore } from "../features/workspace/workspace-run-store"
 import { useWorkspacePanelStore } from "../features/workspace/workspace-panel-store";
 import { useActiveWorkspaceRoot } from "../features/workspace/workspace-bridge";
 import { logger } from "../core/logging/logger";
+import { TaskSectionCaption, TaskSectionHeading, TaskSectionTitle } from "../components/ai";
+import { cn } from "../components/ui/utils";
 
 type FinishedStatus = "completed" | "partial" | "failed" | "cancelled";
 
@@ -69,57 +71,69 @@ export function TaskRunSummary({
 
   return (
     <section
-      className={`task-run-summary task-run-summary-${status}`}
+      className={cn("task-run-summary flex flex-col gap-2 border-t border-border px-3.5 py-3")}
       aria-labelledby="task-run-summary-title"
     >
-      <div className="task-section-heading">
-        {successful ? <CheckCircle2 size={15} /> : <AlertTriangle size={15} />}
+      <TaskSectionHeading className="p-0">
+        {successful ? (
+          <CheckCircle2 size={14} className="mt-0.5 shrink-0 text-success" />
+        ) : (
+          <AlertTriangle size={14} className="mt-0.5 shrink-0 text-warning" />
+        )}
         <div>
-          <strong id="task-run-summary-title">{t("orchestration.summary.title")}</strong>
-          <span>{t(`orchestration.summary.status.${status}`)}</span>
+          <TaskSectionTitle id="task-run-summary-title">
+            {t("orchestration.summary.title")}
+          </TaskSectionTitle>
+          <TaskSectionCaption>{t(`orchestration.summary.status.${status}`)}</TaskSectionCaption>
         </div>
-      </div>
-      <p className="task-summary-result">{snapshot.brief.objective}</p>
+      </TaskSectionHeading>
+      <p className="task-summary-result m-0 text-[12.5px] leading-relaxed text-foreground/90">
+        {snapshot.brief.objective}
+      </p>
 
-      <dl className="task-summary-counts">
-        <div>
-          <dt>{t("orchestration.summary.completed")}</dt>
-          <dd>{completed.length}</dd>
+      <dl className="task-summary-counts m-0 flex gap-4">
+        <div className="flex items-baseline gap-1.5">
+          <dt className="text-[11.5px] text-muted">{t("orchestration.summary.completed")}</dt>
+          <dd className="m-0 text-[13px] font-semibold text-foreground">{completed.length}</dd>
         </div>
-        <div>
-          <dt>{t("orchestration.summary.unresolved")}</dt>
-          <dd>{unresolved.length}</dd>
+        <div className="flex items-baseline gap-1.5">
+          <dt className="text-[11.5px] text-muted">{t("orchestration.summary.unresolved")}</dt>
+          <dd className="m-0 text-[13px] font-semibold text-foreground">{unresolved.length}</dd>
         </div>
-        <div>
-          <dt>{t("orchestration.summary.skipped")}</dt>
-          <dd>{skipped.length}</dd>
+        <div className="flex items-baseline gap-1.5">
+          <dt className="text-[11.5px] text-muted">{t("orchestration.summary.skipped")}</dt>
+          <dd className="m-0 text-[13px] font-semibold text-foreground">{skipped.length}</dd>
         </div>
       </dl>
 
       {snapshot.brief.assumptions.length > 0 && (
-        <div className="task-summary-section">
-          <strong>{t("orchestration.assumptions")}</strong>
-          <ul>
+        <div className="task-summary-section flex flex-col gap-1">
+          <strong className="text-[11.5px] font-semibold">{t("orchestration.assumptions")}</strong>
+          <ul className="m-0 flex list-disc flex-col gap-0.5 pl-4">
             {snapshot.brief.assumptions.map((assumption) => (
-              <li key={assumption.id}>{assumption.statement}</li>
+              <li key={assumption.id} className="text-[11.5px] text-muted">
+                {assumption.statement}
+              </li>
             ))}
           </ul>
         </div>
       )}
 
-      <div className="task-summary-section">
-        <strong>
-          <ClipboardCheck size={14} />
+      <div className="task-summary-section flex flex-col gap-1">
+        <strong className="flex items-center gap-1.5 text-[11.5px] font-semibold">
+          <ClipboardCheck size={13} />
           {t("orchestration.summary.evidence")}
         </strong>
         {evidence.length > 0 ? (
-          <ul>
+          <ul className="m-0 flex list-disc flex-col gap-0.5 pl-4">
             {evidence.map((event) => (
-              <li key={event.id}>{event.summary}</li>
+              <li key={event.id} className="text-[11.5px] text-muted">
+                {event.summary}
+              </li>
             ))}
           </ul>
         ) : (
-          <p>
+          <p className="m-0 text-[11.5px] text-muted">
             {snapshot.brief.goalKind === "answer"
               ? t("orchestration.summary.evidenceNotRequired")
               : t("orchestration.summary.noEvidence")}
@@ -128,16 +142,21 @@ export function TaskRunSummary({
       </div>
 
       {unresolved.length > 0 && (
-        <div className="task-summary-section task-summary-unresolved">
-          <strong>
-            <CircleSlash2 size={14} />
+        <div className="task-summary-section task-summary-unresolved flex flex-col gap-1">
+          <strong className="flex items-center gap-1.5 text-[11.5px] font-semibold text-warning">
+            <CircleSlash2 size={13} />
             {t("orchestration.summary.unresolvedItems")}
           </strong>
-          <ul>
+          <ul className="m-0 flex list-none flex-col gap-1 p-0">
             {unresolved.map((node) => (
-              <li key={node.id}>
-                <span>{node.title}</span>
-                <small>{t(`orchestration.nodeStatus.${node.status}`)}</small>
+              <li
+                key={node.id}
+                className="flex items-center justify-between gap-3 rounded-lg bg-warning/[0.06] px-2 py-1 text-[11.5px]"
+              >
+                <span className="min-w-0 truncate">{node.title}</span>
+                <small className="shrink-0 text-muted">
+                  {t(`orchestration.nodeStatus.${node.status}`)}
+                </small>
               </li>
             ))}
           </ul>
@@ -145,19 +164,27 @@ export function TaskRunSummary({
       )}
 
       {(outputsCount > 0 || changeTotals) && (
-        <div className="task-summary-actions">
+        <div className="task-summary-actions flex flex-wrap gap-2">
           {outputsCount > 0 && (
-            <button type="button" className="secondary-button" onClick={openOutputs}>
+            <button
+              type="button"
+              className="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 text-[11.5px] font-medium transition-colors select-none hover:border-border-strong hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
+              onClick={openOutputs}
+            >
               {t("orchestration.summary.viewOutputs")}
-              <span className="task-summary-count-chip">
+              <span className="task-summary-count-chip rounded-full bg-primary/[0.08] px-1.5 text-[10.5px] font-medium text-primary">
                 {t("orchestration.summary.outputsCount", { count: outputsCount })}
               </span>
             </button>
           )}
           {changeTotals && changeTotals.files > 0 && (
-            <button type="button" className="secondary-button" onClick={reviewChanges}>
+            <button
+              type="button"
+              className="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 text-[11.5px] font-medium transition-colors select-none hover:border-border-strong hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
+              onClick={reviewChanges}
+            >
               {t("orchestration.summary.reviewChanges")}
-              <span className="task-summary-count-chip">
+              <span className="task-summary-count-chip rounded-full bg-surface-hover px-1.5 text-[10.5px] font-medium text-muted">
                 {t("orchestration.summary.changesCount", {
                   count: changeTotals.files,
                   additions: changeTotals.additions,

@@ -1,23 +1,36 @@
 import { deriveToolStatus } from "../features/chat/tool-view-model";
 import { useState } from "react";
 import {
-  CheckCircle2,
   ChevronDown,
   ChevronRight,
-  Circle,
-  CircleDashed,
-  CircleSlash2,
   Eye,
   FilePenLine,
   Globe,
-  LoaderCircle,
-  ShieldAlert,
   SquareTerminal,
   Wrench,
-  XCircle,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Button, Tip } from "../components/ui";
+import {
+  ConfirmationActions,
+  ConfirmationApproveButton,
+  ConfirmationCard,
+  ConfirmationDenyButton,
+  ConfirmationDescription,
+  ConfirmationFact,
+  ConfirmationFactLabel,
+  ConfirmationFactValue,
+  ConfirmationFacts,
+  ConfirmationHeader,
+  ConfirmationIcon,
+  ConfirmationTitle,
+  ToolGroupCalls,
+  ToolGroupHeader,
+  ToolRow,
+  ToolTimeline,
+  type ToolStatus,
+} from "../components/ai";
+import { Badge } from "../components/ui";
+import { cn } from "../components/ui/utils";
 import type { MessageRecord, ToolCallRecord, ToolResultRecord } from "../core/storage/db";
 import {
   TOOL_DENIED,
@@ -77,6 +90,14 @@ function GroupIcon({ kind }: { kind: ToolGroupKind }) {
       return <Wrench size={14} aria-hidden="true" />;
   }
 }
+
+const ACTIVITY_BADGE: Record<string, string> = {
+  running: "border-primary/30 bg-primary/[0.07] text-primary",
+  approval: "border-warning/40 bg-warning/[0.09] text-warning",
+  cancelled: "border-border bg-surface-hover text-muted",
+  failed: "border-danger/35 bg-danger/[0.07] text-danger",
+  complete: "border-success/30 bg-success/[0.07] text-success",
+};
 
 export function AgentActivity({
   toolCalls,
@@ -138,37 +159,28 @@ export function AgentActivity({
             : t("agent.completed");
 
   return (
-    <section className={`agent-activity agent-activity-${status}`} aria-label={t("tools.title")}>
+    <section
+      className={`agent-activity agent-activity-${status} mt-1 flex min-w-0 flex-col gap-0.5`}
+      aria-label={t("tools.title")}
+    >
       <button
         type="button"
-        className="activity-header"
+        className={cn(
+          "activity-header flex w-fit cursor-pointer items-center gap-2 rounded-lg border px-2 py-1 text-left transition-colors select-none hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus",
+          ACTIVITY_BADGE[status],
+        )}
         onClick={() => setExpanded((value) => !value)}
         aria-expanded={expanded}
       >
-        <span className="activity-state-icon" aria-hidden="true">
-          {status === "running" ? (
-            <LoaderCircle size={15} />
-          ) : status === "approval" ? (
-            <ShieldAlert size={15} />
-          ) : status === "cancelled" ? (
-            <CircleSlash2 size={15} />
-          ) : status === "failed" ? (
-            <XCircle size={15} />
-          ) : (
-            <CheckCircle2 size={15} />
-          )}
+        {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+        <strong className="text-[12px] font-semibold">{statusLabel}</strong>
+        <span className="text-[11px] font-normal opacity-85">
+          {t("tools.progress", { completed, total: toolCalls.length })}
+          {failedRetryCount ? ` · ${t("tools.retriedTimes", { count: failedRetryCount })}` : ""}
         </span>
-        <span className="activity-heading-copy">
-          <strong>{statusLabel}</strong>
-          <span>
-            {t("tools.progress", { completed, total: toolCalls.length })}
-            {failedRetryCount ? ` · ${t("tools.retriedTimes", { count: failedRetryCount })}` : ""}
-          </span>
-        </span>
-        {expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
       </button>
 
-      <div className="execution-timeline tool-groups">
+      <ToolTimeline className="execution-timeline tool-groups">
         {groups.map((group, groupIndex) => {
           const summary = groupSummary(group);
           const groupOpen = expanded || expandedGroups[groupIndex] === true;
@@ -178,202 +190,168 @@ export function AgentActivity({
           ).length;
           return (
             <div key={groupIndex} className={`tool-group tool-group-${group.kind}`}>
-              <button
-                type="button"
-                className="tool-group-header"
+              <ToolGroupHeader
+                open={groupOpen}
+                icon={runningCount > 0 ? <LoaderSpinner /> : <GroupIcon kind={group.kind} />}
+                summary={t(summary.labelKey, { ...summary.values })}
+                meta={
+                  failedCount > 0 ? (
+                    <span className="text-danger/90">
+                      {" "}
+                      · {t("tools.failedCount", { count: failedCount })}
+                    </span>
+                  ) : undefined
+                }
                 onClick={() =>
                   setExpandedGroups((current) => ({
                     ...current,
                     [groupIndex]: !(current[groupIndex] === true),
                   }))
                 }
-                aria-expanded={groupOpen}
-              >
-                <span className="tool-group-icon" aria-hidden="true">
-                  {runningCount > 0 ? (
-                    <LoaderCircle size={14} className="spin" />
-                  ) : (
-                    <GroupIcon kind={group.kind} />
-                  )}
-                </span>
-                <span className="tool-group-copy">
-                  {t(summary.labelKey, { ...summary.values })}
-                  {failedCount > 0 && (
-                    <span className="tool-group-failed">
-                      {" "}
-                      · {t("tools.failedCount", { count: failedCount })}
-                    </span>
-                  )}
-                </span>
-                {groupOpen ? (
-                  <ChevronDown size={13} aria-hidden="true" />
-                ) : (
-                  <ChevronRight size={13} aria-hidden="true" />
-                )}
-              </button>
+              />
               {groupOpen && (
-                <div className="tool-group-calls">
+                <ToolGroupCalls>
                   {group.calls.map(({ call, result }) => {
-                    const status = deriveToolStatus(call, result, isStreaming);
-                    const permissionRequired = status === "waiting-approval";
-                    const running = status === "running";
-                    const denied = status === "denied";
+                    const toolStatus: ToolStatus = deriveToolStatus(call, result, isStreaming);
                     const toolKey = `tools.${call.toolName}`;
                     const toolName = i18n.exists(toolKey) ? t(toolKey) : call.toolName;
                     const summaryText = getArgumentSummary(call);
+                    const statusLabelRow = toolStatusLabel(toolStatus, t, result);
                     return (
-                      <div
+                      <ToolRow
                         key={call.id}
-                        className={`execution-step${running ? " is-running" : ""}${permissionRequired ? " is-pending" : ""}`}
-                      >
-                        <span className="execution-marker" aria-hidden="true">
-                          {running ? (
-                            <LoaderCircle size={13} />
-                          ) : permissionRequired ? (
-                            <ShieldAlert size={13} />
-                          ) : result?.success ? (
-                            <CheckCircle2 size={13} />
-                          ) : denied ? (
-                            <Circle size={13} />
-                          ) : result ? (
-                            <XCircle size={13} />
-                          ) : (
-                            <CircleDashed size={13} />
-                          )}
-                        </span>
-                        <span className="execution-copy">
-                          <strong>{toolName}</strong>
-                          {summaryText && (
-                            <Tip content={summaryText}>
-                              <span>{summaryText}</span>
-                            </Tip>
-                          )}
-                        </span>
-                        <span className="execution-status">
-                          {running
-                            ? t("tools.executing")
-                            : permissionRequired
-                              ? t("tools.permissionRequired")
-                              : denied
-                                ? t("tools.denied")
-                                : result?.success
-                                  ? t("tools.success")
-                                  : result
-                                    ? t("tools.failed")
-                                    : t("tools.queued")}
-                          {result?.durationMs !== undefined &&
-                            ` · ${(result.durationMs / 1000).toFixed(1)}s`}
-                        </span>
-                      </div>
+                        status={toolStatus}
+                        name={toolName}
+                        detail={summaryText}
+                        detailTitle={summaryText}
+                        statusLabel={
+                          <>
+                            {statusLabelRow}
+                            {result?.durationMs !== undefined &&
+                              ` · ${(result.durationMs / 1000).toFixed(1)}s`}
+                          </>
+                        }
+                      />
                     );
                   })}
-                </div>
+                </ToolGroupCalls>
               )}
             </div>
           );
         })}
-      </div>
+      </ToolTimeline>
 
       {hasPending && (
-        <div className="approval-panel">
-          <ShieldAlert size={18} aria-hidden="true" />
-          <div className="approval-copy">
-            <strong>{t("tools.approvalTitle")}</strong>
-            <p>{t("tools.approvalDescription")}</p>
-            {pendingApproval && (
-              <dl className="approval-facts">
-                <div>
-                  <dt>{t("tools.approvalTool")}</dt>
-                  <dd>{pendingApproval.toolName}</dd>
-                </div>
-                {pendingApproval.riskLevel && (
-                  <div>
-                    <dt>{t("tools.approvalRisk")}</dt>
-                    <dd>{pendingApproval.riskLevel}</dd>
-                  </div>
-                )}
-                {pendingApproval.approval?.target && (
-                  <div>
-                    <dt>{t("tools.approvalTarget")}</dt>
-                    <dd>{pendingApproval.approval.target}</dd>
-                  </div>
-                )}
-                {pendingApproval.approval?.dataDestination && (
-                  <div>
-                    <dt>{t("tools.dataDestination")}</dt>
-                    <dd>{pendingApproval.approval.dataDestination}</dd>
-                  </div>
-                )}
-                {pendingApproval.approval?.impact && (
-                  <div>
-                    <dt>{t("tools.approvalImpact")}</dt>
-                    <dd>{t(`tools.approvalImpacts.${pendingApproval.approval.impact}`)}</dd>
-                  </div>
-                )}
-                {pendingApproval.approval && (
-                  <div>
-                    <dt>{t("tools.reversible")}</dt>
-                    <dd>
-                      {pendingApproval.approval.reversible ? t("common.yes") : t("common.no")}
-                    </dd>
-                  </div>
-                )}
-                <div>
-                  <dt>{t("tools.arguments")}</dt>
-                  <dd>
-                    {approvalArguments.slice(0, 500)}
-                    {approvalArguments.length > 500 ? "…" : ""}
-                  </dd>
-                </div>
-              </dl>
-            )}
-          </div>
-          <div className="approval-actions">
-            <Button
-              type="button"
-              variant="secondary"
-              size="lg"
-              className="secondary-button"
+        <ConfirmationCard className="mt-1">
+          <ConfirmationHeader>
+            <ConfirmationIcon />
+            <div className="min-w-0">
+              <ConfirmationTitle>{t("tools.approvalTitle")}</ConfirmationTitle>
+              <ConfirmationDescription>{t("tools.approvalDescription")}</ConfirmationDescription>
+            </div>
+          </ConfirmationHeader>
+          {pendingApproval && (
+            <ConfirmationFacts>
+              <ConfirmationFact>
+                <ConfirmationFactLabel>{t("tools.approvalTool")}</ConfirmationFactLabel>
+                <ConfirmationFactValue>{pendingApproval.toolName}</ConfirmationFactValue>
+              </ConfirmationFact>
+              {pendingApproval.riskLevel && (
+                <ConfirmationFact>
+                  <ConfirmationFactLabel>{t("tools.approvalRisk")}</ConfirmationFactLabel>
+                  <ConfirmationFactValue>
+                    <Badge variant="warning" className="h-4.5 px-1.5 text-[10.5px]">
+                      {pendingApproval.riskLevel}
+                    </Badge>
+                  </ConfirmationFactValue>
+                </ConfirmationFact>
+              )}
+              {pendingApproval.approval?.target && (
+                <ConfirmationFact>
+                  <ConfirmationFactLabel>{t("tools.approvalTarget")}</ConfirmationFactLabel>
+                  <ConfirmationFactValue>{pendingApproval.approval.target}</ConfirmationFactValue>
+                </ConfirmationFact>
+              )}
+              {pendingApproval.approval?.dataDestination && (
+                <ConfirmationFact>
+                  <ConfirmationFactLabel>{t("tools.dataDestination")}</ConfirmationFactLabel>
+                  <ConfirmationFactValue>
+                    {pendingApproval.approval.dataDestination}
+                  </ConfirmationFactValue>
+                </ConfirmationFact>
+              )}
+              {pendingApproval.approval?.impact && (
+                <ConfirmationFact>
+                  <ConfirmationFactLabel>{t("tools.approvalImpact")}</ConfirmationFactLabel>
+                  <ConfirmationFactValue>
+                    {t(`tools.approvalImpacts.${pendingApproval.approval.impact}`)}
+                  </ConfirmationFactValue>
+                </ConfirmationFact>
+              )}
+              {pendingApproval.approval && (
+                <ConfirmationFact>
+                  <ConfirmationFactLabel>{t("tools.reversible")}</ConfirmationFactLabel>
+                  <ConfirmationFactValue>
+                    {pendingApproval.approval.reversible ? t("common.yes") : t("common.no")}
+                  </ConfirmationFactValue>
+                </ConfirmationFact>
+              )}
+              <ConfirmationFact>
+                <ConfirmationFactLabel>{t("tools.arguments")}</ConfirmationFactLabel>
+                <ConfirmationFactValue className="font-mono text-[11px] text-muted">
+                  {approvalArguments.slice(0, 500)}
+                  {approvalArguments.length > 500 ? "…" : ""}
+                </ConfirmationFactValue>
+              </ConfirmationFact>
+            </ConfirmationFacts>
+          )}
+          <ConfirmationActions>
+            <ConfirmationDenyButton
               disabled={isApprovalConversationStreaming}
               onClick={() => void denyTool()}
             >
               {t("tools.deny")}
-            </Button>
-            <Button
-              type="button"
-              variant="primary"
-              size="lg"
-              className="primary-button"
+            </ConfirmationDenyButton>
+            <ConfirmationApproveButton
               disabled={isApprovalConversationStreaming}
               onClick={() => void approveTool()}
             >
               {t("tools.approveOnce")}
-            </Button>
-          </div>
-        </div>
+            </ConfirmationApproveButton>
+          </ConfirmationActions>
+        </ConfirmationCard>
       )}
 
       {expanded && (
-        <div className="execution-details">
+        <div className="execution-details mt-1 flex flex-col gap-1">
           {toolCalls.map((call) => {
             const result = resultsByCallId.get(call.id);
             const resultText =
               result?.error === TOOL_NOT_AVAILABLE ? t("tools.notAvailable") : result?.output;
             return (
-              <details key={call.id}>
-                <summary>
-                  <span>{call.toolName}</span>
-                  <span>{t("tools.inspectStep")}</span>
+              <details
+                key={call.id}
+                className="rounded-lg border border-border bg-surface-subtle px-2.5 py-1.5 text-[12px]"
+              >
+                <summary className="flex cursor-pointer list-none items-center gap-2 text-muted select-none [&::-webkit-details-marker]:hidden">
+                  <span className="font-medium text-foreground/90">{call.toolName}</span>
+                  <span className="text-[11px]">{t("tools.inspectStep")}</span>
                 </summary>
-                <div className="execution-detail-grid">
+                <div className="execution-detail-grid mt-2 grid gap-2 md:grid-cols-2">
                   <div>
-                    <span>{t("tools.arguments")}</span>
-                    <pre>{JSON.stringify(call.arguments, null, 2)}</pre>
+                    <span className="mb-1 block text-[11px] text-muted">
+                      {t("tools.arguments")}
+                    </span>
+                    <pre className="max-h-56 overflow-auto rounded-md bg-surface-hover p-2 font-mono text-[11px] whitespace-pre-wrap">
+                      {JSON.stringify(call.arguments, null, 2)}
+                    </pre>
                   </div>
                   {result && (
                     <div>
-                      <span>{t("tools.result")}</span>
-                      <pre>{resultText}</pre>
+                      <span className="mb-1 block text-[11px] text-muted">{t("tools.result")}</span>
+                      <pre className="max-h-56 overflow-auto rounded-md bg-surface-hover p-2 font-mono text-[11px] whitespace-pre-wrap">
+                        {resultText}
+                      </pre>
                     </div>
                   )}
                 </div>
@@ -384,4 +362,39 @@ export function AgentActivity({
       )}
     </section>
   );
+}
+
+function LoaderSpinner() {
+  return (
+    <svg className="size-3.5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
+      <path
+        d="M22 12a10 10 0 0 0-10-10"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function toolStatusLabel(
+  status: ToolStatus,
+  t: (key: string) => string,
+  result: ToolResultRecord | undefined,
+): string {
+  switch (status) {
+    case "running":
+      return t("tools.executing");
+    case "waiting-approval":
+      return t("tools.permissionRequired");
+    case "denied":
+      return t("tools.denied");
+    case "completed":
+      return t("tools.success");
+    case "failed":
+      return t("tools.failed");
+    default:
+      return result ? t("tools.failed") : t("tools.queued");
+  }
 }

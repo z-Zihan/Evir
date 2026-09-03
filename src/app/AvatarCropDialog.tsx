@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import Cropper, { type Area, type Point } from "react-easy-crop";
 import { useTranslation } from "react-i18next";
 import { ImagePlus, Minus, Plus, X } from "lucide-react";
-import { Button, Dialog, DialogContent, DialogTitle, Tip } from "../components/ui";
+import { Button, Dialog, DialogContent, DialogTitle, Input, Tip } from "../components/ui";
 import { cropAvatarImage } from "./avatar-image";
 
 interface AvatarCropDialogProps {
@@ -82,7 +82,7 @@ export function AvatarCropDialog({ imageUrl, onCancel, onSave }: AvatarCropDialo
           <ImagePlus size={15} aria-hidden="true" />
           <label htmlFor="avatar-zoom">{t("personalization.zoom")}</label>
           <Minus size={13} aria-hidden="true" />
-          <input
+          <Input
             id="avatar-zoom"
             type="range"
             min={1}
@@ -105,7 +105,6 @@ export function AvatarCropDialog({ imageUrl, onCancel, onSave }: AvatarCropDialo
           <Button
             variant="primary"
             size="lg"
-            className="primary-button h-auto"
             onClick={() => void handleSave()}
             disabled={saving || !croppedArea}
           >

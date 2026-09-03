@@ -17,6 +17,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { Button, Tip } from "../components/ui";
+import { cn } from "../components/ui/utils";
 import { getRuntime } from "../runtime/use-runtime";
 import {
   runVerification,
@@ -180,36 +181,53 @@ export function AgentRunSummary({
       className={`agent-run-summary result-summary${embedded ? " agent-run-summary-embedded" : ""}`}
       open={embedded || undefined}
     >
-      <summary className="summary-header">
-        <span className={`summary-state summary-state-${record.status}`} aria-hidden="true">
+      <summary className="summary-header flex cursor-pointer list-none items-center gap-2.5 rounded-xl border border-border bg-surface px-3 py-2 select-none [&::-webkit-details-marker]:hidden">
+        <span
+          className={cn(
+            "summary-state summary-state-" + record.status,
+            "shrink-0",
+            record.status === "completed"
+              ? "text-success"
+              : record.status === "cancelled" || record.status === "rolled_back"
+                ? "text-muted"
+                : "text-warning",
+          )}
+          aria-hidden="true"
+        >
           {summaryIcon}
         </span>
-        <div>
-          <span className="summary-eyebrow">{statusLabel}</span>
-          <h3>{t("agent.runSummary")}</h3>
+        <div className="flex min-w-0 flex-col leading-tight">
+          <span className="summary-eyebrow text-[10.5px] font-medium tracking-wide text-muted uppercase">
+            {statusLabel}
+          </span>
+          <h3 className="m-0 truncate text-[12.5px] font-semibold">{t("agent.runSummary")}</h3>
         </div>
-        <span className="summary-metrics">
+        <span className="summary-metrics ml-auto hidden shrink-0 text-[11px] text-muted sm:inline">
           {t("agent.filesModified")} {changes.length}
           {outputs.length > 0 && ` · ${t("workspace.outputsCount", { count: outputs.length })}`}
           {record.durationMs !== undefined &&
             ` · ${t("agent.duration")} ${(record.durationMs / 1000).toFixed(1)}s`}
         </span>
         {maxIterationsReached && (
-          <span className="summary-warning">
+          <span className="summary-warning flex shrink-0 items-center gap-1 text-[11px] text-warning">
             <AlertTriangle size={14} />
             {t("agent.maxIterations")}
           </span>
         )}
-        <ChevronRight className="summary-chevron" size={15} aria-hidden="true" />
+        <ChevronRight
+          className="summary-chevron shrink-0 text-muted transition-transform open:rotate-90"
+          size={14}
+          aria-hidden="true"
+        />
       </summary>
-      <div className="agent-run-details">
-        <div className="result-summary-actions">
+      <div className="agent-run-details flex flex-col gap-3 px-1 pt-2.5">
+        <div className="result-summary-actions flex flex-wrap gap-2">
           {outputs.length > 0 && (
             <Button
               type="button"
               variant="primary"
               size="lg"
-              className="primary-button result-view-outputs"
+              className="result-view-outputs"
               onClick={() => openPanel("outputs")}
             >
               <PackageOpen size={14} aria-hidden="true" />
@@ -221,7 +239,7 @@ export function AgentRunSummary({
               type="button"
               variant="primary"
               size="lg"
-              className="primary-button result-review-changes"
+              className="result-review-changes"
               onClick={() => openPanel("changes")}
             >
               <GitCompareArrows size={14} aria-hidden="true" />
@@ -233,7 +251,7 @@ export function AgentRunSummary({
               type="button"
               variant="ghost-destructive"
               size="sm"
-              className="quiet-danger-button summary-rollback font-normal"
+              className="summary-rollback font-normal"
               onClick={requestRollback}
             >
               <RotateCcw size={14} />
@@ -242,8 +260,8 @@ export function AgentRunSummary({
           )}
         </div>
 
-        <div className="summary-section">
-          <h4>
+        <div className="summary-section flex flex-col gap-1.5">
+          <h4 className="m-0 flex items-center gap-1.5 text-[11.5px] font-semibold text-foreground/90">
             <FileCode2 size={15} />
             {t("workspace.changesTitle")}
             <span>{changes.length}</span>
@@ -254,7 +272,7 @@ export function AgentRunSummary({
             )}
           </h4>
           {changes.length === 0 ? (
-            <p className="summary-empty">{t("agent.none")}</p>
+            <p className="summary-empty m-0 text-[11.5px] text-muted">{t("agent.none")}</p>
           ) : (
             <ul className="result-change-list">
               {changes.map((change) => (
@@ -280,10 +298,12 @@ export function AgentRunSummary({
 
         {outputs.length > 0 && (
           <div className="summary-section">
-            <h4>
-              <ImageIcon size={15} />
+            <h4 className="m-0 flex items-center gap-1.5 text-[11.5px] font-semibold text-foreground/90">
+              <ImageIcon size={13} />
               {t("workspace.outputsTitle")}
-              <span>{outputs.length}</span>
+              <span className="rounded-full bg-surface-hover px-1.5 text-[10.5px] font-medium text-muted">
+                {outputs.length}
+              </span>
             </h4>
             <ul className="result-change-list">
               {outputs.map((output) => (
@@ -302,8 +322,8 @@ export function AgentRunSummary({
 
         {(record.verificationEvidence.length > 0 || verification) && (
           <div className="summary-section">
-            <h4>
-              <CheckCircle2 size={15} />
+            <h4 className="m-0 flex items-center gap-1.5 text-[11.5px] font-semibold text-foreground/90">
+              <CheckCircle2 size={13} />
               {t("agent.verification")}
             </h4>
             <ul className="result-verification-list">
@@ -342,10 +362,12 @@ export function AgentRunSummary({
 
           {toolResults.length > 0 && (
             <div className="summary-section">
-              <h4>
-                <Clock3 size={15} />
+              <h4 className="m-0 flex items-center gap-1.5 text-[11.5px] font-semibold text-foreground/90">
+                <Clock3 size={13} />
                 {t("agent.toolExecutions")}
-                <span>{toolResults.length}</span>
+                <span className="rounded-full bg-surface-hover px-1.5 text-[10.5px] font-medium text-muted">
+                  {toolResults.length}
+                </span>
               </h4>
               <ul>
                 {toolResults.map((result) => (
@@ -361,10 +383,12 @@ export function AgentRunSummary({
 
           {commands.length > 0 && (
             <div className="summary-section">
-              <h4>
-                <TerminalSquare size={15} />
+              <h4 className="m-0 flex items-center gap-1.5 text-[11.5px] font-semibold text-foreground/90">
+                <TerminalSquare size={13} />
                 {t("agent.commandsRun")}
-                <span>{commands.length}</span>
+                <span className="rounded-full bg-surface-hover px-1.5 text-[10.5px] font-medium text-muted">
+                  {commands.length}
+                </span>
               </h4>
               <ul>
                 {commands.map((c, i) => {
@@ -395,10 +419,12 @@ export function AgentRunSummary({
 
           {gitInfo?.isRepo && diff && diff !== "no changes" && (
             <div className="summary-section">
-              <h4>
-                <GitCompareArrows size={15} />
+              <h4 className="m-0 flex items-center gap-1.5 text-[11.5px] font-semibold text-foreground/90">
+                <GitCompareArrows size={13} />
                 {t("agent.gitChanges")}
-                <span>{gitInfo.branch}</span>
+                <span className="rounded-full bg-surface-hover px-1.5 text-[10.5px] font-medium text-muted">
+                  {gitInfo.branch}
+                </span>
               </h4>
               <details>
                 <summary>
@@ -412,10 +438,12 @@ export function AgentRunSummary({
 
           {failed.length > 0 && (
             <div className="summary-section summary-errors">
-              <h4>
-                <AlertTriangle size={15} />
+              <h4 className="m-0 flex items-center gap-1.5 text-[11.5px] font-semibold text-foreground/90">
+                <AlertTriangle size={13} />
                 {t("agent.unresolvedErrors")}
-                <span>{failed.length}</span>
+                <span className="rounded-full bg-surface-hover px-1.5 text-[10.5px] font-medium text-muted">
+                  {failed.length}
+                </span>
               </h4>
               <ul>
                 {failed.map((r, i) => (
@@ -429,8 +457,8 @@ export function AgentRunSummary({
         </details>
 
         {loading && (
-          <p className="summary-loading">
-            <LoaderCircle size={14} />
+          <p className="summary-loading m-0 flex items-center gap-1.5 text-[11.5px] text-muted">
+            <LoaderCircle size={13} className="animate-spin" />
             {t("agent.loading")}
           </p>
         )}

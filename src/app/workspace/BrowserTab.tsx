@@ -14,7 +14,7 @@ import {
   Unplug,
   X,
 } from "lucide-react";
-import { Button, Tabs, TabsList, TabsTab, Tip } from "../../components/ui";
+import { Button, Input, Tabs, TabsList, TabsTab, Tip } from "../../components/ui";
 import {
   panelAnnotate,
   panelLayoutUpdate,
@@ -395,12 +395,13 @@ export function BrowserTab() {
           >
             <Globe size={11} />
           </span>
-          <input
+          <Input
             value={address}
             onChange={(event) => setAddress(event.target.value)}
             placeholder={t("workspace.browserAddress")}
             aria-label={t("workspace.browserAddress")}
             spellCheck={false}
+            className="h-7 border-0 bg-transparent pl-7 text-[12px] focus-visible:border-0 focus-visible:outline-none"
           />
         </form>
         <Tip content={t("workspace.newTab")} side="bottom">
@@ -464,7 +465,7 @@ export function BrowserTab() {
                 </span>
                 <button
                   type="button"
-                  className="tab-pill-close"
+                  className="tab-pill-close grid size-4 shrink-0 cursor-pointer place-items-center rounded-full text-muted transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
                   aria-label={t("workspace.closeTab")}
                   onClick={(event) => {
                     // Close must not bubble into the owning tab's activation.
@@ -554,7 +555,7 @@ export function BrowserTab() {
                 <Tip key={output.id} content={output.path}>
                   <button
                     type="button"
-                    className="devserver-screenshot-chip"
+                    className="devserver-screenshot-chip inline-flex h-6 cursor-pointer items-center gap-1 rounded-full border border-border bg-surface px-2 text-[11px] text-muted transition-colors select-none hover:border-border-strong hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
                     onClick={() =>
                       useWorkspacePanelStore
                         .getState()

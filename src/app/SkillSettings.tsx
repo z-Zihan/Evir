@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BookOpenText, FileUp, Plus, Search, ShieldCheck, Trash2, X } from "lucide-react";
-import { Button, Switch, Tip } from "../components/ui";
+import { Button, Input, Switch, Textarea, Tip } from "../components/ui";
 import { useSkillStore } from "../features/skills/skill-store";
 import type { SkillManifest, SkillRiskLevel } from "../core/skills/types";
 import { useConfirmationDialog } from "./useConfirmationDialog";
@@ -180,7 +180,7 @@ export function SkillSettings() {
         <div className="skill-toolbar">
           <label className="skill-filter-search">
             <Search size={14} aria-hidden="true" />
-            <input
+            <Input
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder={t("skill.search")}
@@ -188,6 +188,7 @@ export function SkillSettings() {
             />
           </label>
           <select
+            className="form-select h-8 rounded-lg border border-border bg-surface px-2.5 text-[12.5px] focus-visible:border-primary focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
             value={categoryFilter}
             onChange={(event) => setCategoryFilter(event.target.value)}
             aria-label={t("skill.filterCategory")}
@@ -206,19 +207,13 @@ export function SkillSettings() {
             className="hidden"
             onChange={(e) => void handleFileChange(e)}
           />
-          <Button
-            variant="secondary"
-            size="lg"
-            className="secondary-button h-auto"
-            onClick={() => fileInputRef.current?.click()}
-          >
+          <Button variant="secondary" size="lg" onClick={() => fileInputRef.current?.click()}>
             <FileUp size={14} aria-hidden="true" />
             {t("skill.installFromFile")}
           </Button>
           <Button
             variant={showCreate ? "secondary" : "primary"}
             size="lg"
-            className={`h-auto ${showCreate ? "secondary-button" : "primary-button"}`}
             onClick={() => setShowCreate(!showCreate)}
           >
             {showCreate ? (
@@ -249,7 +244,7 @@ export function SkillSettings() {
           <div className="skill-create-fields">
             <label>
               <span>{t("skill.name")}</span>
-              <input
+              <Input
                 placeholder={t("skill.namePlaceholder")}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -257,7 +252,7 @@ export function SkillSettings() {
             </label>
             <label>
               <span>{t("skill.description")}</span>
-              <input
+              <Input
                 placeholder={t("skill.descPlaceholder")}
                 value={desc}
                 onChange={(e) => setDesc(e.target.value)}
@@ -265,7 +260,7 @@ export function SkillSettings() {
             </label>
             <label>
               <span>{t("skill.category")}</span>
-              <input
+              <Input
                 list="skill-category-options"
                 value={category}
                 onChange={(event) => setCategory(event.target.value)}
@@ -281,7 +276,7 @@ export function SkillSettings() {
             </label>
             <label className="skill-instructions-field">
               <span>{t("skill.instructions")}</span>
-              <textarea
+              <Textarea
                 placeholder={t("skill.contentPlaceholder")}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}

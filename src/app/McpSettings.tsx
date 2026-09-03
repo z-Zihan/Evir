@@ -11,7 +11,7 @@ import {
   Terminal,
   Trash2,
 } from "lucide-react";
-import { Button, Switch, Tip } from "../components/ui";
+import { Button, Input, Switch, Textarea, Tip } from "../components/ui";
 import type { McpTool, McpTransport } from "../core/mcp/types";
 import type { ToolResult } from "../core/providers/tool-registry";
 import { useMcpStore, type McpServerEntry } from "../features/mcp/mcp-store";
@@ -249,7 +249,7 @@ export function McpSettings() {
           <span className="settings-count-badge">
             {t("mcp.serverSummary", { enabled: enabledCount, total: servers.length })}
           </span>
-          <Button variant="primary" size="lg" className="primary-button h-auto" onClick={openAdd}>
+          <Button variant="primary" size="lg" onClick={openAdd}>
             <Plus size={14} /> {t("mcp.add")}
           </Button>
         </div>
@@ -382,7 +382,7 @@ export function McpSettings() {
                                   </details>
                                   <label>
                                     <span>{t("mcp.testArguments")}</span>
-                                    <textarea
+                                    <Textarea
                                       value={test.input}
                                       aria-invalid={Boolean(test.error)}
                                       autoCapitalize="off"
@@ -405,7 +405,6 @@ export function McpSettings() {
                                   <Button
                                     variant="secondary"
                                     size="lg"
-                                    className="secondary-button h-auto"
                                     disabled={test.running}
                                     onClick={() => requestToolTest(server, tool)}
                                   >
@@ -551,7 +550,7 @@ export function McpSettings() {
                 <span>
                   {t("mcp.name")} <em>*</em>
                 </span>
-                <input
+                <Input
                   autoFocus
                   value={form.name}
                   aria-invalid={Boolean(errors.name)}
@@ -566,7 +565,7 @@ export function McpSettings() {
                     <span>
                       {t("mcp.command")} <em>*</em>
                     </span>
-                    <input
+                    <Input
                       value={form.command}
                       aria-invalid={Boolean(errors.command)}
                       onChange={(event) => update("command", event.target.value)}
@@ -576,7 +575,7 @@ export function McpSettings() {
                   </label>
                   <label>
                     <span>{t("mcp.arguments")}</span>
-                    <input
+                    <Input
                       value={form.args}
                       onChange={(event) => update("args", event.target.value)}
                       placeholder="-y, @modelcontextprotocol/server-filesystem"
@@ -585,7 +584,7 @@ export function McpSettings() {
                   </label>
                   <label>
                     <span>{t("mcp.workingDirectory")}</span>
-                    <input
+                    <Input
                       value={form.cwd}
                       onChange={(event) => update("cwd", event.target.value)}
                       placeholder="/optional/cwd"
@@ -597,7 +596,7 @@ export function McpSettings() {
                   <span>
                     {t("mcp.url")} <em>*</em>
                   </span>
-                  <input
+                  <Input
                     value={form.url}
                     aria-invalid={Boolean(errors.url)}
                     onChange={(event) => update("url", event.target.value)}
