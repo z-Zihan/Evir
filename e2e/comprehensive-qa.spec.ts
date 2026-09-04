@@ -2,8 +2,13 @@ import { expect, test, type Page } from "@playwright/test";
 import { configurePage, FIXED_NOW, isDesktop, seedFixture, type SeedMessage } from "./helpers";
 
 async function send(page: Page, prompt: string): Promise<void> {
+  // §40 queue era: a send while a run is winding down queues instead of
+  // sending — wait for the composer to be idle so each scripted message
+  // streams on its own.
+  const sendButton = page.getByRole("button", { name: "Send", exact: true });
+  await expect(sendButton).toBeEnabled();
   await page.locator("textarea").fill(prompt);
-  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await sendButton.click();
 }
 
 test("every reachable settings page opens and key preferences persist", async ({ page }) => {
