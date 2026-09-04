@@ -663,7 +663,7 @@ test("interrupted Desktop run can be dismissed without replaying tools", async (
   await expect(page.getByRole("status")).toHaveCount(0);
 });
 
-test("legacy workspace keeps project modes available without the removed selector", async ({
+test("project threads expose Plan/Goal modes through the slash palette", async ({
   page,
 }, testInfo) => {
   test.skip(!isDesktop(testInfo), "Desktop workspace UI only");
@@ -673,15 +673,71 @@ test("legacy workspace keeps project modes available without the removed selecto
     localStorage.setItem("evir-workspace-current", "/tmp/evir-fixture");
   });
   await seedFixture(page);
-  // The composer no longer selects folders; the legacy workspace still scopes modes.
-  await expect(page.locator(".workspace-selector")).toHaveCount(0);
-  const composer = page.locator(".composer");
-  // The CSS tooltip round merges data-tip into accessible names, so anchor
-  // the match instead of requiring an exact "Plan" name.
-  await expect(composer.getByRole("button", { name: /^Plan/ })).toBeVisible();
-  await expect(composer.getByRole("button", { name: /^Goal/ })).toBeVisible();
+  // Modes live in the `/` palette now (mode pills were removed from the
+  // composer): a project thread offers them, a standalone chat does not.
+  const now = Date.now();
+  await page.evaluate(async (stamp) => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const profile = localStorage.getItem("evir:active-profile");
+      const request = indexedDB.open(`evir:${profile && profile.length > 0 ? profile : "default"}`);
+      request.onerror = () => reject(request.error ?? new Error("Unable to open Evir test DB"));
+      request.onsuccess = () => resolve(request.result);
+    });
+    const transaction = database.transaction(["projects", "conversations"], "readwrite");
+    transaction.objectStore("projects").put({
+      id: "fixture-project",
+      displayName: "Fixture Project",
+      nameIsCustom: false,
+      rootPath: "/tmp/evir-fixture",
+      canonicalRootPath: "/tmp/evir-fixture",
+      permissionProfile: "ask",
+      additionalAccessRoots: [],
+      createdAt: stamp,
+      updatedAt: stamp,
+      lastOpenedAt: stamp,
+    });
+    transaction.objectStore("conversations").put({
+      id: "fixture-project-thread",
+      title: "Project thread",
+      projectId: "fixture-project",
+      providerId: "fixture-provider",
+      modelId: "evir-fixture-model",
+      createdAt: stamp,
+      updatedAt: stamp,
+    });
+    await new Promise<void>((resolve, reject) => {
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () =>
+        reject(transaction.error ?? new Error("Unable to seed Evir test DB"));
+    });
+    database.close();
+  }, now);
   await page.reload();
-  await expect(composer.getByRole("button", { name: /^Agent/ })).toHaveCount(0);
+  // Projects start collapsed: expand via the chevron, then open the thread.
+  await page
+    .locator(".project-row", { hasText: "Fixture Project" })
+    .getByRole("button", { name: "Expand project" })
+    .click();
+  await page.locator(".conversation-item", { hasText: "Project thread" }).click();
+
+  const composer = page.locator("textarea");
+  await composer.fill("/");
+  const palette = page.locator(".slash-palette");
+  await expect(palette).toBeVisible();
+  await expect(palette.getByText("/plan", { exact: true })).toBeVisible();
+  await expect(palette.getByText("/goal", { exact: true })).toBeVisible();
+  await expect(palette.getByText("/agent", { exact: true })).toBeVisible();
+  await composer.press("Escape");
+  // Escape dismisses the palette while keeping the "/" draft — clear it so
+  // the next conversation starts with the palette enabled again.
+  await composer.fill("");
+
+  // Standalone chats are always Ask: the Modes group disappears entirely.
+  await page.getByRole("button", { name: "New chat", exact: true }).click();
+  await composer.fill("/");
+  await expect(page.locator(".slash-palette")).toBeVisible();
+  await expect(page.locator(".slash-palette").getByText("/plan", { exact: true })).toHaveCount(0);
+  await expect(page.locator(".slash-palette").getByText("/goal", { exact: true })).toHaveCount(0);
 });
 
 test("a text-only model can still chat in a project without exposing project tools", async ({
@@ -723,8 +779,14 @@ test("a text-only model can still chat in a project without exposing project too
 
   const composer = page.locator(".composer");
   await expect(composer).toContainText("This model can chat, but cannot use project tools.");
-  await expect(composer.getByRole("button", { name: "Plan", exact: true })).toHaveCount(0);
-  await expect(composer.getByRole("button", { name: "Goal", exact: true })).toHaveCount(0);
+  // A text-only model cannot run Plan/Goal/Agent — the palette's Modes group
+  // stays hidden even in a project thread.
+  await composer.locator("textarea").fill("/");
+  const palette = page.locator(".slash-palette");
+  await expect(palette).toBeVisible();
+  await expect(palette.getByText("/plan", { exact: true })).toHaveCount(0);
+  await expect(palette.getByText("/goal", { exact: true })).toHaveCount(0);
+  await composer.press("Escape");
   await composer.locator("textarea").fill("Explain JavaScript closures without using tools");
   await composer.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.getByText(/Deterministic fixture response/)).toBeVisible();

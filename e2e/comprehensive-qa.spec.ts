@@ -13,7 +13,7 @@ test("every reachable settings page opens and key preferences persist", async ({
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const pages = [
     ["Model providers", "Model providers"],
-    ["Local identity", "Local identity"],
+    ["Users", "Local profiles on this device"],
     ["Personalization", "Personalization"],
     ["Switch theme", "Switch theme"],
     ["Language", "Language"],
@@ -27,18 +27,20 @@ test("every reachable settings page opens and key preferences persist", async ({
   ] as const;
   for (const [button, heading] of pages) {
     await page.getByRole("button", { name: button, exact: true }).click();
-    await expect(page.getByRole("heading", { name: heading, exact: true }).last()).toBeVisible();
+    // Most pages assert a heading; the Users panel leads with its eyebrow
+    // text instead — a visible-text check covers both.
+    await expect(page.getByText(heading, { exact: true }).first()).toBeVisible();
   }
 
   await page.getByRole("button", { name: "Switch theme", exact: true }).click();
-  await page.getByRole("button", { name: /^Dark / }).click();
+  await page.getByRole("button", { name: "Dark", exact: true }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await page.getByRole("button", { name: "Language", exact: true }).click();
-  await page.getByRole("button", { name: /^Chinese / }).click();
+  await page.getByRole("button", { name: "Chinese", exact: true }).click();
   await expect(page.getByRole("heading", { name: "语言", exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByRole("button", { name: "设置", exact: true })).toBeVisible();
@@ -64,7 +66,7 @@ test("message boundary corpus and 500 messages remain contained", async ({ page 
   }));
   await seedFixture(page, { messages });
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.locator(".message-list article")).toHaveCount(500);
+  await expect(page.locator(".message-list .message-row")).toHaveCount(500);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await expect(page.locator("table").last()).toBeVisible();
   await expect(page.locator("pre code").last()).toBeVisible();
@@ -170,15 +172,14 @@ test("Desktop project modes expose Plan and Goal without an Agent selector", asy
     localStorage.setItem("evir-workspace-current", "/tmp/evir-fixture");
   });
   await seedFixture(page);
+  const composer = page.locator("textarea");
+  await composer.fill("/");
+  const palette = page.locator(".slash-palette");
+  await expect(palette).toBeVisible();
+  // Plan and Goal are offered through the palette; there is no Agent pill.
+  await expect(palette.getByText("/plan", { exact: true })).toBeVisible();
+  await expect(palette.getByText("/goal", { exact: true })).toBeVisible();
   await expect(page.getByText("Agent", { exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: "Plan", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Plan", exact: true })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
-  await page.getByRole("button", { name: "Goal", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Goal", exact: true })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await palette.getByText("/plan", { exact: true }).click();
+  await expect(page.locator(".slash-palette")).toHaveCount(0);
 });

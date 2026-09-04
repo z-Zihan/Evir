@@ -1,7 +1,12 @@
 // @vitest-environment jsdom
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SlashPalette, type SlashActionId, type SlashCapabilities, type SlashPaletteHandle } from "../SlashPalette";
+import {
+  SlashPalette,
+  type SlashActionId,
+  type SlashCapabilities,
+  type SlashPaletteHandle,
+} from "../SlashPalette";
 import type { InstalledSkill } from "../../core/skills/types";
 import { usePluginContributionStore } from "../../features/plugins/plugin-contributions";
 
@@ -53,6 +58,7 @@ vi.mock("react-i18next", () => ({
 
 const ALL_CAPABILITIES: SlashCapabilities = {
   desktop: true,
+  toolCalling: true,
   canCompact: true,
   hasOutputs: true,
   hasTrace: true,
@@ -179,12 +185,15 @@ describe("SlashPalette action center (shadcn Command)", () => {
     mountPalette({
       capabilities: {
         desktop: false,
+        toolCalling: false,
         canCompact: false,
         hasOutputs: false,
         hasTrace: false,
         hasProjectRoot: false,
       },
     });
+    expect(itemLabels()).not.toContain("/plan");
+    expect(itemLabels()).not.toContain("/goal");
     const labels = itemLabels();
     // No panel/browser/canvas/trace/compact/recent actions on a bare web chat.
     expect(labels).not.toContain("/compact");

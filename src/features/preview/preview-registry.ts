@@ -154,6 +154,17 @@ function looksLikeDiff(source: ArtifactSource): boolean {
 
 const DESCRIPTORS: readonly PreviewRendererDescriptor[] = [
   {
+    id: "markdown",
+    label: "Markdown",
+    fenceLanguages: ["markdown", "md", "mdown"],
+    extensions: ["md", "markdown", "mkd", "mdown"],
+    mimeTypes: ["text/markdown", "text/x-markdown"],
+    priority: 28,
+    trustLevel: "SAFE_TEXT",
+    supportsStreaming: false,
+    canPreview: (source) => source.language === "markdown" || source.language === "md",
+  },
+  {
     id: "html",
     label: "HTML",
     fenceLanguages: ["html"],

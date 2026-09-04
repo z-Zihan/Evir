@@ -235,3 +235,64 @@ describe("trace store retention (§27)", () => {
     expect(remaining.length).toBeLessThanOrEqual(TRACE_MAX_RECORDS);
   });
 });
+
+describe("TraceRecorder visible output sample (§27)", () => {
+  it("captures bounded, ordered segments of the visible text stream", () => {
+    const trace = beginTrace("conversation-visible");
+    advance(50);
+    trace.appendVisibleText("Hello ");
+    advance(10);
+    trace.appendVisibleText("world");
+    completeTrace("conversation-visible", "completed");
+
+    const visible = trace.snapshot().visibleOutput;
+    expect(visible).toBeDefined();
+    expect(visible?.segments.map((segment) => segment.text).join("")).toBe("Hello world");
+    expect(visible?.totalChars).toBe("Hello world".length);
+    expect(visible?.truncated).toBe(false);
+    expect(visible?.segments[0]?.at).toBe(50);
+    // The persisted record passes schema validation (segment caps included).
+    expect(() => traceRecordSchema.parse(trace.snapshot())).not.toThrow();
+  });
+
+  it("redacts secret-shaped strings before storage", () => {
+    const trace = beginTrace("conversation-redact");
+    trace.appendVisibleText("key sk-abcdefghijklmnop1234 leaked");
+    completeTrace("conversation-redact", "completed");
+
+    const visible = trace.snapshot().visibleOutput;
+    const joined = visible?.segments.map((segment) => segment.text).join("") ?? "";
+    expect(joined).not.toContain("sk-abcdefghijklmnop1234");
+    expect(joined).toContain("[REDACTED]");
+  });
+
+  it("enforces segment and total caps and flags truncation", async () => {
+    const { MAX_VISIBLE_SEGMENTS, MAX_VISIBLE_SEGMENT_CHARS, MAX_VISIBLE_TOTAL_CHARS } =
+      await import("../trace-types");
+    const trace = beginTrace("conversation-caps");
+    // Far more content than the caps allow.
+    for (let index = 0; index < 200; index += 1) {
+      trace.appendVisibleText("x".repeat(50));
+    }
+    completeTrace("conversation-caps", "completed");
+
+    const visible = trace.snapshot().visibleOutput;
+    expect(visible?.segments.length).toBeLessThanOrEqual(MAX_VISIBLE_SEGMENTS);
+    for (const segment of visible?.segments ?? []) {
+      expect(segment.text.length).toBeLessThanOrEqual(MAX_VISIBLE_SEGMENT_CHARS);
+    }
+    const stored =
+      visible?.segments.reduce((total, segment) => total + segment.text.length, 0) ?? 0;
+    expect(stored).toBeLessThanOrEqual(MAX_VISIBLE_TOTAL_CHARS);
+    expect(visible?.truncated).toBe(true);
+    expect(visible?.totalChars).toBe(200 * 50);
+    expect(() => traceRecordSchema.parse(trace.snapshot())).not.toThrow();
+  });
+
+  it("never appears when no visible text streamed", () => {
+    const trace = beginTrace("conversation-silent");
+    trace.recordDelta("tool-call-arguments", 12);
+    completeTrace("conversation-silent", "completed");
+    expect(trace.snapshot().visibleOutput).toBeUndefined();
+  });
+});

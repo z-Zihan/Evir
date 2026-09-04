@@ -15,7 +15,11 @@ import { copyTextWithFeedback } from "../../components/feedback";
 import { openExternal } from "../../features/browser/workbench-service";
 import { logger } from "../../core/logging/logger";
 import { useConfirmationDialog } from "../useConfirmationDialog";
-import { appPreviewStatus, openUrlInPanelBrowser, type DevServerUiController } from "./use-dev-server-ui";
+import {
+  appPreviewStatus,
+  openUrlInPanelBrowser,
+  type DevServerUiController,
+} from "./use-dev-server-ui";
 import type { ProjectRecord } from "../../core/storage/db";
 
 /**
@@ -47,7 +51,10 @@ export function AppPreviewCard({
   // Starting a dev server runs a project script: ask-profile projects confirm
   // first with the exact command line (§44 consent).
   const beginStart = () => {
-    logger.info("ui", "ui.app-preview.start", { actionId: crypto.randomUUID(), projectId: project?.id });
+    logger.info("ui", "ui.app-preview.start", {
+      actionId: crypto.randomUUID(),
+      projectId: project?.id,
+    });
     if (!project) return;
     if (project.permissionProfile === "ask") {
       requestConfirmation(
@@ -78,7 +85,12 @@ export function AppPreviewCard({
     <>
       {status === "idle" || status === "stopped" || status === "error" ? (
         controller.plan && (
-          <Button variant={variant === "full" ? "primary" : "secondary"} size={variant === "full" ? "lg" : "sm"} disabled={controller.starting} onClick={beginStart}>
+          <Button
+            variant={variant === "full" ? "primary" : "secondary"}
+            size={variant === "full" ? "lg" : "sm"}
+            disabled={controller.starting}
+            onClick={beginStart}
+          >
             {controller.starting ? (
               <LoaderCircle size={13} className="spin" aria-hidden="true" />
             ) : (
@@ -93,7 +105,11 @@ export function AppPreviewCard({
         )
       ) : (
         <>
-          <Button variant="secondary" size={variant === "full" ? "lg" : "sm"} onClick={() => void controller.stop()}>
+          <Button
+            variant="secondary"
+            size={variant === "full" ? "lg" : "sm"}
+            onClick={() => void controller.stop()}
+          >
             <Square size={12} aria-hidden="true" />
             {t("workspace.devServer.stop")}
           </Button>
@@ -164,7 +180,10 @@ export function AppPreviewCard({
     return (
       <div className="app-preview-compact flex flex-col gap-1.5">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className={`app-preview-dot inline-block size-2 shrink-0 rounded-full ${dotClass}`} aria-hidden="true" />
+          <span
+            className={`app-preview-dot inline-block size-2 shrink-0 rounded-full ${dotClass}`}
+            aria-hidden="true"
+          />
           <span className="text-[11.5px] font-medium text-foreground">{statusLabel}</span>
           {url && (
             <button
@@ -200,7 +219,10 @@ export function AppPreviewCard({
       <div className="app-preview-copy">
         <h3>{t("workspace.previewApp.title")}</h3>
         <p className="app-preview-state">
-          <span className={`app-preview-dot inline-block size-2 rounded-full ${dotClass}`} aria-hidden="true" />{" "}
+          <span
+            className={`app-preview-dot inline-block size-2 rounded-full ${dotClass}`}
+            aria-hidden="true"
+          />{" "}
           {statusLabel}
           {url ? ` · ${url}` : ""}
           {startedAt && status !== "idle"

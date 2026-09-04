@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
+import { loadShikiLanguage, resolveShikiLanguage } from "./shiki-languages";
 
 /**
  * Shiki singleton holder. The highlighter is created once with both themes and
- * an empty language set; grammars are lazy-loaded per language so the initial
- * bundle stays small. Unknown languages fall back to plain text.
+ * an empty language set; grammars lazy-load per language from the curated
+ * registry (shiki-languages.ts) so neither the initial bundle nor the shipped
+ * chunk set carries the full ~200-grammar web bundle. Same oniguruma engine
+ * as before — tokenization is unchanged. Unknown languages fall back to text.
  */
-type ShikiHighlighter = Awaited<
-  ReturnType<(typeof import("shiki/bundle/web"))["createHighlighter"]>
->;
+type ShikiHighlighter = Awaited<ReturnType<(typeof import("shiki/core"))["createHighlighterCore"]>>;
 
 let highlighterPromise: Promise<ShikiHighlighter> | null = null;
 const loadedLanguages = new Set<string>();
@@ -20,23 +21,32 @@ export const DARK_THEME = "github-dark";
 export const PLAIN_LANGUAGES = new Set(["txt", "text", "plaintext", "plain", "log", ""]);
 
 function getHighlighter(): Promise<ShikiHighlighter> {
-  highlighterPromise ??= import("shiki/bundle/web").then(({ createHighlighter }) =>
-    createHighlighter({ themes: [LIGHT_THEME, DARK_THEME], langs: [] }),
+  highlighterPromise ??= Promise.all([
+    import("shiki/core"),
+    import("shiki/engine/oniguruma"),
+    import("shiki/wasm"),
+    import("shiki/themes/github-light.mjs"),
+    import("shiki/themes/github-dark.mjs"),
+  ]).then(
+    ([{ createHighlighterCore }, { createOnigurumaEngine }, { default: wasm }, light, dark]) =>
+      createHighlighterCore({
+        engine: createOnigurumaEngine(() => Promise.resolve(wasm)),
+        themes: [light.default, dark.default],
+        langs: [],
+      }),
   );
   return highlighterPromise;
 }
 
 async function ensureLanguage(highlighter: ShikiHighlighter, language: string): Promise<string> {
   if (PLAIN_LANGUAGES.has(language) || language === "ansi") return "text";
-  if (loadedLanguages.has(language)) return language;
-  const { bundledLanguages, bundledLanguagesAlias } = await import("shiki/bundle/web");
-  const resolved =
-    bundledLanguages[language as keyof typeof bundledLanguages] ??
-    bundledLanguagesAlias[language as keyof typeof bundledLanguagesAlias];
+  const resolved = resolveShikiLanguage(language);
   if (!resolved) return "text";
-  await highlighter.loadLanguage(resolved);
-  loadedLanguages.add(language);
-  return language;
+  if (loadedLanguages.has(resolved)) return resolved;
+  const grammar = await loadShikiLanguage(resolved);
+  await highlighter.loadLanguage(grammar.default);
+  loadedLanguages.add(resolved);
+  return resolved;
 }
 
 interface HighlightRequest {

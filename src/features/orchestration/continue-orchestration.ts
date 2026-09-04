@@ -1,14 +1,33 @@
 import { getRuntime } from "../../runtime/use-runtime";
-import { useChatStore } from "../chat/chat-store";
-import { executePreparedStream } from "../chat/send-message";
 import { approveCurrentPlan, submitClarifications } from "./orchestration-session";
 import { useOrchestrationStore } from "./orchestration-store";
 import { useProviderStore } from "../provider/provider-store";
 import { ModelPlanGenerator } from "./model-plan-generator";
 import { slotFor } from "../chat/stream-ownership";
+import type { ChatState } from "../chat/chat-contracts";
+
+// The chat-store / send-message imports are deliberately dynamic: this module
+// sits at the orchestration→chat continuation edge, and static imports here
+// close the chat-store ⇄ send-message ⇄ tool-approval ⇄ orchestration cycle
+// (§circular-dependency governance).
+type ChatStoreApi = {
+  getState: () => ChatState & {
+    messages: ChatState["messages"];
+    selectedSkillIds: ChatState["selectedSkillIds"];
+    privateSession: boolean;
+    currentConversationId: string | null;
+  };
+  setState: (partial: Partial<ChatState> | ((state: ChatState) => Partial<ChatState>)) => void;
+};
+
+async function chatStore(): Promise<ChatStoreApi> {
+  const { useChatStore } = await import("../chat/chat-store");
+  return useChatStore;
+}
 
 export async function continueCurrentExecution(conversationId?: string): Promise<void> {
-  const chat = useChatStore.getState();
+  const store = await chatStore();
+  const chat = store.getState();
   const current = useOrchestrationStore
     .getState()
     .snapshotFor(conversationId ?? chat.currentConversationId);
@@ -20,9 +39,10 @@ export async function continueCurrentExecution(conversationId?: string): Promise
     chat.currentConversationId === current.conversationId
       ? chat.messages
       : await loadHistoryFor(current.conversationId);
+  const { executePreparedStream } = await import("../chat/send-message");
   await executePreparedStream(
-    useChatStore.setState,
-    useChatStore.getState,
+    store.setState,
+    store.getState,
     history,
     current.conversationId,
     chat.selectedSkillIds,
@@ -31,9 +51,9 @@ export async function continueCurrentExecution(conversationId?: string): Promise
 
 async function loadHistoryFor(conversationId: string) {
   const { getStructuredStorage } = await import("../../runtime/structured-storage");
-  const messages = await getStructuredStorage().query<
-    ReturnType<typeof useChatStore.getState>["messages"][number]
-  >("messages", { conversationId });
+  const messages = await getStructuredStorage().query<ChatState["messages"][number]>("messages", {
+    conversationId,
+  });
   messages.sort((a, b) => a.createdAt - b.createdAt);
   return messages;
 }
@@ -41,7 +61,7 @@ async function loadHistoryFor(conversationId: string) {
 export async function answerCurrentClarifications(
   answers: Readonly<Record<string, string>>,
 ): Promise<void> {
-  const chat = useChatStore.getState();
+  const chat = (await chatStore()).getState();
   const provider = useProviderStore.getState().getDefaultProvider();
   const conversationId = useOrchestrationStore.getState().current?.conversationId ?? undefined;
   const result = await submitClarifications(
@@ -55,7 +75,7 @@ export async function answerCurrentClarifications(
 }
 
 export async function confirmCurrentPlan(): Promise<void> {
-  const chat = useChatStore.getState();
+  const chat = (await chatStore()).getState();
   const conversationId = useOrchestrationStore.getState().current?.conversationId ?? undefined;
   if (await approveCurrentPlan(getRuntime(), chat.privateSession, conversationId))
     await continueCurrentExecution(conversationId);

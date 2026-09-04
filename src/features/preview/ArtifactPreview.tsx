@@ -33,6 +33,9 @@ const DiffPreview = lazy(() =>
 const PdfPreview = lazy(() =>
   import("./renderers/PdfPreview").then((m) => ({ default: m.PdfPreview })),
 );
+const MarkdownPreview = lazy(() =>
+  import("./renderers/MarkdownPreview").then((m) => ({ default: m.MarkdownPreview })),
+);
 
 export interface ArtifactPreviewProps {
   rendererId: PreviewRendererId;
@@ -69,6 +72,8 @@ function RendererBody({ rendererId, source, data }: ArtifactPreviewProps) {
       return <VegaPreview source={source} mode="vega-lite" />;
     case "diff":
       return <DiffPreview source={source} />;
+    case "markdown":
+      return <MarkdownPreview source={source} />;
     case "pdf":
       return data ? <PdfPreview data={data} /> : null;
     default:

@@ -107,18 +107,23 @@ export function ChatComposer({
   const queuedInput = useChatStore((state) =>
     currentConversationId ? (state.queuedInputs?.[currentConversationId] ?? null) : null,
   );
-  // §40 auto-drain: when this conversation's run settles, the queued
-  // follow-up sends itself without another round-trip through the user.
-  const wasStreaming = useRef(streaming);
+  // §40 auto-drain: when this conversation is idle, any queued follow-up
+  // sends itself without another round-trip through the user. Draining on the
+  // idle state (not only the streaming→idle transition) also covers the race
+  // where the run settles before the queue write lands; the drain ref guards
+  // against double-sends (StrictMode, effect re-runs).
+  const drainedRef = useRef<string | null>(null);
   useEffect(() => {
-    if (wasStreaming.current && !streaming && queuedInput) {
+    if (!streaming && queuedInput && drainedRef.current !== queuedInput) {
+      drainedRef.current = queuedInput;
       void useChatStore
         .getState()
         .sendMessage(queuedInput)
         .then(() => useChatStore.getState().clearQueuedMessage(currentConversationId ?? ""))
-        .catch(() => undefined);
+        .catch(() => {
+          drainedRef.current = null;
+        });
     }
-    wasStreaming.current = streaming;
   }, [streaming, queuedInput, currentConversationId]);
   const contextResource = useWorkspacePanelStore((state) =>
     state.open && state.activeTab === "preview" ? state.activeResource : null,
@@ -248,7 +253,7 @@ export function ChatComposer({
                 att.type === "image" ? (
                   <span
                     key={att.id}
-                    className="inline-flex max-w-[220px] items-center gap-1.5 rounded-md border border-border bg-surface-hover py-1 pr-1 pl-2 text-[11.5px] text-foreground"
+                    className="pending-attachment-chip inline-flex max-w-[220px] items-center gap-1.5 rounded-md border border-border bg-surface-hover py-1 pr-1 pl-2 text-[11.5px] text-foreground"
                   >
                     <img
                       src={att.data}
@@ -264,7 +269,7 @@ export function ChatComposer({
                 ) : (
                   <span
                     key={att.id}
-                    className="inline-flex max-w-[220px] items-center gap-1.5 rounded-md border border-border bg-surface-hover py-1 pr-1 pl-2 text-[11.5px] text-foreground"
+                    className="pending-attachment-chip inline-flex max-w-[220px] items-center gap-1.5 rounded-md border border-border bg-surface-hover py-1 pr-1 pl-2 text-[11.5px] text-foreground"
                   >
                     <span className="truncate">{att.fileName}</span>
                     <RemoveChipButton
@@ -308,6 +313,11 @@ export function ChatComposer({
                 setSlashDismissed(false);
               }}
             />
+          )}
+          {projectScoped && !isWebTarget && !slashCapabilities.toolCalling && (
+            <p className="composer-no-toolcalling px-3 pt-2.5 text-[11px] text-muted">
+              {t("chat.noToolCalling")}
+            </p>
           )}
           {(contextResource || contextBrowserUrl) && (
             <div

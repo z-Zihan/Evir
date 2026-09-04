@@ -430,9 +430,7 @@ export function BrowserTab() {
             className="disabled:opacity-35"
             disabled={!activeTab}
             aria-label={t("browser.openExternal")}
-            onClick={() =>
-              activeTab && void openExternal(activeTab.url).catch(() => undefined)
-            }
+            onClick={() => activeTab && void openExternal(activeTab.url).catch(() => undefined)}
           >
             <ExternalLink size={14} aria-hidden="true" />
           </Button>

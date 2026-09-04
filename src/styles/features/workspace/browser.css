@@ -219,3 +219,25 @@
   background: var(--surface-hover);
   color: inherit;
 }
+
+/* ===== §15 compact App Preview card in the browser footer ===== */
+
+.workspace-devserver-card .app-preview-compact {
+  width: 100%;
+}
+
+/* Output row hover actions (§22): quiet until the row is hovered/focused. */
+.workspace-output-actions {
+  visibility: hidden;
+}
+
+.workspace-output-row-primary:hover .workspace-output-actions,
+.workspace-output-row-primary:focus-within .workspace-output-actions {
+  visibility: visible;
+}
+
+@media (hover: none) {
+  .workspace-output-actions {
+    visibility: visible;
+  }
+}

@@ -4,7 +4,6 @@ import {
   lazy,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -39,13 +38,7 @@ import {
   useTraceDialogStore,
   useTraceForMessage,
 } from "../features/tracing/trace-store";
-import { useRunWorkspaceStore } from "../features/workspace/workspace-run-store";
-import { useActiveWorkspaceRoot } from "../features/workspace/workspace-bridge";
-import { openTaskOutput } from "../features/workspace/task-output-resource";
-import { writeTextFile } from "../features/workspace/workspace-services";
-import { createCanvasDocument, serializeCanvasDocument } from "../features/canvas/canvas-document";
-import { notify } from "../components/feedback";
-import type { SlashActionId, SlashCapabilities } from "./SlashPalette";
+import { useSlashActions } from "./chat/use-slash-actions";
 import type { SettingsTab } from "./SettingsModal";
 import { useLocalIdentity } from "./chat/use-local-identity";
 import { useConversationStatusIndex } from "./useConversationStatus";
@@ -331,111 +324,18 @@ export function ChatView({
 
   const localUserName = localDisplayName || t("chat.localUser");
 
-  // Slash action center (§4-8): availability flags and the non-mode action
-  // handlers the composer forwards here. The palette itself stays
-  // presentational and executes through `handleSlashAction`.
-  const workspaceRoot = useActiveWorkspaceRoot();
-  const outputs = useRunWorkspaceStore((state) => state.outputs);
-  const traceIdByMessage = useTraceStore((state) => state.traceIdByMessage);
-  const lastAssistantMessageId = useMemo(() => {
-    for (let index = messages.length - 1; index >= 0; index -= 1) {
-      const message = messages[index];
-      if (message?.role === "assistant") return message.id;
-    }
-    return null;
-  }, [messages]);
-  const slashCapabilities: SlashCapabilities = {
-    desktop: runtime.target === "desktop",
-    canCompact: !isStreaming && !privateSession && messages.length > 6 && Boolean(provider),
-    hasOutputs: outputs.length > 0,
-    hasTrace:
-      lastAssistantMessageId !== null && traceIdByMessage[lastAssistantMessageId] !== undefined,
-    hasProjectRoot: workspaceRoot !== null,
-  };
-
-  const createCanvasFile = useCallback(async () => {
-    if (!workspaceRoot) return;
-    const title = t("slash.canvasDefaultTitle");
-    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-    const path = `${workspaceRoot}/canvas-${stamp}.evir-canvas`;
-    try {
-      const document = createCanvasDocument({ title });
-      await writeTextFile(path, serializeCanvasDocument(document));
-      useWorkspacePanelStore.getState().openResource({ kind: "canvas", path, title });
-    } catch {
-      notify.error(t("workspace.canvasCreateFailed"));
-    }
-  }, [workspaceRoot, t]);
-
-  const handleSlashAction = useCallback(
-    (id: Exclude<SlashActionId, "plan" | "goal" | "agent" | "model">) => {
-      const panel = useWorkspacePanelStore.getState();
-      switch (id) {
-        case "new-conversation":
-          onNewConversation();
-          break;
-        case "new-project-task": {
-          if (!conversationProject || !provider) return;
-          useProjectStore.getState().selectProject(conversationProject.id);
-          void useChatStore
-            .getState()
-            .createConversation(provider.id, provider.modelId, conversationProject.id);
-          window.dispatchEvent(new Event("evir:focus-composer"));
-          break;
-        }
-        case "compact": {
-          const handle = notify.loading(t("chat.compactRunning"));
-          void useChatStore
-            .getState()
-            .compactContext()
-            .then((applied) =>
-              applied
-                ? handle.success(t("chat.compactDone"))
-                : handle.error(t("chat.compactUnavailable")),
-            );
-          break;
-        }
-        case "open-preview":
-          panel.openPanel("preview");
-          break;
-        case "toggle-browser":
-          panel.togglePanel("browser");
-          break;
-        case "open-outputs":
-          panel.openPanel("outputs");
-          break;
-        case "open-files":
-          panel.openPanel("files");
-          break;
-        case "open-recent-output": {
-          const latest = [...useRunWorkspaceStore.getState().outputs].sort(
-            (a, b) => b.createdAt - a.createdAt,
-          )[0];
-          if (latest) openTaskOutput(latest, workspaceRoot);
-          break;
-        }
-        case "open-trace":
-          if (lastAssistantMessageId) useTraceDialogStore.getState().open(lastAssistantMessageId);
-          break;
-        case "new-canvas":
-          void createCanvasFile();
-          break;
-        case "switch-user":
-          onOpenSettings("users");
-          break;
-      }
-    },
-    [
-      conversationProject,
-      provider,
-      workspaceRoot,
-      lastAssistantMessageId,
-      onNewConversation,
-      onOpenSettings,
-      createCanvasFile,
-      t,
-    ],
-  );
+  // Slash action center (§4-8): capabilities + handlers live in a dedicated
+  // hook; the palette itself stays presentational.
+  const { capabilities: slashCapabilities, handleSlashAction } = useSlashActions({
+    messages,
+    isStreaming,
+    privateSession,
+    provider,
+    conversationProject,
+    toolCalling,
+    onNewConversation,
+    onOpenSettings,
+  });
 
   const rememberMessage = useCallback(
     async (message: MessageRecord) => {

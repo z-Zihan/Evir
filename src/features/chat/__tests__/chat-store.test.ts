@@ -577,3 +577,36 @@ describe("stopGeneration cancellation wiring", () => {
     }
   });
 });
+
+describe("compactContext manual compaction (压缩当前会话)", () => {
+  it("refuses to compact while streaming, in private sessions, or with too little history", async () => {
+    // Provider state is seeded directly (the mocked runtime has no storage).
+    useProviderStore.setState({ providers: [provider] });
+    useChatStore.setState({
+      conversations: [conversation],
+      currentConversationId: conversation.id,
+    });
+    expect(useChatStore.getState().currentConversationId).toBeTruthy();
+
+    // Too few messages: summarization would preserve nothing — refuse early.
+    await expect(useChatStore.getState().compactContext()).resolves.toBe(false);
+
+    // Enough history but streaming → still refused.
+    useChatStore.setState({
+      isStreaming: true,
+      messages: Array.from({ length: 8 }, (_, index) =>
+        message(
+          `compact-${index}`,
+          index % 2 === 0 ? "user" : "assistant",
+          `body ${index}`,
+          Date.now() + index,
+        ),
+      ),
+    });
+    await expect(useChatStore.getState().compactContext()).resolves.toBe(false);
+
+    // Private session → refused (the summary archive must persist).
+    useChatStore.setState({ isStreaming: false, privateSession: true });
+    await expect(useChatStore.getState().compactContext()).resolves.toBe(false);
+  });
+});

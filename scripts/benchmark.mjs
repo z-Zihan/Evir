@@ -60,7 +60,7 @@ function initialJavaScriptFiles(distDir) {
   return [...new Set(assetPaths.map((assetPath) => join(distDir, assetPath)))];
 }
 
-function measureDist(target, expectedSkillChunks) {
+function measureDist(target) {
   const distDir = join(distRoot, target);
   if (!existsSync(join(distDir, "index.html"))) {
     throw new Error(
@@ -103,9 +103,13 @@ function measureDist(target, expectedSkillChunks) {
     initialJsFiles: initialJsFiles.map((file) => relative(distDir, file)),
     cssGzipSizeBytes,
     cssGzipSizeKB: roundKib(cssGzipSizeBytes),
+    // Count is informational only — no fixed-number KPI (Skill Audit
+    // 2026-09-04). The gate is that per-skill chunks exist and are non-empty.
     skillChunkCount: skillChunks.length,
-    expectedSkillChunkCount: expectedSkillChunks,
-    skillChunkStatus: skillChunks.length === expectedSkillChunks ? "pass" : "fail",
+    skillChunkStatus:
+      skillChunks.length > 0 && skillChunks.every((file) => statSync(file).size > 0)
+        ? "pass"
+        : "fail",
   };
 }
 
@@ -215,8 +219,8 @@ function measureDependencies() {
 }
 
 function main() {
-  const web = measureDist("web", 10);
-  const desktopFrontend = measureDist("desktop", 36);
+  const web = measureDist("web");
+  const desktopFrontend = measureDist("desktop");
   const installerArtifacts = measureInstallerArtifacts();
   const result = {
     timestamp: new Date().toISOString(),
@@ -258,9 +262,10 @@ function main() {
 
   const hardFailures = [
     result.web.budgetStatus === "fail" && "Web initial JavaScript exceeds 350 KiB gzip",
-    result.web.skillChunkStatus === "fail" && "Web Skill chunk count is not 10",
+    result.web.skillChunkStatus === "fail" && "Web Skill chunks are missing or empty",
     result.desktop.frontend.budgetStatus === "fail" && "Desktop frontend resources exceed 15 MiB",
-    result.desktop.frontend.skillChunkStatus === "fail" && "Desktop Skill chunk count is not 36",
+    result.desktop.frontend.skillChunkStatus === "fail" &&
+      "Desktop Skill chunks are missing or empty",
     installerArtifacts.some((artifact) => artifact.status === "exceeds-warning") &&
       "A Desktop installer exceeds the 180 MiB warning ceiling",
   ].filter(Boolean);

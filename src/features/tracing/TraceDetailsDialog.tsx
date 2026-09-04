@@ -154,7 +154,9 @@ export function TraceDetailsDialog({
                     key={`${segment.at}-${index}`}
                     className="grid grid-cols-[64px_1fr] items-start gap-2 px-2 py-1 text-[11px]"
                   >
-                    <span className="tabular-nums text-muted">{(segment.at / 1000).toFixed(3)}</span>
+                    <span className="tabular-nums text-muted">
+                      {(segment.at / 1000).toFixed(3)}
+                    </span>
                     <span className="break-words whitespace-pre-wrap font-mono text-foreground">
                       {segment.text}
                     </span>

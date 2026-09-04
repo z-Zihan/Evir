@@ -68,6 +68,8 @@ export type SlashActionId =
 export interface SlashCapabilities {
   /** Desktop runtime: the workspace panel, canvas and file outputs exist. */
   desktop: boolean;
+  /** Model supports tool calling — Plan/Goal/Agent modes require it. */
+  toolCalling: boolean;
   /** Enough non-private history to make compaction meaningful, not streaming. */
   canCompact: boolean;
   hasOutputs: boolean;
@@ -196,7 +198,7 @@ export const SlashPalette = forwardRef<SlashPaletteHandle, SlashPaletteProps>(fu
   // Action groups (§5-6). Availability gates keep the list honest: hidden
   // entries never exist, so search can't surface a dead action.
   const groups = useMemo(() => {
-    const { desktop, canCompact, hasOutputs, hasTrace, hasProjectRoot } = capabilities;
+    const { desktop, toolCalling, canCompact, hasOutputs, hasTrace, hasProjectRoot } = capabilities;
     const core: SlashItem[] = [];
     if (projectScoped) {
       core.push({
@@ -237,34 +239,35 @@ export const SlashPalette = forwardRef<SlashPaletteHandle, SlashPaletteProps>(fu
       });
     }
 
-    const modes: SlashItem[] = projectScoped
-      ? [
-          {
-            key: "cmd-plan",
-            actionId: "plan",
-            icon: ListChecks,
-            label: "/plan",
-            description: t("slash.commandPlan"),
-            keywords: ["plan", "计划"],
-          },
-          {
-            key: "cmd-goal",
-            actionId: "goal",
-            icon: Target,
-            label: "/goal",
-            description: t("slash.commandGoal"),
-            keywords: ["goal", "目标"],
-          },
-          {
-            key: "cmd-agent",
-            actionId: "agent",
-            icon: Bot,
-            label: "/agent",
-            description: t("slash.commandAgent"),
-            keywords: ["agent", "代理"],
-          },
-        ]
-      : [];
+    const modes: SlashItem[] =
+      projectScoped && toolCalling
+        ? [
+            {
+              key: "cmd-plan",
+              actionId: "plan",
+              icon: ListChecks,
+              label: "/plan",
+              description: t("slash.commandPlan"),
+              keywords: ["plan", "计划"],
+            },
+            {
+              key: "cmd-goal",
+              actionId: "goal",
+              icon: Target,
+              label: "/goal",
+              description: t("slash.commandGoal"),
+              keywords: ["goal", "目标"],
+            },
+            {
+              key: "cmd-agent",
+              actionId: "agent",
+              icon: Bot,
+              label: "/agent",
+              description: t("slash.commandAgent"),
+              keywords: ["agent", "代理"],
+            },
+          ]
+        : [];
 
     const previewBrowser: SlashItem[] = desktop
       ? [

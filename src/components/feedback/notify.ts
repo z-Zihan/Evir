@@ -92,7 +92,13 @@ export const notify = {
         toastApi(),
         finalMessage ? Promise.resolve(finalMessage) : defaultLabel(fallbackKey),
       ]).then(([sonner, label]) => {
-        if (id === undefined) return;
+        // When the operation out-raced the async sonner import, the loading
+        // toast never mounted — fire the terminal toast standalone instead of
+        // silently dropping the outcome.
+        if (id === undefined) {
+          sonner.toast[method](label, baseOptions(finalOptions));
+          return;
+        }
         sonner.toast[method](label, { ...baseOptions(finalOptions), id });
       });
     };
