@@ -12,9 +12,17 @@ import type { PermissionContext } from "../../core/security/permission-profiles"
 import { permissionContextForRoot } from "../projects/run-permission";
 import type { AgentRunContext, EvirRuntime } from "../../runtime/types";
 import type { InteractionMode } from "../../core/providers/tool-registry";
-import { streamAssistant, type StreamResult } from "./chat-stream";
+import type { StreamResult } from "./chat-stream";
 import { emitWorkspaceToolEvent } from "../workspace/workspace-events";
 import { activeTraceFor } from "../tracing/trace-recorder";
+import {
+  buildPendingApproval,
+  detectPostExecuteLoop,
+  feedbackDeniedCalls,
+  gateToolCalls,
+  streamWithRetry,
+  type LoopExecution,
+} from "./agent-loop-phases";
 
 export const MAX_AGENT_ITERATIONS = 12;
 export const AGENT_TURN_TIMEOUT_MS = 120_000;
@@ -101,7 +109,7 @@ export interface AgentApprovalContext {
   agentRun: AgentRunContext;
 }
 
-interface CallWithRaw {
+export interface CallWithRaw {
   record: ToolCallRecord;
   rawArguments: string;
 }
@@ -113,7 +121,7 @@ function providerTools(tools: readonly ToolDefinition[]): unknown[] {
   }));
 }
 
-function parseArguments(value: string): Record<string, unknown> | undefined {
+export function parseArguments(value: string): Record<string, unknown> | undefined {
   try {
     const parsed = JSON.parse(value) as unknown;
     return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
@@ -279,7 +287,7 @@ function requiresPermission(results: ToolResultRecord[]): boolean {
   return results.some((result) => result.error === TOOL_PERMISSION_REQUIRED);
 }
 
-function findBlockedCall(
+export function findBlockedCall(
   calls: CallWithRaw[],
   results: ToolResultRecord[],
 ): { toolCallId: string; toolName: string; args: Record<string, unknown> } | undefined {
@@ -321,9 +329,6 @@ async function runAgentLoopBound(
   const definitions = options.runtime.toolRegistry?.listForMode(mode) ?? [];
   const tools = providerTools(definitions);
   const allowedToolIds = new Set(definitions.map(({ id }) => id));
-  const maximum = options.maxIterations ?? MAX_AGENT_ITERATIONS;
-  const MAX_TOOL_NOT_ALLOWED_FEEDBACKS = 2;
-  let notAllowedFeedbackCount = 0;
   const agentRun = options.runtime.agentRun ?? {
     id: crypto.randomUUID(),
     snapshots: [],
@@ -367,68 +372,24 @@ async function runAgentLoopBound(
     return { ...result, startedAt, completedAt, durationMs: completedAt - startedAt };
   };
 
-  const MAX_STREAM_RETRIES = 2;
+  const loop: LoopExecution = {
+    options,
+    runtime,
+    harness,
+    mode,
+    allowedToolIds,
+    agentRun,
+    turns,
+    messages,
+    runRoot,
+  };
 
-  const isTransientStreamError = (stream: StreamResult): boolean =>
-    stream.status === "error" &&
-    !stream.toolCalls?.length &&
-    stream.content.length === 0 &&
-    (stream.errorType === "TIMEOUT" || stream.retryable === true);
-
-  const sleep = (ms: number, signal?: AbortSignal): Promise<void> =>
-    new Promise((resolve) => {
-      const timer = globalThis.setTimeout(resolve, ms);
-      signal?.addEventListener(
-        "abort",
-        () => {
-          globalThis.clearTimeout(timer);
-          resolve();
-        },
-        { once: true },
-      );
-    });
-
-  for (let iteration = 0; iteration < maximum; iteration += 1) {
-    // Transient transport failures (timeout / network / rate limit / 5xx)
-    // are retried while nothing has been emitted yet: replaying a request
-    // with no consumed deltas or tool calls cannot duplicate side effects.
-    // Once any output exists the failure is surfaced to the user instead.
-    let stream = await streamAssistant(
-      options.provider,
-      options.conversationId,
-      messages,
-      options.onDelta,
-      tools,
-      options.signal,
-      AGENT_TURN_TIMEOUT_MS,
-    );
-    for (let retry = 0; isTransientStreamError(stream) && retry < MAX_STREAM_RETRIES; retry += 1) {
-      if (options.signal?.aborted) break;
-      const backoffMs = 1_000 * 2 ** retry;
-      activeTraceFor(options.conversationId)?.record("request.retry", {
-        status: "error",
-        summary: `${stream.errorType ?? "transient"} · retry ${retry + 1}/${MAX_STREAM_RETRIES}`,
-      });
-      logger.warn("provider", "agent.stream-retry", {
-        conversationId: options.conversationId,
-        runId: agentRun.id,
-        attempt: retry + 1,
-        maxRetries: MAX_STREAM_RETRIES,
-        errorType: stream.errorType ?? null,
-        backoffMs,
-      });
-      options.onDelta(`\n\n⚠️ 连接暂时失败，正在重试 ${retry + 1}/${MAX_STREAM_RETRIES}…\n`);
-      await sleep(backoffMs, options.signal);
-      stream = await streamAssistant(
-        options.provider,
-        options.conversationId,
-        messages,
-        options.onDelta,
-        tools,
-        options.signal,
-        AGENT_TURN_TIMEOUT_MS,
-      );
-    }
+  for (
+    let iteration = 0;
+    iteration < (options.maxIterations ?? MAX_AGENT_ITERATIONS);
+    iteration += 1
+  ) {
+    const stream = await streamWithRetry(loop, messages, tools);
     if (stream.status !== "complete" || !stream.toolCalls?.length) {
       turns.push({ stream });
       return finish(
@@ -440,129 +401,17 @@ async function runAgentLoopBound(
             : "failed",
       );
     }
-    // Step-scoped denials are fed back as tool results so the model can adapt
-    // (for example, describe the change for the Execute node instead of
-    // attempting the write inside a read-only node). Loop-style blocks stay
-    // hard stops, and repeated denials fall back to blocking the run.
-    const disallowedCalls: Array<{
-      rawCall: NonNullable<StreamResult["toolCalls"]>[number];
-      args: Record<string, unknown>;
-      summary: string;
-    }> = [];
-    for (const rawCall of stream.toolCalls) {
-      rawCall.toolName = normalizeToolCallName(rawCall.toolName, allowedToolIds);
-      const args = parseArguments(rawCall.arguments) ?? {};
-      if (!harness) continue;
-      const policy = await harness.dispatch({
-        type: "tool-call",
-        conversationId: options.conversationId,
-        runId: agentRun.id,
-        phase: "before-execute",
-        mode,
-        toolName: rawCall.toolName,
-        arguments: args,
-        allowedToolIds,
-        blocked: false,
-      });
-      if (!policy.blocked) continue;
-      const summary = policy.loopSignal?.summary ?? `Tool not allowed: ${rawCall.toolName}`;
-      if (
-        policy.loopSignal?.type === "repeated-failed-call" ||
-        policy.blockReason !== "tool-not-allowed"
-      ) {
-        const errorMessageKey =
-          policy.loopSignal?.type === "repeated-failed-call"
-            ? "tools.repeatedFailures"
-            : policy.blockReason === "loop-detected"
-              ? "tools.maxIterations"
-              : "tools.notAvailable";
-        logger.warn("tool", "agent.tool-call-blocked", {
-          conversationId: options.conversationId,
-          runId: agentRun.id,
-          toolName: rawCall.toolName,
-          blockReason: policy.blockReason ?? "unknown",
-          mode,
-          allowedToolIds: [...allowedToolIds],
-        });
-        turns.push({
-          stream: {
-            ...stream,
-            status: "error",
-            errorMessage: errorMessageKey,
-            content: `${stream.content}\n\n⚠️ ${summary}`,
-          },
-        });
-        return finish(
-          {
-            turns,
-            maxIterationsReached: policy.blockReason === "loop-detected",
-            messages,
-            agentRun,
-          },
-          "blocked",
-        );
-      }
-      logger.warn("tool", "agent.tool-call-blocked", {
-        conversationId: options.conversationId,
-        runId: agentRun.id,
-        toolName: rawCall.toolName,
-        blockReason: policy.blockReason ?? "unknown",
-        mode,
-        allowedToolIds: [...allowedToolIds],
-      });
-      disallowedCalls.push({ rawCall, args, summary });
+
+    const gate = await gateToolCalls(loop, stream);
+    if (gate.hardBlock) {
+      return finish(gate.hardBlock.result, "blocked");
     }
-    if (disallowedCalls.length > 0) {
-      notAllowedFeedbackCount += 1;
-      const blockedRecords: ToolCallRecord[] = [];
-      const blockedResults: ToolResultRecord[] = [];
-      for (const { rawCall, args, summary } of disallowedCalls) {
-        blockedRecords.push({ id: rawCall.id, toolName: rawCall.toolName, arguments: args });
-        const now = Date.now();
-        blockedResults.push({
-          toolCallId: rawCall.id,
-          toolName: rawCall.toolName,
-          success: false,
-          output: `${summary}. Do not retry this tool in the current step; continue the task using only the tools allowed here.`,
-          error: "tool_not_allowed",
-          startedAt: now,
-          completedAt: now,
-          durationMs: 0,
-        });
-      }
-      const deniedSummary = disallowedCalls.map(({ summary }) => summary).join("；");
-      turns.push({
-        stream: {
-          ...stream,
-          content: `${stream.content}\n\n⚠️ ${deniedSummary}`,
-        },
-        toolCalls: blockedRecords,
-        toolResults: blockedResults,
-      });
-      messages.push(
-        assistantToolCallWireMessage(
-          stream.content,
-          disallowedCalls.map(({ rawCall }) => ({
-            id: rawCall.id,
-            toolName: rawCall.toolName,
-            arguments: rawCall.arguments,
-          })),
-        ),
-      );
-      messages.push(...toolResultWireMessages(blockedResults));
-      if (notAllowedFeedbackCount > MAX_TOOL_NOT_ALLOWED_FEEDBACKS) {
-        turns.push({
-          stream: {
-            ...stream,
-            status: "error",
-            errorMessage: "tools.notAllowedByStep",
-            content: `${stream.content}\n\n⚠️ ${deniedSummary}`,
-          },
-        });
-        return finish({ turns, maxIterationsReached: false, messages, agentRun }, "blocked");
-      }
+    if (gate.disallowedCalls.length > 0) {
+      const denied = feedbackDeniedCalls(loop, stream, gate.disallowedCalls);
+      if (denied.hardBlock) return finish(denied.hardBlock, "blocked");
       continue;
     }
+
     const { calls, results } = await executeCalls(
       stream,
       runtime,
@@ -570,50 +419,19 @@ async function runAgentLoopBound(
       options.conversationId,
       options.signal,
     );
-    for (const result of results) {
-      if (!harness) continue;
-      const loop = await harness.dispatch({
-        type: "tool-call",
-        conversationId: options.conversationId,
-        runId: agentRun.id,
-        phase: "after-execute",
-        mode,
-        result,
-        allowedToolIds,
-        blocked: false,
-      });
-      if (loop.blocked) {
-        turns.push({
-          stream: {
-            ...stream,
-            status: "error",
-            errorMessage: "tools.maxIterations",
-            content: `${stream.content}\n\n⚠️ ${loop.loopSignal?.summary ?? "Loop detected"}`,
-          },
-          toolCalls: calls.map(({ record }) => record),
-          toolResults: results,
-        });
-        return finish({ turns, maxIterationsReached: true, messages, agentRun }, "blocked");
-      }
+    const loopBlock = await detectPostExecuteLoop(loop, stream, calls, results);
+    if (loopBlock) {
+      return finish(loopBlock, "blocked");
     }
-    const toolCalls = calls.map((c) => c.record);
-    const turn: AgentLoopTurn = { stream, toolCalls, toolResults: results };
+
+    const turn: AgentLoopTurn = {
+      stream,
+      toolCalls: calls.map((c) => c.record),
+      toolResults: results,
+    };
     if (requiresPermission(results)) {
-      const blocked = findBlockedCall(calls, results);
-      const definition = blocked ? runtime.toolRegistry?.get(blocked.toolName) : undefined;
-      if (blocked) {
-        turn.pendingApproval = {
-          ...blocked,
-          ...(definition
-            ? {
-                riskLevel: definition.riskLevel,
-                source: definition.source,
-                ...(definition.approval ? { approval: definition.approval } : {}),
-              }
-            : {}),
-          workspaceRoot: runRoot,
-        };
-      }
+      const pendingApproval = buildPendingApproval(loop, calls, results, runRoot);
+      if (pendingApproval) turn.pendingApproval = pendingApproval;
       turns.push(turn);
       return finish({ turns, maxIterationsReached: false, messages, agentRun }, "blocked");
     }
