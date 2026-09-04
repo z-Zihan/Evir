@@ -176,27 +176,25 @@ function CanvasViewInner({ path }: { path: string; title?: string | undefined })
     [],
   );
 
+  /** Defer one tick so the refs reflect the committed state. */
+  const deferPersist = useCallback(() => window.setTimeout(schedulePersist, 0), [schedulePersist]);
+
   const onNodesChange = useCallback(
     (changes: NodeChange<DocumentNode>[]) => {
       setNodes((current) => applyNodeChanges(changes, current));
       const structural = changes.some((change) => change.type === "remove");
       const dragStop = changes.some((change) => change.type === "position" && !change.dragging);
-      if (structural || dragStop) {
-        // Defer one tick so the refs reflect the committed state.
-        window.setTimeout(() => schedulePersist(), 0);
-      }
+      if (structural || dragStop) deferPersist();
     },
-    [schedulePersist],
+    [deferPersist],
   );
 
   const onEdgesChange = useCallback(
     (changes: EdgeChange[]) => {
       setEdges((current) => applyEdgeChanges(changes, current));
-      if (changes.some((change) => change.type === "remove")) {
-        window.setTimeout(() => schedulePersist(), 0);
-      }
+      if (changes.some((change) => change.type === "remove")) deferPersist();
     },
-    [schedulePersist],
+    [deferPersist],
   );
 
   const onConnect = useCallback(
@@ -211,9 +209,9 @@ function CanvasViewInner({ path }: { path: string; title?: string | undefined })
           current,
         ),
       );
-      window.setTimeout(() => schedulePersist(), 0);
+      deferPersist();
     },
-    [schedulePersist],
+    [deferPersist],
   );
 
   const exportJson = useCallback(() => {

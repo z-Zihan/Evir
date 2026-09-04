@@ -54,14 +54,14 @@ fn parse_result_line(stdout: &str) -> Result<Value, String> {
         .ok_or_else(|| {
             format!(
                 "ego-browser produced no result marker{}",
-                stderr_tail(stdout, 200)
+                text_tail(stdout, 200)
             )
         })?;
     let payload = line.trim_start_matches(RESULT_MARKER);
     serde_json::from_str(payload).map_err(|error| format!("ego-browser result malformed: {error}"))
 }
 
-fn stderr_tail(text: &str, limit: usize) -> String {
+fn text_tail(text: &str, limit: usize) -> String {
     let suffix: String = text.trim().chars().rev().take(limit).collect();
     suffix.chars().rev().collect()
 }
@@ -263,7 +263,7 @@ async fn run_ego_script(script: String, timeout: Duration) -> Result<Value, Stri
             if stderr.trim().is_empty() {
                 format!("exit status {}", output.status)
             } else {
-                stderr_tail(&stderr, 500)
+                text_tail(&stderr, 500)
             }
         ));
     }

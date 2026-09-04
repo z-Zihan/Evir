@@ -65,19 +65,16 @@ export function egoTaskSpaceName(): string {
 /** Translate Evir command args into ego operation params. */
 function egoParams(command: string, args?: Record<string, unknown>): Record<string, unknown> {
   const source = args ?? {};
-  switch (command) {
-    case "browser_click":
-    case "browser_fill":
-      return {
-        ref: source.element_ref,
-        ...(command === "browser_fill" ? { text: source.text } : {}),
-      };
-    case "browser_switch_tab":
-    case "browser_close_tab":
-      return { target_id: source.target_id };
-    default:
-      return source;
+  if (command === "browser_click" || command === "browser_fill") {
+    return {
+      ref: source.element_ref,
+      ...(command === "browser_fill" ? { text: source.text } : {}),
+    };
   }
+  if (command === "browser_switch_tab" || command === "browser_close_tab") {
+    return { target_id: source.target_id };
+  }
+  return source;
 }
 
 /**
