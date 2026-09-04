@@ -33,6 +33,7 @@ import { allowsProjectModes, effectiveModeForModel } from "../features/projects/
 import { useProjectStore } from "../features/projects/project-store";
 import { useIpcRetryStore } from "../runtime/ipc-retry-store";
 import { useWorkspacePanelStore } from "../features/workspace/workspace-panel-store";
+import { useTraceStore } from "../features/tracing/trace-store";
 import { useLocalIdentity } from "./chat/use-local-identity";
 import { useModelSwitch } from "./chat/use-model-switch";
 import { ChatHeader } from "./chat/ChatHeader";
@@ -216,6 +217,16 @@ export function ChatView({
 
   const provider = getDefaultProvider();
   const runtime = getRuntime();
+  // Trace history for 运行详情 rows: load per conversation; retention prunes
+  // expired traces once per app session.
+  useEffect(() => {
+    if (currentConversationId) {
+      void useTraceStore.getState().loadForConversation(currentConversationId);
+    }
+  }, [currentConversationId]);
+  useEffect(() => {
+    void useTraceStore.getState().cleanupRetention();
+  }, []);
   const currentConversation = conversations.find(
     (conversation) => conversation.id === currentConversationId,
   );

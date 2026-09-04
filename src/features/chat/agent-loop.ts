@@ -14,6 +14,7 @@ import type { AgentRunContext, EvirRuntime } from "../../runtime/types";
 import type { InteractionMode } from "../../core/providers/tool-registry";
 import { streamAssistant, type StreamResult } from "./chat-stream";
 import { emitWorkspaceToolEvent } from "../workspace/workspace-events";
+import { activeTraceFor } from "../tracing/trace-recorder";
 
 export const MAX_AGENT_ITERATIONS = 12;
 export const AGENT_TURN_TIMEOUT_MS = 120_000;
@@ -123,6 +124,20 @@ function parseArguments(value: string): Record<string, unknown> | undefined {
   }
 }
 
+/** Metadata-only tool summaries for traces (§25): keys/sizes, never values. */
+function summarizeToolArgs(args: Record<string, unknown>): string {
+  const keys = Object.keys(args);
+  return keys.length > 0
+    ? `args: ${keys.slice(0, 5).join(", ")}${keys.length > 5 ? "…" : ""}`
+    : "args: none";
+}
+
+function summarizeToolOutput(output: string | undefined): string {
+  if (output === undefined) return "no output";
+  const lines = output.split("\n").length;
+  return `${output.length} chars · ${lines} line${lines === 1 ? "" : "s"}`;
+}
+
 async function executeCalls(
   stream: StreamResult,
   runtime: EvirRuntime,
@@ -141,6 +156,8 @@ async function executeCalls(
     };
     calls.push({ record, rawArguments: rawCall.arguments });
     const startedAt = Date.now();
+    const trace = activeTraceFor(conversationId);
+    trace?.toolStarted(rawCall.id, rawCall.toolName);
     logger.info("tool", "agent.tool-started", {
       conversationId,
       runId: runtime.agentRun?.id,
@@ -167,6 +184,14 @@ async function executeCalls(
             error: "invalid_arguments",
           };
     const completedAt = Date.now();
+    trace?.toolSettled(rawCall.id, {
+      success: Boolean(result?.success),
+      durationMs: completedAt - startedAt,
+      ...(result?.error ? { errorCategory: result.error } : {}),
+      // Metadata-only summaries (§25): argument/result shapes, never payloads.
+      inputSummary: summarizeToolArgs(record.arguments),
+      outputSummary: summarizeToolOutput(result?.output),
+    });
     logger.debug("tool", "executor.loop-after", {
       toolName: rawCall.toolName,
       success: result?.success,
@@ -305,6 +330,7 @@ async function runAgentLoopBound(
     fileReferences: [],
     startedMode: options.mode ?? "agent",
   };
+  activeTraceFor(options.conversationId)?.attachRun(agentRun.id);
   const runtime = { ...options.runtime, mode, agentRun, permissionContext };
   const harness = runtime.harnessMiddlewareRegistry;
   if (harness) {
@@ -379,6 +405,10 @@ async function runAgentLoopBound(
     for (let retry = 0; isTransientStreamError(stream) && retry < MAX_STREAM_RETRIES; retry += 1) {
       if (options.signal?.aborted) break;
       const backoffMs = 1_000 * 2 ** retry;
+      activeTraceFor(options.conversationId)?.record("request.retry", {
+        status: "error",
+        summary: `${stream.errorType ?? "transient"} · retry ${retry + 1}/${MAX_STREAM_RETRIES}`,
+      });
       logger.warn("provider", "agent.stream-retry", {
         conversationId: options.conversationId,
         runId: agentRun.id,

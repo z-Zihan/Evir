@@ -20,6 +20,7 @@ import {
 import { useOrchestrationStore } from "../orchestration/orchestration-store";
 import { getStructuredStorage } from "../../runtime/structured-storage";
 import { createActiveTaskController } from "./chat-stream";
+import { activeTraceFor, completeTrace } from "../tracing/trace-recorder";
 import {
   finishConversationStream,
   setPendingApproval,
@@ -321,6 +322,10 @@ async function resolveApproval(
     ...(pending.riskLevel ? { riskLevel: pending.riskLevel } : {}),
     ...(pending.orchestration ? { runId: pending.orchestration.runId } : {}),
   });
+  activeTraceFor(pending.conversationId)?.approvalResolved(
+    approved ? "granted" : "denied",
+    pending.toolCallId,
+  );
   const { provider, runtime: baseRuntime, streamStartedAt } = ctx;
   const runtime = approvalRuntime(baseRuntime, pending);
   if (approved && !runtime.toolExecutor) {
@@ -357,7 +362,7 @@ async function resolveApproval(
       ...(pending.mode ? { mode: pending.mode } : {}),
       signal: task.signal,
     });
-    await finalizeApprovalFlow(
+    const continuationMessages = await finalizeApprovalFlow(
       set,
       get,
       loopResult,
@@ -368,9 +373,13 @@ async function resolveApproval(
       runtime,
       pending.orchestration?.runId,
     );
+    activeTraceFor(pending.conversationId)?.attachMessages(
+      continuationMessages.map(({ id }) => id),
+    );
     finishConversationStream(set, get, pending.conversationId, streamStartedAt);
     const finalTurn = loopResult.turns.at(-1);
     if (approvalContinuationStopped(task.signal, finalTurn)) {
+      completeTrace(pending.conversationId, "stopped");
       await persistApprovalStatus(pending, approved ? "cancelled" : "denied", get().privateSession);
       await cancelCurrentRun(runtime, get().privateSession, pending.conversationId);
       return;
@@ -384,6 +393,14 @@ async function resolveApproval(
         return;
       }
     }
+    completeTrace(
+      pending.conversationId,
+      finalTurn?.stream.status === "complete" && !loopResult.maxIterationsReached
+        ? "completed"
+        : finalTurn?.stream.status === "stopped"
+          ? "stopped"
+          : "failed",
+    );
     await persistApprovalStatus(pending, outcome, get().privateSession);
     const completed = finalTurn?.stream.status === "complete" && !loopResult.maxIterationsReached;
     await continueOrchestrationAfterApproval(

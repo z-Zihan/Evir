@@ -256,7 +256,7 @@ export async function finalizeApprovalFlow(
   priorTurn: AgentLoopTurn,
   runtime: EvirRuntime,
   orchestrationRunId?: string,
-): Promise<void> {
+): Promise<MessageRecord[]> {
   const persist = !get().privateSession;
   const newTurns = loopResult.turns;
   const newMessages: MessageRecord[] = [];
@@ -311,4 +311,5 @@ export async function finalizeApprovalFlow(
         }
       : {}),
   }));
+  return newMessages;
 }

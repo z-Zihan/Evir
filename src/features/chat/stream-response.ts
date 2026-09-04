@@ -38,6 +38,7 @@ import {
   type AgentRunRecord,
 } from "./agent-run-record";
 import { buildRunCapsule, serializeCapsule } from "../../core/context/run-capsule";
+import { activeTraceFor, beginTrace, completeTrace } from "../tracing/trace-recorder";
 import { contextBuilder } from "../../core/context/context-builder";
 import type { FileContextReference } from "../../core/context/types";
 import { logger } from "../../core/logging/logger";
@@ -195,6 +196,15 @@ function titleFor(history: MessageRecord[], hasTitle: boolean): string | undefin
   return !hasTitle && firstMessage?.role === "user" ? firstMessage.content.slice(0, 60) : undefined;
 }
 
+/** Map the loop outcome onto the trace's terminal status. */
+function traceStatusFor(
+  result: AgentLoopResult,
+  error: string | undefined,
+): "completed" | "failed" | "stopped" {
+  if (result.turns.at(-1)?.stream.status === "stopped") return "stopped";
+  return error ? "failed" : "completed";
+}
+
 async function persistResponse(
   messages: MessageRecord[],
   conversationId: string,
@@ -266,6 +276,7 @@ export async function streamResponse(
     // A persistence/harness failure must not leave the composer wedged in the
     // streaming state; raw message text follows the lastStream?.errorMessage
     // precedent (i18next renders unknown keys verbatim).
+    completeTrace(conversationId, "failed");
     if (visibleForConversation(get, conversationId)) {
       set({ error: error instanceof Error ? error.message : "chat.streamFailed" });
     }
@@ -287,6 +298,16 @@ async function runStreamResponse(
   const lastUserMessage = [...history].reverse().find((message) => message.role === "user");
   const requestedMode = get().mode;
   const conversation = get().conversations.find(({ id }) => id === conversationId);
+  // One trace per assistant turn (§19-20): spans requests, tools and approval
+  // waits for the whole response, including agent-loop iterations. The
+  // recorder is registered per conversation; deep call sites append via
+  // activeTraceFor without threading parameters.
+  beginTrace(conversationId, {
+    providerId: provider.id,
+    modelId: provider.modelId,
+    mode: requestedMode,
+    persist: !get().privateSession,
+  });
   // Project modes (agent/plan/goal) only run inside a project thread; legacy
   // global-workspace behavior covers standalone conversations until the first
   // project exists.
@@ -322,6 +343,7 @@ async function runStreamResponse(
               : (request.blockReason ?? "chat.streamEnded"),
         });
       }
+      completeTrace(conversationId, "failed");
       return;
     }
   }
@@ -329,6 +351,7 @@ async function runStreamResponse(
     if (visibleForConversation(get, conversationId)) {
       set({ error: "chat.agentRequiresToolCalling" });
     }
+    completeTrace(conversationId, "failed");
     return;
   }
 
@@ -458,6 +481,7 @@ async function runStreamResponse(
         skillTokenBudget,
       });
       if (visibleForConversation(get, conversationId)) set({ error: "chat.skillContextTooLarge" });
+      completeTrace(conversationId, "failed");
       return;
     }
     const routeInfo = compatibleRoutedSkills.map((skill) => {
@@ -632,6 +656,7 @@ async function runStreamResponse(
     if (!endedByDenial && !endedByCancel && visibleForConversation(get, conversationId)) {
       set({ error: "chat.streamEnded" });
     }
+    completeTrace(conversationId, endedByDenial || endedByCancel ? "stopped" : "failed");
     return;
   }
 
@@ -684,6 +709,10 @@ async function runStreamResponse(
       count: pendingApprovals.length,
       tools: pendingApprovals.map(({ toolName, riskLevel }) => ({ toolName, riskLevel })),
     });
+    const activeTrace = activeTraceFor(conversationId);
+    for (const pending of pendingApprovals) {
+      activeTrace?.approvalRequested(pending.toolCallId, pending.toolName);
+    }
     const blockedTurns = new Set(approvalContexts.map(({ turn }) => turn));
     const earlierTurns = result.turns.filter((turn) => !blockedTurns.has(turn));
     const messageTimestamp = Date.now();
@@ -699,6 +728,13 @@ async function runStreamResponse(
     const blockedMessages = approvalContexts.map(({ turn }, index) =>
       toMessage(turn, conversationId, undefined, messageTimestamp + earlierMessages.length + index),
     );
+    // The turn stays open across the approval wait; bind what exists so far so
+    // 运行详情 is reachable from these rows while the approval is pending.
+    activeTrace?.attachMessages([
+      ...earlierMessages.map(({ id }) => id),
+      ...blockedMessages.map(({ id }) => id),
+    ]);
+    void activeTrace?.flush();
     const [pendingApproval, ...remainingApprovals] = pendingApprovals;
     if (!pendingApproval) return;
     if (!get().privateSession) {
@@ -746,6 +782,8 @@ async function runStreamResponse(
     : await persistResponse(assistants, conversationId, title);
   const lastStream: StreamResult | undefined = result.turns.at(-1)?.stream;
   const error = result.maxIterationsReached ? "tools.maxIterations" : lastStream?.errorMessage;
+  activeTraceFor(conversationId)?.attachMessages(assistants.map(({ id }) => id));
+  completeTrace(conversationId, traceStatusFor(result, error));
   let agentRunRecord =
     mode === "agent" || mode === "goal"
       ? await buildAgentRunRecord(result, conversationId, runtime, {

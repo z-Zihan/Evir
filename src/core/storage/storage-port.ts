@@ -23,6 +23,7 @@ export type EntityName =
   | "shortcuts"
   | "personalization"
   | "usage_records"
+  | "traces"
   | "settings";
 
 export interface StoragePort {

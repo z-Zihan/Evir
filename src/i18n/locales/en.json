@@ -1072,6 +1072,58 @@
     "savedProject": "Saved as a project preference.",
     "noProject": "No project is open"
   },
+  "trace": {
+    "details": "Run details",
+    "title": "Run details",
+    "summary": {
+      "total": "Total",
+      "ttfb": "First token",
+      "streaming": "Streaming",
+      "chunks": "Chunks",
+      "avgGap": "Avg gap",
+      "maxGap": "Max gap",
+      "p95Gap": "P95 gap",
+      "tps": "Tokens/s",
+      "tools": "Tools",
+      "failures": "Failures",
+      "approvalWait": "Approval wait"
+    },
+    "tools": {
+      "title": "Tools",
+      "ok": "ok",
+      "failed": "failed",
+      "running": "running"
+    },
+    "timeline": {
+      "title": "Timeline"
+    },
+    "event": {
+      "turn.started": "Turn started",
+      "request.started": "Request started",
+      "request.retry": "Request retry",
+      "first-token": "First token",
+      "stream.delta": "Chunk",
+      "stream.reasoning-delta": "Reasoning chunk",
+      "tool-call.created": "Tool call",
+      "tool.started": "Tool started",
+      "tool.completed": "Tool completed",
+      "tool.failed": "Tool failed",
+      "approval.requested": "Approval requested",
+      "approval.granted": "Approval granted",
+      "approval.denied": "Approval denied",
+      "usage": "Usage reported",
+      "stream.completed": "Stream completed",
+      "stream.error": "Stream error",
+      "turn.completed": "Turn completed",
+      "turn.failed": "Turn failed"
+    },
+    "export": {
+      "copySummary": "Copy summary",
+      "copied": "Trace summary copied",
+      "json": "Export JSON",
+      "failed": "Trace export failed"
+    }
+  },
   "slash": {
     "paletteLabel": "Command palette",
     "commandsGroup": "Commands",

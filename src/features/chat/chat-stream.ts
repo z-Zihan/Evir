@@ -10,6 +10,7 @@ import i18n from "../../i18n/config";
 import { useUsageStore } from "../usage/usage-store";
 import { logger } from "../../core/logging/logger";
 import type { TokenBreakdown } from "../../core/usage/types";
+import { activeTraceFor } from "../tracing/trace-recorder";
 
 // Controllers are keyed by conversation so a Stop in one task aborts only that
 // task's in-flight requests; concurrent conversations keep streaming.
@@ -159,6 +160,16 @@ export async function streamAssistant(
     toolCount: tools?.length ?? 0,
   });
 
+  // Turn trace (§22): metadata-only chunk timing — kind + size + gap stats,
+  // never content. One recorder per assistant turn spans all agent-loop
+  // requests; each request logged here contributes its own request span.
+  const trace = activeTraceFor(conversationId);
+  trace?.attachRequest(requestId);
+  trace?.record("request.started", {
+    summary: provider.modelId,
+    durationMs: 0,
+  });
+
   try {
     for await (const event of configuredAdapter.stream({
       modelId: provider.modelId,
@@ -169,6 +180,7 @@ export async function streamAssistant(
       if (event.type === "text-delta") {
         firstTokenMs ??= Date.now() - startTime;
         content += event.text;
+        trace?.recordDelta("text", event.text.length);
         batched.schedule(content);
       } else if (event.type === "tool-call-start") {
         toolCalls.set(event.toolCallId, {
@@ -176,11 +188,17 @@ export async function streamAssistant(
           toolName: event.toolName,
           arguments: "",
         });
+        trace?.record("tool-call.created", {
+          toolCallId: event.toolCallId,
+          summary: event.toolName,
+        });
       } else if (event.type === "tool-call-arguments-delta") {
         const call = toolCalls.get(event.toolCallId);
         if (call) call.arguments += event.argumentsDelta;
+        trace?.recordDelta("tool-call-arguments", event.argumentsDelta.length);
       } else if (event.type === "usage") {
         reportedUsage = event.usage;
+        trace?.recordUsage(event.usage.outputTokens);
       } else if (event.type === "error") {
         lastRetryable = Boolean(event.error.retryable);
         status = timedOut
@@ -199,9 +217,14 @@ export async function streamAssistant(
           : status === "stopped"
             ? ProviderErrorType.CANCELLED
             : event.error.type;
+        trace?.record("stream.error", {
+          status: status === "stopped" ? "cancelled" : "error",
+          summary: errorType,
+        });
         break;
       } else if (event.type === "response-complete") {
         completed = true;
+        trace?.record("stream.completed", { status: "ok" });
       }
     }
   } catch (error) {

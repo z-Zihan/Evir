@@ -1071,6 +1071,58 @@
     "savedProject": "已保存为项目偏好。",
     "noProject": "当前没有打开的项目"
   },
+  "trace": {
+    "details": "运行详情",
+    "title": "运行详情",
+    "summary": {
+      "total": "总耗时",
+      "ttfb": "首 token",
+      "streaming": "流式时长",
+      "chunks": "分片数",
+      "avgGap": "平均间隔",
+      "maxGap": "最大间隔",
+      "p95Gap": "P95 间隔",
+      "tps": "token/秒",
+      "tools": "工具数",
+      "failures": "失败数",
+      "approvalWait": "审批等待"
+    },
+    "tools": {
+      "title": "工具",
+      "ok": "成功",
+      "failed": "失败",
+      "running": "运行中"
+    },
+    "timeline": {
+      "title": "时间线"
+    },
+    "event": {
+      "turn.started": "回合开始",
+      "request.started": "请求开始",
+      "request.retry": "请求重试",
+      "first-token": "首个 token",
+      "stream.delta": "文本分片",
+      "stream.reasoning-delta": "推理分片",
+      "tool-call.created": "工具调用",
+      "tool.started": "工具开始",
+      "tool.completed": "工具完成",
+      "tool.failed": "工具失败",
+      "approval.requested": "等待审批",
+      "approval.granted": "已批准",
+      "approval.denied": "已拒绝",
+      "usage": "用量上报",
+      "stream.completed": "流式结束",
+      "stream.error": "流式错误",
+      "turn.completed": "回合完成",
+      "turn.failed": "回合失败"
+    },
+    "export": {
+      "copySummary": "复制摘要",
+      "copied": "已复制运行摘要",
+      "json": "导出 JSON",
+      "failed": "导出失败"
+    }
+  },
   "slash": {
     "paletteLabel": "命令面板",
     "commandsGroup": "命令",
