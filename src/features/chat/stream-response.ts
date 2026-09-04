@@ -19,7 +19,6 @@ import { runOrchestratedAgent } from "../orchestration/run-orchestrated-agent";
 import { useOrchestrationStore } from "../orchestration/orchestration-store";
 import {
   beginConversationStream,
-  beginConversationVerification,
   finishConversationStream,
   updateConversationStream,
   visibleForConversation,
@@ -281,7 +280,7 @@ async function completeTurn(
   turn: TurnContext,
   args: { mode: ChatState["mode"]; result: AgentLoopResult; history: MessageRecord[] },
 ): Promise<void> {
-  const { set, get, conversationId, runtime, conversation, streamStartedAt } = turn;
+  const { get, conversationId, runtime, conversation } = turn;
   const { mode, result, history } = args;
   const messageTimestamp = Date.now();
   const assistants = result.turns.map((loopTurn, index) =>

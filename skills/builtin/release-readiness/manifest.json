@@ -6,20 +6,13 @@
   "description": "Use on Desktop when deciding whether a branch, build, package, or product increment is ready to release or hand off.",
   "entry": "SKILL.md",
   "source": "builtin",
-  "capabilities": [
-    "filesystem.read",
-    "git"
-  ],
-  "optionalCapabilities": [
-    "terminal.run"
-  ],
+  "capabilities": ["filesystem.read", "git"],
+  "optionalCapabilities": ["terminal.run"],
   "optionalMcpServers": [],
   "riskLevel": "low",
   "tier": "core",
   "category": "git-devops",
-  "platforms": [
-    "desktop"
-  ],
+  "platforms": ["desktop"],
   "localizations": {
     "zh-CN": {
       "name": "发布就绪检查",

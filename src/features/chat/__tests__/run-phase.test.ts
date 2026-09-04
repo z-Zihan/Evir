@@ -15,9 +15,9 @@ describe("deriveRunPhase (canonical run state machine)", () => {
   });
 
   it("an approval wait outranks an open slot — the run is parked", () => {
-    expect(
-      deriveRunPhase(facts({ slotPhase: "streaming", hasPendingApproval: true })),
-    ).toBe("approval");
+    expect(deriveRunPhase(facts({ slotPhase: "streaming", hasPendingApproval: true }))).toBe(
+      "approval",
+    );
   });
 
   it("an open slot outranks terminal outcomes — stopped tails still persist", () => {

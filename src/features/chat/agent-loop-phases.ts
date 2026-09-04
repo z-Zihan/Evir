@@ -11,12 +11,10 @@ import {
   normalizeToolCallName,
   parseArguments,
   toolResultWireMessages,
-  type AgentLoopOptions,
-  type AgentLoopResult,
-  type AgentLoopTurn,
   type AgentMessage,
-} from "./agent-loop";
-import type { CallWithRaw } from "./agent-loop";
+  type CallWithRaw,
+} from "./agent-loop-protocol";
+import type { AgentLoopOptions, AgentLoopResult, AgentLoopTurn } from "./agent-loop";
 
 /** Mutable execution state shared by the loop's extracted phases. */
 export interface LoopExecution {

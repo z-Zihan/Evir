@@ -160,7 +160,9 @@ export function ChatMessage({
               </div>
             )}
             {message.attachments && message.attachments.length > 0 && (
-              <div className={`mb-1.5 flex flex-wrap gap-1.5 ${projectScoped ? "" : "justify-end"}`}>
+              <div
+                className={`mb-1.5 flex flex-wrap gap-1.5 ${projectScoped ? "" : "justify-end"}`}
+              >
                 {message.attachments.map((attachment) =>
                   attachment.type === "image" ? (
                     <img

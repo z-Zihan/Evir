@@ -25,27 +25,25 @@ import {
 } from "./agent-loop-phases";
 
 export const MAX_AGENT_ITERATIONS = 12;
-export const AGENT_TURN_TIMEOUT_MS = 120_000;
 
-/**
- * Some providers occasionally emit a malformed tool-call name that concatenates
- * the tool id with serialized argument fragments (for example
- * "run_commandprogram</arg_key><arg_value>ls</arg_value>"). When the junk
- * directly follows a known tool id, recover the intended call instead of
- * blocking it as an unknown tool.
- */
-export function normalizeToolCallName(name: string, allowedToolIds: Set<string>): string {
-  if (allowedToolIds.has(name)) return name;
-  const match = [...allowedToolIds]
-    .filter((toolId) => name.startsWith(toolId))
-    .sort((a, b) => b.length - a.length)[0];
-  if (!match) return name;
-  logger.info("agent", "agent.tool-name-normalized", {
-    rawLength: name.length,
-    toolName: match,
-  });
-  return match;
-}
+// Shared loop protocol lives in a leaf module so agent-loop-phases can import
+// it without closing a runtime cycle; re-exported here for existing importers.
+import {
+  assistantToolCallWireMessage,
+  parseArguments,
+  toolResultWireMessages,
+  type AgentMessage,
+  type CallWithRaw,
+} from "./agent-loop-protocol";
+export {
+  AGENT_TURN_TIMEOUT_MS,
+  assistantToolCallWireMessage,
+  findBlockedCall,
+  normalizeToolCallName,
+  parseArguments,
+  toolResultWireMessages,
+} from "./agent-loop-protocol";
+export type { AgentMessage, AgentToolCall, CallWithRaw } from "./agent-loop-protocol";
 
 export interface AgentLoopTurn {
   stream: StreamResult;
@@ -74,20 +72,6 @@ export interface AgentLoopOptions {
   signal?: AbortSignal;
 }
 
-interface AgentToolCall {
-  id: string;
-  type: "function";
-  function: { name: string; arguments: string };
-}
-
-export interface AgentMessage {
-  role: string;
-  content: unknown;
-  tool_calls?: AgentToolCall[];
-  tool_call_id?: string;
-  name?: string;
-}
-
 export interface AgentLoopResult {
   turns: AgentLoopTurn[];
   maxIterationsReached: boolean;
@@ -109,27 +93,11 @@ export interface AgentApprovalContext {
   agentRun: AgentRunContext;
 }
 
-export interface CallWithRaw {
-  record: ToolCallRecord;
-  rawArguments: string;
-}
-
 function providerTools(tools: readonly ToolDefinition[]): unknown[] {
   return tools.map((tool) => ({
     type: "function",
     function: { name: tool.name, description: tool.description, parameters: tool.schema },
   }));
-}
-
-export function parseArguments(value: string): Record<string, unknown> | undefined {
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 /** Metadata-only tool summaries for traces (§25): keys/sizes, never values. */
@@ -237,33 +205,6 @@ async function executeCalls(
   return { calls, results };
 }
 
-/** Wire-format mapping shared by the agent loop, approval continuation, and
- * conversation replay. `arguments` must already be a JSON string — callers
- * decide whether to echo the model's raw text or re-serialize a parsed value. */
-export function assistantToolCallWireMessage(
-  content: string,
-  calls: readonly { id: string; toolName: string; arguments: string }[],
-): AgentMessage {
-  return {
-    role: "assistant",
-    content,
-    tool_calls: calls.map((call) => ({
-      id: call.id,
-      type: "function" as const,
-      function: { name: call.toolName, arguments: call.arguments },
-    })),
-  };
-}
-
-export function toolResultWireMessages(results: readonly ToolResultRecord[]): AgentMessage[] {
-  return results.map((result) => ({
-    role: "tool",
-    content: result.output,
-    tool_call_id: result.toolCallId,
-    name: result.toolName,
-  }));
-}
-
 function appendToolMessages(
   messages: AgentMessage[],
   stream: StreamResult,
@@ -285,18 +226,6 @@ function appendToolMessages(
 
 function requiresPermission(results: ToolResultRecord[]): boolean {
   return results.some((result) => result.error === TOOL_PERMISSION_REQUIRED);
-}
-
-export function findBlockedCall(
-  calls: CallWithRaw[],
-  results: ToolResultRecord[],
-): { toolCallId: string; toolName: string; args: Record<string, unknown> } | undefined {
-  const index = results.findIndex((r) => r.error === TOOL_PERMISSION_REQUIRED);
-  if (index === -1) return undefined;
-  const call = calls[index];
-  return call
-    ? { toolCallId: call.record.id, toolName: call.record.toolName, args: call.record.arguments }
-    : undefined;
 }
 
 export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoopResult> {

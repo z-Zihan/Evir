@@ -6,20 +6,13 @@
   "description": "Develop evidence-driven SQL performance hypotheses from local queries, plans, schemas, and workload constraints.",
   "entry": "SKILL.md",
   "source": "builtin",
-  "capabilities": [
-    "filesystem.read"
-  ],
-  "optionalCapabilities": [
-    "filesystem.write",
-    "terminal.run"
-  ],
+  "capabilities": ["filesystem.read"],
+  "optionalCapabilities": ["filesystem.write", "terminal.run"],
   "optionalMcpServers": [],
   "riskLevel": "medium",
   "tier": "core",
   "category": "data",
-  "platforms": [
-    "desktop"
-  ],
+  "platforms": ["desktop"],
   "localizations": {
     "zh-CN": {
       "name": "SQL 优化",

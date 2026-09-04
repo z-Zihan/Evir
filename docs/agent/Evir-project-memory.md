@@ -6,17 +6,17 @@
 
 ## 权威文档路由（唯一事实源）
 
-| 主题         | 权威文档                                  |
-| ------------ | ----------------------------------------- |
-| 产品逻辑     | `docs/01-product-requirements.md`         |
-| 架构与分层   | `docs/02-technical-architecture.md`       |
-| 设计规范     | `docs/04-design-specification.md`         |
-| 工程标准     | `docs/05-engineering-standards.md`        |
-| Agent 安全   | `docs/07-agent-security-and-quality.md`   |
-| 逐项验证状态 | `docs/release-readiness.md`（含 NOT RUN/BLOCKED 清单） |
-| 性能实测     | `docs/benchmarks/latest.json`             |
-| Agent Eval   | `eval/README.md`                          |
-| 发布门禁     | 根目录 `AGENTS.md`                        |
+| 主题         | 权威文档                                                                            |
+| ------------ | ----------------------------------------------------------------------------------- |
+| 产品逻辑     | `docs/01-product-requirements.md`                                                   |
+| 架构与分层   | `docs/02-technical-architecture.md`                                                 |
+| 设计规范     | `docs/04-design-specification.md`                                                   |
+| 工程标准     | `docs/05-engineering-standards.md`                                                  |
+| Agent 安全   | `docs/07-agent-security-and-quality.md`                                             |
+| 逐项验证状态 | `docs/release-readiness.md`（含 NOT RUN/BLOCKED 清单）                              |
+| 性能实测     | `docs/benchmarks/latest.json`                                                       |
+| Agent Eval   | `eval/README.md`                                                                    |
+| 发布门禁     | 根目录 `AGENTS.md`                                                                  |
 | 历史材料     | `docs/archive/`（含原 06 开发计划、12/18 评审、reviews 快照，均带 Historical 标记） |
 
 ## 当前产品心智（细节以 docs/01 为准）

@@ -12,10 +12,7 @@
   "riskLevel": "low",
   "tier": "core",
   "category": "design",
-  "platforms": [
-    "web",
-    "desktop"
-  ],
+  "platforms": ["web", "desktop"],
   "localizations": {
     "zh-CN": {
       "name": "前端设计",
