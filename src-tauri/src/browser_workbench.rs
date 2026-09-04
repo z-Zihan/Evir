@@ -26,6 +26,8 @@ use tauri::{
     AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindowBuilder,
 };
 
+use crate::native_log;
+
 #[derive(Debug, Clone, Serialize)]
 pub struct BrowserTab {
     pub id: u32,
@@ -172,6 +174,9 @@ fn set_active_tab(app: &AppHandle, surface: Surface, active_id: u32) {
         .insert(surface.window_label(), active_id);
     let panel_visible =
         surface == Surface::Panel && *state.panel_visible.lock().expect("panel visible lock");
+    let mut shown = 0u32;
+    let mut hidden = 0u32;
+    let mut failures: Vec<String> = Vec::new();
     for (label, webview) in app.webviews() {
         let Some(id_part) = label.strip_prefix(surface.prefix()) else {
             continue;
@@ -180,12 +185,68 @@ fn set_active_tab(app: &AppHandle, surface: Surface, active_id: u32) {
             continue;
         };
         let show = id == active_id && (surface == Surface::Workbench || panel_visible);
-        let _ = if show { webview.show() } else { webview.hide() };
+        let outcome = if show { webview.show() } else { webview.hide() };
+        match outcome {
+            Ok(()) => {
+                if show {
+                    shown += 1;
+                } else {
+                    hidden += 1;
+                }
+            }
+            Err(error) => failures.push(format!("{label}: {error}")),
+        }
     }
+    native_log::log(
+        "browser.set-active-tab",
+        serde_json::json!({
+            "surface": surface.window_label(),
+            "activeId": active_id,
+            "panelVisible": panel_visible,
+            "shown": shown,
+            "hidden": hidden,
+            "failures": failures,
+        }),
+    );
 }
 
 /// Create a content webview for `surface` and make it the active tab.
 fn add_content_tab(
+    app: &AppHandle,
+    surface: Surface,
+    id: u32,
+    target: &str,
+) -> Result<BrowserTab, String> {
+    let start = std::time::Instant::now();
+    // Log the origin only: full URLs can carry query tokens.
+    let origin = tauri::Url::parse(target)
+        .ok()
+        .and_then(|url| {
+            url.host_str().map(|host| {
+                format!(
+                    "{}://{}{}",
+                    url.scheme(),
+                    host,
+                    url.port().map(|p| format!(":{p}")).unwrap_or_default()
+                )
+            })
+        })
+        .unwrap_or_else(|| "<unparsable>".into());
+    let result = add_content_tab_inner(app, surface, id, target);
+    native_log::log(
+        "browser.tab-added",
+        serde_json::json!({
+            "surface": surface.window_label(),
+            "id": id,
+            "origin": origin,
+            "ok": result.is_ok(),
+            "durationMs": start.elapsed().as_millis() as u64,
+        }),
+    );
+    result
+}
+
+fn add_content_tab_inner(
     app: &AppHandle,
     surface: Surface,
     id: u32,
@@ -282,6 +343,10 @@ fn find_webview(app: &AppHandle, surface: Surface, id: u32) -> Option<tauri::Web
 }
 
 fn close_tab(app: &AppHandle, surface: Surface, id: u32) {
+    native_log::log(
+        "browser.tab-closed",
+        serde_json::json!({ "surface": surface.window_label(), "id": id }),
+    );
     if let Some(webview) = find_webview(app, surface, id) {
         let _ = webview.close();
     }
@@ -509,6 +574,11 @@ pub fn browser_panel_layout_update(
     height: f64,
     visible: bool,
 ) -> Result<(), String> {
+    let start = std::time::Instant::now();
+    native_log::log(
+        "browser.panel-layout-update-started",
+        serde_json::json!({ "visible": visible }),
+    );
     {
         let state = app.state::<BrowserWorkbenchState>();
         *state.panel_visible.lock().expect("panel visible lock") = visible;
@@ -526,25 +596,37 @@ pub fn browser_panel_layout_update(
         if !label.starts_with(Surface::Panel.prefix()) {
             continue;
         }
-        if visible {
-            let _ = webview.set_position(position);
-            let _ = webview.set_size(size);
-            let _ = webview.show();
+        let outcome = if visible {
+            webview
+                .set_position(position)
+                .and_then(|()| webview.set_size(size))
+                .and_then(|()| webview.show())
         } else {
             // Hidden state must be explicit: the native layer renders above
             // every DOM element, so "keep the old rect" would leave a ghost
             // page floating over whatever moved underneath it.
-            let _ = webview.hide();
+            webview.hide()
+        };
+        if let Err(error) = outcome {
+            native_log::log(
+                "browser.panel-webview-op-failed",
+                serde_json::json!({ "label": label, "visible": visible, "error": error.to_string() }),
+            );
         }
     }
-    if let Some(active) = app
+    let active = app
         .state::<BrowserWorkbenchState>()
         .active_tabs
         .lock()
         .expect("active tab lock")
         .get(Surface::Panel.window_label())
-        .copied()
-    {
+        .copied();
+    // The value is bound to a local BEFORE the if-let: a MutexGuard temporary
+    // in an if-let scrutinee lives through the whole block (edition 2021), and
+    // set_active_tab re-locks active_tabs on this thread — that re-entrancy
+    // deadlocked the main thread for the whole session (2026-09-04 hang report:
+    // startURLSchemeTask → browser_panel_layout_update → set_active_tab).
+    if let Some(active) = active {
         set_active_tab(&app, Surface::Panel, active);
     } else {
         for (label, webview) in app.webviews() {
@@ -553,6 +635,18 @@ pub fn browser_panel_layout_update(
             }
         }
     }
+    native_log::log(
+        "browser.panel-layout-updated",
+        serde_json::json!({
+            "visible": visible,
+            "x": x.round() as i64,
+            "y": y.round() as i64,
+            "w": width.round() as i64,
+            "h": height.round() as i64,
+            "activeTab": active,
+            "durationMs": start.elapsed().as_millis() as u64,
+        }),
+    );
     Ok(())
 }
 

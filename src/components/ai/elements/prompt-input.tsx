@@ -176,7 +176,7 @@ export const PromptInputTextarea = ({
       // focus indicator — the container owns the visible focus state.
       data-slot="input-group-control"
       className={cn(
-        "field-sizing-content max-h-48 min-h-16 flex-1 resize-none rounded-none border-0 bg-transparent shadow-none outline-none focus-visible:ring-0",
+        "field-sizing-content max-h-48 min-h-16 w-full flex-1 resize-none rounded-none border-0 bg-transparent shadow-none outline-none focus-visible:ring-0",
         className,
       )}
       name="message"

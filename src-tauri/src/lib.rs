@@ -14,6 +14,7 @@ mod mcp_stdio;
 mod mcp_stdio_process;
 #[cfg(all(test, unix))]
 mod mcp_stdio_process_tests;
+mod native_log;
 mod preview_sandbox;
 mod secret_vault;
 #[cfg(test)]
@@ -53,6 +54,11 @@ pub fn run() {
                 eprintln!("Failed to create app data dir: {error}");
                 error
             })?;
+            native_log::init(&app_data_dir);
+            native_log::log(
+                "app.started",
+                serde_json::json!({ "version": app.package_info().version.to_string() }),
+            );
             let conn = storage::init_db(&app_data_dir).map_err(|error| {
                 eprintln!("Failed to init database: {error}");
                 error

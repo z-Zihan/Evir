@@ -24,7 +24,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
-    "test:e2e": "playwright test --project=web-e2e --project=desktop-e2e e2e/core.spec.ts",
+    "test:e2e": "playwright test --project=web-e2e --project=desktop-e2e e2e/core.spec.ts e2e/layout-regression.spec.ts",
     "test:ui": "playwright test --project=web-ui --project=desktop-ui e2e/ui-matrix.spec.ts",
     "test:visual": "playwright test --project=web-visual --project=desktop-visual e2e/visual.spec.ts",
     "test:visual:update": "pnpm test:visual --update-snapshots",

@@ -197,9 +197,16 @@ select {
 }
 
 /* Shared utilities (moved from the settings feature sheet — consumed across
- * pages: sr-only by usage/about/shortcuts, table-scroll by MarkdownContent). */
+ * pages: sr-only by usage/about/shortcuts, table-scroll by MarkdownContent).
+ *
+ * sr-only pins top/left: without offsets an absolutely-positioned 1px box
+ * keeps its STATIC position, and when no ancestor is positioned the
+ * containing block is the ICB — a long chat then extends the DOCUMENT scroll
+ * area far past the viewport and the whole page scrolls (fixed 2026-09-04). */
 .sr-only {
   position: absolute;
+  top: 0;
+  left: 0;
   width: 1px;
   height: 1px;
   padding: 0;
