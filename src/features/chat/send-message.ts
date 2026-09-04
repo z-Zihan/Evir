@@ -77,6 +77,12 @@ export async function sendChatMessage(
   const lockedIds: string[] = [];
   if (existingConversationId) {
     if (submitLocks.has(existingConversationId) || slotFor(get(), existingConversationId)) {
+      // §40: a busy conversation accepts the next instruction as a queued
+      // follow-up instead of rejecting it — it sends when the run settles.
+      if (slotFor(get(), existingConversationId)) {
+        get().queueNextMessage(existingConversationId, text);
+        return true;
+      }
       return false;
     }
     submitLocks.add(existingConversationId);

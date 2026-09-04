@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Activity, Brain, Check, Copy, Pencil, RotateCcw, Sparkles } from "lucide-react";
 
@@ -14,12 +14,9 @@ import {
 import { copyTextWithFeedback, notify } from "../components/feedback";
 import { Button, Textarea } from "../components/ui";
 import type { MessageRecord } from "../core/storage/db";
-import { useTraceForMessage } from "../features/tracing/trace-store";
+import { useTraceForMessage, useTraceDialogStore } from "../features/tracing/trace-store";
 import { AgentActivity } from "./AgentActivity";
 import { MarkdownContent } from "./MarkdownContent";
-
-// The trace viewer is a rare deep-dive surface: keep it out of the chat bundle.
-const TraceDetailsDialog = lazy(() => import("../features/tracing/TraceDetailsDialog"));
 
 interface ChatMessageProps {
   message: MessageRecord;
@@ -54,7 +51,7 @@ export function ChatMessage({
   const [rememberState, setRememberState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const trace = useTraceForMessage(message.id);
-  const [traceOpen, setTraceOpen] = useState(false);
+  const openTraceDialog = useTraceDialogStore((state) => state.open);
   useEffect(() => {
     if (!isEditing) setDraft(message.content);
   }, [message.content, isEditing]);
@@ -332,7 +329,7 @@ export function ChatMessage({
                   <MessageAction
                     tooltip={t("trace.details")}
                     aria-label={t("trace.details")}
-                    onClick={() => setTraceOpen(true)}
+                    onClick={() => openTraceDialog(message.id)}
                   >
                     <Activity size={13} />
                   </MessageAction>
@@ -351,11 +348,6 @@ export function ChatMessage({
             )}
           </div>
         </>
-      )}
-      {traceOpen && trace && (
-        <Suspense fallback={null}>
-          <TraceDetailsDialog trace={trace} onClose={() => setTraceOpen(false)} />
-        </Suspense>
       )}
     </Message>
   );

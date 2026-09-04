@@ -163,7 +163,9 @@
     "sendFailed": "发送失败，请重试（草稿已保留）",
     "compactRunning": "正在压缩当前会话…",
     "compactDone": "会话已压缩",
-    "compactUnavailable": "当前会话暂不需要压缩（消息太少或正在运行）"
+    "compactUnavailable": "当前会话暂不需要压缩（消息太少或正在运行）",
+    "queuedLabel": "排队中的下一条消息",
+    "removeQueued": "移除排队消息"
   },
   "runtime": {
     "agentReady": "本地 Agent Runtime",

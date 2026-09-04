@@ -4,17 +4,20 @@ import {
   ArrowLeft,
   ArrowRight,
   Bot,
+  Copy,
+  ExternalLink,
   Globe,
   LoaderCircle,
   MonitorPlay,
   MousePointerClick,
   Plus,
   RotateCw,
-  Square,
   Unplug,
   X,
 } from "lucide-react";
 import { Button, Input, Tabs, TabsList, TabsTab, Tip } from "../../components/ui";
+import { copyTextWithFeedback } from "../../components/feedback";
+import { openExternal } from "../../features/browser/workbench-service";
 import {
   panelAnnotate,
   panelLayoutUpdate,
@@ -29,6 +32,7 @@ import {
   type PanelBrowserTab,
 } from "../../features/workspace/browser-panel-service";
 import { devServerFailureText, useDevServerUi } from "./use-dev-server-ui";
+import { AppPreviewCard } from "./AppPreviewCard";
 import {
   useWorkspacePanelStore,
   selectOverlayBlocked,
@@ -404,6 +408,35 @@ export function BrowserTab() {
             className="h-7 border-0 bg-transparent pl-7 text-[12px] focus-visible:border-0 focus-visible:outline-none"
           />
         </form>
+        <Tip content={t("workspace.copyUrl")} side="bottom">
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="disabled:opacity-35"
+            disabled={!activeTab}
+            aria-label={t("workspace.copyUrl")}
+            onClick={() =>
+              activeTab &&
+              void copyTextWithFeedback(activeTab.url, { successKey: "workspace.urlCopied" })
+            }
+          >
+            <Copy size={14} aria-hidden="true" />
+          </Button>
+        </Tip>
+        <Tip content={t("browser.openExternal")} side="bottom">
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="disabled:opacity-35"
+            disabled={!activeTab}
+            aria-label={t("browser.openExternal")}
+            onClick={() =>
+              activeTab && void openExternal(activeTab.url).catch(() => undefined)
+            }
+          >
+            <ExternalLink size={14} aria-hidden="true" />
+          </Button>
+        </Tip>
         <Tip content={t("workspace.newTab")} side="bottom">
           <Button
             variant="ghost"
@@ -522,33 +555,7 @@ export function BrowserTab() {
       </div>
       {root && dev.server && (
         <footer className="workspace-devserver-card">
-          {dev.active ? (
-            <div className="devserver-state">
-              <span className={`devserver-dot ${dev.server.status}`} aria-hidden="true" />
-              <span className="devserver-copy">
-                {t(`workspace.devServer.${dev.server.status}`)}
-                {dev.server.url ? ` · ${dev.server.url}` : ""}
-              </span>
-              <Button variant="secondary" size="lg" onClick={() => void dev.stop()}>
-                <Square size={12} aria-hidden="true" />
-                {t("workspace.devServer.stop")}
-              </Button>
-            </div>
-          ) : dev.server.status === "crashed" ? (
-            <div className="devserver-state">
-              <span className="devserver-dot crashed" aria-hidden="true" />
-              <span className="devserver-copy">{t("workspace.devServer.crashed")}</span>
-              <Button
-                variant="secondary"
-                size="lg"
-                disabled={dev.starting}
-                onClick={() => void dev.start()}
-              >
-                {t("workspace.devServer.retry")}
-              </Button>
-            </div>
-          ) : null}
-          {devServerFailure && <span className="devserver-error">{devServerFailure}</span>}
+          <AppPreviewCard controller={dev} project={project} variant="compact" />
           {screenshotOutputs.length > 0 && (
             <div className="devserver-screenshots" aria-label={t("workspace.recentScreenshots")}>
               {screenshotOutputs.map((output) => (

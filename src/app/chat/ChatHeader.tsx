@@ -1,8 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { PanelLeft, PanelRight } from "lucide-react";
 import { Button, Tip } from "../../components/ui";
-import { ModelSwitcher } from "../ModelSwitcher";
-import type { ProviderRecord } from "../../core/storage/db";
+import type { ConversationRunStatus } from "../../features/chat/run-phase";
 
 export interface ChatHeaderProps {
   title: string;
@@ -15,12 +14,8 @@ export interface ChatHeaderProps {
   panelOpen: boolean;
   onTogglePanel: () => void;
   isDesktop: boolean;
-  activeProvider: ProviderRecord | undefined;
-  activeModelId: string | undefined;
-  /** Bump to open the model picker programmatically (slash /model). */
-  modelSwitchSignal: number;
-  onModelSwitch: (provider: ProviderRecord) => void;
-  onSwitchModel: (provider: ProviderRecord, modelId: string) => void;
+  /** Canonical run phase for this thread (§68: title + status only). */
+  runStatus: ConversationRunStatus | null;
 }
 
 /** Conversation header: sidebar/panel toggles, title and model switcher. */
@@ -33,11 +28,7 @@ export function ChatHeader({
   panelOpen,
   onTogglePanel,
   isDesktop,
-  activeProvider,
-  activeModelId,
-  modelSwitchSignal,
-  onModelSwitch,
-  onSwitchModel,
+  runStatus,
 }: ChatHeaderProps) {
   const { t } = useTranslation();
   return (
@@ -57,8 +48,18 @@ export function ChatHeader({
         </Tip>
         <div className="workspace-title-block flex min-w-0 flex-col leading-tight">
           <h1 className="truncate text-[13px] font-semibold text-foreground">{title}</h1>
-          <span className="workspace-context truncate text-[10.5px] text-muted">
-            {providerName ?? runtimeCaption}
+          <span className="workspace-context flex min-w-0 items-center gap-1.5 truncate text-[10.5px] text-muted">
+            {runStatus && (
+              <span
+                className={`header-run-status header-run-status-${runStatus} inline-flex shrink-0 items-center gap-1`}
+              >
+                <span className="size-1.5 rounded-full bg-current" aria-hidden="true" />
+                {t(
+                  `sidebar.status${runStatus === "streaming" ? "Running" : statusLabelKey(runStatus)}`,
+                )}
+              </span>
+            )}
+            <span className="truncate">{providerName ?? runtimeCaption}</span>
           </span>
         </div>
       </div>
@@ -78,14 +79,28 @@ export function ChatHeader({
             </Button>
           </Tip>
         )}
-        <ModelSwitcher
-          activeProvider={activeProvider}
-          activeModelId={activeModelId}
-          openSignal={modelSwitchSignal}
-          onSwitch={onModelSwitch}
-          onSwitchModel={onSwitchModel}
-        />
       </div>
     </header>
   );
+}
+
+function statusLabelKey(status: ConversationRunStatus): string {
+  switch (status) {
+    case "preparing":
+      return "Preparing";
+    case "verifying":
+      return "Verifying";
+    case "approval":
+      return "Approval";
+    case "waiting-user":
+      return "WaitingUser";
+    case "failed":
+      return "Failed";
+    case "stopped":
+      return "Stopped";
+    case "unread":
+      return "Unread";
+    default:
+      return "Running";
+  }
 }

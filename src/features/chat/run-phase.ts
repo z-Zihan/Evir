@@ -31,10 +31,10 @@ export type RunPhase =
 export type ConversationRunStatus = RunPhase | "unread";
 
 export interface RunPhaseFacts {
-  slotPhase?: "preparing" | "streaming" | "verifying";
+  slotPhase?: "preparing" | "streaming" | "verifying" | undefined;
   hasPendingApproval: boolean;
   waitingUser: boolean;
-  outcomeStatus?: "completed" | "failed" | "stopped";
+  outcomeStatus?: "completed" | "failed" | "stopped" | undefined;
 }
 
 /**

@@ -60,6 +60,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   streamEpochs: {},
   pendingApprovals: {},
   runOutcomes: {},
+  queuedInputs: {},
   conversationViewedAt: {},
   loadConversations: async () => doLoadConversations(set),
   createConversation: async (providerId, modelId, projectId = null) =>
@@ -178,6 +179,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
     await denyTool(pending, set, get);
   },
   sendMessage: (text, onAccepted) => sendChatMessage(set, get, text, onAccepted),
+  queueNextMessage: (conversationId, text) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    set((state) => ({ queuedInputs: { ...state.queuedInputs, [conversationId]: trimmed } }));
+  },
+  clearQueuedMessage: (conversationId) =>
+    set((state) => {
+      if (!(conversationId in state.queuedInputs)) return state;
+      const queuedInputs = { ...state.queuedInputs };
+      delete queuedInputs[conversationId];
+      return { queuedInputs };
+    }),
   regenerate: async () => {
     const { messages, currentConversationId } = get();
     if (!currentConversationId || slotFor(get(), currentConversationId)) return;

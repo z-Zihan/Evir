@@ -3,16 +3,18 @@ import { useTranslation } from "react-i18next";
 import {
   ChevronLeft,
   ChevronRight,
+  Copy,
   Eye,
+  FileArchive,
   FileQuestion,
+  FolderOpen,
   LoaderCircle,
-  MonitorPlay,
   Pin,
   PinOff,
-  Play,
-  Square,
+  SquareArrowOutUpRight,
 } from "lucide-react";
 import { Button, Tabs, TabsList, TabsTab, Tip } from "../../components/ui";
+import { copyTextWithFeedback } from "../../components/feedback";
 import { useWorkspacePanelStore } from "../../features/workspace/workspace-panel-store";
 import {
   workspaceResourceKey,
@@ -23,14 +25,32 @@ import {
   loadArtifact,
   readBinaryBase64,
   readTextFile,
+  revealInFileManager,
   resolveChangeDiff,
   resolveWorkspacePath,
+  statFile,
 } from "../../features/workspace/workspace-services";
 import { readScreenshotBase64 } from "../../features/workspace/browser-panel-service";
 import { useActiveWorkspaceRoot } from "../../features/workspace/workspace-bridge";
 import { useProjectStore } from "../../features/projects/project-store";
-import { useConfirmationDialog } from "../useConfirmationDialog";
-import { devServerFailureText, useDevServerUi } from "./use-dev-server-ui";
+import { devServerFailureText, useDevServerUi, appPreviewStatus, openUrlInPanelBrowser } from "./use-dev-server-ui";
+import { AppPreviewCard } from "./AppPreviewCard";
+import {
+  classifyFilePreview,
+  fileExtension,
+  imageMimeFor,
+} from "./file-preview-classify";
+
+function extensionLanguage(path: string): string {
+  const extension = fileExtension(path);
+  if (extension === "" || classifyFilePreview(path) !== "text") return "";
+  const descriptor = previewRegistry.forExtension(extension);
+  return descriptor?.id ?? extension;
+}
+
+function extensionRendererId(path: string): PreviewRendererId | null {
+  return previewRegistry.forExtension(fileExtension(path))?.id ?? null;
+}
 import { normalizeFenceLanguage, previewRegistry } from "../../features/preview/preview-registry";
 import { ArtifactPreview } from "../../features/preview/ArtifactPreview";
 import { isHighlightable, useShikiHighlight } from "../../features/preview/use-shiki";
@@ -49,6 +69,13 @@ const CanvasView = lazy(() => import("../../features/canvas/CanvasView"));
 
 type LoadingState = { phase: "loading" } | { phase: "ready" } | { phase: "error"; message: string };
 
+interface BinaryMeta {
+  path: string;
+  size: number;
+  modified: number | null;
+  extension: string;
+}
+
 interface ResolvedContent {
   /** Text body (code fence language or file text). */
   text: string | null;
@@ -60,25 +87,8 @@ interface ResolvedContent {
   rendererId: PreviewRendererId | null;
   /** Screenshot/image data URL rendered directly. */
   imageDataUrl: string | null;
-}
-
-const BINARY_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "pdf", "ico", "bmp"]);
-
-function fileExtension(path: string): string {
-  const name = path.toLowerCase().replace(/\\/g, "/").split("/").pop() ?? "";
-  const dot = name.lastIndexOf(".");
-  return dot === -1 ? "" : name.slice(dot + 1);
-}
-
-function extensionLanguage(path: string): string {
-  const extension = fileExtension(path);
-  if (BINARY_EXTENSIONS.has(extension)) return "";
-  const descriptor = previewRegistry.forExtension(extension);
-  return descriptor?.id ?? extension;
-}
-
-function extensionRendererId(path: string): PreviewRendererId | null {
-  return previewRegistry.forExtension(fileExtension(path))?.id ?? null;
+  /** Metadata card for non-previewable binaries (§20: binary / zip 元信息). */
+  binaryMeta: BinaryMeta | null;
 }
 
 /** Screenshot files live in app-data (outside the workspace root). */
@@ -86,16 +96,6 @@ async function readScreenshotDataUrl(path: string): Promise<string> {
   const base64 = await readScreenshotBase64(path);
   return `data:image/png;base64,${base64}`;
 }
-
-const IMAGE_MIME: Record<string, string> = {
-  png: "image/png",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  gif: "image/gif",
-  webp: "image/webp",
-  ico: "image/x-icon",
-  bmp: "image/bmp",
-};
 
 /**
  * Workspace image: read the actual file bytes from the project root. The
@@ -105,8 +105,7 @@ const IMAGE_MIME: Record<string, string> = {
  */
 async function readWorkspaceImageDataUrl(path: string): Promise<string> {
   const base64 = await readBinaryBase64(path);
-  const mime = IMAGE_MIME[fileExtension(path)] ?? "application/octet-stream";
-  return `data:${mime};base64,${base64}`;
+  return `data:${imageMimeFor(path)};base64,${base64}`;
 }
 
 function useResolvedResource(
@@ -137,6 +136,7 @@ function useResolvedResource(
             diff: null,
             rendererId: null,
             imageDataUrl: null,
+            binaryMeta: null,
           } satisfies ResolvedContent;
         }
         if (resource.kind === "artifact") {
@@ -153,6 +153,7 @@ function useResolvedResource(
                 ?.id ??
               null,
             imageDataUrl: null,
+            binaryMeta: null,
           } satisfies ResolvedContent;
         }
         if (resource.kind === "diff") {
@@ -174,6 +175,7 @@ function useResolvedResource(
             diffReason: resolved.reason,
             rendererId: "diff",
             imageDataUrl: null,
+            binaryMeta: null,
           } satisfies ResolvedContent;
         }
         if (resource.kind === "screenshot") {
@@ -184,6 +186,7 @@ function useResolvedResource(
             diff: null,
             rendererId: null,
             imageDataUrl: await readScreenshotDataUrl(resource.path),
+            binaryMeta: null,
           } satisfies ResolvedContent;
         }
         if (resource.kind === "url") {
@@ -194,35 +197,52 @@ function useResolvedResource(
             diff: null,
             rendererId: null,
             imageDataUrl: null,
+            binaryMeta: null,
           } satisfies ResolvedContent;
         }
         // file
-        const language = extensionLanguage(resource.path);
-        if (language === "") {
-          const name = resource.path.toLowerCase();
-          if (name.endsWith(".pdf")) {
-            return {
-              text: null,
-              language: "pdf",
-              base64: await readBinaryBase64(resource.path),
-              diff: null,
-              rendererId: "pdf",
-              imageDataUrl: null,
-            } satisfies ResolvedContent;
-          }
+        const previewKind = classifyFilePreview(resource.path);
+        if (previewKind === "image") {
           return {
             text: null,
             language: "",
             base64: null,
             diff: null,
             rendererId: null,
-            // Workspace file: read the real bytes from the project root. The
-            // screenshot reader resolves against app-data and never matches here.
-            imageDataUrl: await readWorkspaceImageDataUrl(resource.path).catch(() => {
-              throw new Error("binary-preview-unavailable");
-            }),
+            imageDataUrl: await readWorkspaceImageDataUrl(resource.path),
+            binaryMeta: null,
           } satisfies ResolvedContent;
         }
+        if (previewKind === "pdf") {
+          return {
+            text: null,
+            language: "pdf",
+            base64: await readBinaryBase64(resource.path),
+            diff: null,
+            rendererId: "pdf",
+            imageDataUrl: null,
+            binaryMeta: null,
+          } satisfies ResolvedContent;
+        }
+        if (previewKind === "binary-meta") {
+          const stat = await statFile(resource.path);
+          if (!stat.exists) throw new Error("binary-preview-unavailable");
+          return {
+            text: null,
+            language: "",
+            base64: null,
+            diff: null,
+            rendererId: null,
+            imageDataUrl: null,
+            binaryMeta: {
+              path: resource.path,
+              size: stat.size,
+              modified: stat.modified ?? null,
+              extension: fileExtension(resource.path),
+            },
+          } satisfies ResolvedContent;
+        }
+        const language = extensionLanguage(resource.path);
         const text = await readTextFile(resource.path);
         return {
           text,
@@ -232,6 +252,7 @@ function useResolvedResource(
           rendererId:
             previewRegistry.forLanguage(language)?.id ?? extensionRendererId(resource.path),
           imageDataUrl: null,
+          binaryMeta: null,
         } satisfies ResolvedContent;
       } catch (error) {
         if (cancelled) return null;
@@ -293,46 +314,12 @@ function CodeView({ text, language }: { text: string; language: string }) {
   return <div className="workspace-code-highlight" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
-function ResourceEmpty() {
+function ResourceEmpty({ controller }: { controller: ReturnType<typeof useDevServerUi> }) {
   const { t } = useTranslation();
   const root = useActiveWorkspaceRoot();
   const projects = useProjectStore((state) => state.projects);
   const currentProjectId = useProjectStore((state) => state.currentProjectId);
   const project = projects.find(({ id }) => id === currentProjectId);
-  const {
-    requestConfirmation: requestDevServerConfirmation,
-    confirmationDialog: devServerConfirmation,
-  } = useConfirmationDialog();
-
-  const controller = useDevServerUi();
-  const failure = devServerFailureText(controller, t("workspace.devServer.crashedHint"));
-  const beginStart = (retry: boolean) => {
-    logger.info("ui", retry ? "ui.app-preview.retry" : "ui.app-preview.start", {
-      actionId: crypto.randomUUID(),
-      projectId: project?.id,
-    });
-    if (!project) return;
-    if (project.permissionProfile === "ask") {
-      requestDevServerConfirmation(
-        {
-          title: t("workspace.previewApp.confirmTitle"),
-          description: t("workspace.previewApp.confirmDescription"),
-          confirmLabel: t("workspace.previewApp.start"),
-          tone: "warning",
-        },
-        () => void controller.start(),
-      );
-      return;
-    }
-    void controller.start();
-  };
-  // Full §17 failure payload: command, exit code, and the process output tail.
-  const crashed = controller.server?.status === "crashed";
-  const failureCommand = controller.server
-    ? `${controller.server.program} ${controller.server.args.join(" ")}`
-    : null;
-  const failureExitCode = controller.server?.exitCode ?? null;
-  const failureLogs = crashed ? (controller.server?.lastOutput ?? []) : [];
 
   return (
     <div className="workspace-preview-empty">
@@ -341,87 +328,32 @@ function ResourceEmpty() {
         <h3>{t("workspace.previewFileTitle")}</h3>
         <p>{t("workspace.previewEmpty")}</p>
       </section>
-      {root && (
-        <section className="workspace-preview-empty-block app-preview-card">
-          <MonitorPlay size={20} aria-hidden="true" />
-          <div className="app-preview-copy">
-            <h3>{t("workspace.previewApp.title")}</h3>
-            {controller.active ? (
-              <p className="app-preview-state">
-                {controller.starting
-                  ? t("workspace.previewApp.starting")
-                  : controller.server?.url
-                    ? controller.server.url
-                    : t("workspace.previewApp.running")}
-              </p>
-            ) : controller.plan ? (
-              <p className="app-preview-state">
-                {t("workspace.previewApp.detected", {
-                  script: `${controller.plan.program} ${controller.plan.args.join(" ")}`,
-                })}
-              </p>
-            ) : (
-              <p className="app-preview-state">{t("workspace.previewApp.noScript")}</p>
-            )}
-            {failure && <p className="app-preview-failure">{failure}</p>}
-            {crashed && failureCommand && (
-              <div className="app-preview-failure-detail">
-                <p>
-                  {t("workspace.devServer.command")}: <code>{failureCommand}</code>
-                </p>
-                {failureExitCode !== null && (
-                  <p>
-                    {t("workspace.devServer.exitCode")}: <code>{failureExitCode}</code>
-                  </p>
-                )}
-                {failureLogs.length > 0 && (
-                  <details>
-                    <summary>{t("workspace.devServer.viewLogs")}</summary>
-                    <pre>{failureLogs.slice(-10).join("\n")}</pre>
-                  </details>
-                )}
-              </div>
-            )}
-          </div>
-          <div className="app-preview-actions">
-            {controller.active ? (
-              <Button variant="secondary" size="lg" onClick={() => void controller.stop()}>
-                <Square size={12} aria-hidden="true" />
-                {t("workspace.devServer.stop")}
-              </Button>
-            ) : (
-              controller.plan && (
-                <Button
-                  variant="primary"
-                  size="lg"
-                  disabled={controller.starting}
-                  onClick={() => beginStart(false)}
-                >
-                  {controller.starting ? (
-                    <LoaderCircle size={13} className="spin" aria-hidden="true" />
-                  ) : (
-                    <Play size={13} aria-hidden="true" />
-                  )}
-                  {controller.starting
-                    ? t("workspace.previewApp.starting")
-                    : t("workspace.previewApp.start")}
-                </Button>
-              )
-            )}
-            {controller.server?.status === "crashed" && (
-              <Button
-                variant="secondary"
-                size="lg"
-                disabled={controller.starting}
-                onClick={() => beginStart(true)}
-              >
-                {t("workspace.devServer.retry")}
-              </Button>
-            )}
-          </div>
-        </section>
-      )}
-      {devServerConfirmation}
+      {root && <AppPreviewCard controller={controller} project={project} />}
+    </div>
+  );
+}
+
+/** Binary/opaque file metadata card (§20): type + size + how to open it. */
+function BinaryMetaCard({ meta }: { meta: BinaryMeta }) {
+  const { t } = useTranslation();
+  const formatSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  };
+  const name = meta.path.replace(/\\/g, "/").split("/").pop() ?? meta.path;
+  return (
+    <div className="workspace-binary-meta">
+      <FileArchive size={20} aria-hidden="true" />
+      <p className="workspace-binary-meta-name">{name}</p>
+      <p className="workspace-binary-meta-detail">
+        {meta.extension.toUpperCase()} · {formatSize(meta.size)}
+        {meta.modified !== null
+          ? ` · ${t("workspace.binaryModified", { time: new Date(meta.modified).toLocaleString() })}`
+          : ""}
+      </p>
+      <p className="workspace-binary-meta-hint">{t("workspace.binaryHint")}</p>
     </div>
   );
 }
@@ -443,7 +375,8 @@ function ResourceError({ message }: { message: string }) {
 /**
  * The preview tab renders the activeResource with the existing preview
  * registry — file/artifact/diff/screenshot all flow through one header with
- * back/forward history, pin, and the Code/Preview mode toggle.
+ * back/forward history, pin, source attribution, copy-path/reveal actions,
+ * and the Code/Preview mode toggle.
  */
 export function PreviewTab() {
   const { t } = useTranslation();
@@ -459,11 +392,13 @@ export function PreviewTab() {
   const pinnedKey = useWorkspacePanelStore((state) => state.pinnedKey);
   const togglePin = useWorkspacePanelStore((state) => state.togglePin);
   const changes = useRunWorkspaceStore((state) => state.changes);
+  const devController = useDevServerUi();
   const root = useActiveWorkspaceRoot();
   const { state, content } = useResolvedResource(activeResource, root, changes);
 
   const mode = useMemo(() => {
     if (!content) return "code" as const;
+    if (content.binaryMeta) return "preview" as const;
     if (content.imageDataUrl || content.base64 || content.rendererId === "pdf")
       return "preview" as const;
     if (!content.rendererId) return "code" as const;
@@ -475,10 +410,25 @@ export function PreviewTab() {
     content.rendererId !== null &&
     content.imageDataUrl === null &&
     content.base64 === null &&
-    content.diff === null;
+    content.diff === null &&
+    content.binaryMeta === null;
   const isPinned =
     activeResource !== null &&
     pinnedKey === (activeResource ? workspaceResourceKey(activeResource) : null);
+
+  // §21 header facts: where this preview came from + file actions. Screenshots
+  // live in app-data (reveal N/A); files/canvas live in the workspace.
+  const resourcePath =
+    activeResource && "path" in activeResource ? activeResource.path : null;
+  const revealablePath =
+    activeResource &&
+    (activeResource.kind === "file" || activeResource.kind === "canvas" || activeResource.kind === "screenshot")
+      ? resourcePath
+      : null;
+  const sourceLabel = activeResource
+    ? t(`workspace.source.${activeResource.kind === "file" ? "files" : activeResource.kind}`)
+    : null;
+  const previewStatus = appPreviewStatus(devController.server, devController.starting);
 
   return (
     <div className="workspace-preview-tab">
@@ -513,7 +463,63 @@ export function PreviewTab() {
           <span className="workspace-resource-title" title={workspaceResourceTitle(activeResource)}>
             {workspaceResourceTitle(activeResource)}
           </span>
+          {sourceLabel && (
+            <span className="workspace-resource-source shrink-0 rounded-full border border-border bg-surface-hover px-1.5 py-px text-[9.5px] font-medium tracking-wide text-muted">
+              {sourceLabel}
+            </span>
+          )}
           <div className="workspace-resource-actions">
+            {previewStatus === "ready" && devController.server?.url && (
+              <Tip content={t("workspace.previewApp.openInBrowser")} side="bottom">
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  className="text-success"
+                  aria-label={t("workspace.previewApp.openInBrowser")}
+                  onClick={() =>
+                    void openUrlInPanelBrowser(devController.server?.url ?? "").catch(
+                      () => undefined,
+                    )
+                  }
+                >
+                  <span
+                    className="app-preview-dot inline-block size-2 rounded-full bg-success"
+                    aria-hidden="true"
+                  />
+                </Button>
+              </Tip>
+            )}
+            {resourcePath && (
+              <Tip content={t("workspace.copyPath")} side="bottom">
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={t("workspace.copyPath")}
+                  onClick={() =>
+                    void copyTextWithFeedback(resolveWorkspacePath(resourcePath, root) ?? resourcePath, {
+                      successKey: "workspace.pathCopied",
+                    })
+                  }
+                >
+                  <Copy size={13} aria-hidden="true" />
+                </Button>
+              </Tip>
+            )}
+            {revealablePath && (
+              <Tip content={t("workspace.revealInFinder")} side="bottom">
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={t("workspace.revealInFinder")}
+                  onClick={() => {
+                    const absolute = resolveWorkspacePath(revealablePath, root) ?? revealablePath;
+                    void revealInFileManager(absolute).catch(() => undefined);
+                  }}
+                >
+                  <SquareArrowOutUpRight size={13} aria-hidden="true" />
+                </Button>
+              </Tip>
+            )}
             {canToggle && (
               <Tabs
                 value={mode}
@@ -563,8 +569,10 @@ export function PreviewTab() {
         {state.phase === "error" && <ResourceError message={state.message} />}
         {state.phase === "ready" &&
           (!activeResource ? (
-            <ResourceEmpty />
-          ) : content === null ? null : content.imageDataUrl ? (
+            <ResourceEmpty controller={devController} />
+          ) : content === null ? null : content.binaryMeta ? (
+            <BinaryMetaCard meta={content.binaryMeta} />
+          ) : content.imageDataUrl ? (
             <img
               className="workspace-image-preview"
               src={content.imageDataUrl}
@@ -592,7 +600,7 @@ export function PreviewTab() {
           ) : content.text !== null ? (
             <CodeView text={content.text} language={content.language} />
           ) : (
-            <ResourceEmpty />
+            <ResourceEmpty controller={devController} />
           ))}
       </div>
     </div>

@@ -838,3 +838,49 @@
     transform: scale(1.18);
   }
 }
+
+/* §68: header run status — small dot + label next to the thread title,
+   colored by phase family (active / attention / settled). */
+.header-run-status {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.header-run-status-preparing,
+.header-run-status-verifying {
+  color: var(--accent);
+}
+
+.header-run-status-streaming {
+  color: var(--success);
+}
+
+.header-run-status-approval,
+.header-run-status-waiting-user {
+  color: var(--warning);
+}
+
+.header-run-status-failed {
+  color: var(--danger);
+}
+
+.header-run-status-stopped,
+.header-run-status-unread {
+  color: var(--muted);
+}
+
+.header-run-status-preparing .size-1\.5,
+.header-run-status-streaming .size-1\.5,
+.header-run-status-verifying .size-1\.5 {
+  animation: header-status-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes header-status-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowUp, FileText, Globe, Paperclip, Sparkles, Square, X } from "lucide-react";
+import { ArrowUp, Clock, FileText, Globe, Paperclip, Sparkles, Square, X } from "lucide-react";
 import { Button, Tip } from "../../components/ui";
 import {
   PromptInput,
@@ -16,8 +16,8 @@ import { useSkillStore } from "../../features/skills/skill-store";
 import { workspaceResourceTitle } from "../../features/workspace/resource-model";
 import { formatAnnotationDraft, parseAnnotationPayload } from "../../features/workspace/annotation";
 import { subscribePanelAnnotations } from "../../features/workspace/browser-panel-service";
-import type { ProjectRecord } from "../../core/storage/db";
-import { ModeSwitcher } from "../ModeSwitcher";
+import type { ProjectRecord, ProviderRecord } from "../../core/storage/db";
+import { ModelSwitcher } from "../ModelSwitcher";
 import { PermissionSwitcher } from "../PermissionSwitcher";
 import { SkillPicker } from "../SkillPicker";
 import {
@@ -46,15 +46,19 @@ export interface ChatComposerProps {
   streaming: boolean;
   /** Model-aware effective mode (web target downgrades to ask). */
   effectiveMode: ChatState["mode"];
-  mode: ChatState["mode"];
+  /** Modes are slash-driven now (/plan /goal /agent); the view keeps the store. */
   onModeChange: (mode: ChatState["mode"]) => void;
   projectScoped: boolean;
-  toolCalling: boolean;
   isWebTarget: boolean;
   conversationProject: ProjectRecord | undefined;
-  onOpenSettings: () => void;
-  /** The slash /model command opens the in-header model picker. */
+  /** The slash /model command opens the composer's model picker. */
   onModelSwitchCommand: () => void;
+  /** Model switching lives beside the composer (§36) — the single entry point. */
+  activeProvider: ProviderRecord | undefined;
+  activeModelId: string | undefined;
+  modelSwitchSignal: number;
+  onModelSwitch: (provider: ProviderRecord) => void;
+  onSwitchModel: (provider: ProviderRecord, modelId: string) => void;
   /** Non-mode slash actions (new/compact/preview/browser/outputs/…) — owned by ChatView. */
   onSlashAction: (id: Exclude<SlashActionId, "plan" | "goal" | "agent" | "model">) => void;
   /** Availability flags for the slash palette, computed by ChatView. */
@@ -76,14 +80,16 @@ export function ChatComposer({
   onStop,
   streaming,
   effectiveMode,
-  mode,
   onModeChange,
   projectScoped,
-  toolCalling,
   isWebTarget,
   conversationProject,
-  onOpenSettings,
   onModelSwitchCommand,
+  activeProvider,
+  activeModelId,
+  modelSwitchSignal,
+  onModelSwitch,
+  onSwitchModel,
   onSlashAction,
   slashCapabilities,
   errorBanner,
@@ -97,6 +103,23 @@ export function ChatComposer({
     toggleSelectedSkill,
   } = useChatStore(useShallow(composerStoresSelector));
   const installedSkills = useSkillStore((state) => state.skills);
+  const currentConversationId = useChatStore((state) => state.currentConversationId);
+  const queuedInput = useChatStore((state) =>
+    currentConversationId ? (state.queuedInputs?.[currentConversationId] ?? null) : null,
+  );
+  // §40 auto-drain: when this conversation's run settles, the queued
+  // follow-up sends itself without another round-trip through the user.
+  const wasStreaming = useRef(streaming);
+  useEffect(() => {
+    if (wasStreaming.current && !streaming && queuedInput) {
+      void useChatStore
+        .getState()
+        .sendMessage(queuedInput)
+        .then(() => useChatStore.getState().clearQueuedMessage(currentConversationId ?? ""))
+        .catch(() => undefined);
+    }
+    wasStreaming.current = streaming;
+  }, [streaming, queuedInput, currentConversationId]);
   const contextResource = useWorkspacePanelStore((state) =>
     state.open && state.activeTab === "preview" ? state.activeResource : null,
   );
@@ -317,6 +340,24 @@ export function ChatComposer({
               )}
             </div>
           )}
+          {queuedInput && (
+            <div
+              className="flex items-center gap-1.5 px-3 py-1.5"
+              aria-label={t("chat.queuedLabel")}
+            >
+              <span className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-primary/30 bg-primary/[0.06] py-1 pr-1 pl-2 text-[11.5px] text-foreground">
+                <Clock size={11} aria-hidden="true" className="shrink-0 text-primary" />
+                <span className="truncate">{queuedInput}</span>
+                <RemoveChipButton
+                  label={t("chat.removeQueued")}
+                  onRemove={() =>
+                    currentConversationId &&
+                    useChatStore.getState().clearQueuedMessage(currentConversationId)
+                  }
+                />
+              </span>
+            </div>
+          )}
           <PromptInputTextarea
             ref={textareaRef}
             aria-label={t("chat.placeholder")}
@@ -324,7 +365,6 @@ export function ChatComposer({
             value={input}
             onChange={(e) => onInputChange(e.target.value)}
             onKeyDown={handleKeyDown}
-            disabled={streaming}
             className="max-h-[200px] min-h-[52px] px-3.5 py-3 text-[13.5px] leading-relaxed text-foreground placeholder:text-muted disabled:opacity-60"
           />
           <PromptInputFooter>
@@ -348,12 +388,12 @@ export function ChatComposer({
               {projectScoped && !isWebTarget && conversationProject && (
                 <PermissionSwitcher project={conversationProject} />
               )}
-              <ModeSwitcher
-                mode={mode}
-                onModeChange={onModeChange}
-                projectScoped={projectScoped}
-                toolCalling={toolCalling}
-                onConfigureModel={onOpenSettings}
+              <ModelSwitcher
+                activeProvider={activeProvider}
+                activeModelId={activeModelId}
+                openSignal={modelSwitchSignal}
+                onSwitch={onModelSwitch}
+                onSwitchModel={onSwitchModel}
               />
               <span className="composer-info">
                 {input.length > 0 && (

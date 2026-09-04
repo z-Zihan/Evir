@@ -15,7 +15,7 @@
  *   model selector, speech input, and referenced-sources sub-features are
  *   intentionally not vendored: attachments/chips, skill picking, mode and
  *   permission controls belong to Evir's domain stores and existing
- *   composed components (SkillPicker, ModeSwitcher, PermissionSwitcher).
+ *   composed components (SkillPicker, PermissionSwitcher, ModelSwitcher).
  * - PromptInputTextarea keeps the upstream IME-safe Enter-to-submit and
  *   field-sizing auto-grow; Evir additionally drives its own auto-resize
  *   effect for WebKit engines without field-sizing support.

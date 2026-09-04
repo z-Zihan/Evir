@@ -79,6 +79,11 @@ export interface ChatState {
   pendingApprovals: Record<string, PendingToolApproval>;
   /** Last settled outcome per conversation (background runs included) for sidebar status. */
   runOutcomes: Record<string, { status: "completed" | "failed" | "stopped"; at: number }>;
+  /**
+   * Messages queued while a run owns the conversation (§40 运行中可驾驶):
+   * one per conversation, auto-sent when the run settles.
+   */
+  queuedInputs: Record<string, string>;
   /** Wall-clock of the last time each conversation was viewed (unread dots). */
   conversationViewedAt: Record<string, number>;
   loadConversations: () => Promise<void>;
@@ -99,6 +104,9 @@ export interface ChatState {
   updateConversationProvider: (providerId: string, modelId: string) => Promise<void>;
   /** Resolves after the run settles; onAccepted fires once the user message is safely accepted. */
   sendMessage: (text: string, onAccepted?: () => void) => Promise<boolean>;
+  /** Queue the next instruction while a run owns the conversation (§40). */
+  queueNextMessage: (conversationId: string, text: string) => void;
+  clearQueuedMessage: (conversationId: string) => void;
   regenerate: () => Promise<void>;
   editMessage: (messageId: string, newContent: string) => Promise<void>;
   /**

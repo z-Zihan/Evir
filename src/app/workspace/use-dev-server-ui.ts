@@ -35,6 +35,31 @@ export interface DevServerUiController {
   failure: string | null;
   start: () => Promise<void>;
   stop: () => Promise<void>;
+  /** Stop → Start cycle; the ready event re-opens the preview when it lands. */
+  restart: () => Promise<void>;
+}
+
+/** §15 user-facing states, derived from the Rust-side lifecycle facts. */
+export type AppPreviewStatus = "idle" | "starting" | "ready" | "error" | "stopped";
+
+export function appPreviewStatus(
+  server: DevServerState | null,
+  starting: boolean,
+): AppPreviewStatus {
+  if (starting || server?.status === "starting") return "starting";
+  if (server?.status === "ready" || server?.status === "running") return "ready";
+  if (server?.status === "crashed") return "error";
+  if (server?.status === "stopped") return "stopped";
+  return "idle";
+}
+
+/** Open a URL in the panel browser tab (used by Ready auto-open and manual Open). */
+export async function openUrlInPanelBrowser(url: string): Promise<void> {
+  const tabs = await panelTabList();
+  const existing = tabs.find((tab) => tab.url === url);
+  if (existing && !existing.active) await panelTabNavigate(existing.id, url);
+  else if (!existing) await panelTabNew(url);
+  useWorkspacePanelStore.getState().setTab("browser");
 }
 
 export function useDevServerUi(): DevServerUiController {
@@ -132,6 +157,14 @@ export function useDevServerUi(): DevServerUiController {
     [project],
   );
 
+  const restart = useMemo(
+    () => async () => {
+      await stop();
+      await start();
+    },
+    [start, stop],
+  );
+
   // Ready → open the URL in the panel browser and bring the Browser tab
   // forward. This runs from whichever surface is mounted, so the journey
   // works identically when started from the Preview tab.
@@ -142,12 +175,8 @@ export function useDevServerUi(): DevServerUiController {
     let cancelled = false;
     void (async () => {
       try {
-        const tabs = await panelTabList();
-        const existing = tabs.find((tab) => tab.url === url);
-        if (existing && !existing.active) await panelTabNavigate(existing.id, url);
-        else if (!existing) await panelTabNew(url);
+        await openUrlInPanelBrowser(url);
         if (cancelled) return;
-        useWorkspacePanelStore.getState().setTab("browser");
         logger.info("workspace", "dev-server.opened", { url });
       } catch (openError) {
         logger.error("workspace", "dev-server.open-failed", {
@@ -172,6 +201,7 @@ export function useDevServerUi(): DevServerUiController {
     failure: error,
     start,
     stop,
+    restart,
   };
 }
 

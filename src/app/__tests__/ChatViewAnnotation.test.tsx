@@ -99,7 +99,11 @@ vi.mock("../../features/memory/memory-store", () => ({
   useMemoryStore: () => ({ addMemory: vi.fn() }),
 }));
 vi.mock("../../features/orchestration/orchestration-store", () => ({
-  useOrchestrationStore: () => ({ current: null }),
+  useOrchestrationStore: Object.assign(
+    (selector?: (state: { current: null }) => unknown) =>
+      selector ? selector({ current: null }) : { current: null },
+    { getState: () => ({ current: null }) },
+  ),
 }));
 vi.mock("../../features/projects/project-store", () => ({
   useProjectStore: Object.assign(
@@ -126,6 +130,7 @@ describe("browser annotation → composer draft", () => {
         onInputChange={vi.fn()}
         onSendMessage={vi.fn()}
         onOpenSettings={vi.fn()}
+        onNewConversation={vi.fn()}
         onToggleSidebar={vi.fn()}
         sidebarVisible
       />,
@@ -141,6 +146,7 @@ describe("browser annotation → composer draft", () => {
         onInputChange={onInputChange}
         onSendMessage={vi.fn()}
         onOpenSettings={vi.fn()}
+        onNewConversation={vi.fn()}
         onToggleSidebar={vi.fn()}
         sidebarVisible
       />,
@@ -176,6 +182,7 @@ describe("browser annotation → composer draft", () => {
         onInputChange={onInputChange}
         onSendMessage={vi.fn()}
         onOpenSettings={vi.fn()}
+        onNewConversation={vi.fn()}
         onToggleSidebar={vi.fn()}
         sidebarVisible
       />,

@@ -242,7 +242,8 @@ export function App() {
                 input={messageInput}
                 onInputChange={setMessageInput}
                 onSendMessage={handleSendMessage}
-                onOpenSettings={() => openSettings()}
+                onOpenSettings={openSettings}
+                onNewConversation={handleNewConversation}
                 onToggleSidebar={() => setSidebarVisible((visible) => !visible)}
                 sidebarVisible={sidebarVisible}
               />

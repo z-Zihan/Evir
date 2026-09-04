@@ -163,7 +163,9 @@
     "sendFailed": "Send failed — your draft was kept. Try again.",
     "compactRunning": "Compacting this conversation…",
     "compactDone": "Conversation compacted",
-    "compactUnavailable": "Nothing to compact yet (too few messages or a run in flight)"
+    "compactUnavailable": "Nothing to compact yet (too few messages or a run in flight)",
+    "queuedLabel": "Queued next message",
+    "removeQueued": "Remove queued message"
   },
   "runtime": {
     "agentReady": "Local agent runtime",
