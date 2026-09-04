@@ -43,6 +43,16 @@ export interface ProviderEndpointPreset {
   site?: "mainland" | "international" | "local";
 }
 
+/**
+ * Provider maturity tier (§48):
+ * - "agent-verified": ran the Golden Agent Tasks against a real endpoint
+ *   (chat ≠ tool-call ≠ stable project-agent task).
+ * - "protocol-verified": the vendor's protocol adapter (streaming + tool
+ *   calls) is implemented and covered by automated protocol tests.
+ * - "preset": a configuration template only — no agent-level evidence.
+ */
+export type ProviderAgentTier = "agent-verified" | "protocol-verified" | "preset";
+
 export interface ProviderPreset {
   id: string;
   name: string;
@@ -53,6 +63,7 @@ export interface ProviderPreset {
   endpoints: readonly ProviderEndpointPreset[];
   supportsModelListing: boolean;
   webDirectCandidate: boolean;
+  agentTier: ProviderAgentTier;
   officialLinks?: ProviderOfficialLinks;
   notes?: readonly string[];
 }

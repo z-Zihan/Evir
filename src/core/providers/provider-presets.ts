@@ -20,6 +20,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: true,
     webDirectCandidate: true,
+    agentTier: "protocol-verified" as const,
   },
   {
     id: "anthropic",
@@ -39,6 +40,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: true,
     webDirectCandidate: true,
+    agentTier: "protocol-verified" as const,
   },
   {
     id: "google-gemini",
@@ -58,6 +60,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: true,
     webDirectCandidate: true,
+    agentTier: "protocol-verified" as const,
   },
   {
     id: "azure-openai",
@@ -70,6 +73,7 @@ export const PROVIDER_PRESETS = [
     endpoints: [],
     supportsModelListing: false,
     webDirectCandidate: false,
+    agentTier: "protocol-verified" as const,
     notes: ["Requires an Azure resource endpoint and deployment/model configuration."],
   },
   {
@@ -83,6 +87,7 @@ export const PROVIDER_PRESETS = [
     endpoints: [],
     supportsModelListing: true,
     webDirectCandidate: false,
+    agentTier: "preset" as const,
   },
   {
     id: "xai",
@@ -97,6 +102,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: true,
     webDirectCandidate: true,
+    agentTier: "preset" as const,
   },
   {
     id: "openrouter",
@@ -116,6 +122,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: true,
     webDirectCandidate: true,
+    agentTier: "preset" as const,
   },
   {
     id: "groq",
@@ -135,6 +142,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: true,
     webDirectCandidate: true,
+    agentTier: "preset" as const,
   },
   {
     id: "together",
@@ -154,6 +162,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: true,
     webDirectCandidate: true,
+    agentTier: "preset" as const,
   },
   {
     id: "mistral",
@@ -168,6 +177,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: true,
     webDirectCandidate: true,
+    agentTier: "preset" as const,
   },
   {
     id: "google-vertex-ai",
@@ -180,6 +190,7 @@ export const PROVIDER_PRESETS = [
     endpoints: [],
     supportsModelListing: true,
     webDirectCandidate: false,
+    agentTier: "preset" as const,
     notes: ["Requires project, location, and enterprise Google authentication."],
   },
   {
@@ -200,6 +211,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: true,
     webDirectCandidate: true,
+    agentTier: "preset" as const,
   },
   {
     id: "fireworks",
@@ -219,6 +231,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: true,
     webDirectCandidate: true,
+    agentTier: "preset" as const,
   },
   {
     id: "nvidia-nim",
@@ -238,6 +251,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: true,
     webDirectCandidate: true,
+    agentTier: "preset" as const,
   },
   {
     id: "perplexity",
@@ -257,6 +271,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: false,
     webDirectCandidate: true,
+    agentTier: "preset" as const,
   },
   {
     id: "hugging-face",
@@ -276,6 +291,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: false,
     webDirectCandidate: true,
+    agentTier: "preset" as const,
   },
   {
     id: "deepseek",
@@ -290,6 +306,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: true,
     webDirectCandidate: true,
+    agentTier: "preset" as const,
     notes: ["Some tool-call turns require preserving provider-specific reasoning state."],
   },
   {
@@ -310,6 +327,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: true,
     webDirectCandidate: true,
+    agentTier: "preset" as const,
     notes: ["Endpoints can differ by region."],
   },
   {
@@ -334,6 +352,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: false,
     webDirectCandidate: true,
+    agentTier: "preset" as const,
   },
   {
     id: "tencent-hunyuan",
@@ -359,6 +378,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: true,
     webDirectCandidate: true,
+    agentTier: "preset" as const,
   },
   {
     id: "baidu-qianfan",
@@ -378,6 +398,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: true,
     webDirectCandidate: true,
+    agentTier: "preset" as const,
   },
   {
     id: "zhipu",
@@ -397,6 +418,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: true,
     webDirectCandidate: true,
+    agentTier: "agent-verified" as const,
   },
   {
     id: "moonshot-kimi",
@@ -417,6 +439,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: true,
     webDirectCandidate: true,
+    agentTier: "preset" as const,
   },
   {
     id: "minimax",
@@ -442,6 +465,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: true,
     webDirectCandidate: true,
+    agentTier: "preset" as const,
   },
   {
     id: "siliconflow",
@@ -461,6 +485,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: true,
     webDirectCandidate: true,
+    agentTier: "preset" as const,
   },
   {
     id: "stepfun",
@@ -480,6 +505,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: true,
     webDirectCandidate: true,
+    agentTier: "preset" as const,
   },
   {
     id: "iflytek-spark",
@@ -499,6 +525,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: false,
     webDirectCandidate: true,
+    agentTier: "preset" as const,
   },
   {
     id: "yi",
@@ -518,6 +545,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: true,
     webDirectCandidate: true,
+    agentTier: "preset" as const,
   },
   {
     id: "ollama",
@@ -535,6 +563,7 @@ export const PROVIDER_PRESETS = [
     endpoints: [{ id: "local", label: "Local", baseUrl: "http://127.0.0.1:11434", site: "local" }],
     supportsModelListing: true,
     webDirectCandidate: false,
+    agentTier: "protocol-verified" as const,
   },
   {
     id: "lm-studio",
@@ -553,6 +582,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: true,
     webDirectCandidate: false,
+    agentTier: "preset" as const,
   },
   {
     id: "vllm",
@@ -567,6 +597,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: true,
     webDirectCandidate: false,
+    agentTier: "preset" as const,
   },
   {
     id: "llama-cpp",
@@ -581,6 +612,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: false,
     webDirectCandidate: false,
+    agentTier: "preset" as const,
   },
   {
     id: "localai",
@@ -595,6 +627,7 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: true,
     webDirectCandidate: false,
+    agentTier: "preset" as const,
   },
   {
     id: "litellm",
@@ -611,6 +644,7 @@ export const PROVIDER_PRESETS = [
     endpoints: [],
     supportsModelListing: true,
     webDirectCandidate: false,
+    agentTier: "preset" as const,
   },
   {
     id: "custom-openai",
@@ -622,6 +656,7 @@ export const PROVIDER_PRESETS = [
     endpoints: [],
     supportsModelListing: true,
     webDirectCandidate: true,
+    agentTier: "preset" as const,
   },
   {
     id: "custom-anthropic",
@@ -633,5 +668,6 @@ export const PROVIDER_PRESETS = [
     endpoints: [],
     supportsModelListing: false,
     webDirectCandidate: true,
+    agentTier: "preset" as const,
   },
 ] as const satisfies readonly ProviderPreset[];

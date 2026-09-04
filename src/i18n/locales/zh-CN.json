@@ -366,6 +366,11 @@
     "validation": {
       "required": "此项为必填项",
       "url": "请输入完整有效的 URL"
+    },
+    "tiers": {
+      "agent-verified": "Agent Verified：已用真实端点跑过 Golden Agent Tasks",
+      "protocol-verified": "Protocol Verified：流式与工具调用协议有自动化覆盖",
+      "preset": "Preset：配置模板，无 Agent 级验证"
     }
   },
   "settingsDescriptions": {

@@ -367,6 +367,11 @@
     "validation": {
       "required": "This field is required",
       "url": "Enter a complete, valid URL"
+    },
+    "tiers": {
+      "agent-verified": "Agent Verified: ran the Golden Agent Tasks against a real endpoint",
+      "protocol-verified": "Protocol Verified: streaming + tool-call protocol covered by automated tests",
+      "preset": "Preset: configuration template, no agent-level evidence"
     }
   },
   "settingsDescriptions": {
