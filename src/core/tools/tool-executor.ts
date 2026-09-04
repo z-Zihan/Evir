@@ -42,7 +42,7 @@ export function validateToolForExecution(
     const decision = resolveExecutionPermission(
       runtime.permissionContext,
       tool.riskLevel,
-      candidatePathFromArgs(args),
+      resolveCandidatePath(args, runtime),
     );
     if (decision.autoApproved) {
       logger.info("security", "permission.auto-approved", {
@@ -55,6 +55,24 @@ export function validateToolForExecution(
     return TOOL_PERMISSION_REQUIRED;
   }
   return null;
+}
+
+/**
+ * Relative tool paths are workspace-relative (the tool layer resolves them
+ * against the workspace root), so the permission boundary check must resolve
+ * them the same way — otherwise a workspace-profile write to "src/a.ts" is
+ * misjudged as outside the granted roots. Found by Agent Eval task 01.
+ */
+function resolveCandidatePath(
+  args: Record<string, unknown>,
+  runtime: EvirRuntime,
+): string | null {
+  const raw = candidatePathFromArgs(args);
+  if (raw === null) return null;
+  if (raw.startsWith("/") || /^[A-Za-z]:[\\/]/.test(raw)) return raw;
+  const root = runtime.getWorkspaceRoot?.();
+  if (!root) return raw;
+  return `${root.replace(/[/\\]+$/, "")}/${raw.replace(/^[/\\]+/, "")}`;
 }
 
 function messageFor(errorCode: string, tool: ToolDefinition, mode: InteractionMode): string {

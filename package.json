@@ -34,7 +34,8 @@
     "test:cycles": "node scripts/cycle-audit.mjs",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:rust && pnpm release:validate-workflow && pnpm --dir extensions/vscode check && pnpm --dir packages/cli check",
     "tauri": "tauri",
-    "dev": "tauri dev"
+    "dev": "tauri dev",
+    "test:agent-eval": "vitest run eval/agent-eval/eval.spec.ts"
   },
   "dependencies": {
     "@base-ui-components/react": "1.0.0-rc.0",
