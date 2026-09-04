@@ -819,7 +819,11 @@
       "screenshot": "截图",
       "canvas": "画布",
       "url": "网页"
-    }
+    },
+    "openDiffTitle": "查看此文件的 Diff",
+    "copyPatch": "复制此文件的补丁",
+    "patchCopied": "补丁已复制到剪贴板",
+    "noPatchAvailable": "没有可复制的补丁（文件可能无变更或已移除）"
   },
   "startup": {
     "failed": "本地数据初始化失败",

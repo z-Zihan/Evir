@@ -658,3 +658,183 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+
+/* ===== §15 App Preview control card (shared Preview tab + Browser footer) ===== */
+
+.app-preview-logs {
+  margin: 6px 0 0;
+}
+
+.app-preview-compact .app-preview-dot {
+  margin-right: 2px;
+}
+
+/* ===== §20/§21 preview header source chip + binary metadata card ===== */
+
+.workspace-resource-source {
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-binary-meta {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--muted-foreground);
+}
+
+.workspace-binary-meta-name {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-foreground);
+  word-break: break-all;
+}
+
+.workspace-binary-meta-detail {
+  margin: 0;
+  font-size: var(--font-size-xs);
+}
+
+.workspace-binary-meta-hint {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-xs);
+  opacity: 0.8;
+}
+
+/* ===== §23 rendered markdown for workspace files ===== */
+
+.workspace-markdown-preview {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4) var(--space-5);
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+
+.workspace-markdown-preview h1,
+.workspace-markdown-preview h2,
+.workspace-markdown-preview h3,
+.workspace-markdown-preview h4 {
+  margin: 1.2em 0 0.5em;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.workspace-markdown-preview h1 {
+  font-size: 1.35em;
+}
+
+.workspace-markdown-preview h2 {
+  font-size: 1.18em;
+}
+
+.workspace-markdown-preview h3 {
+  font-size: 1.05em;
+}
+
+.workspace-markdown-preview p,
+.workspace-markdown-preview ul,
+.workspace-markdown-preview ol,
+.workspace-markdown-preview blockquote,
+.workspace-markdown-preview pre,
+.workspace-markdown-preview table {
+  margin: 0.6em 0;
+}
+
+.workspace-markdown-preview ul,
+.workspace-markdown-preview ol {
+  padding-left: 1.4em;
+}
+
+.workspace-markdown-preview ul {
+  list-style: disc;
+}
+
+.workspace-markdown-preview ol {
+  list-style: decimal;
+}
+
+.workspace-markdown-preview blockquote {
+  padding: 0.2em 0.9em;
+  border-left: 3px solid var(--color-border);
+  color: var(--muted-foreground);
+}
+
+.workspace-markdown-preview code {
+  padding: 0.1em 0.35em;
+  border-radius: 5px;
+  background: var(--surface-hover);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+
+.workspace-markdown-preview pre {
+  padding: var(--space-3);
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.workspace-markdown-preview pre code {
+  padding: 0;
+  background: none;
+}
+
+.workspace-markdown-preview table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.workspace-markdown-preview th,
+.workspace-markdown-preview td {
+  padding: 5px 8px;
+  border: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.workspace-markdown-preview th {
+  background: var(--surface-hover);
+  font-weight: 600;
+}
+
+.workspace-markdown-preview a {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.workspace-markdown-preview img {
+  max-width: 100%;
+}
+
+.workspace-markdown-preview hr {
+  margin: 1.2em 0;
+  border: none;
+  border-top: 1px solid var(--color-border);
+}
+
+/* §29: unseen run changes while another tab holds the focus — full accent
+   pill plus a one-time soft pulse so the badge is noticed, not missed. */
+.workspace-tab-badge.attention {
+  background: var(--accent);
+  animation: workspace-badge-attention 1.2s ease-in-out 2;
+}
+
+@keyframes workspace-badge-attention {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.18);
+  }
+}

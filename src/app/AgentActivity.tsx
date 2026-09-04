@@ -33,6 +33,9 @@ import {
 } from "../core/tools/tool-executor";
 import { useChatStore } from "../features/chat/chat-store";
 import { useWorkspacePanelStore } from "../features/workspace/workspace-panel-store";
+import { useRunWorkspaceStore } from "../features/workspace/workspace-run-store";
+import { relativeToRoot, resolveWorkspacePath } from "../features/workspace/workspace-services";
+import { useActiveWorkspaceRoot } from "../features/workspace/workspace-bridge";
 import { groupSummary, groupToolCalls, type ToolGroupKind } from "./agent-activity-groups";
 
 interface AgentActivityProps {
@@ -84,6 +87,68 @@ function canvasPathFromRecords(
   } catch {
     return null;
   }
+}
+
+const MUTATING_TOOL_NAMES = new Set(["write_file", "apply_patch", "restore_snapshot"]);
+
+/**
+ * Diffstat for a successful mutating call, derived from the call's own
+ * arguments (§27): a search-and-replace patch reports the replaced region
+ * exactly (old lines → −, new lines → +); a whole-file write reports its
+ * line count.
+ */
+function diffstatForCall(call: ToolCallRecord): { additions: number; deletions: number } | null {
+  if (call.toolName === "apply_patch") {
+    const oldContent = call.arguments["old_content"];
+    const newContent = call.arguments["new_content"];
+    if (typeof oldContent === "string" && typeof newContent === "string") {
+      return {
+        additions: newContent === "" ? 0 : newContent.split("\n").length,
+        deletions: oldContent === "" ? 0 : oldContent.split("\n").length,
+      };
+    }
+    return null;
+  }
+  if (call.toolName === "write_file") {
+    const content = call.arguments["content"];
+    if (typeof content === "string") {
+      return { additions: content === "" ? 0 : content.split("\n").length, deletions: 0 };
+    }
+  }
+  return null;
+}
+
+/**
+ * §27-28: a successful file mutation renders a first-class change chip —
+ * relative path + diffstat — that opens the actual diff with one click
+ * instead of making the user hunt for it in the workspace panel.
+ */
+function ToolChangeChip({ call, runId }: { call: ToolCallRecord; runId: string | null }) {
+  const { t } = useTranslation();
+  const openResource = useWorkspacePanelStore((state) => state.openResource);
+  const root = useActiveWorkspaceRoot();
+  const path = call.arguments["path"] ?? call.arguments["file_path"];
+  if (typeof path !== "string" || path.length === 0) return null;
+  const resolved = resolveWorkspacePath(path, root);
+  if (!resolved) return null;
+  const diffstat = diffstatForCall(call);
+  return (
+    <button
+      type="button"
+      className="tool-change-chip mt-0.5 flex w-fit max-w-full cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-surface-subtle px-2 py-1 text-left text-[11.5px] transition-colors hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
+      onClick={() => openResource({ kind: "diff", path: resolved, ...(runId ? { runId } : {}) })}
+      title={t("workspace.openDiffTitle")}
+    >
+      <FilePenLine size={12} aria-hidden="true" className="shrink-0 text-primary" />
+      <span className="min-w-0 truncate font-mono">{relativeToRoot(resolved, root)}</span>
+      {diffstat && (
+        <span className="shrink-0 font-mono text-[11px]">
+          <span className="text-success">+{diffstat.additions}</span>{" "}
+          <span className="text-danger">−{diffstat.deletions}</span>
+        </span>
+      )}
+    </button>
+  );
 }
 
 function OpenCanvasCard({ path }: { path: string }) {
@@ -148,6 +213,7 @@ export function AgentActivity({
   const denyTool = useChatStore((state) => state.denyTool);
   const pendingApproval = useChatStore((state) => state.pendingToolApproval);
   const conversationMessages = useChatStore((state) => state.messages) ?? [];
+  const activeRunId = useRunWorkspaceStore((state) => state.runId);
   const resultsByCallId = new Map(toolResults.map((result) => [result.toolCallId, result]));
   const approvalArguments = pendingApproval ? JSON.stringify(pendingApproval.args) : "";
 
@@ -301,6 +367,9 @@ export function AgentActivity({
                           }
                         />
                         {canvasPath && <OpenCanvasCard path={canvasPath} />}
+                        {result?.success && MUTATING_TOOL_NAMES.has(call.toolName) && (
+                          <ToolChangeChip call={call} runId={activeRunId} />
+                        )}
                       </div>
                     );
                   })}

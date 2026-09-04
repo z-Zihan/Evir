@@ -23,6 +23,7 @@ interface ConversationPanelSnapshot {
   pinnedKey: string | null;
   history: WorkspaceResource[];
   historyIndex: number;
+  changesBadge: number;
 }
 
 interface WorkspacePanelState {
@@ -41,6 +42,13 @@ interface WorkspacePanelState {
   overlayBlockers: Record<string, true> | null;
   /** Current URL of the workspace browser's active tab, for context chips. */
   browserContextUrl: string | null;
+  /**
+   * Run changes that landed while the user was locked onto another context
+   * (preview/browser or a closed panel). §29: changes auto-switch only when
+   * nothing user-chosen holds the focus; otherwise they accrue here as a
+   * badge until the user opens the changes tab.
+   */
+  changesBadge: number;
   conversationSnapshots: Record<string, ConversationPanelSnapshot>;
 
   openPanel: (tab?: WorkspaceTab) => void;
@@ -59,6 +67,8 @@ interface WorkspacePanelState {
 
   setOverlayBlocked: (key: string, blocked: boolean) => void;
   setBrowserContextUrl: (url: string | null) => void;
+  /** New run changes landed (total count); applies §29 auto-switch rules. */
+  noteRunChanges: (count: number) => void;
   saveConversationState: (conversationId: string) => void;
   restoreConversationState: (conversationId: string) => void;
 }
@@ -72,6 +82,7 @@ function currentStateSnapshot(state: WorkspacePanelState): ConversationPanelSnap
     pinnedKey: state.pinnedKey,
     history: state.history,
     historyIndex: state.historyIndex,
+    changesBadge: state.changesBadge,
   };
 }
 
@@ -85,6 +96,7 @@ export const useWorkspacePanelStore = create<WorkspacePanelState>((set, get) => 
   pinnedKey: null,
   overlayBlockers: null,
   browserContextUrl: null,
+  changesBadge: 0,
   conversationSnapshots: {},
 
   openPanel: (tab) => {
@@ -107,7 +119,7 @@ export const useWorkspacePanelStore = create<WorkspacePanelState>((set, get) => 
   },
   setTab: (tab) => {
     if (get().activeTab !== tab) logger.info("workspace", "panel.tab", { tab });
-    set({ activeTab: tab });
+    set(tab === "changes" ? { activeTab: tab, changesBadge: 0 } : { activeTab: tab });
   },
 
   openResource: (resource, options) => {
@@ -171,6 +183,18 @@ export const useWorkspacePanelStore = create<WorkspacePanelState>((set, get) => 
       return { overlayBlockers: Object.keys(next).length > 0 ? next : null };
     }),
   setBrowserContextUrl: (url) => set({ browserContextUrl: url }),
+  noteRunChanges: (count) =>
+    set((state) => {
+      // Closed panel never pops open on its own; the count lands as a badge.
+      if (!state.open) return { changesBadge: count };
+      // Outputs/files are not user-locked contexts — changes take over (§29).
+      if (state.activeTab === "outputs" || state.activeTab === "files") {
+        return { activeTab: "changes", changesBadge: 0 };
+      }
+      // Preview/browser while a run mutates files: never steal the focus,
+      // accrue a badge instead.
+      return { changesBadge: count };
+    }),
   saveConversationState: (conversationId) =>
     set((state) => ({
       conversationSnapshots: {

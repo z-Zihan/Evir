@@ -820,7 +820,11 @@
       "screenshot": "Screenshot",
       "canvas": "Canvas",
       "url": "Web"
-    }
+    },
+    "openDiffTitle": "Open the diff for this file",
+    "copyPatch": "Copy patch for this file",
+    "patchCopied": "Patch copied to clipboard",
+    "noPatchAvailable": "No patch available (file unchanged or removed)"
   },
   "startup": {
     "failed": "Local data could not be initialized",

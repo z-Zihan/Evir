@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { Button, Tabs, TabsListUnderline, TabsTabUnderline, Tip } from "../../components/ui";
@@ -15,6 +16,23 @@ import { PreviewTab } from "./PreviewTab";
 import { BrowserTab } from "./BrowserTab";
 import { getRuntime } from "../../runtime/use-runtime";
 
+/**
+ * §29: while a run mutates files, the changes tab takes over the panel
+ * unless the user is locked onto preview/browser (badge accrues instead).
+ * The watcher lives here — before the desktop/open early return — so it
+ * keeps running while the panel is closed too.
+ */
+function useChangesAutoFocus() {
+  const changesCount = useRunWorkspaceStore((state) => state.changes.length);
+  const previous = useRef(changesCount);
+  useEffect(() => {
+    if (changesCount > previous.current) {
+      useWorkspacePanelStore.getState().noteRunChanges(changesCount);
+    }
+    previous.current = changesCount;
+  }, [changesCount]);
+}
+
 interface TabDefinition {
   id: WorkspaceTab;
   label: string;
@@ -23,6 +41,8 @@ interface TabDefinition {
   badge?: number | "dot" | undefined;
   /** i18n key for the badge's accessible count label (defaults to changes). */
   badgeLabelKey?: string | undefined;
+  /** True when unseen changes accrued while another tab held the focus. */
+  attention?: boolean | undefined;
 }
 
 /**
@@ -40,8 +60,10 @@ export function WorkspacePanel() {
   const outputsCount = useRunWorkspaceStore((state) => state.outputs.length);
   const browserActive = useRunWorkspaceStore((state) => state.browserActive);
   const isStreaming = useChatStore((state) => state.isStreaming);
+  const changesBadge = useWorkspacePanelStore((state) => state.changesBadge);
   const root = useActiveWorkspaceRoot();
   const hasProject = root !== null;
+  useChangesAutoFocus();
 
   if (getRuntime().target !== "desktop" || !open) return null;
 
@@ -59,6 +81,8 @@ export function WorkspacePanel() {
       requiresProject: true,
       badge: changesCount,
       badgeLabelKey: "workspace.changesCount",
+      /** Unseen changes while the user holds another context get emphasis. */
+      attention: changesBadge > 0 && activeTab !== "changes",
     },
     { id: "files", label: t("workspace.files"), requiresProject: true },
     {
@@ -100,7 +124,7 @@ export function WorkspacePanel() {
                 <span>{tab.label}</span>
                 {typeof tab.badge === "number" && tab.badge > 0 && (
                   <span
-                    className="workspace-tab-badge"
+                    className={`workspace-tab-badge${tab.attention ? " attention" : ""}`}
                     aria-label={t(tab.badgeLabelKey ?? "workspace.changesCount", {
                       count: tab.badge,
                     })}
