@@ -96,6 +96,26 @@ export function mergeAgentRunRecords(
   };
 }
 
+/** Tools that change the project or execute code — runs using them need
+ * evidence-based verification (§17); answer/read-only runs do not. */
+const MUTATING_TOOLS = new Set([
+  "write_file",
+  "apply_patch",
+  "run_command",
+  "create_directory",
+  "restore_snapshot",
+]);
+
+function isMutatingRun(toolResults: ToolResultRecord[]): boolean {
+  // A FAILED mutating attempt still means the run tried to change something —
+  // the answer-run shortcut must not apply to it.
+  return toolResults.some(({ toolName }) => MUTATING_TOOLS.has(toolName));
+}
+
+function hasSuccessfulMutation(toolResults: ToolResultRecord[]): boolean {
+  return toolResults.some(({ toolName, success }) => success && MUTATING_TOOLS.has(toolName));
+}
+
 export async function buildAgentRunRecord(
   result: AgentLoopResult,
   conversationId: string,
@@ -126,6 +146,16 @@ export async function buildAgentRunRecord(
     resolution = completion.resolution ?? {
       complete: false,
       reason: "Verification middleware is disabled or unavailable.",
+    };
+  }
+  // §17 verification strength by task type: plain Q&A / explanation /
+  // analysis runs that changed nothing complete on the model's claim —
+  // heavyweight verification applies only to runs that mutated the
+  // workspace (or claimed to complete one).
+  if (!isMutatingRun(toolResults) && modelClaimsComplete && !awaitingApproval) {
+    resolution = {
+      complete: true,
+      reason: "Answer/read-only run — nothing to verify against the workspace.",
     };
   }
   const hasFailure = toolResults.some(({ success }) => !success);
@@ -204,14 +234,7 @@ export async function finalizeAutomaticVerification(
   if (runtime.target !== "desktop" || !runtime.storage) return record;
   // Answer-only and read-only runs changed nothing; a workspace checker result
   // would be meaningless evidence for them.
-  const mutatingTools = new Set([
-    "write_file",
-    "apply_patch",
-    "run_command",
-    "create_directory",
-    "restore_snapshot",
-  ]);
-  if (!record.toolResults.some(({ toolName, success }) => success && mutatingTools.has(toolName))) {
+  if (!hasSuccessfulMutation(record.toolResults)) {
     return record;
   }
   const workspace = runtime.getWorkspaceRoot?.();

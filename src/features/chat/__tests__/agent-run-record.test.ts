@@ -65,10 +65,23 @@ describe("Agent run completion evidence", () => {
     ]);
   });
 
-  it("does not mark model text alone as complete", async () => {
+  it("completes answer/read-only runs on the model's claim (§17)", async () => {
     const record = await buildAgentRunRecord(resultWith(), "conversation-1");
+    expect(record.status).toBe("completed");
+    expect(record.resolution.complete).toBe(true);
+    expect(record.resolution.reason).toContain("Answer/read-only");
+  });
+
+  it("does not mark model text alone as complete after mutating tools ran", async () => {
+    const record = await buildAgentRunRecord(resultWith("write_file"), "conversation-1");
     expect(record.status).toBe("needs_verification");
     expect(record.resolution.complete).toBe(false);
+  });
+
+  it("a failed mutating attempt never takes the answer-run shortcut", async () => {
+    const record = await buildAgentRunRecord(resultWith("run_command", false), "conversation-1");
+    expect(record.resolution.complete).toBe(false);
+    expect(record.status).toBe("failed");
   });
 
   it("falls back to needs_verification when Verification middleware is disabled", async () => {
