@@ -65,12 +65,13 @@ test("captures the required responsive, theme, and language matrix", async ({ pa
 
   const settingsTabs = [
     "model-providers",
-    "local-identity",
+    // "local-identity" became the multi-profile "users" panel; "plugins" is new.
+    "users",
     "personalization",
     "switch-theme",
     "language",
     "skills",
-    ...(isDesktop(testInfo) ? ["mcp", "browser"] : []),
+    ...(isDesktop(testInfo) ? ["mcp", "browser", "plugins"] : []),
     "memory",
     "keyboard-shortcuts",
     "usage",

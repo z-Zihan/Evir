@@ -194,6 +194,13 @@ pub fn run() {
             ego_runtime::ego_browser_stop,
         ])
         .on_window_event(|window, event| {
+            // §86: crossing displays changes the window scale factor; child
+            // WKWebViews keep stale geometry until their bounds are re-sent.
+            if matches!(event, tauri::WindowEvent::ScaleFactorChanged { .. })
+                && matches!(window.label(), "main" | "browser-workbench")
+            {
+                browser_workbench::schedule_layout_reconciliation(window.app_handle());
+            }
             if matches!(event, tauri::WindowEvent::Destroyed) {
                 let app = window.app_handle();
                 if window.label() == "browser-workbench" {

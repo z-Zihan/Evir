@@ -65,8 +65,8 @@ test("compact sidebar and settings use the whole viewport without overflow", asy
   await page.keyboard.press("Shift+Tab");
   await expect(dialog.locator(":focus")).toBeVisible();
   await expect(dialog.locator(".settings-nav :focus")).toHaveCount(0);
-  await compactNavigation.selectOption("identity");
-  await expect(compactNavigation).toHaveValue("identity");
+  await compactNavigation.selectOption("users");
+  await expect(compactNavigation).toHaveValue("users");
 
   const dialogBox = await dialog.boundingBox();
   expect(dialogBox).toEqual({ x: 0, y: 0, width: 390, height: 844 });
@@ -158,8 +158,9 @@ test("avatar crop dialog contains focus and does not close its parent settings d
   await seedFixture(page);
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const settingsDialog = page.getByRole("dialog", { name: "Settings", exact: true });
-  await settingsDialog.getByRole("button", { name: "Identity", exact: true }).click();
-  const choosePhoto = settingsDialog.getByRole("button", { name: "Choose photo", exact: true });
+  // The former Identity panel is now the multi-profile Users panel.
+  await settingsDialog.getByRole("button", { name: "Users", exact: true }).click();
+  const choosePhoto = settingsDialog.getByRole("button", { name: "Upload avatar", exact: true });
   await choosePhoto.focus();
   await settingsDialog.locator('input[type="file"]').setInputFiles({
     name: "avatar.png",
@@ -202,7 +203,8 @@ test("model switcher exposes keyboard listbox navigation and focus return", asyn
   await seedFixture(page);
   await page.evaluate(async () => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open("evir");
+      const profile = localStorage.getItem("evir:active-profile");
+      const request = indexedDB.open(`evir:${profile && profile.length > 0 ? profile : "default"}`);
       request.onerror = () => reject(request.error ?? new Error("Unable to open Evir test DB"));
       request.onsuccess = () => resolve(request.result);
     });
@@ -256,7 +258,8 @@ test("every reachable settings page has no serious axe violations", async ({ pag
   await seedFixture(page);
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const tabs = page.locator(".settings-nav-item");
-  const expectedCount = isDesktop(testInfo) ? 14 : 12;
+  // users replaced local-identity and plugins was added on desktop (net +1).
+  const expectedCount = isDesktop(testInfo) ? 15 : 12;
   await expect(tabs).toHaveCount(expectedCount);
   for (let index = 0; index < expectedCount; index += 1) {
     await tabs.nth(index).click();

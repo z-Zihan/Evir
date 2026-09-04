@@ -13,7 +13,6 @@ import {
   type Edge,
   type EdgeChange,
   type EdgeTypes,
-  type Node,
   type NodeChange,
   type NodeTypes,
 } from "@xyflow/react";
@@ -30,11 +29,9 @@ import {
   parseCanvasDocument,
   serializeCanvasDocument,
   userEditCanvasDocument,
-  type CanvasNodeStatus,
-  type CanvasNodeType,
   type EvirCanvasDocument,
 } from "./canvas-document";
-import { CanvasNodeCard, CANVAS_EDGE } from "./canvas-node-card";
+import { CanvasNodeCard, CANVAS_EDGE, type DocumentNode } from "./canvas-node-card";
 
 /**
  * Canvas view (§75) — renders and edits a `.evir-canvas` document with React
@@ -46,13 +43,6 @@ import { CanvasNodeCard, CANVAS_EDGE } from "./canvas-node-card";
  * whose merge keeps positions not explicitly moved.
  */
 
-type DocumentNodeData = {
-  title: string;
-  detail?: string | undefined;
-  status?: CanvasNodeStatus | undefined;
-  docType: CanvasNodeType;
-};
-
 const nodeTypes: NodeTypes = {
   note: CanvasNodeCard,
   task: CanvasNodeCard,
@@ -61,7 +51,7 @@ const nodeTypes: NodeTypes = {
 };
 const edgeTypes: EdgeTypes = { canvas: CANVAS_EDGE };
 
-function toFlowNodes(document: EvirCanvasDocument): Node<DocumentNodeData>[] {
+function toFlowNodes(document: EvirCanvasDocument): DocumentNode[] {
   return document.nodes.map((node) => ({
     id: node.id,
     type: node.type,
@@ -81,13 +71,13 @@ function toFlowEdges(document: EvirCanvasDocument): Edge[] {
     source: edge.source,
     target: edge.target,
     type: "canvas",
-    ...(edge.label !== undefined ? { label: edge.label } : {}),
+    ...(typeof edge.label === "string" ? { label: edge.label } : {}),
   }));
 }
 
 function flowToDocument(
   source: EvirCanvasDocument,
-  nodes: readonly Node<DocumentNodeData>[],
+  nodes: readonly DocumentNode[],
   edges: readonly Edge[],
 ): EvirCanvasDocument {
   return userEditCanvasDocument(source, (draft) => {
@@ -103,7 +93,7 @@ function flowToDocument(
       id: edge.id,
       source: edge.source,
       target: edge.target,
-      ...(edge.label !== undefined ? { label: edge.label } : {}),
+      ...(typeof edge.label === "string" ? { label: edge.label } : {}),
     }));
   });
 }
@@ -117,12 +107,12 @@ function CanvasViewInner({ path }: { path: string; title?: string | undefined })
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [document, setDocument] = useState<EvirCanvasDocument | null>(null);
-  const [nodes, setNodes] = useState<Node<DocumentNodeData>[]>([]);
+  const [nodes, setNodes] = useState<DocumentNode[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const documentRef = useRef<EvirCanvasDocument | null>(null);
   const saveTimer = useRef<number | null>(null);
-  const nodesRef = useRef<Node<DocumentNodeData>[]>([]);
+  const nodesRef = useRef<DocumentNode[]>([]);
   const edgesRef = useRef<Edge[]>([]);
   const resolvedPath = useMemo(() => resolveWorkspacePath(path, root) ?? path, [path, root]);
 
@@ -187,7 +177,7 @@ function CanvasViewInner({ path }: { path: string; title?: string | undefined })
   );
 
   const onNodesChange = useCallback(
-    (changes: NodeChange<DocumentNodeData>[]) => {
+    (changes: NodeChange<DocumentNode>[]) => {
       setNodes((current) => applyNodeChanges(changes, current));
       const structural = changes.some((change) => change.type === "remove");
       const dragStop = changes.some((change) => change.type === "position" && !change.dragging);

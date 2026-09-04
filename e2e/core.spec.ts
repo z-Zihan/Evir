@@ -333,7 +333,8 @@ test("groups consecutive Agent replies and keeps the narrow header inside the vi
   });
   await page.evaluate(async () => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open("evir");
+      const profile = localStorage.getItem("evir:active-profile");
+      const request = indexedDB.open(`evir:${profile && profile.length > 0 ? profile : "default"}`);
       request.onerror = () => reject(request.error ?? new Error("Unable to open Evir test DB"));
       request.onsuccess = () => resolve(request.result);
     });
@@ -623,7 +624,8 @@ test("interrupted Desktop run can be dismissed without replaying tools", async (
   await seedFixture(page, { withConversation: true });
   await page.evaluate(async () => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open("evir");
+      const profile = localStorage.getItem("evir:active-profile");
+      const request = indexedDB.open(`evir:${profile && profile.length > 0 ? profile : "default"}`);
       request.onerror = () => reject(request.error ?? new Error("Unable to open Evir test DB"));
       request.onsuccess = () => resolve(request.result);
     });
@@ -694,7 +696,8 @@ test("a text-only model can still chat in a project without exposing project too
   await seedFixture(page);
   await page.evaluate(async () => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open("evir");
+      const profile = localStorage.getItem("evir:active-profile");
+      const request = indexedDB.open(`evir:${profile && profile.length > 0 ? profile : "default"}`);
       request.onerror = () => reject(request.error ?? new Error("Unable to open Evir test DB"));
       request.onsuccess = () => resolve(request.result);
     });
@@ -733,7 +736,8 @@ test("token usage lives in Usage settings instead of the composer", async ({ pag
   await seedFixture(page);
   await page.evaluate(async () => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open("evir");
+      const profile = localStorage.getItem("evir:active-profile");
+      const request = indexedDB.open(`evir:${profile && profile.length > 0 ? profile : "default"}`);
       request.onerror = () => reject(request.error ?? new Error("Unable to open Evir test DB"));
       request.onsuccess = () => resolve(request.result);
     });
@@ -779,7 +783,8 @@ test("reported binary outputs are attributed to their run and listed in Outputs"
     localStorage.setItem("evir-workspace", JSON.stringify(["/tmp/evir-fixture"]));
     localStorage.setItem("evir-workspace-current", "/tmp/evir-fixture");
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open("evir");
+      const profile = localStorage.getItem("evir:active-profile");
+      const request = indexedDB.open(`evir:${profile && profile.length > 0 ? profile : "default"}`);
       request.onerror = () => reject(request.error ?? new Error("Unable to open Evir test DB"));
       request.onsuccess = () => resolve(request.result);
     });
@@ -840,7 +845,8 @@ test("persisted Agent completion evidence returns after reloading a conversation
     localStorage.setItem("evir-workspace", JSON.stringify(["/tmp/evir-fixture"]));
     localStorage.setItem("evir-workspace-current", "/tmp/evir-fixture");
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open("evir");
+      const profile = localStorage.getItem("evir:active-profile");
+      const request = indexedDB.open(`evir:${profile && profile.length > 0 ? profile : "default"}`);
       request.onerror = () => reject(request.error ?? new Error("Unable to open Evir test DB"));
       request.onsuccess = () => resolve(request.result);
     });
@@ -924,7 +930,10 @@ test("persisted Agent completion evidence returns after reloading a conversation
   expect(
     await page.evaluate(async () => {
       const database = await new Promise<IDBDatabase>((resolve, reject) => {
-        const request = indexedDB.open("evir");
+        const profile = localStorage.getItem("evir:active-profile");
+        const request = indexedDB.open(
+          `evir:${profile && profile.length > 0 ? profile : "default"}`,
+        );
         request.onerror = () => reject(request.error ?? new Error("Unable to open Evir test DB"));
         request.onsuccess = () => resolve(request.result);
       });

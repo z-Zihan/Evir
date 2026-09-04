@@ -7,7 +7,8 @@ async function updateFixtureProvider(
 ): Promise<void> {
   await page.evaluate(async (capabilities) => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open("evir");
+      const profile = localStorage.getItem("evir:active-profile");
+      const request = indexedDB.open(`evir:${profile && profile.length > 0 ? profile : "default"}`);
       request.onerror = () => reject(request.error ?? new Error("Unable to open Evir test DB"));
       request.onsuccess = () => resolve(request.result);
     });
@@ -93,7 +94,10 @@ test("large Desktop navigation remains searchable and responsive", async ({ page
   await page.evaluate(
     async ({ now }) => {
       const database = await new Promise<IDBDatabase>((resolve, reject) => {
-        const request = indexedDB.open("evir");
+        const profile = localStorage.getItem("evir:active-profile");
+        const request = indexedDB.open(
+          `evir:${profile && profile.length > 0 ? profile : "default"}`,
+        );
         request.onerror = () => reject(request.error ?? new Error("Unable to open Evir test DB"));
         request.onsuccess = () => resolve(request.result);
       });

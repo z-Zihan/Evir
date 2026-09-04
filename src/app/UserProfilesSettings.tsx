@@ -250,7 +250,7 @@ export function UserProfilesPanel() {
               <strong className="truncate text-[13.5px] font-semibold text-foreground">
                 {active?.displayName ?? "—"}
               </strong>
-              <span className="rounded-md border border-success/40 bg-success/10 px-1.5 py-px text-[10px] font-medium text-success">
+              <span className="rounded-md border border-success/40 bg-success/15 px-1.5 py-px text-[10px] font-semibold text-[#0f6642] dark:text-success">
                 {t("users.currentUser")}
               </span>
             </div>

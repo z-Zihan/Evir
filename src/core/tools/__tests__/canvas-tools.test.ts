@@ -35,22 +35,20 @@ const emptySnapshots: SnapshotResult[] = [];
 
 function derive(toolName: string, args: Record<string, unknown>, output: string) {
   const runId = "run-1";
-  const call: ToolCallRecord = {
+  const call = {
     id: "call-1",
-    messageId: "m1",
     conversationId: "c1",
     toolName,
     arguments: args,
     createdAt: Date.now(),
-  };
-  const result: ToolResultRecord = {
-    id: "r1",
+  } as unknown as ToolCallRecord;
+  const result = {
     toolCallId: "call-1",
     success: true,
     output,
     startedAt: Date.now(),
     completedAt: Date.now(),
-  };
+  } as unknown as ToolResultRecord;
   return deriveTaskOutput(call, result, {
     runId,
     conversationId: "c1",
@@ -120,9 +118,9 @@ describe("canvas agent tools", () => {
       nodes: { id: string; title: string; status?: string; position: { x: number; y: number } }[];
     };
     const node = written.nodes.find((candidate) => candidate.id === "n1");
-    expect(node.title).toBe("改名");
-    expect(node.status).toBe("doing");
-    expect(node.position).toEqual({ x: 10, y: 10 });
+    expect(node?.title).toBe("改名");
+    expect(node?.status).toBe("doing");
+    expect(node?.position).toEqual({ x: 10, y: 10 });
   });
 
   it("update_canvas refuses non-canvas files with a typed error", async () => {

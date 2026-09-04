@@ -82,7 +82,11 @@ export async function seedFixture(
   await page.evaluate(
     async ({ provider, conversation, seededMessages, createConversation }) => {
       const database = await new Promise<IDBDatabase>((resolve, reject) => {
-        const request = indexedDB.open("evir");
+        // Profile-scoped Dexie name (src/core/profile/profile-scope.ts):
+        // `evir:<activeProfileId>`, "default" without a mirror entry.
+        const profile = localStorage.getItem("evir:active-profile");
+        const databaseName = `evir:${profile && profile.length > 0 ? profile : "default"}`;
+        const request = indexedDB.open(databaseName);
         request.onerror = () => reject(request.error ?? new Error("Unable to open Evir test DB"));
         request.onsuccess = () => resolve(request.result);
       });

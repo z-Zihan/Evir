@@ -69,6 +69,21 @@ pub struct BrowserWorkbenchState {
     active_tabs: Mutex<HashMap<&'static str, u32>>,
     /// Whether panel content webviews may be visible at all.
     panel_visible: Mutex<bool>,
+    /// Last frontend-reported layout per surface ("panel" / "workbench"),
+    /// re-applied after a display scale change: WKWebView keeps stale
+    /// backing-scale geometry when the window crosses displays (§86).
+    layouts: Mutex<HashMap<String, StoredLayout>>,
+    /// Debounce counter for deferred layout reconciliation.
+    reconcile_generation: std::sync::atomic::AtomicU64,
+}
+
+#[derive(Clone, Debug)]
+pub struct StoredLayout {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+    pub visible: bool,
 }
 
 fn content_label(surface: Surface, id: u32) -> String {
@@ -464,7 +479,91 @@ pub fn browser_layout_update(
     width: f64,
     height: f64,
 ) -> Result<(), String> {
+    app.state::<BrowserWorkbenchState>()
+        .layouts
+        .lock()
+        .expect("layout lock")
+        .insert(
+            "workbench".to_string(),
+            StoredLayout {
+                x,
+                y,
+                width,
+                height,
+                visible: true,
+            },
+        );
     apply_workbench_layout(&app, x, y, width, height)
+}
+
+/// §86: WKWebView child webviews keep stale geometry when the window moves
+/// across displays with different scale factors. On ScaleFactorChanged the
+/// shell schedules a debounced re-apply of the last frontend-reported
+/// layouts; the frontend's own resize observer still wins afterwards because
+/// the next panel layout update overwrites the stored rect.
+pub fn schedule_layout_reconciliation(app: &AppHandle) {
+    use std::sync::atomic::Ordering;
+    let generation = app
+        .state::<BrowserWorkbenchState>()
+        .reconcile_generation
+        .fetch_add(1, Ordering::Relaxed)
+        + 1;
+    let handle = app.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        let state = handle.state::<BrowserWorkbenchState>();
+        if state.reconcile_generation.load(Ordering::Relaxed) != generation {
+            return; // a newer scale change superseded this one
+        }
+        let layouts = state.layouts.lock().expect("layout lock").clone();
+        let mut applied = 0;
+        for (surface, layout) in &layouts {
+            if !layout.visible {
+                continue;
+            }
+            let outcome = match surface.as_str() {
+                "workbench" => {
+                    apply_workbench_layout(&handle, layout.x, layout.y, layout.width, layout.height)
+                }
+                "panel" => {
+                    apply_panel_bounds(&handle, layout.x, layout.y, layout.width, layout.height)
+                }
+                _ => continue,
+            };
+            if outcome.is_ok() {
+                applied += 1;
+            }
+        }
+        native_log::log(
+            "browser.layout-reconciled",
+            serde_json::json!({ "applied": applied, "known": layouts.len() }),
+        );
+    });
+}
+
+/// Bounds-only re-apply used by reconciliation: visibility/tab logic already
+/// ran with the last layout update and must not run twice.
+fn apply_panel_bounds(
+    app: &AppHandle,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+) -> Result<(), String> {
+    let position = LogicalPosition::new(x, y);
+    let size = LogicalSize::new(width.max(1.0), height.max(1.0));
+    for (label, webview) in app.webviews() {
+        if !label.starts_with(Surface::Panel.prefix()) {
+            continue;
+        }
+        webview
+            .set_bounds(Rect {
+                position: position.into(),
+                size: size.into(),
+            })
+            .map_err(|error| error.to_string())?;
+    }
+    Ok(())
 }
 
 fn apply_workbench_layout(
@@ -577,6 +676,16 @@ pub fn browser_panel_layout_update(
     {
         let state = app.state::<BrowserWorkbenchState>();
         *state.panel_visible.lock().expect("panel visible lock") = visible;
+        state.layouts.lock().expect("layout lock").insert(
+            "panel".to_string(),
+            StoredLayout {
+                x,
+                y,
+                width,
+                height,
+                visible,
+            },
+        );
     }
     // The frontend reports CSS pixels (logical) relative to the main window.
     // Pass them through as Logical and let tauri/wry convert with the

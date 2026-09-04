@@ -23,7 +23,10 @@ test("long conversation never scrolls the document (sr-only containment)", async
   await page.evaluate(
     async ({ provider, conversation, messages }) => {
       const database = await new Promise<IDBDatabase>((resolve, reject) => {
-        const request = indexedDB.open("evir");
+        const profile = localStorage.getItem("evir:active-profile");
+        const request = indexedDB.open(
+          `evir:${profile && profile.length > 0 ? profile : "default"}`,
+        );
         request.onerror = () => reject(request.error ?? new Error("no db"));
         request.onsuccess = () => resolve(request.result);
       });
