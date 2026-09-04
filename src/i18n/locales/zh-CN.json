@@ -38,6 +38,7 @@
     "collapseProject": "折叠项目",
     "resize": "调整侧边栏宽度",
     "statusRunning": "运行中",
+    "statusVerifying": "验证中",
     "statusPreparing": "准备中",
     "statusApproval": "待审批",
     "statusWaitingUser": "需要输入",

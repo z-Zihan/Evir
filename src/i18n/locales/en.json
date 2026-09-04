@@ -38,6 +38,7 @@
     "collapseProject": "Collapse project",
     "resize": "Resize sidebar",
     "statusRunning": "Running",
+    "statusVerifying": "Verifying",
     "statusPreparing": "Preparing",
     "statusApproval": "Approval",
     "statusWaitingUser": "Needs input",

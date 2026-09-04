@@ -34,6 +34,7 @@ interface SidebarConversationItemProps {
 const STATUS_LABEL_KEY: Record<ConversationRunStatus, string> = {
   preparing: "sidebar.statusPreparing",
   streaming: "sidebar.statusRunning",
+  verifying: "sidebar.statusVerifying",
   approval: "sidebar.statusApproval",
   "waiting-user": "sidebar.statusWaitingUser",
   failed: "sidebar.statusFailed",
@@ -44,6 +45,7 @@ const STATUS_LABEL_KEY: Record<ConversationRunStatus, string> = {
 const STATUS_DOT_CLASS: Record<ConversationRunStatus, string> = {
   preparing: "bg-warning animate-pulse",
   streaming: "bg-success animate-pulse",
+  verifying: "bg-primary animate-pulse",
   approval: "bg-warning animate-pulse",
   "waiting-user": "bg-primary",
   failed: "bg-danger",
@@ -61,6 +63,7 @@ function StatusMark({ status }: { status: ConversationRunStatus }) {
   const showLabel =
     status === "preparing" ||
     status === "streaming" ||
+    status === "verifying" ||
     status === "approval" ||
     status === "waiting-user";
   return (

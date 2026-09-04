@@ -21,8 +21,11 @@ import type { ProcessedAttachment } from "./attachment-utils";
 /** Live run state for ONE conversation — the unit of multi-task isolation. */
 export interface StreamSlot {
   conversationId: string;
-  /** "preparing" covers the intake/plan round trips before any tokens stream. */
-  phase: "preparing" | "streaming";
+  /**
+   * "preparing" covers the intake/plan round trips before any tokens stream;
+   * "verifying" marks the post-execution evidence pass (run-phase machine).
+   */
+  phase: "preparing" | "streaming" | "verifying";
   /** Wall-clock of beginConversationStream; null while preparing. */
   startedAt: number | null;
   /** Latest streamed content — survives switching away and back. */

@@ -2,19 +2,20 @@ import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useChatStore } from "../features/chat/chat-store";
 import { useOrchestrationStore } from "../features/orchestration/orchestration-store";
+import { deriveRunPhase, type ConversationRunStatus } from "../features/chat/run-phase";
 
-export type ConversationRunStatus =
-  "preparing" | "streaming" | "approval" | "waiting-user" | "failed" | "stopped" | "unread";
+export type { ConversationRunStatus };
 
 /**
- * Live per-conversation run status for sidebar rows. The selectors project
- * ONLY status-relevant data (slot phases, approval keys, failure keys,
- * orchestration waiting phases), so streaming content deltas never re-render
- * the sidebar tree — the projections are stable strings compared with
- * useShallow.
+ * Live per-conversation run status for sidebar rows. Delegates phase
+ * resolution to the canonical run-phase machine (features/chat/run-phase);
+ * the selectors project ONLY status-relevant data (slot phases, approval
+ * keys, failure keys, orchestration waiting phases), so streaming content
+ * deltas never re-render the sidebar tree — the projections are stable
+ * strings compared with useShallow.
  */
 export interface ConversationStatusIndex {
-  slotPhase: Record<string, "preparing" | "streaming">;
+  slotPhase: Record<string, "preparing" | "streaming" | "verifying">;
   approvals: Set<string>;
   failures: Set<string>;
   /** Conversations whose orchestrated run is paused on user input. */
@@ -64,11 +65,11 @@ export function useConversationStatusIndex(): ConversationStatusIndex {
   );
 
   return useMemo(() => {
-    const slotPhase: Record<string, "preparing" | "streaming"> = {};
+    const slotPhase: Record<string, "preparing" | "streaming" | "verifying"> = {};
     for (const entry of slotProjection) {
       const separator = entry.lastIndexOf(":");
       slotPhase[entry.slice(0, separator)] = entry.slice(separator + 1) as
-        "preparing" | "streaming";
+        "preparing" | "streaming" | "verifying";
     }
     const approvals = new Set(approvalKeys);
     const failures = new Set(failureKeys);
@@ -77,12 +78,17 @@ export function useConversationStatusIndex(): ConversationStatusIndex {
       waitingUserProjection.map((entry) => entry.slice(0, entry.lastIndexOf(":"))),
     );
     const statusOf = (conversationId: string, updatedAt: number): ConversationRunStatus | null => {
-      if (approvals.has(conversationId)) return "approval";
-      const phase = slotPhase[conversationId];
+      const phase = deriveRunPhase({
+        slotPhase: slotPhase[conversationId],
+        hasPendingApproval: approvals.has(conversationId),
+        waitingUser: waitingUser.has(conversationId),
+        outcomeStatus: failures.has(conversationId)
+          ? "failed"
+          : stopped.has(conversationId)
+            ? "stopped"
+            : undefined,
+      });
       if (phase) return phase;
-      if (waitingUser.has(conversationId)) return "waiting-user";
-      if (failures.has(conversationId)) return "failed";
-      if (stopped.has(conversationId)) return "stopped";
       // Unread: results landed after the conversation was last viewed and it
       // is not the one on screen right now.
       if (

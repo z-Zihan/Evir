@@ -131,6 +131,27 @@ export function updateConversationStream(
   }));
 }
 
+/**
+ * streaming → verifying: the model finished; automatic verification
+ * (agent-run evidence, done-when checks) is running before the turn lands.
+ */
+export function beginConversationVerification(
+  set: ChatStoreSet,
+  get: ChatStoreGet,
+  conversationId: string,
+  startedAt: number,
+): void {
+  const slot = slotFor(get(), conversationId);
+  if (!slot || slot.phase !== "streaming" || slot.startedAt !== startedAt) return;
+  set((state) => ({
+    streamSlots: {
+      ...state.streamSlots,
+      [conversationId]: { ...slot, phase: "verifying" },
+    },
+  }));
+  mirrorCurrentStreamState(set, get);
+}
+
 export function finishConversationStream(
   set: ChatStoreSet,
   get: ChatStoreGet,
@@ -142,7 +163,11 @@ export function finishConversationStream(
   // draining while a NEWER run has begun in the same conversation: without it
   // the old tail would delete the new run's slot.
   const slot = slotFor(get(), conversationId);
-  if (slot && slot.phase === "streaming" && slot.startedAt === startedAt) {
+  if (
+    slot &&
+    (slot.phase === "streaming" || slot.phase === "verifying") &&
+    slot.startedAt === startedAt
+  ) {
     set((state) => {
       const streamSlots = { ...state.streamSlots };
       delete streamSlots[conversationId];
