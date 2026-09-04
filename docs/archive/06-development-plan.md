@@ -1,3 +1,6 @@
+> **Historical（2026-09-04 归档）** — 本文件是历史开发计划与进度记录，**不是当前 Roadmap**。
+> 当前状态以 `docs/release-readiness.md` 与 `README.md` 为准；产品方向见 `docs/01-product-requirements.md`。
+
 # Evir 开发计划
 
 ## 阶段 0：工程核验与基础完善

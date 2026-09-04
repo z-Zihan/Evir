@@ -1,3 +1,5 @@
+> **Historical（2026-08 快照，2026-09-04 归档）** — 历史评审记录，不是当前规范来源。
+
 # Evir UI Component State Matrix
 
 > **历史快照（2026-08-07）**。其中 WorkspaceSelector 相关行为旧信息架构证据，该控件已从产品移除。

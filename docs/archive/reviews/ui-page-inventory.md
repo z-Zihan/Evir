@@ -1,3 +1,5 @@
+> **Historical（2026-08 快照，2026-09-04 归档）** — 历史评审记录，不是当前规范来源。
+
 # Evir UI Page Inventory
 
 > **历史快照（2026-08-07）**。UI-009（Workspace selector）已移除；UI-018 MCP 状态已更新为已实现（2026-08-15）。

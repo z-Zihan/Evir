@@ -20,19 +20,16 @@
 | 开发指南（构建/发布/环境）                                    | [`03-development-guide.md`](03-development-guide.md)                                                                                     |
 | 设计规范（视觉/交互/i18n/无障碍）                             | [`04-design-specification.md`](04-design-specification.md)                                                                               |
 | 工程标准（行数预算/门禁/代码质量）                            | [`05-engineering-standards.md`](05-engineering-standards.md)                                                                             |
-| 开发计划与进度史                                              | [`06-development-plan.md`](06-development-plan.md)                                                                                       |
 | Agent 安全与质量                                              | [`07-agent-security-and-quality.md`](07-agent-security-and-quality.md)                                                                   |
 | Skill 与 MCP 产品规范                                         | [`08-skill-and-mcp.md`](08-skill-and-mcp.md)                                                                                             |
 | 存储、产物与恢复                                              | [`09-storage-artifacts-and-recovery.md`](09-storage-artifacts-and-recovery.md)                                                           |
 | 流式与性能                                                    | [`10-streaming-and-performance.md`](10-streaming-and-performance.md)                                                                     |
 | Provider 权限与可观测性                                       | [`11-provider-permissions-and-observability.md`](11-provider-permissions-and-observability.md)                                           |
-| 产品闭环评审方法论                                            | [`12-product-closure-review.md`](12-product-closure-review.md)（含历史标记）                                                             |
 | Provider 与协议矩阵                                           | [`13-provider-and-protocol-matrix.md`](13-provider-and-protocol-matrix.md)                                                               |
 | 个性化/通知/快捷键                                            | [`14-personalization-notifications-usage-shortcuts-feedback-help.md`](14-personalization-notifications-usage-shortcuts-feedback-help.md) |
 | 模型切换与上下文最终体验                                      | [`15-final-experience-model-switching-and-context.md`](15-final-experience-model-switching-and-context.md)                               |
 | Harness 工程                                                  | [`16-harness-engineering-for-evir.md`](16-harness-engineering-for-evir.md)                                                               |
 | 本地日志与诊断                                                | [`17-local-logging-and-diagnostics.md`](17-local-logging-and-diagnostics.md)                                                             |
-| 产品评审 v6（验收口径）                                       | [`18-final-product-review-v6.md`](18-final-product-review-v6.md)                                                                         |
 | VS Code 扩展路线                                              | [`19-vscode-extension-and-editor-roadmap.md`](19-vscode-extension-and-editor-roadmap.md)                                                 |
 | CLI 产品与技术规格                                            | [`20-cli-product-and-technical-specification.md`](20-cli-product-and-technical-specification.md)                                         |
 | Component Runtime                                             | [`21-composable-component-runtime.md`](21-composable-component-runtime.md)                                                               |
@@ -46,6 +43,6 @@
 | 位置                                               | 内容                                                                         |
 | -------------------------------------------------- | ---------------------------------------------------------------------------- |
 | [`references/`](references/)                       | Harness Engineering 外部资料原文                                             |
-| [`reviews/`](reviews/)                             | 2026-08-06/07/11 QA 快照与 VS Code/CLI 评审（均带历史标记）                  |
-| [`archive/`](archive/)                             | 一次性报告、历史设计文档、项目记忆历次版本、启动期 Prompt 与历史测试执行记录 |
+| [`archive/`](archive/)                             | 历史开发计划（06）、历史评审（12/18/reviews）与一次性报告——均带 Historical 标记 |
+| [`archive/`](archive/)                             | 历史开发计划、历史评审、一次性报告与历史设计文档（同一目录，见上行说明）     |
 | [`benchmarks/latest.json`](benchmarks/latest.json) | 最近一次产物体积基准                                                         |

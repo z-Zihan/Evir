@@ -1,3 +1,5 @@
+> **Historical（2026-08 快照，2026-09-04 归档）** — 历史评审记录，不是当前规范来源。
+
 # Evir Full UI / UX / Product-Logic QA Report
 
 > **历史快照（2026-08-07 整改验收）**。其中“Desktop defaults to Agent / Plan is internal”与 MCP 状态为旧信息架构；当前模型见 `docs/01-product-requirements.md`。

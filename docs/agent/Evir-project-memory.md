@@ -1,80 +1,45 @@
 # Evir Project Memory — 当前事实索引
 
-> Scope: 仅适用于 Evir 仓库。本文件是**高密度当前事实索引**，不创建新事实，不承载历史。
-> 产品逻辑最终来源：`docs/01-product-requirements.md`；架构：`docs/02`；主题路由：`docs/README.md`。
-> 历史与逐轮 Changelog：`docs/archive/`（Git 承担其余历史职责）。
-> Last reviewed: 2026-09-02（Product UX Acceptance 轮）
+> Scope: 仅适用于 Evir 仓库。本文件是**高密度当前事实索引**，不创建新事实，不承载历史，不复制规范内容。
+> 出现疑问或冲突时，一律继续读下方指向的权威文档。
+> Last reviewed: 2026-09-04（Desktop Agent Focus & Core Simplification 轮）
 
-## 1. Product Identity
+## 权威文档路由（唯一事实源）
 
-本地优先、BYOM 的多模型 AI 客户端与通用桌面 Agent。同一代码库产出四个产品面：Web（静态聊天客户端）、Desktop（Tauri 2 Agent，主体产品）、VS Code 扩展（Preview）、CLI（Preview）。无账号、无积分、无广告、无强制云端后端；接入一个支持 Tool Calling 的模型即可使用全部核心能力。
+| 主题         | 权威文档                                  |
+| ------------ | ----------------------------------------- |
+| 产品逻辑     | `docs/01-product-requirements.md`         |
+| 架构与分层   | `docs/02-technical-architecture.md`       |
+| 设计规范     | `docs/04-design-specification.md`         |
+| 工程标准     | `docs/05-engineering-standards.md`        |
+| Agent 安全   | `docs/07-agent-security-and-quality.md`   |
+| 逐项验证状态 | `docs/release-readiness.md`（含 NOT RUN/BLOCKED 清单） |
+| 性能实测     | `docs/benchmarks/latest.json`             |
+| Agent Eval   | `eval/README.md`                          |
+| 发布门禁     | 根目录 `AGENTS.md`                        |
+| 历史材料     | `docs/archive/`（含原 06 开发计划、12/18 评审、reviews 快照，均带 Historical 标记） |
 
-## 2. Current Product Model（唯一当前心智）
+## 当前产品心智（细节以 docs/01 为准）
 
-- **Standalone Chat（侧栏 CHATS 区）**：纯聊天 / Ask，恒不触碰本地文件与项目。无模式控件。
-- **Project（侧栏 PROJECTS 区）**：一个 Project 绑定一个本地目录。默认**普通 Task**：模型自行判断是否需要工具，需要时自动使用 Agent 执行能力。Agent 是**底层执行能力，不是用户必须理解的一级模式**。
-- **Plan / Goal**：项目线程内仅有的两个显式**特殊工作方式**。Plan = 只读检查（L1）产出结构化计划，一键 Execute Plan 转 Agent 执行；Goal = 长期目标 + doneWhen 完成条件，完成判定必须来自证据而非模型文字。
-- **权限档位（Project 级）**：ask（默认，写操作逐次审批）/ workspace / full（首开必须明确确认）。工具边界在 Tool Registry 与 Rust 侧双层强制，不靠提示词。
-- 无 Tool Calling 的模型在 Project 中仍可聊天，但不获得项目工具，Plan/Goal 禁用并说明原因。
-- **多任务运行时（2026-09-02 起）**：流槽位/停止 epoch/待审批均按 conversationId 键控（`streamSlots`/`streamEpochs`/`pendingApprovals` 为真相，平铺 isStreaming 等字段仅为当前视图镜像）；AbortController 与编排快照同样按会话分组——`stopGeneration(id)` 只停一个任务，其他任务继续流式/准备/等审批；发送守卫为 per-conversation 提交锁。侧栏行显示实时状态（运行中/准备中/待审批/失败/新结果），状态投影与流内容解耦不重绘。
-- **Workspace 面板（2026-09-02 起）**：Desktop 主窗口三栏 Navigation | Thread | Workspace；右栏五 Tab（产出/变更/文件/预览/浏览器）——产出为一等交付物列表（类型 chip+大小+时间，点击进类型化预览），与变更（Agent 修改）、文件（项目树）彻底分离；`WorkspaceResource` 统一资源模型驱动 activeResource/history/pin/resize；TaskOutput 与 Changes 由真实工具执行+快照推导并随 run 持久化（run workspace store 按会话键控，多任务不串扰）；Result Summary 卡片（查看产出/查看变更入口）；工具卡按检查/修改/命令/浏览器聚合折叠；聊天大 artifact 改道右栏（`artifacts` 实体）；面板浏览器 = 主窗口子 webview（零能力，浮层经 overlayBlockers 隐藏），本地导航先探测可达性、拒绝连接显示错误卡+重试，Agent 使用页面时工具栏出 chip；预览 Tab 空态提供「预览应用」一等入口（检测启动脚本→Starting→Ready→自动开页切浏览器 Tab；ask 档确认保留）；dev server 生命周期由 Rust `dev_server.rs` 管理（ready 探测 + 退出清理 + `npm_config_verify_deps_before_run=false` 防 pnpm 隐式 install）；工作区在 <1440px 视口转为右侧抽屉，面板宽度钳制保证对话列 ≥460px；对话正文全链 `overflow-wrap:anywhere`。独立聊天隐藏产出/变更/文件 Tab。
+- **主产品 = Desktop Project Agent**（工作台式项目线程：任务流 + Context Workbench + 可驾驶 Composer）。Web = Maintenance 聊天；VSIX / CLI = Preview；Plugin / Multi-user / Canvas / Ego Lite = Experimental（冻结扩张）。
+- Standalone Chat 恒为 Ask；Project 内默认 Task（模型自行决定是否用工具），Plan/Goal 经 `/plan`、`/goal` 触达。
+- 权限三档 per-project，首开由用户显式选择（workspace 推荐 / ask 谨慎；full 保持高风险确认）。
 
-## 3. Current Architecture Boundaries
+## 关键路径（改动前先读对应模块）
 
-- 依赖方向：Types → Config → Repository → Service → Runtime → UI。UI 不得直接调用 Provider SDK、Tauri 命令、SQLite、Shell、Keychain、MCP 进程或日志文件（走 Port/Adapter）。
-- 存储：Feature stores 统一经 `StoragePort`；Web = IndexedDB（Dexie），Desktop = SQLite（`app_entities` 结构化实体，位于 `~/Library/Application Support/com.zihan.evir/evir.db`；providers/projects/conversations/messages/run 系列等）。
-- 工作目录单一真相：`core/workspace/active-root`；Run 期压栈，整跑与审批续跑绑定 originating root，切项目不污染活动 Run。
-- Provider 三层分离：Preset（36 家）→ Protocol Adapter（7 种已实现：OpenAI Chat Completions / Responses、Anthropic Messages、Gemini、Azure OpenAI、Ollama 原生、OpenAI-compatible）→ Model Profile。API Key 存本地加密 vault（Rust `secret_vault.rs`，AES-256-GCM + OS 用户绑定派生密钥；不再使用 OS 钥匙串——ad-hoc 重建会触发 ACL 弹窗），永不入日志。
-- Harness 中间件（规范化/模式策略/能力门/上下文预算/Skill 路由/工具策略/循环检测/检查点/验证/可观测）各自可独立测试与移除；Tool Policy 是宿主保护项。
+- 主控制流：`src/features/chat/stream-response.ts`（turn 编排）→ `turn/`（prepare/verify/persist）→ `agent-loop.ts` + `agent-loop-phases.ts`（执行）→ `orchestration/run-orchestrated-agent.ts` + `orchestrated-run-state.ts` + `orchestrated-node-execution.ts`（编排）。
+- Run 状态机唯一事实源：`src/features/chat/run-phase.ts`（派生优先级与真相映射）；`StreamSlot.phase` 含 verifying。
+- 权限判定：`src/core/tools/tool-executor.ts`（L2+ 边界；相对路径先解析到 workspace root 再判）。
+- Skill 分层：manifest `tier: core|general`；核心 15 个（`skills/builtin/*/manifest.json` 标记）。
+- Provider 分级：`ProviderPreset.agentTier`（agent-verified=GLM / protocol-verified=5 家 / preset=其余）。
+- Agent Eval：`eval/agent-eval/`（`pnpm test:agent-eval`；结果 `eval/results/latest.json`）。
 
-## 4. Runtime / Agent Model
+## 当前测试基线指针
 
-- EvirRuntime 区分 Web/Desktop，按 Capability 注册工具；内置 13 个本地工具（read_file / write_file / list_directory / search_files / search_docs / apply_patch / file_stat / create_directory / create_snapshot / restore_snapshot / run_command / git_status / git_diff）。
-- 风险分级 L0–L4；L3 逐次审批，L4 可禁用；工具来源标记 evir-local / mcp-local / mcp-remote / provider-server。
-- 任务编排：task-intake 将目标分类为 answer / inspect / change / execute / mixed（中英文关键词，change 词优先于 inspect 词）；change 类生成 inspect→approval→execute→verify 计划图，**步骤级工具允许集**强制只读/可写边界（只读步骤内 write_file 会被诚实拒绝并反馈模型）。
-- 循环检测 6 次警告 / 12 次停止；模型回合 120s 超时；上下文预算：<60% 不摘要，60–75% 归档工具输出，75–90% 摘要旧对话，>90% 强制检查点；摘要版本化。
-- 模型切换经 ModelSwitchCoordinator + 安全检查点 + 数据去向确认；无跨 Provider 自动降级。
+数字不在此复制（会漂移）：TS/Rust/E2E 计数与通过状态见 `docs/release-readiness.md`；体积见 `docs/benchmarks/latest.json`；Agent Eval 见 `eval/results/latest.json`。
 
-## 5. Current Capability Matrix
+## 当前已知约束（细节以权威文档为准）
 
-| 能力                                                     | 状态                                                                                         |
-| -------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Web 聊天/附件/Skill(10)/导出                             | 已实现，稳定                                                                                 |
-| Desktop 聊天/项目/工具/审批/快照/Diff/回滚/日志/诊断 ZIP | 已实现（原生 arm64 实测通过）                                                                |
-| Plan / Goal / 权限档位 / 编排 DAG                        | 已实现（确定性链路原生实测；真实 Provider 长任务未验收）                                     |
-| MCP Runtime（stdio + Streamable HTTP）                   | 已实现；Agent 会话内审批取证与 HTTP CORS 策略待办                                            |
-| 智能任务编排/子 Agent                                    | 已实现（确定性部分）；真实 Provider 完整任务未验收，不标发布完成                             |
-| VS Code 扩展                                             | **Preview**（配置/Ask/Agent/审批/Diff 回滚可用；Marketplace/High Contrast/完整本地化未完成） |
-| CLI                                                      | **Preview**（configure/doctor/ask/agent 可用；错误友好度/退出码/i18n 未收口）                |
-| 通知、命令面板、应用内帮助                               | 未实现                                                                                       |
-
-## 6. Current Test Baseline（2026-09-02，UX Acceptance + §五闭环轮门禁全绿）
-
-- `pnpm check`（format + ESLint + strict `tsc -b` + vitest + release workflow 校验 + VS Code + CLI）：**878 TS** 用例 / **8 VS Code** / **8 CLI** 全过（新增 2 个 ipc 停顿重试用例，7ccf580）。
-- `pnpm test:rust`：**66 Rust** 用例全过；cargo fmt / clippy 干净。
-- E2E core（fixture，web+desktop）：42 过 / 10 能力跳过（含并发双任务停止隔离用例）；UI 矩阵 2/2、视觉 6/6、a11y 18/18、stress 7 过/1 跳（2026-09-02 全量重跑）。
-- Benchmark 预算全过：Web 初始 gzip 325.6 KiB、桌面前端 14.71 MiB（`docs/benchmarks/latest.json`）。
-- 原生 macOS arm64 实测（release 构建）：冷启动 0.84s、空闲内存 ~71 MB、空闲 CPU 0%。
-- 真人双任务双审批演练通过（任务M/N：双待审批同屏、切走切回卡片保留、批一不影响另一、各自真实落盘）；3 会话日志审计零交叉污染；远程导航 NXDOMAIN 错误卡 + 重试验证通过。已知平台缺陷：macOS 26.5 release 构建 `ipc://` WKURLSchemeHandler 间歇停顿 ~100s（dev 的 postMessage IPC 不受影响），已用只读 invoke 10s×3 重试缓解（根治需上游 wry 修复）。
-- 逐项验证状态与 NOT RUN 清单：**以 `docs/release-readiness.md` 为准**（不要凭记忆引用旧数字）。
-
-## 7. Known Release Blockers
-
-1. **LICENSE：BLOCKED**——仓库 public 但无许可证文件，须由项目负责人在 MIT / Apache-2.0 / GPLv3 / AGPLv3 中决定，禁止代选。
-2. Windows 全量验收 NOT RUN（安装/路径/Shell/凭据库/升级）。
-3. VS Code Marketplace publisher 与 CLI npm 发布通道未配置。
-4. 30–60 分钟 Agent 长任务、20–50 轮长对话原生实测 NOT RUN。
-
-已知非阻塞事项：密钥自 2026-08-28 起存本地加密 vault（重建无弹窗）；既有钥匙串旧密钥不自动迁移，用户需重新输入一次。已知未修小缺陷：Provider“设为默认”被系统弹窗拒绝后可能出现双 `isDefault=true`（低概率，建议补事务性修复）。
-
-## 8. Canonical Documentation
-
-主题 → 权威文档映射见 `docs/README.md`。关键：产品=docs/01，架构=docs/02，测试策略=docs/testing.md，验证状态=docs/release-readiness.md，发布门禁=AGENTS.md。`docs/archive/`、`docs/reviews/`、`docs/references/` 一律为历史/参考资料，不是规范来源。
-
-## 9. Important Development Constraints
-
-- TypeScript strict；禁 `any`/空 catch/万能 Store；组件/Hook/模块 ≤600 行、函数 ≤200 行；外部输入 Zod 验证；长任务支持 AbortSignal。
-- 永不记录 API Key/Authorization/Cookie/环境变量/完整会话/文件正文；日志本地、脱敏、有界（app/audit/performance 分类 JSONL，15MB 轮转/14 天/100MB 预算）。
-- 不得用 Mock/Port/静态 UI 冒充功能完成；模型文字不能标记任务完成，须验证证据；取消的 Run 不得显示完成。
-- 测试触达用户数据时的约定：先备份（cp evir.db*），测后 SQL 清痕并还原默认；绝不消耗用户真实 Provider 配额（用本地 fixture 服务器，`e2e/fixtures/provider-server.mjs` 支持 `[agent-task]`/`[agent-recovery]` 脚本化 tool_calls）。
-- PR 门禁：`pnpm check` + `pnpm test:rust`（CI 在 PR/main 自动执行；打包与签名仅 tag 阶段）。
+- LICENSE 未定（BLOCKED，须项目负责人决定）；Windows 全量验收 NOT RUN；30–60 分钟长任务 NOT RUN。
+- 测试不得消耗真实 Provider 配额（fixture 服务器或标 NOT RUN）；模型文字不能标记任务完成（mutating run 需证据；answer run 见 docs/01）。
+- 永不记录密钥/完整会话/文件正文；日志本地、脱敏、有界。
