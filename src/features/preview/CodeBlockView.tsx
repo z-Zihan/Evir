@@ -1,6 +1,7 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, Copy, ExternalLink, WrapText } from "lucide-react";
+import { copyTextWithFeedback } from "../../components/feedback";
 import { Button, Tip } from "../../components/ui";
 import { normalizeFenceLanguage, previewRegistry } from "./preview-registry";
 import { isHighlightable, useShikiHighlight } from "./use-shiki";
@@ -42,6 +43,7 @@ export const CodeBlockView = memo(function CodeBlockView({
   const normalized = normalizeFenceLanguage(language);
   const [copied, setCopied] = useState(false);
   const [wrap, setWrap] = useState(false);
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const openResource = useWorkspacePanelStore((state) => state.openResource);
 
   const descriptor = useMemo(() => {
@@ -56,9 +58,11 @@ export const CodeBlockView = memo(function CodeBlockView({
   const large = code.length > COLLAPSED_CODE_BYTES;
 
   const copy = () => {
-    void navigator.clipboard.writeText(code).then(() => {
+    void copyTextWithFeedback(code).then((ok) => {
+      if (!ok) return;
       setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      if (copyTimer.current) clearTimeout(copyTimer.current);
+      copyTimer.current = setTimeout(() => setCopied(false), 1500);
     });
   };
 

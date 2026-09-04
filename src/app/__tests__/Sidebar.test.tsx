@@ -190,4 +190,97 @@ describe("Sidebar", () => {
       expect(row?.querySelector('[aria-label="sidebar.more"]')).toBeTruthy();
     }
   });
+
+  it("has no sort control and clears the legacy sort key on mount", async () => {
+    window.localStorage.setItem("evir-sidebar-sort", "name");
+    const { Sidebar } = await import("../Sidebar");
+    render(<Sidebar onOpenSettings={vi.fn()} onNewConversation={vi.fn()} onClose={vi.fn()} />);
+
+    expect(screen.queryByRole("button", { name: "sidebar.sortToggle" })).toBeNull();
+    expect(window.localStorage.getItem("evir-sidebar-sort")).toBeNull();
+  });
+
+  it("orders conversations pinned-first then by updatedAt descending", async () => {
+    const original = [...chatState.conversations];
+    chatState.conversations = [
+      {
+        id: "old-chat",
+        title: "Older chat",
+        providerId: "provider-1",
+        modelId: "model-1",
+        createdAt: 1,
+        updatedAt: 100,
+      },
+      {
+        id: "pinned-old",
+        title: "Pinned older",
+        providerId: "provider-1",
+        modelId: "model-1",
+        createdAt: 1,
+        updatedAt: 50,
+        pinned: 1,
+      },
+      {
+        id: "new-chat",
+        title: "Newest chat",
+        providerId: "provider-1",
+        modelId: "model-1",
+        createdAt: 1,
+        updatedAt: 200,
+      },
+    ] as unknown as typeof chatState.conversations;
+    try {
+      const { Sidebar } = await import("../Sidebar");
+      render(<Sidebar onOpenSettings={vi.fn()} onNewConversation={vi.fn()} onClose={vi.fn()} />);
+
+      const rows = [...document.querySelectorAll(".sidebar-section-chats .conversation-item")].map(
+        (row) => row.textContent ?? "",
+      );
+      const order = rows.map((text) =>
+        text.includes("Pinned older")
+          ? "pinned-old"
+          : text.includes("Newest chat")
+            ? "new-chat"
+            : "old-chat",
+      );
+      expect(order).toEqual(["pinned-old", "new-chat", "old-chat"]);
+    } finally {
+      chatState.conversations = original;
+    }
+  });
+
+  it("shows the relative time sharing the trailing slot with ••• (no layout shift)", async () => {
+    const original = [...chatState.conversations];
+    const now = Date.now();
+    chatState.conversations = [
+      {
+        id: "recent-chat",
+        title: "Recent chat",
+        providerId: "provider-1",
+        modelId: "model-1",
+        createdAt: 1,
+        updatedAt: now - 3 * 60_000,
+      },
+    ];
+    try {
+      const { Sidebar } = await import("../Sidebar");
+      render(<Sidebar onOpenSettings={vi.fn()} onNewConversation={vi.fn()} onClose={vi.fn()} />);
+
+      const time = document.querySelector("time.conversation-time");
+      expect(time).toBeTruthy();
+      // Relative minutes since the row's language falls back to English.
+      expect(time?.textContent).toBe("3m");
+      // Same grid cell as the more menu, swapped out on hover/focus — the
+      // time keeps its box (invisible, not display:none) so nothing shifts.
+      const slot = time?.closest(".conversation-trailing");
+      expect(slot).toBeTruthy();
+      expect(slot?.querySelector('[aria-label="sidebar.more"]')).toBeTruthy();
+      expect(time?.className).toContain("group-hover:invisible");
+      const actions = slot?.querySelector(".conversation-actions") as HTMLElement | null;
+      expect(actions?.className).toContain("opacity-0");
+      expect(actions?.className).toContain("group-hover:opacity-100");
+    } finally {
+      chatState.conversations = original;
+    }
+  });
 });

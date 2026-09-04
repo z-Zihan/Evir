@@ -13,6 +13,7 @@ export {
   type FormDialogProps,
 } from "./dialog-composites";
 export { notify, type NotifyOptions, type NotifyHandle } from "./notify";
+export { copyTextWithFeedback, type CopyFeedbackOptions } from "./copy";
 export {
   LoadingState,
   ErrorState,

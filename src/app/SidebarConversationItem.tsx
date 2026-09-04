@@ -14,6 +14,8 @@ import {
 } from "../components/ui";
 import { cn } from "../components/ui/utils";
 import type { ConversationRecord } from "../core/storage/db";
+import { formatFullTimestamp, formatSidebarTime } from "./conversation-time";
+import { useNow } from "./use-now";
 import type { ConversationRunStatus } from "./useConversationStatus";
 
 interface SidebarConversationItemProps {
@@ -98,9 +100,12 @@ export const SidebarConversationItem = memo(function SidebarConversationItem({
   variant = "chat",
   status = null,
 }: SidebarConversationItemProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [renaming, setRenaming] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [value, setValue] = useState(conversation.title);
+  const now = useNow();
+  const language = i18n?.language ?? "en";
 
   const commitRename = () => {
     setRenaming(false);
@@ -165,39 +170,56 @@ export const SidebarConversationItem = memo(function SidebarConversationItem({
       )}
       {!renaming && status && <StatusMark status={status} />}
       {!renaming && (
-        <div
-          className="conversation-actions flex shrink-0 items-center opacity-0 pointer-events-none transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
-          onClick={(event) => event.stopPropagation()}
-        >
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label={t("sidebar.more")}
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  <Ellipsis size={13} />
-                </Button>
-              }
-            />
-            <DropdownMenuContent side="bottom" align="end" className="min-w-40">
-              <DropdownMenuItem onClick={onTogglePin}>
-                <Pin aria-hidden="true" />
-                {conversation.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={beginRename}>
-                <Pencil aria-hidden="true" />
-                {t("sidebar.rename")}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem destructive onClick={onDelete}>
-                <Trash2 aria-hidden="true" />
-                {t("provider.delete")}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        // Trailing slot (§36): the relative time and the ••• menu share one
+        // grid cell, so swapping them on hover/focus never shifts the row.
+        // While the menu is open the swap is pinned so the trigger stays
+        // visible even when the pointer is over the portal popup.
+        <div className="conversation-trailing grid shrink-0 grid-cols-[auto] grid-rows-1 place-items-center">
+          <Tip content={formatFullTimestamp(conversation.updatedAt)}>
+            <time
+              className="conversation-time col-start-1 row-start-1 text-[10.5px] tabular-nums text-muted group-hover:invisible group-focus-within:invisible"
+              dateTime={new Date(conversation.updatedAt).toISOString()}
+            >
+              {formatSidebarTime(conversation.updatedAt, language, now)}
+            </time>
+          </Tip>
+          <div
+            className={cn(
+              "conversation-actions col-start-1 row-start-1 flex items-center opacity-0 pointer-events-none transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100",
+              menuOpen && "pointer-events-auto opacity-100",
+            )}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={t("sidebar.more")}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <Ellipsis size={13} />
+                  </Button>
+                }
+              />
+              <DropdownMenuContent side="bottom" align="end" className="min-w-40">
+                <DropdownMenuItem onClick={onTogglePin}>
+                  <Pin aria-hidden="true" />
+                  {conversation.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={beginRename}>
+                  <Pencil aria-hidden="true" />
+                  {t("sidebar.rename")}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem destructive onClick={onDelete}>
+                  <Trash2 aria-hidden="true" />
+                  {t("provider.delete")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       )}
     </div>

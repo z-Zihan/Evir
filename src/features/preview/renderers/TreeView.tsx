@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronDown, ChevronRight, Copy } from "lucide-react";
-import { notify } from "../../../components/feedback";
+import { copyTextWithFeedback } from "../../../components/feedback";
 import { Button } from "../../../components/ui";
 
 export const MAX_TREE_CHILDREN = 500;
@@ -98,10 +98,10 @@ function TreeCopyButton({ value, label }: { value: string; label: string }) {
       className="json-tree-copy text-muted hover:text-foreground"
       aria-label={label}
       onClick={() => {
-        void navigator.clipboard.writeText(value).then(() => {
+        void copyTextWithFeedback(value).then((ok) => {
+          if (!ok) return;
           setCopied(true);
           setTimeout(() => setCopied(false), 1500);
-          notify.success(label);
         });
       }}
     >

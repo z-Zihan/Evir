@@ -34,9 +34,6 @@
     "noProjects": "还没有项目",
     "emptyProject": "还没有任务",
     "searchPlaceholder": "搜索项目与对话",
-    "sortRecent": "最近",
-    "sortName": "名称",
-    "sortToggle": "排序方式",
     "expandProject": "展开项目",
     "collapseProject": "折叠项目",
     "resize": "调整侧边栏宽度",
@@ -101,6 +98,8 @@
     "streamInProgress": "另一个对话正在生成中",
     "regenerate": "重新生成",
     "edit": "编辑",
+    "editFailed": "保存编辑内容失败",
+    "saving": "保存中…",
     "save": "保存",
     "cancel": "取消",
     "stopped": "已停止",
@@ -1076,13 +1075,14 @@
     "paletteLabel": "命令面板",
     "commandsGroup": "命令",
     "skillsGroup": "技能",
+    "pluginsGroup": "插件",
     "commandPlan": "切换到计划模式",
     "commandGoal": "切换到目标模式",
     "commandAgent": "切回默认任务模式",
     "commandModel": "切换模型",
     "skillSelected": "已为本条消息选中（再次执行取消）",
     "noMatches": "没有匹配的命令或技能",
-    "hint": "↑↓ 选择，Enter 执行，Esc 关闭"
+    "hint": "↑↓ 选择 · Enter 或 Tab 执行 · Esc 关闭"
   },
   "preview": {
     "plainText": "文本",
@@ -1181,6 +1181,8 @@
   "notify": {
     "working": "正在处理…",
     "done": "已完成",
-    "failed": "出了点问题"
+    "failed": "出了点问题",
+    "copySuccess": "已复制",
+    "copyFailed": "复制失败"
   }
 }

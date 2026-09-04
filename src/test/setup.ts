@@ -65,3 +65,22 @@ if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {
     value: query,
   });
 }
+
+// jsdom lacks localStorage (it ships separately); sidebar preferences and
+// legacy-key cleanup read/write it at mount time.
+if (typeof window !== "undefined" && !window.localStorage) {
+  const backing = new Map<string, string>();
+  Object.defineProperty(window, "localStorage", {
+    configurable: true,
+    value: {
+      getItem: (key: string) => backing.get(key) ?? null,
+      setItem: (key: string, value: string) => void backing.set(key, value),
+      removeItem: (key: string) => void backing.delete(key),
+      clear: () => backing.clear(),
+      key: (index: number) => [...backing.keys()][index] ?? null,
+      get length() {
+        return backing.size;
+      },
+    },
+  });
+}

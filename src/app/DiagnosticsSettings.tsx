@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import packageJson from "../../package.json";
+import { copyTextWithFeedback } from "../components/feedback";
 import { Button } from "../components/ui";
 import { SettingsPage, SettingsPageIntro } from "../components/settings";
 import { DiagnosticExportCancelledError } from "../core/logging/diagnostic-port";
@@ -227,7 +228,8 @@ export function DiagnosticsSettings() {
               type="button"
               className="px-2 py-1 text-xs border border-border rounded-lg cursor-pointer hover:bg-surface-hover transition"
               onClick={() => {
-                void navigator.clipboard.writeText(persistence.directory ?? "").then(() => {
+                void copyTextWithFeedback(persistence.directory ?? "").then((ok) => {
+                  if (!ok) return;
                   setCopiedDirectory(true);
                   setTimeout(() => setCopiedDirectory(false), 1500);
                 });

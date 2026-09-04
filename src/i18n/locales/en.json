@@ -34,9 +34,6 @@
     "noProjects": "No projects yet",
     "emptyProject": "No threads yet",
     "searchPlaceholder": "Search projects and chats",
-    "sortRecent": "Recent",
-    "sortName": "Name",
-    "sortToggle": "Sort order",
     "expandProject": "Expand project",
     "collapseProject": "Collapse project",
     "resize": "Resize sidebar",
@@ -101,6 +98,8 @@
     "streamInProgress": "Another conversation is still generating",
     "regenerate": "Regenerate",
     "edit": "Edit",
+    "editFailed": "Failed to save the edited message",
+    "saving": "Saving…",
     "save": "Save",
     "cancel": "Cancel",
     "stopped": "stopped",
@@ -1077,13 +1076,14 @@
     "paletteLabel": "Command palette",
     "commandsGroup": "Commands",
     "skillsGroup": "Skills",
+    "pluginsGroup": "Plugins",
     "commandPlan": "Switch to Plan mode",
     "commandGoal": "Switch to Goal mode",
     "commandAgent": "Switch back to the default task mode",
     "commandModel": "Switch model",
     "skillSelected": "Selected for this message (run again to deselect)",
     "noMatches": "No matching commands or skills",
-    "hint": "↑↓ to choose, Enter to run, Esc to close"
+    "hint": "↑↓ to choose · Enter or Tab to run · Esc to close"
   },
   "preview": {
     "plainText": "text",
@@ -1182,6 +1182,8 @@
   "notify": {
     "working": "Working…",
     "done": "Done",
-    "failed": "Something went wrong"
+    "failed": "Something went wrong",
+    "copySuccess": "Copied",
+    "copyFailed": "Copy failed"
   }
 }

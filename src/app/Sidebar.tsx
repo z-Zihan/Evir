@@ -1,14 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  ChevronDown,
-  ChevronRight,
-  FolderPlus,
-  MessageSquarePlus,
-  Search,
-  Settings2,
-  X,
-} from "lucide-react";
+import { ChevronRight, FolderPlus, MessageSquarePlus, Search, Settings2, X } from "lucide-react";
 import { Button, Input, Tip } from "../components/ui";
 import type { PersonalizationPreferences } from "../core/personalization/types";
 import { isMac } from "../core/shortcuts/platform";
@@ -32,14 +24,10 @@ interface SidebarProps {
   onClose: () => void;
 }
 
-type SortOrder = "recent" | "name";
-
-const SORT_KEY = "evir-sidebar-sort";
 const EXPANDED_KEY = "evir-sidebar-expanded-projects";
-
-function readSortOrder(): SortOrder {
-  return localStorage.getItem(SORT_KEY) === "name" ? "name" : "recent";
-}
+// Removed SortOrder persistence (§33): ordering is time-only now. Drop the
+// stale key so old installs don't carry dead state.
+const LEGACY_SORT_KEY = "evir-sidebar-sort";
 
 function readExpanded(): Set<string> {
   try {
@@ -75,7 +63,6 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
   // not repaint on every token.
   const statusIndex = useConversationStatusIndex();
   const [search, setSearch] = useState("");
-  const [sortOrder, setSortOrder] = useState<SortOrder>(readSortOrder);
   const [expanded, setExpanded] = useState<Set<string>>(readExpanded);
   const [permissionProjectId, setPermissionProjectId] = useState<string | null>(null);
   const [identity, setIdentity] = useState<
@@ -105,8 +92,8 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(SORT_KEY, sortOrder);
-  }, [sortOrder]);
+    window.localStorage?.removeItem(LEGACY_SORT_KEY);
+  }, []);
 
   const persistExpanded = (next: Set<string>) => {
     setExpanded(next);
@@ -121,27 +108,13 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
   const matches = (...values: Array<string | undefined>) =>
     query.length === 0 || values.some((value) => value?.toLowerCase().includes(query));
 
+  // Time-only ordering (§33-35): pinned items keep their group-first semantics,
+  // within each group everything sorts by latest activity, newest first.
   const sortProjects = (items: ProjectRecord[]) =>
-    [...items].sort((a, b) => {
-      if (sortOrder === "name") {
-        if (a.pinned && !b.pinned) return -1;
-        if (!a.pinned && b.pinned) return 1;
-        return a.displayName.localeCompare(b.displayName);
-      }
-      return (b.pinned ?? 0) - (a.pinned ?? 0) || b.lastOpenedAt - a.lastOpenedAt;
-    });
+    [...items].sort((a, b) => (b.pinned ?? 0) - (a.pinned ?? 0) || b.lastOpenedAt - a.lastOpenedAt);
 
-  const sortConversations = <T extends { pinned?: number; updatedAt: number; title: string }>(
-    items: T[],
-  ) =>
-    [...items].sort((a, b) => {
-      if (sortOrder === "name") {
-        if (a.pinned && !b.pinned) return -1;
-        if (!a.pinned && b.pinned) return 1;
-        return (a.title || "").localeCompare(b.title || "");
-      }
-      return (b.pinned ?? 0) - (a.pinned ?? 0) || b.updatedAt - a.updatedAt;
-    });
+  const sortConversations = <T extends { pinned?: number; updatedAt: number }>(items: T[]) =>
+    [...items].sort((a, b) => (b.pinned ?? 0) - (a.pinned ?? 0) || b.updatedAt - a.updatedAt);
 
   const visibleProjects = useMemo(
     () =>
@@ -154,7 +127,7 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
         ),
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [projects, conversations, query, sortOrder],
+    [projects, conversations, query],
   );
 
   const projectsScrollRef = useScrollNewProjectIntoView(visibleProjects);
@@ -162,14 +135,14 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
   const standaloneChats = useMemo(
     () => sortConversations(conversations.filter((c) => !c.projectId && matches(c.title))),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [conversations, query, sortOrder],
+    [conversations, query],
   );
 
   const threadsOf = useMemo(
     () => (projectId: string) =>
       sortConversations(conversations.filter((c) => c.projectId === projectId && matches(c.title))),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [conversations, query, sortOrder],
+    [conversations, query],
   );
 
   const handleAddProject = async () => {
@@ -300,19 +273,6 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
             </Button>
           )}
         </div>
-
-        <Tip content={t("sidebar.sortToggle")}>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="sidebar-sort-toggle h-6 w-fit px-1.5 text-[11px] font-normal text-muted hover:text-foreground"
-            onClick={() => setSortOrder(sortOrder === "recent" ? "name" : "recent")}
-            aria-label={t("sidebar.sortToggle")}
-          >
-            {sortOrder === "recent" ? t("sidebar.sortRecent") : t("sidebar.sortName")}
-            <ChevronDown size={11} aria-hidden="true" />
-          </Button>
-        </Tip>
 
         <div className="sidebar-scroll flex min-h-0 flex-1 flex-col overflow-hidden">
           {getRuntime().target === "desktop" && (

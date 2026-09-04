@@ -8,6 +8,16 @@ export { Spinner, Skeleton } from "./spinner";
 export { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyAction } from "./empty";
 export { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent, Tip } from "./tooltip";
 export {
+  Command,
+  CommandList,
+  CommandGroup,
+  CommandItem,
+  CommandEmpty,
+  CommandInput,
+  CommandSeparator,
+  CommandShortcut,
+} from "./command";
+export {
   Popover,
   PopoverTrigger,
   PopoverClose,

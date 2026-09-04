@@ -23,7 +23,9 @@ describe("MarkdownContent code blocks", () => {
     fireEvent.click(copyButton);
 
     await waitFor(() => expect(writeText).toHaveBeenCalledWith("plain fenced code"));
-    expect(screen.getByText("chat.copied")).toBeTruthy();
+    // The label morph waits for the shared copy helper's toast, so it lands a
+    // tick after the clipboard write itself.
+    await waitFor(() => expect(screen.getByText("chat.copied")).toBeTruthy());
   });
 
   it("copies the full text of language-tagged blocks", async () => {

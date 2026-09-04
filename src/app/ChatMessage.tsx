@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Brain, Copy, Pencil, RotateCcw, Sparkles } from "lucide-react";
+import { Brain, Check, Copy, Pencil, RotateCcw, Sparkles } from "lucide-react";
 
 import {
   Message,
@@ -11,6 +11,7 @@ import {
   MessageRoleMark,
   MessageState,
 } from "../components/ai";
+import { copyTextWithFeedback, notify } from "../components/feedback";
 import { Button, Textarea } from "../components/ui";
 import type { MessageRecord } from "../core/storage/db";
 import { AgentActivity } from "./AgentActivity";
@@ -43,27 +44,61 @@ export function ChatMessage({
 }: ChatMessageProps) {
   const { t, i18n } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [draft, setDraft] = useState(message.content);
   const [rememberState, setRememberState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!isEditing) setDraft(message.content);
   }, [message.content, isEditing]);
   useEffect(() => setRememberState("idle"), [message.content, message.id]);
+  useEffect(
+    () => () => {
+      if (copyTimer.current) clearTimeout(copyTimer.current);
+    },
+    [],
+  );
   const hasAttachment = Boolean(message.attachments?.length);
-  const canSave = draft.trim().length > 0 || hasAttachment;
+  const canSave = (draft.trim().length > 0 || hasAttachment) && !saving;
   const displayError = (value: string) => (i18n.exists(value) ? t(value) : value);
 
   const cancelEdit = () => {
+    if (saving) return;
     setDraft(message.content);
     setIsEditing(false);
   };
 
   const saveEdit = () => {
     if (!canSave) return;
-    setIsEditing(false);
-    onEdit(message.id, draft.trim()).catch(() => {
-      setIsEditing(true);
+    // Stay in the editing state while saving: content is never dropped on a
+    // failed/ignored save, and the pending state blocks double submits.
+    setSaving(true);
+    onEdit(message.id, draft.trim())
+      .then(() => setIsEditing(false))
+      .catch(() => {
+        notify.error(t("chat.editFailed"));
+      })
+      .finally(() => setSaving(false));
+  };
+
+  const handleEditorKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.nativeEvent.isComposing) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      cancelEdit();
+    } else if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+      event.preventDefault();
+      saveEdit();
+    }
+  };
+
+  const copyContent = () => {
+    void copyTextWithFeedback(message.content).then((ok) => {
+      if (!ok) return;
+      setCopied(true);
+      if (copyTimer.current) clearTimeout(copyTimer.current);
+      copyTimer.current = setTimeout(() => setCopied(false), 1500);
     });
   };
 
@@ -94,7 +129,9 @@ export function ChatMessage({
               <span className="message-author font-medium text-foreground/85">{roleLabel}</span>
             </header>
           )}
-          <MessageContent className="message-content max-w-[min(560px,88%)]">
+          <MessageContent
+            className={`message-content max-w-[min(560px,88%)] ${isEditing ? "w-full" : ""}`}
+          >
             {message.activeSkills && message.activeSkills.length > 0 && (
               <div
                 className="mb-1 flex items-center justify-end gap-1.5 text-[11px] text-muted"
@@ -134,20 +171,23 @@ export function ChatMessage({
               </div>
             )}
             {isEditing ? (
-              <div className="flex w-[min(560px,80vw)] flex-col gap-2 text-left">
+              <div className="flex w-full min-w-0 max-w-full flex-col gap-2 text-left">
                 <Textarea
                   aria-label={t("chat.edit")}
                   value={draft}
                   onChange={(event) => setDraft(event.target.value)}
+                  onKeyDown={handleEditorKeyDown}
                   autoFocus
                   rows={3}
+                  className="max-h-[40vh] overflow-y-auto"
+                  disabled={saving}
                 />
                 <div className="flex justify-end gap-2">
-                  <Button variant="ghost" size="sm" onClick={cancelEdit}>
+                  <Button variant="ghost" size="sm" onClick={cancelEdit} disabled={saving}>
                     {t("chat.cancel")}
                   </Button>
                   <Button variant="primary" size="sm" onClick={saveEdit} disabled={!canSave}>
-                    {t("chat.save")}
+                    {saving ? t("chat.saving") : t("chat.save")}
                   </Button>
                 </div>
               </div>
@@ -160,14 +200,9 @@ export function ChatMessage({
               <MessageAction
                 tooltip={copied ? t("chat.copied") : t("chat.copyMessage")}
                 aria-label={t("chat.copyMessage")}
-                onClick={() => {
-                  void navigator.clipboard.writeText(message.content).then(() => {
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 1500);
-                  });
-                }}
+                onClick={copyContent}
               >
-                <Copy size={13} />
+                {copied ? <Check size={13} /> : <Copy size={13} />}
               </MessageAction>
               {onRemember && (
                 <MessageAction
@@ -281,16 +316,11 @@ export function ChatMessage({
             {!isEditing && !groupedWithNext && (
               <MessageActions>
                 <MessageAction
-                  tooltip={t("chat.copyMessage")}
+                  tooltip={copied ? t("chat.copied") : t("chat.copyMessage")}
                   aria-label={t("chat.copyMessage")}
-                  onClick={() => {
-                    void navigator.clipboard.writeText(message.content).then(() => {
-                      setCopied(true);
-                      setTimeout(() => setCopied(false), 1500);
-                    });
-                  }}
+                  onClick={copyContent}
                 >
-                  <Copy size={13} />
+                  {copied ? <Check size={13} /> : <Copy size={13} />}
                 </MessageAction>
                 {isAssistant && (
                   <MessageAction

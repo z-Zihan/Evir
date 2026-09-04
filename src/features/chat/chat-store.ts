@@ -200,10 +200,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   editMessage: async (messageId, newContent) => {
     const { messages, currentConversationId } = get();
-    if (!currentConversationId || slotFor(get(), currentConversationId)) return;
+    // Reject instead of silently returning: the editor UI keeps the draft open
+    // and surfaces the failure, instead of closing with the edit dropped.
+    if (!currentConversationId) throw new Error("editMessage: no active conversation");
+    if (slotFor(get(), currentConversationId)) throw new Error("editMessage: conversation busy");
     const index = messages.findIndex(({ id }) => id === messageId);
     const message = messages[index];
-    if (!message || message.role !== "user") return;
+    if (!message || message.role !== "user") throw new Error("editMessage: message not editable");
     const epoch = beginPreparation(set, get, currentConversationId);
     try {
       const toDelete = messages.slice(index + 1);

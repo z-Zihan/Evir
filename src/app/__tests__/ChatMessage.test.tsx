@@ -23,6 +23,16 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
+const copyTextWithFeedback = vi.hoisted(() =>
+  vi.fn<(text: string) => Promise<boolean>>((text: string) => Promise.resolve(text.length >= 0)),
+);
+const notifyError = vi.hoisted(() => vi.fn());
+
+vi.mock("../../components/feedback", () => ({
+  copyTextWithFeedback,
+  notify: { error: notifyError, success: vi.fn(), warning: vi.fn(), info: vi.fn() },
+}));
+
 function message(role: MessageRecord["role"], content: string): MessageRecord {
   return {
     id: `${role}-1`,
@@ -34,7 +44,10 @@ function message(role: MessageRecord["role"], content: string): MessageRecord {
   };
 }
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
 
 describe("ChatMessage actions", () => {
   it("presents consecutive assistant records as one visual reply group", () => {
@@ -118,6 +131,106 @@ describe("ChatMessage actions", () => {
     fireEvent.click(screen.getByRole("button", { name: "chat.save" }));
 
     expect(onEdit).toHaveBeenCalledWith("user-1", "Corrected");
+  });
+
+  it("keeps the editor width in the bubble's coordinate system (no viewport units)", () => {
+    render(
+      <ChatMessage
+        message={message("user", "Original")}
+        disabled={false}
+        localUserName="Local user"
+        localUserAvatar=""
+        onEdit={vi.fn()}
+        onRegenerate={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "chat.edit" }));
+
+    const editorWrap = document.querySelector(".message-content > div") as HTMLElement;
+    expect(editorWrap).toBeTruthy();
+    expect(editorWrap.className).not.toMatch(/\d+vw/);
+    expect(editorWrap.className).toContain("w-full");
+    const textarea = screen.getByRole<HTMLTextAreaElement>("textbox");
+    expect(textarea.className).toContain("max-h-");
+    expect(textarea.className).toContain("overflow-y-auto");
+  });
+
+  it("saves via Cmd/Ctrl+Enter and cancels via Escape while editing", async () => {
+    const onEdit = vi.fn<(messageId: string, content: string) => Promise<void>>();
+    onEdit.mockResolvedValue(undefined);
+
+    render(
+      <ChatMessage
+        message={message("user", "Original")}
+        disabled={false}
+        localUserName="Local user"
+        localUserAvatar=""
+        onEdit={onEdit}
+        onRegenerate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "chat.edit" }));
+    const editor = screen.getByRole<HTMLTextAreaElement>("textbox");
+    fireEvent.change(editor, { target: { value: "Line one" } });
+    // Plain Enter inserts a newline instead of submitting.
+    fireEvent.keyDown(editor, { key: "Enter" });
+    expect(onEdit).not.toHaveBeenCalled();
+    fireEvent.keyDown(editor, { key: "Enter", metaKey: true });
+    expect(onEdit).toHaveBeenCalledWith("user-1", "Line one");
+
+    // Escape restores the original content and closes the editor.
+    await waitFor(() => expect(screen.getByRole("button", { name: "chat.edit" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "chat.edit" }));
+    const reopened = screen.getByRole<HTMLTextAreaElement>("textbox");
+    fireEvent.change(reopened, { target: { value: "Discard me" } });
+    fireEvent.keyDown(reopened, { key: "Escape" });
+    expect(screen.queryByRole("textbox")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "chat.edit" }));
+    expect(screen.getByRole<HTMLTextAreaElement>("textbox").value).toBe("Original");
+  });
+
+  it("keeps the editor open with an error toast when the save fails", async () => {
+    const onEdit = vi.fn<(messageId: string, content: string) => Promise<void>>();
+    onEdit.mockRejectedValue(new Error("conversation busy"));
+
+    render(
+      <ChatMessage
+        message={message("user", "Original")}
+        disabled={false}
+        localUserName="Local user"
+        localUserAvatar=""
+        onEdit={onEdit}
+        onRegenerate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "chat.edit" }));
+    const editor = screen.getByRole<HTMLTextAreaElement>("textbox");
+    fireEvent.change(editor, { target: { value: "Keep me" } });
+    fireEvent.click(screen.getByRole("button", { name: "chat.save" }));
+
+    await waitFor(() => expect(notifyError).toHaveBeenCalledWith("chat.editFailed"));
+    // Draft content survives the failed save.
+    expect(screen.getByRole<HTMLTextAreaElement>("textbox").value).toBe("Keep me");
+  });
+
+  it("copies through the shared feedback helper", async () => {
+    copyTextWithFeedback.mockResolvedValueOnce(true);
+    render(
+      <ChatMessage
+        message={message("assistant", "Copy me")}
+        disabled={false}
+        localUserName="Local user"
+        localUserAvatar=""
+        onEdit={vi.fn()}
+        onRegenerate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "chat.copyMessage" }));
+
+    await waitFor(() => expect(copyTextWithFeedback).toHaveBeenCalledWith("Copy me"));
   });
 
   it("regenerates an assistant message", () => {
