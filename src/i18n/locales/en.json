@@ -1292,7 +1292,26 @@
     "pageFailedDetail": "Connection refused: {{url}}. Check the local server is running, then retry.",
     "retry": "Retry",
     "agentUsingPage": "Agent using page",
-    "networkFailedDetail": "Network error, unreachable: {{url}}. Check the address and your connection, then retry."
+    "networkFailedDetail": "Network error, unreachable: {{url}}. Check the address and your connection, then retry.",
+    "provider": {
+      "title": "Agent Browser Provider",
+      "description": "Choose which browser agent tools drive. Evir Browser is the default; Ego Lite is an experimental external browser that reuses your ego lite login state inside an isolated task space per user.",
+      "evir": "Evir Browser (default)",
+      "evirHint": "Uses a Chromium-compatible runtime detected on this machine with an isolated Evir profile.",
+      "ego": "Ego Lite",
+      "egoHint": "Drives pages through the external ego lite app, reusing its login state in an isolated task space. You must install ego lite (lite.ego.app) and finish its onboarding yourself; Evir never installs external software.",
+      "experimental": "Experimental",
+      "cliStatus": "ego-browser CLI",
+      "available": "Ready",
+      "notAvailable": "Not detected",
+      "connection": "App connection",
+      "connected": "Connected to ego lite",
+      "notConnected": "Cannot connect (make sure the app is open)",
+      "setupHint": "Setup: 1) install ego lite from lite.ego.app; 2) open it and finish onboarding (this registers the ego-browser command); 3) come back and press “Check connection”. After switching, agent browser tools run through ego lite; approvals, audit and traces stay unchanged.",
+      "check": "Check connection",
+      "checking": "Checking…",
+      "stopSession": "End Ego session"
+    }
   },
   "toast": {
     "runCompleted": "Task completed",

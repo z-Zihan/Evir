@@ -1291,7 +1291,26 @@
     "pageFailedDetail": "连接被拒绝：{{url}}。请确认本地服务正在运行后重试。",
     "retry": "重试",
     "agentUsingPage": "Agent 正在使用页面",
-    "networkFailedDetail": "网络错误，无法访问：{{url}}。请检查地址与网络后重试。"
+    "networkFailedDetail": "网络错误，无法访问：{{url}}。请检查地址与网络后重试。",
+    "provider": {
+      "title": "Agent 浏览器提供方",
+      "description": "选择 Agent 浏览使用的浏览器。默认 Evir Browser；Ego Lite 为实验性外部浏览器，可复用你在 ego lite 中已登录的状态，并为每个用户使用独立会话空间。",
+      "evir": "Evir Browser（默认）",
+      "evirHint": "使用本机检测到的 Chromium 兼容运行时与独立的 Evir 配置目录，不触碰你的个人浏览器。",
+      "ego": "Ego Lite",
+      "egoHint": "通过外部 ego lite 应用驱动网页，在隔离的任务空间中复用其登录态。需要你自行安装 ego lite（lite.ego.app）并完成初始化；Evir 不会自动安装任何外部软件。",
+      "experimental": "实验性",
+      "cliStatus": "ego-browser CLI",
+      "available": "已就绪",
+      "notAvailable": "未检测到",
+      "connection": "应用连接",
+      "connected": "已连接 ego lite",
+      "notConnected": "无法连接（确认应用已打开）",
+      "setupHint": "安装步骤：1) 从 lite.ego.app 下载并安装 ego lite；2) 打开应用完成初始化（会注册 ego-browser 命令）；3) 回到这里点击“检测连接”。切换提供方后 Agent 的浏览器工具将改走 ego lite；权限审批、审计与 Trace 保持不变。",
+      "check": "检测连接",
+      "checking": "检测中…",
+      "stopSession": "结束 Ego 会话"
+    }
   },
   "toast": {
     "runCompleted": "任务已完成",

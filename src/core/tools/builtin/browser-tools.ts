@@ -53,8 +53,8 @@ async function invokeBrowserCommand<T>(
   command: string,
   args?: Record<string, unknown>,
 ): Promise<T> {
-  const { tauriInvoke } = await import("../../../runtime/tauri-ipc");
-  return tauriInvoke<T>(command, args);
+  const { invokeAgentBrowserCommand } = await import("../../../features/browser/browser-provider");
+  return invokeAgentBrowserCommand<T>(command, args);
 }
 
 async function runBrowserCommand(

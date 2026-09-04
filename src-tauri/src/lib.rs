@@ -10,6 +10,7 @@ mod dev_server;
 mod diagnostics;
 #[cfg(test)]
 mod diagnostics_tests;
+mod ego_runtime;
 mod mcp_stdio;
 mod mcp_stdio_process;
 #[cfg(all(test, unix))]
@@ -188,6 +189,9 @@ pub fn run() {
             browser_commands::browser_close_tab,
             browser_commands::browser_wait,
             browser_commands::browser_wait_for_load,
+            ego_runtime::ego_browser_status,
+            ego_runtime::ego_browser_run,
+            ego_runtime::ego_browser_stop,
         ])
         .on_window_event(|window, event| {
             if matches!(event, tauri::WindowEvent::Destroyed) {
