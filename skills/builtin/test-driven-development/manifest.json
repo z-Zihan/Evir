@@ -7,11 +7,19 @@
   "entry": "SKILL.md",
   "source": "builtin",
   "capabilities": [],
-  "optionalCapabilities": ["filesystem.read", "filesystem.write", "terminal.run"],
+  "optionalCapabilities": [
+    "filesystem.read",
+    "filesystem.write",
+    "terminal.run"
+  ],
   "optionalMcpServers": [],
   "riskLevel": "low",
+  "tier": "core",
   "category": "programming",
-  "platforms": ["web", "desktop"],
+  "platforms": [
+    "web",
+    "desktop"
+  ],
   "localizations": {
     "zh-CN": {
       "name": "测试驱动开发",

@@ -135,9 +135,10 @@ export function SkillSettings() {
 
   const enabledCount = skills.filter((skill) => enabledSkillIds.has(skill.manifest.id)).length;
   const customCount = skills.filter((skill) => !skill.builtIn).length;
+  const coreCount = skills.filter((skill) => skill.manifest.tier === "core").length;
   const categories = [...new Set(skills.map((skill) => skill.manifest.category ?? "other"))].sort();
   const normalizedQuery = searchQuery.trim().toLocaleLowerCase();
-  const visibleSkills = skills.filter((skill) => {
+  const matchesFilters = (skill: (typeof skills)[number]) => {
     if (categoryFilter !== "all" && (skill.manifest.category ?? "other") !== categoryFilter) {
       return false;
     }
@@ -149,7 +150,13 @@ export function SkillSettings() {
       localization?.description ?? skill.manifest.description,
       skill.manifest.id,
     ].some((value) => value.toLocaleLowerCase().includes(normalizedQuery));
-  });
+  };
+  // Core coding skills surface first; general/office skills remain usable but
+  // are explicitly second-tier (Skill Audit 2026-09-04).
+  const coreSkills = skills.filter((skill) => skill.manifest.tier === "core");
+  const generalSkills = skills.filter((skill) => skill.manifest.tier !== "core");
+  const visibleCore = coreSkills.filter(matchesFilters);
+  const visibleGeneral = generalSkills.filter(matchesFilters);
 
   const categoryLabel = (categoryId: string) => {
     const categorySkill = skills.find((skill) => skill.manifest.category === categoryId);
@@ -168,6 +175,10 @@ export function SkillSettings() {
         description={t("settingsDescriptions.skills")}
         action={
           <div className="flex items-center gap-5" aria-label={t("skill.summary")}>
+            <div className="flex flex-col items-center">
+              <strong className="text-[15px] font-semibold text-foreground">{coreCount}</strong>
+              <span className="text-[10px] text-muted">{t("skill.coreCount")}</span>
+            </div>
             <div className="flex flex-col items-center">
               <strong className="text-[15px] font-semibold text-foreground">{skills.length}</strong>
               <span className="text-[10px] text-muted">{t("skill.installed")}</span>
@@ -330,114 +341,124 @@ export function SkillSettings() {
           description={t("settingsDescriptions.skillsEmpty")}
         />
       ) : (
-        <SettingsSection
-          title={t("skill.installedSkills")}
-          description={t("skill.filteredCount", {
-            visible: visibleSkills.length,
-            total: skills.length,
-          })}
-          action={<ShieldCheck size={16} aria-hidden="true" className="text-muted" />}
-        >
-          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface-subtle">
-            {visibleSkills.map((skill) => {
-              const isEnabled = enabledSkillIds.has(skill.manifest.id);
-              const riskLevel = skill.manifest.riskLevel;
-              const isCustom = !skill.builtIn;
-              const locale = i18n.resolvedLanguage === "zh-CN" ? "zh-CN" : "en";
-              const localization = skill.manifest.localizations?.[locale];
-              const displayName = localization?.name ?? skill.manifest.name;
-              const displayDescription = localization?.description ?? skill.manifest.description;
-              const riskVariant =
-                riskLevel === "high" ? "danger" : riskLevel === "medium" ? "warning" : "success";
-
-              return (
-                <li
-                  key={skill.manifest.id}
-                  className="skill-item flex items-start gap-3 px-4 py-3.5"
-                >
-                  <span
-                    aria-hidden="true"
-                    className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-[12px] font-semibold text-muted"
-                  >
-                    {displayName.slice(0, 1).toUpperCase()}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <strong className="text-[12.5px] text-foreground">{displayName}</strong>
-                      <Badge variant={riskVariant}>{t(`skill.${riskLevel}`)}</Badge>
-                      <Badge variant="secondary">
-                        {skill.manifest.attribution
-                          ? t("skill.community")
-                          : skill.builtIn
-                            ? t("skill.builtin")
-                            : t("skill.custom")}
-                      </Badge>
-                      <Badge variant="secondary">
-                        {categoryLabel(skill.manifest.category ?? "other")}
-                      </Badge>
-                      {skill.manifest.platforms?.length === 1 &&
-                        skill.manifest.platforms[0] === "desktop" && (
-                          <Badge variant="secondary">{t("skill.desktopOnly")}</Badge>
-                        )}
-                    </div>
-                    <p className="mt-1 text-[11.5px] leading-relaxed text-muted">
-                      {displayDescription}
-                    </p>
-                    <span className="mt-1 block text-[10.5px] text-muted">
-                      v{skill.manifest.version} ·{" "}
-                      {t("skill.capabilityCount", { count: skill.manifest.capabilities.length })}
-                    </span>
-                    {skill.manifest.attribution && (
-                      <span className="block text-[10.5px] text-muted">
-                        {skill.manifest.attribution.author} · {skill.manifest.attribution.license}
-                        {skill.manifest.attribution.adapted ? ` · ${t("skill.adapted")}` : ""}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    {isCustom && (
-                      <Tip content={t("skill.uninstall")}>
-                        <Button
-                          variant="ghost-destructive"
-                          size="icon-xs"
-                          aria-label={t("skill.uninstall")}
-                          onClick={() =>
-                            requestConfirmation(
-                              {
-                                title: t("confirmation.deleteTitle"),
-                                description: t("confirmation.deleteDescription", {
-                                  item: displayName,
-                                }),
-                                confirmLabel: t("skill.uninstall"),
-                              },
-                              () => uninstallSkill(skill.manifest.id),
-                            )
-                          }
-                        >
-                          <Trash2 size={14} />
-                        </Button>
-                      </Tip>
-                    )}
-                    <label className="skill-toggle flex cursor-pointer items-center">
-                      <Switch
-                        checked={isEnabled}
-                        onCheckedChange={() => void toggleSkill(skill.manifest.id)}
-                        aria-label={`${displayName}: ${isEnabled ? t("skill.enabled") : t("skill.disabled")}`}
-                      />
-                    </label>
-                  </div>
+        <>
+          <SettingsSection
+            title={t("skill.coreSection")}
+            description={t("skill.coreSectionDescription")}
+            action={<ShieldCheck size={16} aria-hidden="true" className="text-muted" />}
+          >
+            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface-subtle">
+              {visibleCore.map((skill) => renderSkillRow(skill))}
+              {visibleCore.length === 0 && (
+                <li className="flex items-center justify-center px-4 py-6 text-[12px] text-muted">
+                  {t("skill.noSearchResults")}
                 </li>
-              );
+              )}
+            </ul>
+          </SettingsSection>
+          <SettingsSection
+            title={t("skill.generalSection")}
+            description={t("skill.filteredCount", {
+              visible: visibleGeneral.length,
+              total: generalSkills.length,
             })}
-            {visibleSkills.length === 0 && (
-              <li className="flex items-center justify-center px-4 py-6 text-[12px] text-muted">
-                {t("skill.noSearchResults")}
-              </li>
-            )}
-          </ul>
-        </SettingsSection>
+          >
+            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface-subtle">
+              {visibleGeneral.map((skill) => renderSkillRow(skill))}
+              {visibleGeneral.length === 0 && (
+                <li className="flex items-center justify-center px-4 py-6 text-[12px] text-muted">
+                  {t("skill.noSearchResults")}
+                </li>
+              )}
+            </ul>
+          </SettingsSection>
+        </>
       )}
       {confirmationDialog}
     </SettingsPage>
   );
+
+  function renderSkillRow(skill: (typeof skills)[number]) {
+    const isEnabled = enabledSkillIds.has(skill.manifest.id);
+    const riskLevel = skill.manifest.riskLevel;
+    const isCustom = !skill.builtIn;
+    const locale = i18n.resolvedLanguage === "zh-CN" ? "zh-CN" : "en";
+    const localization = skill.manifest.localizations?.[locale];
+    const displayName = localization?.name ?? skill.manifest.name;
+    const displayDescription = localization?.description ?? skill.manifest.description;
+    const riskVariant =
+      riskLevel === "high" ? "danger" : riskLevel === "medium" ? "warning" : "success";
+
+    return (
+      <li key={skill.manifest.id} className="skill-item flex items-start gap-3 px-4 py-3.5">
+        <span
+          aria-hidden="true"
+          className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-[12px] font-semibold text-muted"
+        >
+          {displayName.slice(0, 1).toUpperCase()}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <strong className="text-[12.5px] text-foreground">{displayName}</strong>
+            <Badge variant={riskVariant}>{t(`skill.${riskLevel}`)}</Badge>
+            <Badge variant="secondary">
+              {skill.manifest.attribution
+                ? t("skill.community")
+                : skill.builtIn
+                  ? t("skill.builtin")
+                  : t("skill.custom")}
+            </Badge>
+            <Badge variant="secondary">{categoryLabel(skill.manifest.category ?? "other")}</Badge>
+            {skill.manifest.platforms?.length === 1 &&
+              skill.manifest.platforms[0] === "desktop" && (
+                <Badge variant="secondary">{t("skill.desktopOnly")}</Badge>
+              )}
+          </div>
+          <p className="mt-1 text-[11.5px] leading-relaxed text-muted">{displayDescription}</p>
+          <span className="mt-1 block text-[10.5px] text-muted">
+            v{skill.manifest.version} ·{" "}
+            {t("skill.capabilityCount", { count: skill.manifest.capabilities.length })}
+          </span>
+          {skill.manifest.attribution && (
+            <span className="block text-[10.5px] text-muted">
+              {skill.manifest.attribution.author} · {skill.manifest.attribution.license}
+              {skill.manifest.attribution.adapted ? ` · ${t("skill.adapted")}` : ""}
+            </span>
+          )}
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {isCustom && (
+            <Tip content={t("skill.uninstall")}>
+              <Button
+                variant="ghost-destructive"
+                size="icon-xs"
+                aria-label={t("skill.uninstall")}
+                onClick={() =>
+                  requestConfirmation(
+                    {
+                      title: t("confirmation.deleteTitle"),
+                      description: t("confirmation.deleteDescription", {
+                        item: displayName,
+                      }),
+                      confirmLabel: t("skill.uninstall"),
+                    },
+                    () => uninstallSkill(skill.manifest.id),
+                  )
+                }
+              >
+                <Trash2 size={14} />
+              </Button>
+            </Tip>
+          )}
+          <label className="skill-toggle flex cursor-pointer items-center">
+            <Switch
+              checked={isEnabled}
+              onCheckedChange={() => void toggleSkill(skill.manifest.id)}
+              aria-label={`${displayName}: ${isEnabled ? t("skill.enabled") : t("skill.disabled")}`}
+            />
+          </label>
+        </div>
+      </li>
+    );
+  }
 }

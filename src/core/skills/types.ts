@@ -21,6 +21,13 @@ export interface SkillLocalization {
   description: string;
 }
 
+/**
+ * Curated maturity tier for builtin skills. "core" marks the coding/project-agent
+ * skills that ship as the marketed builtin set; everything else is "general"
+ * (optional office/research workflows that stay usable but are not core).
+ */
+export type SkillTier = "core" | "general";
+
 export interface SkillManifest {
   schemaVersion: 1;
   id: string;
@@ -33,6 +40,7 @@ export interface SkillManifest {
   optionalCapabilities: string[];
   optionalMcpServers: string[];
   riskLevel: SkillRiskLevel;
+  tier?: SkillTier;
   category?: string;
   categoryLocalizations?: Partial<Record<"en" | "zh-CN", string>>;
   platforms?: SkillPlatform[];
@@ -68,6 +76,10 @@ export function validateManifest(manifest: SkillManifest): string[] {
 
   if (!VALID_RISK_LEVELS.includes(manifest.riskLevel)) {
     errors.push(`riskLevel must be one of ${VALID_RISK_LEVELS.join(", ")}`);
+  }
+
+  if (manifest.tier !== undefined && manifest.tier !== "core" && manifest.tier !== "general") {
+    errors.push("tier must be core or general");
   }
 
   if (manifest.platforms !== undefined) {

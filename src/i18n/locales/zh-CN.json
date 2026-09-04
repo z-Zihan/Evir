@@ -159,7 +159,10 @@
     "noToolCalling": "此模型可以聊天，但不能使用项目工具。",
     "changeModel": "更换模型",
     "permissionPickerTitle": "权限",
-    "sendFailed": "发送失败，请重试（草稿已保留）"
+    "sendFailed": "发送失败，请重试（草稿已保留）",
+    "compactRunning": "正在压缩当前会话…",
+    "compactDone": "会话已压缩",
+    "compactUnavailable": "当前会话暂不需要压缩（消息太少或正在运行）"
   },
   "runtime": {
     "agentReady": "本地 Agent Runtime",
@@ -556,6 +559,10 @@
     "installed": "已安装",
     "active": "已启用",
     "custom": "自定义",
+    "coreCount": "核心编码",
+    "coreSection": "核心编码 Skill",
+    "coreSectionDescription": "面向 Coding / Project Agent 主路径精选的内置 Skill",
+    "generalSection": "通用 Skill（可选）",
     "createTitle": "创建指令型 Skill",
     "createDescription": "定义一套可复用的方法和执行说明",
     "name": "名称",
@@ -784,7 +791,33 @@
       "detected": "检测到启动脚本：{{script}}",
       "noScript": "此项目没有可识别的 Web 启动脚本。",
       "confirmTitle": "允许运行本地启动脚本？",
-      "confirmDescription": "Evir 将在项目目录启动开发服务器，并在面板浏览器中打开预览。"
+      "confirmDescription": "Evir 将在项目目录启动开发服务器，并在面板浏览器中打开预览。",
+      "status": {
+        "idle": "空闲",
+        "starting": "启动中",
+        "ready": "就绪",
+        "error": "错误",
+        "stopped": "已停止"
+      },
+      "restart": "重启",
+      "openInBrowser": "在浏览器中打开",
+      "lastStarted": "启动于 {{time}}"
+    },
+    "copyPath": "复制路径",
+    "pathCopied": "已复制路径",
+    "revealInFinder": "在文件管理器中显示",
+    "copyUrl": "复制链接",
+    "urlCopied": "已复制链接",
+    "binaryModified": "修改于 {{time}}",
+    "binaryHint": "二进制文件不支持预览，可在文件管理器中打开或复制路径。",
+    "canvasCreateFailed": "画布创建失败",
+    "source": {
+      "files": "文件",
+      "artifact": "任务",
+      "diff": "变更",
+      "screenshot": "截图",
+      "canvas": "画布",
+      "url": "网页"
     }
   },
   "startup": {
@@ -1189,6 +1222,12 @@
       "copied": "已复制运行摘要",
       "json": "导出 JSON",
       "failed": "导出失败"
+    },
+    "visibleOutput": {
+      "title": "可见输出",
+      "note": "共 {{count}} 字符的可见文本流采样",
+      "truncated": "已截断采样（完整内容见消息）",
+      "noHidden": "不含隐藏推理"
     }
   },
   "slash": {
@@ -1202,7 +1241,24 @@
     "commandModel": "切换模型",
     "skillSelected": "已为本条消息选中（再次执行取消）",
     "noMatches": "没有匹配的命令或技能",
-    "hint": "↑↓ 选择 · Enter 或 Tab 执行 · Esc 关闭"
+    "hint": "↑↓ 选择 · Enter 或 Tab 执行 · Esc 关闭",
+    "groupCore": "核心动作",
+    "groupModes": "模式",
+    "groupPreviewBrowser": "预览与浏览器",
+    "groupFilesOutputs": "文件与产出",
+    "groupAdvanced": "高级 / 诊断",
+    "actionNewTask": "新建任务（本项目）",
+    "actionNewChat": "新对话",
+    "actionCompact": "压缩当前会话（总结旧消息）",
+    "actionOpenPreview": "打开预览面板",
+    "actionToggleBrowser": "打开 / 关闭浏览器",
+    "actionOpenOutputs": "打开产出",
+    "actionOpenFiles": "打开文件",
+    "actionRecentOutput": "打开最近输出",
+    "actionOpenTrace": "查看运行详情",
+    "actionNewCanvas": "创建画布",
+    "actionSwitchUser": "切换用户（用户设置）",
+    "canvasDefaultTitle": "新画布"
   },
   "preview": {
     "plainText": "文本",

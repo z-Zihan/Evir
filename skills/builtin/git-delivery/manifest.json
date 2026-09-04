@@ -6,12 +6,20 @@
   "description": "Use on Desktop when preparing local changes for a clean commit, branch handoff, release note, or pull request description.",
   "entry": "SKILL.md",
   "source": "builtin",
-  "capabilities": ["filesystem.read", "git"],
-  "optionalCapabilities": ["terminal.run"],
+  "capabilities": [
+    "filesystem.read",
+    "git"
+  ],
+  "optionalCapabilities": [
+    "terminal.run"
+  ],
   "optionalMcpServers": [],
   "riskLevel": "medium",
+  "tier": "core",
   "category": "git-devops",
-  "platforms": ["desktop"],
+  "platforms": [
+    "desktop"
+  ],
   "localizations": {
     "zh-CN": {
       "name": "Git 交付",

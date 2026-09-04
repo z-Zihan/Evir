@@ -6,12 +6,19 @@
   "description": "Organize local stakeholders, systems, constraints, terms, dependencies, and unknowns into a shared context map.",
   "entry": "SKILL.md",
   "source": "builtin",
-  "capabilities": ["filesystem.read"],
-  "optionalCapabilities": ["filesystem.write"],
+  "capabilities": [
+    "filesystem.read"
+  ],
+  "optionalCapabilities": [
+    "filesystem.write"
+  ],
   "optionalMcpServers": [],
   "riskLevel": "low",
+  "tier": "core",
   "category": "information-gathering",
-  "platforms": ["desktop"],
+  "platforms": [
+    "desktop"
+  ],
   "localizations": {
     "zh-CN": {
       "name": "上下文地图",

@@ -7,11 +7,17 @@
   "entry": "SKILL.md",
   "source": "builtin",
   "capabilities": [],
-  "optionalCapabilities": ["filesystem.read"],
+  "optionalCapabilities": [
+    "filesystem.read"
+  ],
   "optionalMcpServers": [],
   "riskLevel": "low",
+  "tier": "core",
   "category": "programming",
-  "platforms": ["web", "desktop"],
+  "platforms": [
+    "web",
+    "desktop"
+  ],
   "localizations": {
     "zh-CN": {
       "name": "实施计划",

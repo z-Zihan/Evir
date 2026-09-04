@@ -6,12 +6,20 @@
   "description": "Review local GitHub Actions workflows for permissions, untrusted input, dependency pinning, secret exposure, and release integrity.",
   "entry": "SKILL.md",
   "source": "builtin",
-  "capabilities": ["filesystem.read"],
-  "optionalCapabilities": ["filesystem.write", "git"],
+  "capabilities": [
+    "filesystem.read"
+  ],
+  "optionalCapabilities": [
+    "filesystem.write",
+    "git"
+  ],
   "optionalMcpServers": [],
   "riskLevel": "high",
+  "tier": "core",
   "category": "git-devops",
-  "platforms": ["desktop"],
+  "platforms": [
+    "desktop"
+  ],
   "localizations": {
     "zh-CN": {
       "name": "GitHub Actions 加固",

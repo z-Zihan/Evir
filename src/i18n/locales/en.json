@@ -159,7 +159,10 @@
     "noToolCalling": "This model can chat, but cannot use project tools.",
     "changeModel": "Change model",
     "permissionPickerTitle": "Permission",
-    "sendFailed": "Send failed — your draft was kept. Try again."
+    "sendFailed": "Send failed — your draft was kept. Try again.",
+    "compactRunning": "Compacting this conversation…",
+    "compactDone": "Conversation compacted",
+    "compactUnavailable": "Nothing to compact yet (too few messages or a run in flight)"
   },
   "runtime": {
     "agentReady": "Local agent runtime",
@@ -557,6 +560,10 @@
     "installed": "Installed",
     "active": "Active",
     "custom": "Custom",
+    "coreCount": "Core coding",
+    "coreSection": "Core coding skills",
+    "coreSectionDescription": "Builtin skills curated for the coding / project-agent path",
+    "generalSection": "General skills (optional)",
     "createTitle": "Create an instruction Skill",
     "createDescription": "Define a reusable method and execution guidance",
     "name": "Name",
@@ -785,7 +792,33 @@
       "detected": "Detected start script: {{script}}",
       "noScript": "This project has no recognizable web start script.",
       "confirmTitle": "Allow the local start script?",
-      "confirmDescription": "Evir will start the dev server in the project directory and open the preview in the panel browser."
+      "confirmDescription": "Evir will start the dev server in the project directory and open the preview in the panel browser.",
+      "status": {
+        "idle": "Idle",
+        "starting": "Starting",
+        "ready": "Ready",
+        "error": "Error",
+        "stopped": "Stopped"
+      },
+      "restart": "Restart",
+      "openInBrowser": "Open in browser",
+      "lastStarted": "Started {{time}}"
+    },
+    "copyPath": "Copy path",
+    "pathCopied": "Path copied",
+    "revealInFinder": "Reveal in file manager",
+    "copyUrl": "Copy URL",
+    "urlCopied": "URL copied",
+    "binaryModified": "Modified {{time}}",
+    "binaryHint": "Binary file — preview is not supported; open it in your file manager or copy the path.",
+    "canvasCreateFailed": "Failed to create canvas",
+    "source": {
+      "files": "Files",
+      "artifact": "Task",
+      "diff": "Changes",
+      "screenshot": "Screenshot",
+      "canvas": "Canvas",
+      "url": "Web"
     }
   },
   "startup": {
@@ -1190,6 +1223,12 @@
       "copied": "Trace summary copied",
       "json": "Export JSON",
       "failed": "Trace export failed"
+    },
+    "visibleOutput": {
+      "title": "Visible output",
+      "note": "Sampled {{count}} chars of the visible text stream",
+      "truncated": "Sample truncated (full text stays in the message)",
+      "noHidden": "no hidden reasoning"
     }
   },
   "slash": {
@@ -1203,7 +1242,24 @@
     "commandModel": "Switch model",
     "skillSelected": "Selected for this message (run again to deselect)",
     "noMatches": "No matching commands or skills",
-    "hint": "↑↓ to choose · Enter or Tab to run · Esc to close"
+    "hint": "↑↓ to choose · Enter or Tab to run · Esc to close",
+    "groupCore": "Core Actions",
+    "groupModes": "Modes",
+    "groupPreviewBrowser": "Preview & Browser",
+    "groupFilesOutputs": "Files & Outputs",
+    "groupAdvanced": "Advanced / Diagnostics",
+    "actionNewTask": "New task (this project)",
+    "actionNewChat": "New conversation",
+    "actionCompact": "Compact current conversation (summarize older messages)",
+    "actionOpenPreview": "Open preview panel",
+    "actionToggleBrowser": "Open / close browser",
+    "actionOpenOutputs": "Open outputs",
+    "actionOpenFiles": "Open files",
+    "actionRecentOutput": "Open most recent output",
+    "actionOpenTrace": "View run details",
+    "actionNewCanvas": "Create canvas",
+    "actionSwitchUser": "Switch user (Users settings)",
+    "canvasDefaultTitle": "New canvas"
   },
   "preview": {
     "plainText": "text",

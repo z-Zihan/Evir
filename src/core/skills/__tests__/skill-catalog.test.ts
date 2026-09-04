@@ -19,7 +19,10 @@ describe("built-in skill catalog", () => {
     const webSkills = await webRegistry.loadBuiltin();
     const desktopSkills = await desktopRegistry.loadBuiltin();
 
-    expect(desktopSkills).toHaveLength(36);
+    // No fixed-count gate: the catalog is protected by capability assertions
+    // (core coding skills discoverable, web stays instruction-only), not by
+    // a number KPI (Skill Audit 2026-09-04).
+    expect(desktopSkills.length).toBeGreaterThan(webSkills.length);
     expect(desktopSkills.map((skill) => skill.manifest.id)).toEqual(
       expect.arrayContaining([
         "code-review",
@@ -39,6 +42,32 @@ describe("built-in skill catalog", () => {
       expect.arrayContaining(["code-review", "file-organization", "git-delivery"]),
     );
     await expect(webRegistry.getSkillContent("code-review")).resolves.toBe("");
+  });
+
+  it("marks a curated core-coding tier that stays discoverable and valid", async () => {
+    const registry = createSkillRegistry("desktop");
+    const skills = await registry.loadBuiltin();
+    const core = skills.filter((skill) => skill.manifest.tier === "core");
+
+    // The core tier is the marketed builtin set: the coding/project-agent
+    // skills below must stay present; general skills may change freely.
+    expect(core.map((skill) => skill.manifest.id)).toEqual(
+      expect.arrayContaining([
+        "systematic-debugging",
+        "test-driven-development",
+        "code-review",
+        "security-review",
+        "implementation-planning",
+        "verification-before-completion",
+        "git-delivery",
+        "dependency-update-planning",
+      ]),
+    );
+    expect(core.length).toBeGreaterThan(0);
+    expect(core.length).toBeLessThan(skills.length);
+    for (const skill of core) {
+      expect(skill.manifest.platforms, skill.manifest.id).toContain("desktop");
+    }
   });
 
   it("loads the curated catalog with valid provenance", async () => {

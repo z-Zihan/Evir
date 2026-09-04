@@ -7,11 +7,18 @@
   "entry": "SKILL.md",
   "source": "builtin",
   "capabilities": [],
-  "optionalCapabilities": ["filesystem.read", "terminal.run"],
+  "optionalCapabilities": [
+    "filesystem.read",
+    "terminal.run"
+  ],
   "optionalMcpServers": [],
   "riskLevel": "low",
+  "tier": "core",
   "category": "developer-tools",
-  "platforms": ["web", "desktop"],
+  "platforms": [
+    "web",
+    "desktop"
+  ],
   "localizations": {
     "zh-CN": {
       "name": "完成前验证",

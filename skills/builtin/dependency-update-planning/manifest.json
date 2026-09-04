@@ -6,12 +6,21 @@
   "description": "Review and plan dependency updates from local manifests and lockfiles with compatibility, supply-chain, migration, and rollback evidence.",
   "entry": "SKILL.md",
   "source": "builtin",
-  "capabilities": ["filesystem.read"],
-  "optionalCapabilities": ["filesystem.write", "terminal.run", "git"],
+  "capabilities": [
+    "filesystem.read"
+  ],
+  "optionalCapabilities": [
+    "filesystem.write",
+    "terminal.run",
+    "git"
+  ],
   "optionalMcpServers": [],
   "riskLevel": "medium",
+  "tier": "core",
   "category": "security",
-  "platforms": ["desktop"],
+  "platforms": [
+    "desktop"
+  ],
   "localizations": {
     "zh-CN": {
       "name": "依赖更新规划",
