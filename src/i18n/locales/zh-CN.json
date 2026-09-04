@@ -1409,5 +1409,13 @@
       "doing": "进行中",
       "done": "已完成"
     }
+  },
+  "permission": {
+    "onboardingTitle": "Evir 可以在这个项目做什么？",
+    "onboardingDescription": "选择一次，之后随时可在项目菜单或输入框旁修改。工作区访问允许读取和修改项目内文件并在需要时运行命令（高风险操作仍会请求确认）；逐次询问更谨慎，每次写入都需要你批准。",
+    "onboardingWorkspace": "工作区访问",
+    "onboardingRecommended": "推荐",
+    "onboardingAsk": "每次询问",
+    "onboardingDismiss": "保持默认（每次询问）并关闭"
   }
 }

@@ -49,6 +49,7 @@ import type { SlashActionId, SlashCapabilities } from "./SlashPalette";
 import type { SettingsTab } from "./SettingsModal";
 import { useLocalIdentity } from "./chat/use-local-identity";
 import { useConversationStatusIndex } from "./useConversationStatus";
+import { PermissionOnboardingCard } from "./chat/PermissionOnboardingCard";
 import { useModelSwitch } from "./chat/use-model-switch";
 import { ChatHeader } from "./chat/ChatHeader";
 import { ChatComposer } from "./chat/ChatComposer";
@@ -521,6 +522,9 @@ export function ChatView({
           />
         ) : (
           <div className="message-list mx-auto flex w-full min-w-0 max-w-[760px] flex-col gap-5">
+            {conversationProject && runtime.target === "desktop" && (
+              <PermissionOnboardingCard project={conversationProject} />
+            )}
             <MessageList
               messages={messages}
               projectScoped={projectScoped}

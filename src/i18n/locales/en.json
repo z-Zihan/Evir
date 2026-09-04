@@ -1410,5 +1410,13 @@
       "doing": "In progress",
       "done": "Done"
     }
+  },
+  "permission": {
+    "onboardingTitle": "What may Evir do in this project?",
+    "onboardingDescription": "Choose once — change it any time from the project menu or beside the composer. Workspace access lets Evir read and edit files inside the project and run commands when needed (high-risk actions still ask); Ask every time approves each write.",
+    "onboardingWorkspace": "Workspace access",
+    "onboardingRecommended": "recommended",
+    "onboardingAsk": "Ask every time",
+    "onboardingDismiss": "Keep the default (ask every time) and dismiss"
   }
 }
