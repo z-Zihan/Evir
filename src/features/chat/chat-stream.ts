@@ -160,8 +160,9 @@ export async function streamAssistant(
     toolCount: tools?.length ?? 0,
   });
 
-  // Turn trace (§22): metadata-only chunk timing — kind + size + gap stats,
-  // never content. One recorder per assistant turn spans all agent-loop
+  // Turn trace (§22): chunk timing metadata for every stream kind, plus a
+  // bounded redacted sample of the USER-VISIBLE text stream (§27) — never
+  // reasoning/CoT. One recorder per assistant turn spans all agent-loop
   // requests; each request logged here contributes its own request span.
   const trace = activeTraceFor(conversationId);
   trace?.attachRequest(requestId);
@@ -181,6 +182,7 @@ export async function streamAssistant(
         firstTokenMs ??= Date.now() - startTime;
         content += event.text;
         trace?.recordDelta("text", event.text.length);
+        trace?.appendVisibleText(event.text);
         batched.schedule(content);
       } else if (event.type === "tool-call-start") {
         toolCalls.set(event.toolCallId, {

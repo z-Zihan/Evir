@@ -97,3 +97,20 @@ export function useTraceForMessage(messageId: string): TraceRecord | undefined {
     return traceId ? state.traces[traceId] : undefined;
   });
 }
+
+/**
+ * Global 运行详情 dialog state: message rows AND the `/trace` slash action open
+ * the same single dialog host (rendered once per chat view) instead of one
+ * lazy dialog per message.
+ */
+interface TraceDialogState {
+  messageId: string | null;
+  open: (messageId: string) => void;
+  close: () => void;
+}
+
+export const useTraceDialogStore = create<TraceDialogState>((set) => ({
+  messageId: null,
+  open: (messageId) => set({ messageId }),
+  close: () => set({ messageId: null }),
+}));

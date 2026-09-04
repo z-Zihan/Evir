@@ -32,6 +32,9 @@ import { getStructuredStorage } from "../../runtime/structured-storage";
 import { cancelTaskPreparation } from "../orchestration/orchestration-session";
 import { logger } from "../../core/logging/logger";
 import { useSkillStore } from "../skills/skill-store";
+import { summarizeAndPersist } from "./context-compaction";
+import { DEFAULT_MAX_CONTEXT_TOKENS } from "../../core/providers/model-defaults";
+import { useProviderStore } from "../provider/provider-store";
 
 export type { ChatState, PendingToolApproval, StreamSlot } from "./chat-contracts";
 import type { ChatState } from "./chat-contracts";
@@ -239,6 +242,33 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } finally {
       endPreparation(set, get, currentConversationId, epoch);
     }
+  },
+  compactContext: async () => {
+    const { currentConversationId, isStreaming, privateSession, messages, conversations } = get();
+    // Guards mirror the automatic path: never mid-run, never in private
+    // sessions (the summary archive must persist), and only when there is
+    // enough history for summarization to preserve anything.
+    if (!currentConversationId || isStreaming || privateSession) return false;
+    if (messages.length <= 6) return false;
+    const conversation = conversations.find(({ id }) => id === currentConversationId);
+    const providerState = useProviderStore.getState();
+    const conversationProvider = conversation
+      ? providerState.providers.find(({ id }) => id === conversation.providerId)
+      : undefined;
+    const provider = conversationProvider ?? providerState.getDefaultProvider();
+    if (!provider) return false;
+    const maxContextTokens =
+      provider.modelCapabilities?.maxContextTokens ?? DEFAULT_MAX_CONTEXT_TOKENS;
+    const compacted = await summarizeAndPersist(
+      provider,
+      currentConversationId,
+      messages,
+      maxContextTokens,
+    );
+    if (get().currentConversationId === currentConversationId) {
+      set({ messages: compacted });
+    }
+    return true;
   },
   stopGeneration: (conversationId) => {
     const target = conversationId ?? get().currentConversationId;

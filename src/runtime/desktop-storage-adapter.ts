@@ -40,6 +40,8 @@ export interface DesktopStorageAdapter {
   gitDiff(path: string, staged: boolean, corr?: IpcCorrelation): Promise<string>;
   createDirectory(path: string): Promise<void>;
   fileStat(path: string, corr?: IpcCorrelation): Promise<FileStat>;
+  /** Reveals a workspace file in Finder/Explorer (selected where supported). */
+  revealInFileManager(path: string): Promise<void>;
   createSnapshot(filePath: string, runId: string): Promise<SnapshotResult>;
   sealSnapshot(snapshotId: string, runId: string, filePath: string): Promise<void>;
   restoreSnapshot(snapshotId: string, runId: string, filePath: string): Promise<boolean>;
@@ -326,6 +328,8 @@ export const desktopStorage: DesktopStorageAdapter = {
       () => invoke<FileStat>("fs_file_stat", { path, workspaceRoot: rootForPath(path) }),
       corr,
     ),
+  revealInFileManager: (path) =>
+    invoke("fs_reveal_in_file_manager", { path, workspaceRoot: rootForPath(path) }),
   createSnapshot: (filePath, runId) =>
     invoke("fs_create_snapshot", { filePath, runId, workspaceRoot: rootForPath(filePath) }),
   sealSnapshot: (snapshotId, runId, filePath) =>

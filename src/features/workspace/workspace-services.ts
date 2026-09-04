@@ -59,6 +59,10 @@ export function readTextFile(path: string): Promise<string> {
   return desktopStorage.readFile(path);
 }
 
+export function writeTextFile(path: string, content: string): Promise<void> {
+  return desktopStorage.writeFile(path, content);
+}
+
 export function readBinaryBase64(path: string): Promise<string> {
   return desktopStorage.readFileBase64(path);
 }
@@ -73,6 +77,11 @@ export function gitDiffFor(root: string): Promise<string> {
 
 export function statFile(path: string) {
   return desktopStorage.fileStat(path);
+}
+
+/** Reveal a workspace file in the platform file manager (desktop only). */
+export function revealInFileManager(path: string): Promise<void> {
+  return desktopStorage.revealInFileManager(path);
 }
 
 export function relativeToRoot(absolutePath: string, root: string | null): string {

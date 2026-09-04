@@ -15,9 +15,10 @@ import type { TraceEventRecord, TraceRecord } from "./trace-types";
 
 /**
  * 运行详情 (§29-31): per-assistant-turn trace view — summary metrics, a
- * timeline of every recorded event with +Δ gaps, tool table and export. Data
- * is metadata-only (timings/kinds/tool names); no conversation content and no
- * hidden reasoning exists in a trace to begin with (§23).
+ * timeline of every recorded event with +Δ gaps, tool table, a bounded
+ * redacted sample of the user-visible output stream (§27), and export. Hidden
+ * chain-of-thought is never recorded into a trace to begin with (§23); the
+ * visible sample only mirrors text the chat message already shows.
  */
 
 function formatMs(value: number | undefined): string {
@@ -139,6 +140,34 @@ export function TraceDetailsDialog({
                     : ""}
                 </p>
               )}
+            </section>
+          )}
+
+          {trace.visibleOutput && trace.visibleOutput.segments.length > 0 && (
+            <section aria-label={t("trace.visibleOutput.title")} className="flex flex-col gap-1.5">
+              <h3 className="text-[11px] font-semibold tracking-wide text-muted uppercase">
+                {t("trace.visibleOutput.title")}
+              </h3>
+              <div className="trace-visible-output flex flex-col gap-px rounded-lg border border-border bg-surface">
+                {trace.visibleOutput.segments.map((segment, index) => (
+                  <div
+                    key={`${segment.at}-${index}`}
+                    className="grid grid-cols-[64px_1fr] items-start gap-2 px-2 py-1 text-[11px]"
+                  >
+                    <span className="tabular-nums text-muted">{(segment.at / 1000).toFixed(3)}</span>
+                    <span className="break-words whitespace-pre-wrap font-mono text-foreground">
+                      {segment.text}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted">
+                {t("trace.visibleOutput.note", {
+                  count: trace.visibleOutput.totalChars,
+                })}
+                {trace.visibleOutput.truncated ? ` · ${t("trace.visibleOutput.truncated")}` : ""}
+                {` · ${t("trace.visibleOutput.noHidden")}`}
+              </p>
             </section>
           )}
 

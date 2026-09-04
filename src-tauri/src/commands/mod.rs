@@ -84,14 +84,15 @@ pub(crate) use secrets::{
 pub(crate) use filesystem::{
     __cmd__fs_apply_patch, __cmd__fs_create_directory, __cmd__fs_file_info, __cmd__fs_file_stat,
     __cmd__fs_list_dir, __cmd__fs_read_file, __cmd__fs_read_file_base64, __cmd__fs_real_path,
-    __cmd__fs_search_files, __cmd__fs_write_file, __tauri_command_name_fs_apply_patch,
-    __tauri_command_name_fs_create_directory, __tauri_command_name_fs_file_info,
-    __tauri_command_name_fs_file_stat, __tauri_command_name_fs_list_dir,
-    __tauri_command_name_fs_read_file, __tauri_command_name_fs_read_file_base64,
-    __tauri_command_name_fs_real_path, __tauri_command_name_fs_search_files,
+    __cmd__fs_reveal_in_file_manager, __cmd__fs_search_files, __cmd__fs_write_file,
+    __tauri_command_name_fs_apply_patch, __tauri_command_name_fs_create_directory,
+    __tauri_command_name_fs_file_info, __tauri_command_name_fs_file_stat,
+    __tauri_command_name_fs_list_dir, __tauri_command_name_fs_read_file,
+    __tauri_command_name_fs_read_file_base64, __tauri_command_name_fs_real_path,
+    __tauri_command_name_fs_reveal_in_file_manager, __tauri_command_name_fs_search_files,
     __tauri_command_name_fs_write_file, fs_apply_patch, fs_create_directory, fs_file_info,
-    fs_file_stat, fs_list_dir, fs_read_file, fs_read_file_base64, fs_real_path, fs_search_files,
-    fs_write_file,
+    fs_file_stat, fs_list_dir, fs_read_file, fs_read_file_base64, fs_real_path,
+    fs_reveal_in_file_manager, fs_search_files, fs_write_file,
 };
 
 // Child processes.

@@ -234,3 +234,35 @@ pub(crate) fn fs_file_stat(path: String, workspace_root: String) -> Result<FileS
         exists: true,
     })
 }
+
+/// Reveal a workspace file in the platform file manager (Finder/Explorer),
+/// with the file selected where the OS supports it. Read-only convenience for
+/// the preview header and output rows; the path is workspace-validated like
+/// every other fs command.
+#[tauri::command(async)]
+pub(crate) fn fs_reveal_in_file_manager(
+    path: String,
+    workspace_root: String,
+) -> Result<(), String> {
+    let validated = validate_path_in_workspace(&path, &workspace_root)?;
+    if !validated.exists() {
+        return Err("path does not exist".into());
+    }
+    #[cfg(target_os = "macos")]
+    let spawn = std::process::Command::new("open")
+        .arg("-R")
+        .arg(&validated)
+        .spawn();
+
+    #[cfg(target_os = "windows")]
+    let spawn = std::process::Command::new("explorer")
+        .arg(format!("/select,{}", validated.display()))
+        .spawn();
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let spawn = std::process::Command::new("xdg-open")
+        .arg(validated.parent().unwrap_or(&validated))
+        .spawn();
+
+    spawn.map(|_| ()).map_err(|error| error.to_string())
+}

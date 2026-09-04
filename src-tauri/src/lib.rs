@@ -136,6 +136,7 @@ pub fn run() {
             commands::git_diff,
             commands::fs_create_directory,
             commands::fs_file_stat,
+            commands::fs_reveal_in_file_manager,
             commands::fs_create_snapshot,
             commands::fs_seal_snapshot,
             commands::fs_restore_snapshot,

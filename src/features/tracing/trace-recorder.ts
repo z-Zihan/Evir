@@ -1,14 +1,19 @@
 import {
   MAX_GAP_SAMPLE,
   MAX_STORED_DELTA_EVENTS,
+  MAX_VISIBLE_SEGMENT_CHARS,
+  MAX_VISIBLE_SEGMENTS,
+  MAX_VISIBLE_TOTAL_CHARS,
   type TraceDeltaKind,
   type TraceEventKind,
   type TraceEventRecord,
   type TraceRecord,
   type TraceToolSummary,
+  type TraceVisibleSegment,
 } from "./trace-types";
 import { useTraceStore } from "./trace-store";
 import { getStructuredStorage } from "../../runtime/structured-storage";
+import { redactLogValue } from "../../core/logging/redaction";
 
 /**
  * One TraceRecorder per assistant turn. Recorders are registered per
@@ -64,6 +69,11 @@ export class TraceRecorder {
   private outputTokens: number | undefined;
   private approvalWaitStartedAt: number | undefined;
   private approvalWaitMs: number | undefined;
+  // Bounded sample of the user-visible text stream (§27). Only provider
+  // "text" deltas reach here — reasoning/CoT is never appended.
+  private visibleSegments: TraceVisibleSegment[] = [];
+  private visibleTotalChars = 0;
+  private visibleTruncated = false;
   private readonly persistEnabled: boolean;
 
   constructor(conversationId: string, options: TraceRecorderOptions = {}) {
@@ -148,6 +158,54 @@ export class TraceRecorder {
     this.lastDeltaAt = at;
     if (this.events.length < MAX_STORED_DELTA_EVENTS) {
       this.record("stream.delta", { summary: kind, size });
+    }
+  }
+
+  /**
+   * User-visible text sample (§27): appends a redacted slice of the visible
+   * stream into bounded segments. Only call this for provider `text` deltas —
+   * reasoning/CoT content must never reach this method. Caps: segment count,
+   * segment length, total chars; the full text remains in the chat message.
+   */
+  appendVisibleText(delta: string): void {
+    if (this.finalized || delta.length === 0) return;
+    this.visibleTotalChars += delta.length;
+    let remaining = delta;
+    while (remaining.length > 0) {
+      const storedChars = this.visibleSegments.reduce(
+        (total, segment) => total + segment.text.length,
+        0,
+      );
+      if (
+        this.visibleSegments.length >= MAX_VISIBLE_SEGMENTS ||
+        storedChars >= MAX_VISIBLE_TOTAL_CHARS
+      ) {
+        this.visibleTruncated = true;
+        return;
+      }
+      const last = this.visibleSegments.at(-1);
+      const lastLen = last?.text.length ?? 0;
+      // Fill the open segment before opening a new one (segment = ≤160 chars).
+      if (last && lastLen < MAX_VISIBLE_SEGMENT_CHARS) {
+        const room = MAX_VISIBLE_SEGMENT_CHARS - lastLen;
+        const take = Math.min(room, remaining.length);
+        // Redaction can expand text; clamp so the schema's max(160) holds.
+        last.text = `${last.text}${redactLogValue(remaining.slice(0, take)) as string}`.slice(
+          0,
+          MAX_VISIBLE_SEGMENT_CHARS,
+        );
+        remaining = remaining.slice(take);
+        continue;
+      }
+      const take = Math.min(MAX_VISIBLE_SEGMENT_CHARS, remaining.length);
+      this.visibleSegments.push({
+        at: Math.round(performance.now() - this.origin),
+        text: (redactLogValue(remaining.slice(0, take)) as string).slice(
+          0,
+          MAX_VISIBLE_SEGMENT_CHARS,
+        ),
+      });
+      remaining = remaining.slice(take);
     }
   }
 
@@ -251,6 +309,15 @@ export class TraceRecorder {
       status: this.status,
       events: [...this.events],
       tools: [...this.tools.values()],
+      ...(this.visibleSegments.length > 0
+        ? {
+            visibleOutput: {
+              segments: this.visibleSegments.map((segment) => ({ ...segment })),
+              truncated: this.visibleTruncated,
+              totalChars: this.visibleTotalChars,
+            },
+          }
+        : {}),
       metrics: {
         totalDurationMs: Math.round(totalDurationMs),
         ...(this.firstTokenAt !== undefined ? { ttfbMs: Math.round(this.firstTokenAt) } : {}),

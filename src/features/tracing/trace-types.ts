@@ -3,11 +3,13 @@
  * provider request/stream chunk timing, tool executions, approval waits and
  * outcome — all correlated by traceId/conversationId/messageId/runId.
  *
- * Privacy contract (§23, §26): events carry METADATA ONLY — kinds, sizes,
- * timings, tool names, statuses. Never conversation text, never tool payloads,
- * never hidden chain-of-thought (visible reasoning is recorded only when the
- * provider explicitly returns a reasoning stream kind). Raw provider payloads
- * are not captured at all in v1.
+ * Privacy contract (§23, §26, §27): events carry metadata — kinds, sizes,
+ * timings, tool names, statuses. The user-VISIBLE text stream is additionally
+ * sampled into a bounded, redacted `visibleOutput` section so 运行详情 can show
+ * what the model actually returned to the user. NEVER recorded: hidden
+ * chain-of-thought, reasoning streams, tool payloads, raw provider payloads,
+ * secrets (secret-shaped strings are redacted before storage). Private-session
+ * traces stay in memory and are never persisted.
  */
 import { z } from "zod";
 
@@ -82,6 +84,31 @@ export interface TraceMetrics {
   approvalWaitMs?: number | undefined;
 }
 
+/**
+ * Bounded sample of the USER-VISIBLE text stream (§27): what the provider
+ * returned as visible text, in arrival order with trace-relative timing.
+ * Redacted at capture; capped by segment count/length. Never reasoning, never
+ * hidden CoT — only the same text the chat message already shows.
+ */
+export interface TraceVisibleSegment {
+  /** Monotonic ms since trace origin when this segment began arriving. */
+  at: number;
+  text: string;
+}
+
+export interface TraceVisibleOutput {
+  segments: TraceVisibleSegment[];
+  /** True when caps dropped content from the sample (full text stays in the message). */
+  truncated: boolean;
+  /** Total visible chars that arrived during the turn (uncapped counter). */
+  totalChars: number;
+}
+
+/** Visible-output sample caps (§27): bounded, redacted, display-only. */
+export const MAX_VISIBLE_SEGMENTS = 24;
+export const MAX_VISIBLE_SEGMENT_CHARS = 160;
+export const MAX_VISIBLE_TOTAL_CHARS = 3_000;
+
 export interface TraceRecord {
   id: string;
   version: 1;
@@ -98,6 +125,7 @@ export interface TraceRecord {
   events: TraceEventRecord[];
   tools: TraceToolSummary[];
   metrics: TraceMetrics;
+  visibleOutput?: TraceVisibleOutput | undefined;
 }
 
 export const traceEventSchema = z.object({
@@ -126,6 +154,17 @@ export const traceToolSummarySchema = z.object({
   outputSummary: z.string().optional(),
 });
 
+export const traceVisibleSegmentSchema = z.object({
+  at: z.number().nonnegative(),
+  text: z.string().max(MAX_VISIBLE_SEGMENT_CHARS),
+});
+
+export const traceVisibleOutputSchema = z.object({
+  segments: z.array(traceVisibleSegmentSchema).max(MAX_VISIBLE_SEGMENTS),
+  truncated: z.boolean(),
+  totalChars: z.number().int().nonnegative(),
+});
+
 export const traceRecordSchema = z.object({
   id: z.string(),
   version: z.literal(1),
@@ -141,6 +180,7 @@ export const traceRecordSchema = z.object({
   status: z.enum(["running", "completed", "failed", "stopped"]),
   events: z.array(traceEventSchema),
   tools: z.array(traceToolSummarySchema),
+  visibleOutput: traceVisibleOutputSchema.optional(),
   metrics: z.object({
     totalDurationMs: z.number().nonnegative().optional(),
     ttfbMs: z.number().nonnegative().optional(),

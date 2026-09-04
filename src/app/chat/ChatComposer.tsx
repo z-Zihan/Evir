@@ -20,7 +20,12 @@ import type { ProjectRecord } from "../../core/storage/db";
 import { ModeSwitcher } from "../ModeSwitcher";
 import { PermissionSwitcher } from "../PermissionSwitcher";
 import { SkillPicker } from "../SkillPicker";
-import { SlashPalette, type SlashCommandId, type SlashPaletteHandle } from "../SlashPalette";
+import {
+  SlashPalette,
+  type SlashActionId,
+  type SlashCapabilities,
+  type SlashPaletteHandle,
+} from "../SlashPalette";
 import { useDragDrop } from "../use-drag-drop";
 
 const composerStoresSelector = (state: ChatState) => ({
@@ -50,6 +55,10 @@ export interface ChatComposerProps {
   onOpenSettings: () => void;
   /** The slash /model command opens the in-header model picker. */
   onModelSwitchCommand: () => void;
+  /** Non-mode slash actions (new/compact/preview/browser/outputs/…) — owned by ChatView. */
+  onSlashAction: (id: Exclude<SlashActionId, "plan" | "goal" | "agent" | "model">) => void;
+  /** Availability flags for the slash palette, computed by ChatView. */
+  slashCapabilities: SlashCapabilities;
   /** Chat-level error strip rendered at the top of the composer dock. */
   errorBanner?: ReactNode;
 }
@@ -75,6 +84,8 @@ export function ChatComposer({
   conversationProject,
   onOpenSettings,
   onModelSwitchCommand,
+  onSlashAction,
+  slashCapabilities,
   errorBanner,
 }: ChatComposerProps) {
   const { t, i18n } = useTranslation();
@@ -149,11 +160,14 @@ export function ChatComposer({
     }
   };
 
-  const handleSlashCommand = (id: SlashCommandId) => {
+  const handleSlashAction = (id: SlashActionId) => {
+    // Modes and model switching are composer-owned; everything else routes to
+    // the view layer which has the stores and app callbacks (§7).
     if (id === "plan") onModeChange("plan");
-    if (id === "goal") onModeChange("goal");
-    if (id === "agent") onModeChange("agent");
-    if (id === "model") onModelSwitchCommand();
+    else if (id === "goal") onModeChange("goal");
+    else if (id === "agent") onModeChange("agent");
+    else if (id === "model") onModelSwitchCommand();
+    else onSlashAction(id);
     onInputChange("");
     setSlashDismissed(false);
   };
@@ -264,7 +278,8 @@ export function ChatComposer({
               query={input.slice(1)}
               anchorRef={composerFormRef}
               projectScoped={projectScoped && !isWebTarget}
-              onCommand={handleSlashCommand}
+              capabilities={slashCapabilities}
+              onAction={handleSlashAction}
               onDone={() => {
                 onInputChange("");
                 setSlashDismissed(false);

@@ -1,6 +1,14 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FileCode2, FolderSearch, ImageIcon, PackageOpen, Workflow } from "lucide-react";
+import {
+  Copy,
+  FileCode2,
+  FolderSearch,
+  ImageIcon,
+  PackageOpen,
+  SquareArrowOutUpRight,
+  Workflow,
+} from "lucide-react";
 import {
   ItemInteractive,
   ItemMedia,
@@ -9,15 +17,19 @@ import {
   ItemDescription,
   Tip,
 } from "../../components/ui";
+import { copyTextWithFeedback } from "../../components/feedback";
 import { useRunWorkspaceStore } from "../../features/workspace/workspace-run-store";
-import { useWorkspacePanelStore } from "../../features/workspace/workspace-panel-store";
 import { useActiveWorkspaceRoot } from "../../features/workspace/workspace-bridge";
-import { logger } from "../../core/logging/logger";
 import {
+  openTaskOutput,
+  taskOutputAbsolutePath,
+} from "../../features/workspace/task-output-resource";
+import {
+  revealInFileManager,
   relativeToRoot,
-  resolveWorkspacePath,
   statFile,
 } from "../../features/workspace/workspace-services";
+import { logger } from "../../core/logging/logger";
 import type { TaskOutput } from "../../features/workspace/task-output-model";
 
 /** Type chip labels shown next to each output row. */
@@ -68,37 +80,6 @@ function formatSize(bytes: number | undefined): string | null {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function openOutputResource(output: TaskOutput, root: string | null) {
-  const { openResource } = useWorkspacePanelStore.getState();
-  const withEvent = <R,>(open: (resource: R) => void, resource: R): void => {
-    logger.info("ui", "ui.output.open", {
-      actionId: crypto.randomUUID(),
-      resourceId: JSON.stringify(resource).slice(0, 120),
-    });
-    open(resource);
-  };
-  if (output.kind === "screenshot") {
-    const label = output.path.split("/").pop();
-    withEvent(openResource, {
-      kind: "screenshot" as const,
-      path: output.path,
-      ...(label ? { label } : {}),
-    });
-    return;
-  }
-  if (output.kind === "canvas") {
-    withEvent(openResource, { kind: "canvas" as const, path: output.path });
-    return;
-  }
-  const path = resolveWorkspacePath(output.path, root);
-  if (!path) return;
-  withEvent(openResource, {
-    kind: "file",
-    path,
-    ...(output.mimeType ? { mimeType: output.mimeType } : {}),
-  });
-}
-
 /**
  * Outputs tab — this task's deliverables as a first-class list (§19-23).
  * Rows are desktop-resource style: type chip, name, size · generated-at.
@@ -116,7 +97,7 @@ export function OutputsTab() {
     const targets = outputs.slice(0, 20);
     void Promise.all(
       targets.map(async (output) => {
-        const path = resolveWorkspacePath(output.path, root);
+        const path = taskOutputAbsolutePath(output, root);
         if (!path || output.kind === "screenshot") return [output.id, undefined] as const;
         try {
           const stat = await statFile(path);
@@ -182,12 +163,13 @@ export function OutputsTab() {
         <ul className="workspace-output-list-primary m-0 flex list-none flex-col gap-0.5 p-0">
           {outputs.map((output) => {
             const size = formatSize(sizes[output.id]);
+            const absolutePath = taskOutputAbsolutePath(output, root);
             return (
               <li key={output.id}>
                 <Tip content={output.path}>
                   <ItemInteractive
                     className="workspace-output-row-primary group/row"
-                    onClick={() => openOutputResource(output, root)}
+                    onClick={() => openTaskOutput(output, root)}
                   >
                     <ItemMedia className="workspace-output-icon text-muted">
                       {outputIcon(output)}
@@ -208,6 +190,44 @@ export function OutputsTab() {
                           .join(" · ")}
                       </ItemDescription>
                     </ItemContent>
+                    {absolutePath && (
+                      <span className="workspace-output-actions ml-1 flex shrink-0 items-center gap-0.5">
+                        <Tip content={t("workspace.copyPath")}>
+                          <button
+                            type="button"
+                            className="grid size-6 cursor-pointer place-items-center rounded-md text-muted hover:bg-surface-hover hover:text-foreground"
+                            aria-label={t("workspace.copyPath")}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void copyTextWithFeedback(absolutePath, {
+                                successKey: "workspace.pathCopied",
+                              });
+                            }}
+                          >
+                            <Copy size={12} aria-hidden="true" />
+                          </button>
+                        </Tip>
+                        {output.kind !== "screenshot" && (
+                          <Tip content={t("workspace.revealInFinder")}>
+                            <button
+                              type="button"
+                              className="grid size-6 cursor-pointer place-items-center rounded-md text-muted hover:bg-surface-hover hover:text-foreground"
+                              aria-label={t("workspace.revealInFinder")}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                logger.info("ui", "ui.output.reveal", {
+                                  actionId: crypto.randomUUID(),
+                                  path: absolutePath,
+                                });
+                                void revealInFileManager(absolutePath).catch(() => undefined);
+                              }}
+                            >
+                              <SquareArrowOutUpRight size={12} aria-hidden="true" />
+                            </button>
+                          </Tip>
+                        )}
+                      </span>
+                    )}
                     <span className="workspace-output-chip ml-auto shrink-0 rounded-full border border-border bg-surface-hover px-1.5 py-px text-[9.5px] font-semibold tracking-wide text-muted">
                       {typeChip(output)}
                     </span>

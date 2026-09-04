@@ -10,7 +10,26 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { Puzzle, Sparkles, Terminal } from "lucide-react";
+import {
+  Activity,
+  Bot,
+  Combine,
+  Cpu,
+  Eye,
+  FolderOpen,
+  Globe,
+  History,
+  ListChecks,
+  MessageSquare,
+  MessageSquarePlus,
+  Package,
+  Puzzle,
+  Sparkles,
+  Target,
+  Users,
+  Workflow,
+  type LucideIcon,
+} from "lucide-react";
 import {
   Command,
   CommandEmpty,
@@ -24,7 +43,39 @@ import { useSkillStore } from "../features/skills/skill-store";
 import { useChatStore } from "../features/chat/chat-store";
 import { usePluginContributionStore } from "../features/plugins/plugin-contributions";
 
+/** Mode/model entries — handled inside the composer layer. */
 export type SlashCommandId = "plan" | "goal" | "agent" | "model";
+
+/**
+ * Full `/` action surface (§4-8): direct actions and mode switches that run or
+ * route on selection — never "paste text back into the input" placeholders.
+ */
+export type SlashActionId =
+  | SlashCommandId
+  | "new-conversation"
+  | "new-project-task"
+  | "compact"
+  | "open-preview"
+  | "toggle-browser"
+  | "open-outputs"
+  | "open-files"
+  | "open-recent-output"
+  | "open-trace"
+  | "new-canvas"
+  | "switch-user";
+
+/** Availability flags computed by the owner (ChatView) — the palette stays presentational. */
+export interface SlashCapabilities {
+  /** Desktop runtime: the workspace panel, canvas and file outputs exist. */
+  desktop: boolean;
+  /** Enough non-private history to make compaction meaningful, not streaming. */
+  canCompact: boolean;
+  hasOutputs: boolean;
+  /** A trace exists for the latest assistant turn. */
+  hasTrace: boolean;
+  /** A project workspace root is active (canvas creation). */
+  hasProjectRoot: boolean;
+}
 
 interface SlashPaletteProps {
   /** Text after the leading "/" in the composer; drives Command filtering. */
@@ -32,16 +83,36 @@ interface SlashPaletteProps {
   /** The composer surface the palette anchors to (portal + fixed positioning). */
   anchorRef: RefObject<HTMLElement | null>;
   projectScoped: boolean;
-  onCommand: (id: SlashCommandId) => void;
+  capabilities: SlashCapabilities;
+  /** Runs the selected action (modes/model included). */
+  onAction: (id: SlashActionId) => void;
   /** Called after an item executes so the owner can clear the input. */
   onDone: () => void;
 }
 
 interface SlashItem {
   key: string;
-  kind: "command" | "skill" | "plugin";
-  commandId?: SlashCommandId;
-  skillId?: string;
+  actionId: SlashActionId;
+  icon: LucideIcon;
+  label: string;
+  description: string;
+  keywords: string[];
+  /** Plugin commands carry their own runner. */
+  run?: () => void | Promise<void>;
+}
+
+interface SlashSkillItem {
+  key: string;
+  kind: "skill";
+  skillId: string;
+  label: string;
+  description: string;
+  keywords: string[];
+}
+
+interface SlashPluginItem {
+  key: string;
+  kind: "plugin";
   label: string;
   description: string;
   keywords: string[];
@@ -101,10 +172,12 @@ function useAnchorRect(anchorRef: RefObject<HTMLElement | null>) {
  * the single source of query text (§8) via a visually-hidden controlled
  * CommandInput, keyboard events are forwarded from the textarea into the
  * Command root, and the palette floats above the composer inside a portal —
- * it never grows the conversation layout and never exceeds the window (§4-6).
+ * it never grows the conversation layout and never exceeds the window (§4-8).
+ * Items are grouped (Core Actions / Modes / Preview & Browser / Files &
+ * Outputs / Skills / Plugins / Advanced) and every entry executes directly.
  */
 export const SlashPalette = forwardRef<SlashPaletteHandle, SlashPaletteProps>(function SlashPalette(
-  { query, anchorRef, projectScoped, onCommand, onDone },
+  { query, anchorRef, projectScoped, capabilities, onAction, onDone },
   ref,
 ) {
   const { t, i18n } = useTranslation();
@@ -120,70 +193,174 @@ export const SlashPalette = forwardRef<SlashPaletteHandle, SlashPaletteProps>(fu
     void loadSkills();
   }, [loadSkills]);
 
-  const items = useMemo<SlashItem[]>(() => {
-    const commands: SlashItem[] = [];
+  // Action groups (§5-6). Availability gates keep the list honest: hidden
+  // entries never exist, so search can't surface a dead action.
+  const groups = useMemo(() => {
+    const { desktop, canCompact, hasOutputs, hasTrace, hasProjectRoot } = capabilities;
+    const core: SlashItem[] = [];
     if (projectScoped) {
-      commands.push(
+      core.push({
+        key: "act-new-project-task",
+        actionId: "new-project-task",
+        icon: MessageSquarePlus,
+        label: "/new",
+        description: t("slash.actionNewTask"),
+        keywords: ["new", "task", "chat", "新任务", "新对话"],
+      });
+    }
+    core.push(
+      {
+        key: "act-new-conversation",
+        actionId: "new-conversation",
+        icon: MessageSquare,
+        label: projectScoped ? "/chat" : "/new",
+        description: t("slash.actionNewChat"),
+        keywords: ["new", "chat", "conversation", "新对话", "新聊天"],
+      },
+      {
+        key: "act-model",
+        actionId: "model",
+        icon: Cpu,
+        label: "/model",
+        description: t("slash.commandModel"),
+        keywords: ["model", "模型", "切换模型"],
+      },
+    );
+    if (canCompact) {
+      core.push({
+        key: "act-compact",
+        actionId: "compact",
+        icon: Combine,
+        label: "/compact",
+        description: t("slash.actionCompact"),
+        keywords: ["compact", "compress", "summarize", "压缩", "总结"],
+      });
+    }
+
+    const modes: SlashItem[] = projectScoped
+      ? [
+          {
+            key: "cmd-plan",
+            actionId: "plan",
+            icon: ListChecks,
+            label: "/plan",
+            description: t("slash.commandPlan"),
+            keywords: ["plan", "计划"],
+          },
+          {
+            key: "cmd-goal",
+            actionId: "goal",
+            icon: Target,
+            label: "/goal",
+            description: t("slash.commandGoal"),
+            keywords: ["goal", "目标"],
+          },
+          {
+            key: "cmd-agent",
+            actionId: "agent",
+            icon: Bot,
+            label: "/agent",
+            description: t("slash.commandAgent"),
+            keywords: ["agent", "代理"],
+          },
+        ]
+      : [];
+
+    const previewBrowser: SlashItem[] = desktop
+      ? [
+          {
+            key: "act-open-preview",
+            actionId: "open-preview",
+            icon: Eye,
+            label: "/preview",
+            description: t("slash.actionOpenPreview"),
+            keywords: ["preview", "预览", "打开预览"],
+          },
+          {
+            key: "act-toggle-browser",
+            actionId: "toggle-browser",
+            icon: Globe,
+            label: "/browser",
+            description: t("slash.actionToggleBrowser"),
+            keywords: ["browser", "浏览器", "网页"],
+          },
+        ]
+      : [];
+
+    const filesOutputs: SlashItem[] = [];
+    if (desktop) {
+      filesOutputs.push(
         {
-          key: "cmd-plan",
-          kind: "command",
-          commandId: "plan",
-          label: "/plan",
-          description: t("slash.commandPlan"),
-          keywords: ["plan", "计划"],
+          key: "act-open-outputs",
+          actionId: "open-outputs",
+          icon: Package,
+          label: "/outputs",
+          description: t("slash.actionOpenOutputs"),
+          keywords: ["outputs", "产出", "输出"],
         },
         {
-          key: "cmd-goal",
-          kind: "command",
-          commandId: "goal",
-          label: "/goal",
-          description: t("slash.commandGoal"),
-          keywords: ["goal", "目标"],
-        },
-        {
-          key: "cmd-agent",
-          kind: "command",
-          commandId: "agent",
-          label: "/agent",
-          description: t("slash.commandAgent"),
-          keywords: ["agent", "代理"],
+          key: "act-open-files",
+          actionId: "open-files",
+          icon: FolderOpen,
+          label: "/files",
+          description: t("slash.actionOpenFiles"),
+          keywords: ["files", "文件", "文件预览"],
         },
       );
+      if (hasOutputs) {
+        filesOutputs.push({
+          key: "act-open-recent-output",
+          actionId: "open-recent-output",
+          icon: History,
+          label: "/recent",
+          description: t("slash.actionRecentOutput"),
+          keywords: ["recent", "最近", "最近输出"],
+        });
+      }
     }
-    commands.push({
-      key: "cmd-model",
-      kind: "command",
-      commandId: "model",
-      label: "/model",
-      description: t("slash.commandModel"),
-      keywords: ["model", "模型"],
-    });
-    const language = i18n.resolvedLanguage ?? "en";
-    const skillItems: SlashItem[] = skills.map((skill) => {
-      const localized = localizedSkill(skill, language);
-      return {
-        key: `skill-${skill.manifest.id}`,
-        kind: "skill",
-        skillId: skill.manifest.id,
-        label: `$${skill.manifest.id}`,
-        description: localized.description,
-        keywords: [skill.manifest.id, localized.name],
-      };
-    });
-    const pluginItems: SlashItem[] = pluginSlashCommands.map((command) => ({
-      key: `plugin-${command.pluginId}-${command.id}`,
-      kind: "plugin",
-      label: `/${command.id}`,
-      description: command.description,
-      keywords: [command.id, command.pluginId],
-      run: command.run,
-    }));
-    return [...commands, ...skillItems, ...pluginItems];
-  }, [projectScoped, skills, pluginSlashCommands, i18n.resolvedLanguage, t]);
 
-  const runItem = (item: SlashItem) => {
-    if (item.kind === "command" && item.commandId) onCommand(item.commandId);
-    else if (item.kind === "skill" && item.skillId) {
+    const advanced: SlashItem[] = [];
+    if (hasTrace) {
+      advanced.push({
+        key: "act-open-trace",
+        actionId: "open-trace",
+        icon: Activity,
+        label: "/trace",
+        description: t("slash.actionOpenTrace"),
+        keywords: ["trace", "details", "运行详情", "诊断"],
+      });
+    }
+    if (desktop && hasProjectRoot) {
+      advanced.push({
+        key: "act-new-canvas",
+        actionId: "new-canvas",
+        icon: Workflow,
+        label: "/canvas",
+        description: t("slash.actionNewCanvas"),
+        keywords: ["canvas", "画布", "创建画布"],
+      });
+    }
+    advanced.push({
+      key: "act-switch-user",
+      actionId: "switch-user",
+      icon: Users,
+      label: "/user",
+      description: t("slash.actionSwitchUser"),
+      keywords: ["user", "profile", "用户", "切换用户"],
+    });
+
+    return [
+      { id: "core", heading: t("slash.groupCore"), items: core },
+      { id: "modes", heading: t("slash.groupModes"), items: modes },
+      { id: "preview-browser", heading: t("slash.groupPreviewBrowser"), items: previewBrowser },
+      { id: "files-outputs", heading: t("slash.groupFilesOutputs"), items: filesOutputs },
+      { id: "advanced", heading: t("slash.groupAdvanced"), items: advanced },
+    ].filter((group) => group.items.length > 0);
+  }, [capabilities, projectScoped, t]);
+
+  const runItem = (item: SlashItem | SlashSkillItem | SlashPluginItem) => {
+    if ("actionId" in item) onAction(item.actionId);
+    else if (item.kind === "skill") {
       if (!selectedSkillIds.has(item.skillId)) toggleSelectedSkill(item.skillId);
     } else if (item.kind === "plugin") void item.run?.();
     onDone();
@@ -243,9 +420,26 @@ export const SlashPalette = forwardRef<SlashPaletteHandle, SlashPaletteProps>(fu
     [],
   );
 
-  const commandItems = items.filter((item) => item.kind === "command");
-  const skillItems = items.filter((item) => item.kind === "skill");
-  const pluginItems = items.filter((item) => item.kind === "plugin");
+  const language = i18n.resolvedLanguage ?? "en";
+  const skillItems: SlashSkillItem[] = skills.map((skill) => {
+    const localized = localizedSkill(skill, language);
+    return {
+      key: `skill-${skill.manifest.id}`,
+      kind: "skill" as const,
+      skillId: skill.manifest.id,
+      label: `$${skill.manifest.id}`,
+      description: localized.description,
+      keywords: [skill.manifest.id, localized.name],
+    };
+  });
+  const pluginItems: SlashPluginItem[] = pluginSlashCommands.map((command) => ({
+    key: `plugin-${command.pluginId}-${command.id}`,
+    kind: "plugin" as const,
+    label: `/${command.id}`,
+    description: command.description,
+    keywords: [command.id, command.pluginId],
+    run: command.run,
+  }));
 
   // Viewport placement (§5): prefer above the composer, flip below when the
   // space above cannot host the minimum palette, clamp to what exists.
@@ -281,6 +475,19 @@ export const SlashPalette = forwardRef<SlashPaletteHandle, SlashPaletteProps>(fu
 
   if (!placement) return null;
 
+  const renderAction = (item: SlashItem) => (
+    <CommandItem
+      key={item.key}
+      value={item.label}
+      keywords={item.keywords}
+      onSelect={() => runItem(item)}
+    >
+      <item.icon size={12} aria-hidden="true" className="shrink-0 text-muted" />
+      <span className="shrink-0 font-medium">{item.label}</span>
+      <span className="min-w-0 flex-1 truncate text-[11px] text-muted">{item.description}</span>
+    </CommandItem>
+  );
+
   return createPortal(
     <div
       className="slash-palette fixed z-[95] flex flex-col overflow-hidden rounded-xl border border-border bg-surface-elevated shadow-popover"
@@ -299,24 +506,11 @@ export const SlashPalette = forwardRef<SlashPaletteHandle, SlashPaletteProps>(fu
         />
         <CommandList style={{ maxHeight: placement.listMaxHeight }}>
           <CommandEmpty>{t("slash.noMatches")}</CommandEmpty>
-          {commandItems.length > 0 && (
-            <CommandGroup heading={t("slash.commandsGroup")}>
-              {commandItems.map((item) => (
-                <CommandItem
-                  key={item.key}
-                  value={item.label}
-                  keywords={item.keywords}
-                  onSelect={() => runItem(item)}
-                >
-                  <Terminal size={12} aria-hidden="true" className="shrink-0 text-muted" />
-                  <span className="shrink-0 font-medium">{item.label}</span>
-                  <span className="min-w-0 flex-1 truncate text-[11px] text-muted">
-                    {item.description}
-                  </span>
-                </CommandItem>
-              ))}
+          {groups.map((group) => (
+            <CommandGroup key={group.id} heading={group.heading}>
+              {group.items.map(renderAction)}
             </CommandGroup>
-          )}
+          ))}
           {skillItems.length > 0 && (
             <CommandGroup heading={t("slash.skillsGroup")}>
               {skillItems.map((item) => (
@@ -329,7 +523,7 @@ export const SlashPalette = forwardRef<SlashPaletteHandle, SlashPaletteProps>(fu
                   <Sparkles size={12} aria-hidden="true" className="shrink-0 text-primary/80" />
                   <span className="shrink-0 font-medium">{item.label}</span>
                   <span className="min-w-0 flex-1 truncate text-[11px] text-muted">
-                    {selectedSkillIds.has(item.skillId!)
+                    {selectedSkillIds.has(item.skillId)
                       ? t("slash.skillSelected")
                       : item.description}
                   </span>

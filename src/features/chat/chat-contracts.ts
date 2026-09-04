@@ -98,6 +98,12 @@ export interface ChatState {
   sendMessage: (text: string, onAccepted?: () => void) => Promise<boolean>;
   regenerate: () => Promise<void>;
   editMessage: (messageId: string, newContent: string) => Promise<void>;
+  /**
+   * Manual context compaction (压缩当前会话): summarizes older messages into the
+   * versioned summary record and replaces the in-view history. Returns false
+   * when the conversation is streaming/private, too short, or has no provider.
+   */
+  compactContext: () => Promise<boolean>;
   /** Stops ONE conversation's run (defaults to the viewed conversation); others keep running. */
   stopGeneration: (conversationId?: string) => void;
   addAttachment: (file: File) => Promise<void>;
