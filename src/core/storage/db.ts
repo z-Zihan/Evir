@@ -1,4 +1,5 @@
 import Dexie, { type Table } from "dexie";
+import { dexieDatabaseName } from "../profile/profile-scope";
 
 export interface ProviderRecord {
   id: string;
@@ -168,7 +169,7 @@ export class EvirDB extends Dexie {
   memories!: Table<GenericEntityRecord, string>;
   traces!: Table<GenericEntityRecord, string>;
 
-  constructor(name = "evir") {
+  constructor(name = dexieDatabaseName()) {
     super(name);
     this.version(1).stores({
       providers: "id",

@@ -1,6 +1,9 @@
 import { create } from "zustand";
 import { logger } from "../../core/logging/logger";
+import { readProfileScoped, writeProfileScoped } from "../../core/profile/profile-scope";
 
+// Profile-scoped (§53): each user's workspace selection/recent list follows
+// their profile.
 const STORAGE_KEY = "evir-workspace";
 // Shared with conversation-mode.ts (legacy-workspace detection) — export so
 // the literal exists once.
@@ -16,7 +19,7 @@ interface WorkspaceState {
 
 function loadRecent(): string[] {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = readProfileScoped(STORAGE_KEY);
     if (!stored) return [];
     const parsed: unknown = JSON.parse(stored);
     return Array.isArray(parsed) ? parsed.filter((p): p is string => typeof p === "string") : [];
@@ -26,11 +29,11 @@ function loadRecent(): string[] {
 }
 
 function saveRecent(paths: string[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(paths));
+  writeProfileScoped(STORAGE_KEY, JSON.stringify(paths));
 }
 
 function loadCurrent(): string | null {
-  const stored = localStorage.getItem(CURRENT_STORAGE_KEY);
+  const stored = readProfileScoped(CURRENT_STORAGE_KEY);
   return stored && stored.trim() ? stored : null;
 }
 
@@ -41,13 +44,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
     set((state) => {
       const recent = [path, ...state.recentWorkspaces.filter((p) => p !== path)].slice(0, 10);
       saveRecent(recent);
-      localStorage.setItem(CURRENT_STORAGE_KEY, path);
+      writeProfileScoped(CURRENT_STORAGE_KEY, path);
       logger.info("runtime", "workspace.selected", { recentWorkspaceCount: recent.length });
       return { currentWorkspace: path, recentWorkspaces: recent };
     });
   },
   clearWorkspace: () => {
-    localStorage.removeItem(CURRENT_STORAGE_KEY);
+    writeProfileScoped(CURRENT_STORAGE_KEY, "");
     logger.info("runtime", "workspace.cleared");
     set({ currentWorkspace: null });
   },

@@ -3,7 +3,7 @@ import type { RuntimeTarget } from "../runtime/types";
 export type SettingsTab =
   | "browser"
   | "providers"
-  | "identity"
+  | "users"
   | "personalization"
   | "shortcuts"
   | "skills"

@@ -27,10 +27,11 @@ struct NativeLogState {
 
 static LOG_STATE: Mutex<Option<NativeLogState>> = Mutex::new(None);
 
-/// Resolve and remember `<app-data>/logs/`. Called once from setup; failures
-/// disable native logging silently (it must never break the app).
-pub fn init(app_data_dir: &std::path::Path) {
-    let dir = app_data_dir.join("logs");
+/// Resolve and remember the logs directory (profile-scoped since multi-user:
+/// callers pass `<app-data>/profiles/<id>/logs`). Called once from setup;
+/// failures disable native logging silently (it must never break the app).
+pub fn init(logs_dir: &std::path::Path) {
+    let dir = logs_dir.to_path_buf();
     if std::fs::create_dir_all(&dir).is_err() {
         return;
     }

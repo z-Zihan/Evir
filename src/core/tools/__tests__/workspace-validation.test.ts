@@ -143,7 +143,7 @@ describe("workspace store", () => {
     useWorkspaceStore.getState().setWorkspace("/tmp/my-project");
     expect(useWorkspaceStore.getState().currentWorkspace).toBe("/tmp/my-project");
     expect(useWorkspaceStore.getState().recentWorkspaces).toContain("/tmp/my-project");
-    expect(localStorage.getItem("evir-workspace-current")).toBe("/tmp/my-project");
+    expect(localStorage.getItem("evir-workspace-current::default")).toBe("/tmp/my-project");
   });
 
   it("clears workspace", async () => {
@@ -151,7 +151,7 @@ describe("workspace store", () => {
     useWorkspaceStore.getState().setWorkspace("/tmp/my-project");
     useWorkspaceStore.getState().clearWorkspace();
     expect(useWorkspaceStore.getState().currentWorkspace).toBeNull();
-    expect(localStorage.getItem("evir-workspace-current")).toBeNull();
+    expect(localStorage.getItem("evir-workspace-current::default")).toBeFalsy();
     useWorkspaceStore.getState().loadWorkspace();
     expect(useWorkspaceStore.getState().currentWorkspace).toBeNull();
     expect(useWorkspaceStore.getState().recentWorkspaces).toContain("/tmp/my-project");

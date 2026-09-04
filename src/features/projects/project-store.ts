@@ -4,7 +4,9 @@ import { getStructuredStorage } from "../../runtime/structured-storage";
 import { getRuntime } from "../../runtime/use-runtime";
 import { notifyProjectRemoved } from "./project-events";
 import { logger } from "../../core/logging/logger";
+import { readProfileScoped, writeProfileScoped } from "../../core/profile/profile-scope";
 
+// Profile-scoped (§53): each user's selected project follows their profile.
 const CURRENT_PROJECT_KEY = "evir-project-current";
 
 export interface AddProjectResult {
@@ -37,14 +39,14 @@ async function canonicalizeFolder(path: string): Promise<string | null> {
 }
 
 function readCurrentProjectId(projects: ProjectRecord[]): string | null {
-  const stored = localStorage.getItem(CURRENT_PROJECT_KEY);
+  const stored = readProfileScoped(CURRENT_PROJECT_KEY);
   if (stored && projects.some((project) => project.id === stored)) return stored;
   return null;
 }
 
 function persistSelection(projectId: string | null): void {
-  if (projectId === null) localStorage.removeItem(CURRENT_PROJECT_KEY);
-  else localStorage.setItem(CURRENT_PROJECT_KEY, projectId);
+  if (projectId === null) writeProfileScoped(CURRENT_PROJECT_KEY, "");
+  else writeProfileScoped(CURRENT_PROJECT_KEY, projectId);
 }
 
 async function writeProject(project: ProjectRecord): Promise<void> {

@@ -27,6 +27,7 @@ mod filesystem;
 mod git;
 mod infra;
 mod processes;
+mod profile_cmds;
 mod secrets;
 mod snapshots;
 
@@ -52,6 +53,16 @@ pub(crate) use entities::{
 // Secrets and shared Provider profiles.
 // Functions plus the hidden `#[tauri::command]` helper macros, so
 // `generate_handler!` keeps resolving them under `commands::*`.
+// User profiles (registry + per-profile DB/vault/logs paths).
+pub(crate) use profile_cmds::{
+    __cmd__profile_paths, __cmd__profiles_create, __cmd__profiles_delete, __cmd__profiles_list,
+    __cmd__profiles_set_active, __cmd__profiles_update, __tauri_command_name_profile_paths,
+    __tauri_command_name_profiles_create, __tauri_command_name_profiles_delete,
+    __tauri_command_name_profiles_list, __tauri_command_name_profiles_set_active,
+    __tauri_command_name_profiles_update, profile_paths, profiles_create, profiles_delete,
+    profiles_list, profiles_set_active, profiles_update,
+};
+
 pub(crate) use secrets::{
     __cmd__keychain_delete, __cmd__keychain_get, __cmd__keychain_set,
     __cmd__shared_provider_profiles_read, __cmd__shared_provider_profiles_write,

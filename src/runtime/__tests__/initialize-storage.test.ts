@@ -37,8 +37,20 @@ vi.mock("../../core/storage/db", () => ({
     attachments: { toArray: mocks.attachmentRows },
     usage_records: { toArray: mocks.usageRows },
     mcpServers: { toArray: mocks.mcpRows },
-    settings: { toArray: mocks.settingRows },
+    settings: {
+      toArray: mocks.settingRows,
+      get: () => Promise.resolve({ name: "webLegacyProfileMigrationV1", value: true }),
+      put: vi.fn(() => Promise.resolve()),
+    },
     memories: { toArray: mocks.memoryRows },
+  },
+  // The web legacy migration opens the old database defensively; a throwing
+  // stub exercises the swallow path.
+  EvirDB: class {
+    open(): Promise<void> {
+      return Promise.reject(new Error("not available in test"));
+    }
+    close() {}
   },
 }));
 

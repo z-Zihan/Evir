@@ -38,25 +38,33 @@ struct SharedProviderDocument {
 /// Backed by the local encrypted vault (`secret_vault.rs`), never the OS
 /// keychain: ad-hoc-signed rebuilds kept re-triggering the macOS keychain ACL
 /// prompt, which could silently lose the key. The command names stay stable
-/// for the TS storage bridge.
+/// for the TS storage bridge. The vault file is per-profile (§52): provider
+/// secrets must never cross users.
+fn active_vault_path(app: &AppHandle) -> Result<PathBuf, String> {
+    let dir = app_data_dir(app)?;
+    let registry = crate::profiles::ensure_registry(&dir).map_err(|error| error.to_string())?;
+    let active = crate::profiles::active_profile(&registry).map_err(|error| error.to_string())?;
+    Ok(crate::profiles::profile_vault_path(&dir, &active.id))
+}
+
 #[tauri::command(async)]
 pub(crate) fn keychain_set(app: AppHandle, key: String, value: String) -> Result<(), String> {
     validate_key(&key)?;
-    let path = secret_vault::vault_path(&app_data_dir(&app)?);
+    let path = active_vault_path(&app)?;
     secret_vault::set(&path, &key, &value)
 }
 
 #[tauri::command(async)]
 pub(crate) fn keychain_get(app: AppHandle, key: String) -> Result<Option<String>, String> {
     validate_key(&key)?;
-    let path = secret_vault::vault_path(&app_data_dir(&app)?);
+    let path = active_vault_path(&app)?;
     secret_vault::get(&path, &key)
 }
 
 #[tauri::command(async)]
 pub(crate) fn keychain_delete(app: AppHandle, key: String) -> Result<(), String> {
     validate_key(&key)?;
-    let path = secret_vault::vault_path(&app_data_dir(&app)?);
+    let path = active_vault_path(&app)?;
     secret_vault::delete(&path, &key)
 }
 

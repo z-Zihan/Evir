@@ -6,6 +6,7 @@ import { cn } from "../components/ui/utils";
 import { useProviderStore } from "../features/provider/provider-store";
 import { listModelsForProtocol } from "../core/providers/adapter-registry";
 import type { ProviderRecord } from "../core/storage/db";
+import { readProfileScoped, writeProfileScoped } from "../core/profile/profile-scope";
 
 interface ModelSwitcherProps {
   /** Provider backing the active conversation; falls back to the default. */
@@ -23,7 +24,7 @@ const knownModelsCacheKey = (providerId: string) => `evir-known-models:${provide
 
 function readKnownModels(provider: ProviderRecord): string[] {
   try {
-    const raw = localStorage.getItem(knownModelsCacheKey(provider.id));
+    const raw = readProfileScoped(knownModelsCacheKey(provider.id));
     const parsed = raw ? (JSON.parse(raw) as unknown) : [];
     const cached = Array.isArray(parsed)
       ? parsed.filter((id): id is string => typeof id === "string")
@@ -36,7 +37,7 @@ function readKnownModels(provider: ProviderRecord): string[] {
 
 function writeKnownModels(providerId: string, models: string[]): void {
   try {
-    localStorage.setItem(knownModelsCacheKey(providerId), JSON.stringify(models));
+    writeProfileScoped(knownModelsCacheKey(providerId), JSON.stringify(models));
   } catch {
     // Cache is best-effort; losing it only costs a re-fetch.
   }

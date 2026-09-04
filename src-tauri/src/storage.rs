@@ -17,8 +17,15 @@ impl DatabaseState {
     }
 }
 
-pub fn init_db(app_data_dir: &Path) -> Result<Connection> {
-    let conn = Connection::open(app_data_dir.join("evir.db"))?;
+/// Open (and migrate) the database at an explicit path. Profile-aware: the
+/// caller resolves `<app-data>/profiles/<id>/db/evir.db` (see `profiles.rs`).
+pub fn init_db_at(db_path: &Path) -> Result<Connection> {
+    if let Some(parent) = db_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|error| {
+            rusqlite::Error::InvalidParameterName(format!("create db dir: {error}"))
+        })?;
+    }
+    let conn = Connection::open(db_path)?;
     conn.execute_batch(
         r#"
         PRAGMA foreign_keys = ON;

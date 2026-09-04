@@ -31,14 +31,18 @@ pub(crate) enum EntityMutation {
 #[tauri::command(async)]
 pub(crate) fn db_init(app: AppHandle) -> Result<String, String> {
     let data_dir = app_data_dir(&app)?;
-    let new_conn = storage::init_db(&data_dir).map_err(|error| error.to_string())?;
+    let registry =
+        crate::profiles::ensure_registry(&data_dir).map_err(|error| error.to_string())?;
+    let active = crate::profiles::active_profile(&registry).map_err(|error| error.to_string())?;
+    let db_path = crate::profiles::profile_db_path(&data_dir, &active.id);
+    let new_conn = storage::init_db_at(&db_path).map_err(|error| error.to_string())?;
     let state = app.state::<DatabaseState>();
     let mut conn = state
         .conn
         .lock()
         .map_err(|_| "database lock is poisoned".to_owned())?;
     *conn = new_conn;
-    Ok(data_dir.join("evir.db").to_string_lossy().into_owned())
+    Ok(db_path.to_string_lossy().into_owned())
 }
 
 #[tauri::command(async)]

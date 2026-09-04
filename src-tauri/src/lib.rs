@@ -16,6 +16,9 @@ mod mcp_stdio_process;
 mod mcp_stdio_process_tests;
 mod native_log;
 mod preview_sandbox;
+mod profiles;
+#[cfg(test)]
+mod profiles_tests;
 mod secret_vault;
 #[cfg(test)]
 mod secret_vault_tests;
@@ -54,12 +57,32 @@ pub fn run() {
                 eprintln!("Failed to create app data dir: {error}");
                 error
             })?;
-            native_log::init(&app_data_dir);
+            // Profiles first (§51-55): the registry decides which profile's
+            // DB / vault / logs this session serves; the first run migrates
+            // the legacy single-user files into the default profile.
+            let registry = profiles::ensure_registry(&app_data_dir).map_err(|error| {
+                let message = error.to_string();
+                eprintln!("Failed to init profile registry: {message}");
+                std::convert::Into::<Box<dyn std::error::Error>>::into(message)
+            })?;
+            let active_profile = profiles::active_profile(&registry).map_err(|error| {
+                let message = error.to_string();
+                eprintln!("No active profile: {message}");
+                std::convert::Into::<Box<dyn std::error::Error>>::into(message)
+            })?;
+            native_log::init(&profiles::profile_logs_dir(
+                &app_data_dir,
+                &active_profile.id,
+            ));
             native_log::log(
                 "app.started",
-                serde_json::json!({ "version": app.package_info().version.to_string() }),
+                serde_json::json!({
+                    "version": app.package_info().version.to_string(),
+                    "profileId": active_profile.id,
+                }),
             );
-            let conn = storage::init_db(&app_data_dir).map_err(|error| {
+            let db_path = profiles::profile_db_path(&app_data_dir, &active_profile.id);
+            let conn = storage::init_db_at(&db_path).map_err(|error| {
                 eprintln!("Failed to init database: {error}");
                 error
             })?;
@@ -73,6 +96,12 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::db_init,
+            commands::profiles_list,
+            commands::profiles_create,
+            commands::profiles_update,
+            commands::profiles_set_active,
+            commands::profiles_delete,
+            commands::profile_paths,
             commands::db_query,
             commands::db_update,
             commands::entity_get,

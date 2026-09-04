@@ -2,7 +2,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::{json, Value};
 
-use crate::storage::{execute_query, execute_update, init_db};
+use crate::storage::{execute_query, execute_update, init_db_at};
 
 #[test]
 fn initializes_schema_and_round_trips_values() {
@@ -14,7 +14,7 @@ fn initializes_schema_and_round_trips_values() {
         std::env::temp_dir().join(format!("evir-storage-{}-{suffix}", std::process::id()));
     std::fs::create_dir_all(&directory).expect("temporary directory must be created");
 
-    let conn = init_db(&directory).expect("database must initialize");
+    let conn = init_db_at(&directory.join("evir.db")).expect("database must initialize");
     let tables = execute_query(
         &conn,
         "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name",
@@ -67,7 +67,7 @@ fn queries_enforce_readonly_at_the_sqlite_level() {
     let directory =
         std::env::temp_dir().join(format!("evir-storage-ro-{}-{suffix}", std::process::id()));
     std::fs::create_dir_all(&directory).expect("temporary directory must be created");
-    let conn = init_db(&directory).expect("database must initialize");
+    let conn = init_db_at(&directory.join("evir.db")).expect("database must initialize");
 
     // CTE-prefixed DML passes the keyword prefilter but must be refused here.
     assert!(execute_query(
@@ -94,7 +94,7 @@ fn legacy_provider_api_keys_are_scrubbed_on_init() {
     std::fs::create_dir_all(&directory).expect("temporary directory must be created");
 
     {
-        let conn = init_db(&directory).expect("database must initialize");
+        let conn = init_db_at(&directory.join("evir.db")).expect("database must initialize");
         execute_update(
             &conn,
             "INSERT INTO providers(id, name, protocol_id, base_url, api_key, model_id, \
@@ -107,7 +107,7 @@ fn legacy_provider_api_keys_are_scrubbed_on_init() {
         drop(conn);
     }
 
-    let conn = init_db(&directory).expect("database must re-initialize");
+    let conn = init_db_at(&directory.join("evir.db")).expect("database must re-initialize");
     let rows = execute_query(&conn, "SELECT api_key FROM providers WHERE id = 'p1'", &[])
         .expect("provider row must be readable");
     // The secret lives in the encrypted secret vault; the table must never

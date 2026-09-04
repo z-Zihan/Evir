@@ -298,5 +298,9 @@ fn logs_directory(app: &AppHandle) -> Result<PathBuf, String> {
         .path()
         .app_data_dir()
         .map_err(|error| format!("resolve app data dir: {error}"))?;
-    Ok(data_dir.join("logs"))
+    let registry = crate::profiles::ensure_registry(&data_dir)
+        .map_err(|error| format!("load profile registry: {error}"))?;
+    let active = crate::profiles::active_profile(&registry)
+        .map_err(|error| format!("resolve active profile: {error}"))?;
+    Ok(crate::profiles::profile_logs_dir(&data_dir, &active.id))
 }

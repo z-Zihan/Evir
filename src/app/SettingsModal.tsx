@@ -25,8 +25,8 @@ import {
 const PersonalizationPanel = lazy(() =>
   import("./PersonalizationSettings").then((m) => ({ default: m.PersonalizationPanel })),
 );
-const LocalIdentityPanel = lazy(() =>
-  import("./LocalIdentitySettings").then((m) => ({ default: m.LocalIdentityPanel })),
+const UserProfilesPanel = lazy(() =>
+  import("./UserProfilesSettings").then((m) => ({ default: m.UserProfilesPanel })),
 );
 const ShortcutsSettings = lazy(() =>
   import("./ShortcutsSettings").then((m) => ({ default: m.ShortcutsSettings })),
@@ -84,7 +84,7 @@ const SETTINGS_GROUPS: Array<{ labelKey: string; items: SettingsNavItem[] }> = [
     labelKey: "settings.groups.account",
     items: [
       { tab: "providers", labelKey: "settings.providers", icon: ServerCog },
-      { tab: "identity", labelKey: "settings.identity", icon: UserRound },
+      { tab: "users", labelKey: "settings.users", icon: UserRound },
       {
         tab: "personalization",
         labelKey: "settings.personalization",
@@ -277,7 +277,7 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
             >
               <Suspense fallback={<SettingsPanelFallback />}>
                 {effectiveActiveTab === "providers" && <ProviderSettings />}
-                {effectiveActiveTab === "identity" && <LocalIdentityPanel />}
+                {effectiveActiveTab === "users" && <UserProfilesPanel />}
                 {effectiveActiveTab === "personalization" && <PersonalizationPanel />}
                 {effectiveActiveTab === "shortcuts" && <ShortcutsSettings />}
                 {effectiveActiveTab === "skills" && <SkillSettings />}

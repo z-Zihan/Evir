@@ -9,6 +9,7 @@ import { useChatStore } from "../features/chat/chat-store";
 import { useProjectStore } from "../features/projects/project-store";
 import { useScrollNewProjectIntoView } from "./useScrollNewProjectIntoView";
 import { useProviderStore } from "../features/provider/provider-store";
+import { activeProfileOrDefault, useProfileStore } from "../features/profiles/profile-service";
 import { loadPersonalizationPreferences } from "../features/settings/personalization-settings";
 import { getRuntime } from "../runtime/use-runtime";
 import type { SettingsTab } from "./SettingsModal";
@@ -68,6 +69,18 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
   const [identity, setIdentity] = useState<
     Pick<PersonalizationPreferences, "displayName" | "avatarColor" | "avatarImage">
   >({ displayName: "", avatarColor: "sage", avatarImage: "" });
+  // Registry user wins for the sidebar chip (§50); personalization fallback
+  // keeps legacy installs looking unchanged.
+  const registryProfile = useProfileStore((state) =>
+    state.snapshot
+      ? (state.snapshot.profiles.find((item) => item.id === state.snapshot?.activeProfileId) ??
+        null)
+      : null,
+  );
+  const listProfiles = useProfileStore((state) => state.list);
+  useEffect(() => {
+    void listProfiles().catch(() => undefined);
+  }, [listProfiles]);
   const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
   const expandedRef = useRef(expanded);
   expandedRef.current = expanded;
@@ -101,7 +114,9 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
   };
 
   const shortcutModifier = isMac() ? "⌘" : "Ctrl+";
-  const localName = identity.displayName.trim() || t("chat.localUser");
+  const registry = registryProfile ?? activeProfileOrDefault();
+  const registryName = registry.displayName.trim();
+  const localName = registryName || identity.displayName.trim() || t("chat.localUser");
   const localInitial = Array.from(localName)[0] ?? "•";
 
   const query = search.trim().toLowerCase();
@@ -429,14 +444,18 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
           <button
             className="sidebar-identity flex w-full cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1.5 text-left transition-colors select-none hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
             type="button"
-            onClick={() => onOpenSettings("identity")}
+            onClick={() => onOpenSettings("users")}
             aria-label={t("sidebar.editIdentity")}
           >
             <span
               className={`sidebar-identity-avatar grid size-7 shrink-0 place-items-center overflow-hidden rounded-full text-[11.5px] font-semibold text-white avatar-${identity.avatarColor}`}
             >
-              {identity.avatarImage ? (
-                <img src={identity.avatarImage} alt="" className="size-full object-cover" />
+              {registry.avatar || identity.avatarImage ? (
+                <img
+                  src={registry.avatar || identity.avatarImage}
+                  alt=""
+                  className="size-full object-cover"
+                />
               ) : (
                 localInitial
               )}

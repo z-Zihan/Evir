@@ -1,7 +1,5 @@
 import React, { lazy, Suspense } from "react";
 import ReactDOM from "react-dom/client";
-import { App } from "./app/App";
-import { startRunToastBridge } from "./features/chat/run-toast-bridge";
 
 // Toast host is lazy: sonner only loads if a background-run toast ever fires.
 const Toaster = lazy(() => import("./components/ui/sonner").then((m) => ({ default: m.Toaster })));
@@ -30,18 +28,37 @@ import "./styles/preview.css";
 // renders only the browser chrome (its capability never sees chat/storage).
 const isBrowserWindow = window.location.hash === "#browser";
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      {isBrowserWindow ? <BrowserWorkbench /> : <App />}
-      {!isBrowserWindow && (
-        <Suspense fallback={null}>
-          <Toaster />
-        </Suspense>
-      )}
-    </ErrorBoundary>
-  </React.StrictMode>,
-);
+// Profile bootstrap (§52) must complete before the app bundle's stores load:
+// the active profile decides the Dexie namespace and profile-scoped
+// localStorage keys, and those are read at module-init time. A registry
+// failure falls back to the default profile rather than blocking the app.
+async function bootstrap(): Promise<void> {
+  try {
+    const { useProfileStore } = await import("./features/profiles/profile-service");
+    await useProfileStore.getState().init();
+  } catch {
+    /* default profile */
+  }
+  const [{ App }, { startRunToastBridge }] = await Promise.all([
+    import("./app/App"),
+    import("./features/chat/run-toast-bridge"),
+  ]);
 
-// Background-run toasts (sidebar badges remain the primary status surface).
-startRunToastBridge();
+  ReactDOM.createRoot(document.getElementById("root")!).render(
+    <React.StrictMode>
+      <ErrorBoundary>
+        {isBrowserWindow ? <BrowserWorkbench /> : <App />}
+        {!isBrowserWindow && (
+          <Suspense fallback={null}>
+            <Toaster />
+          </Suspense>
+        )}
+      </ErrorBoundary>
+    </React.StrictMode>,
+  );
+
+  // Background-run toasts (sidebar badges remain the primary status surface).
+  startRunToastBridge();
+}
+
+void bootstrap();

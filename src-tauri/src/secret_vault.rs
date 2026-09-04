@@ -17,7 +17,7 @@ use std::{
     collections::HashMap,
     fs::{self, File},
     io::Write,
-    path::{Path, PathBuf},
+    path::Path,
     sync::{Mutex, OnceLock},
 };
 
@@ -30,7 +30,6 @@ use hkdf::Hkdf;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 
-const VAULT_FILE: &str = "secret-vault.json";
 const VAULT_VERSION: u8 = 1;
 const VAULT_SALT: &[u8] = b"evir-secret-vault-v1-hkdf-salt";
 const VAULT_PEPPER: &str = "evir-local-vault-7f3c9a51d8b24e60a1f5c2d94b8e7306";
@@ -83,10 +82,6 @@ fn derive_key(context: &str) -> [u8; 32] {
     hkdf.expand(b"evir secret vault key", &mut okm)
         .expect("32-byte HKDF-SHA256 output is always valid");
     okm
-}
-
-pub(crate) fn vault_path(app_data_dir: &Path) -> PathBuf {
-    app_data_dir.join(VAULT_FILE)
 }
 
 fn load_document(path: &Path) -> Result<VaultDocument, String> {
