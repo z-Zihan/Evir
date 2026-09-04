@@ -23,7 +23,8 @@ use std::sync::Mutex;
 
 use serde::Serialize;
 use tauri::{
-    AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindowBuilder,
+    AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Rect, WebviewUrl,
+    WebviewWindowBuilder,
 };
 
 use crate::native_log;
@@ -302,20 +303,16 @@ fn add_content_tab_inner(
         .on_new_window(|_url, _features| tauri::webview::NewWindowResponse::Deny);
     // Panel webviews start offscreen until the frontend reports a visible
     // content rect; workbench webviews show immediately at a sane default.
+    // Logical units: Physical here would place the child at half the intended
+    // offset on HiDPI windows (see browser_panel_layout_update).
     let initial_position = if surface == Surface::Panel {
-        PhysicalPosition::new(-10_000, -10_000)
+        LogicalPosition::new(-10_000.0, -10_000.0)
     } else {
-        PhysicalPosition::new(0, 96)
+        LogicalPosition::new(0.0, 96.0)
     };
+    let initial_size = LogicalSize::new(1200.0, 600.0);
     let webview = window
-        .add_child(
-            builder,
-            initial_position,
-            PhysicalSize::new(
-                window.inner_size().map(|size| size.width).unwrap_or(1200),
-                600,
-            ),
-        )
+        .add_child(builder, initial_position, initial_size)
         .map_err(|error| error.to_string())?;
     let tab = BrowserTab {
         id,
@@ -477,19 +474,17 @@ fn apply_workbench_layout(
     width: f64,
     height: f64,
 ) -> Result<(), String> {
-    let scale = app
-        .get_webview_window("browser-workbench")
-        .and_then(|window| window.scale_factor().ok())
-        .unwrap_or(1.0);
-    let position = PhysicalPosition::new((x * scale) as i32, (y * scale) as i32);
-    let size = PhysicalSize::new(
-        (width * scale).max(1.0) as u32,
-        (height * scale).max(1.0) as u32,
-    );
+    // Logical pass-through (see browser_panel_layout_update): converting to
+    // Physical with a window scale factor here produced half-scale rects on
+    // HiDPI displays.
+    let position = LogicalPosition::new(x, y);
+    let size = LogicalSize::new(width.max(1.0), height.max(1.0));
     for (label, webview) in app.webviews() {
         if label.starts_with(Surface::Workbench.prefix()) {
-            let _ = webview.set_position(position);
-            let _ = webview.set_size(size);
+            let _ = webview.set_bounds(Rect {
+                position: position.into(),
+                size: size.into(),
+            });
         }
     }
     Ok(())
@@ -583,23 +578,23 @@ pub fn browser_panel_layout_update(
         let state = app.state::<BrowserWorkbenchState>();
         *state.panel_visible.lock().expect("panel visible lock") = visible;
     }
-    let scale = app
-        .get_webview_window("main")
-        .and_then(|window| window.scale_factor().ok())
-        .unwrap_or(1.0);
-    let position = PhysicalPosition::new((x * scale) as i32, (y * scale) as i32);
-    let size = PhysicalSize::new(
-        (width * scale).max(1.0) as u32,
-        (height * scale).max(1.0) as u32,
-    );
+    // The frontend reports CSS pixels (logical) relative to the main window.
+    // Pass them through as Logical and let tauri/wry convert with the
+    // window's real scale factor — multiplying by scale_factor() here once
+    // produced a half-scale rect (the panel webview rendered at half the
+    // intended x/size, floating over the conversation column).
+    let position = LogicalPosition::new(x, y);
+    let size = LogicalSize::new(width.max(1.0), height.max(1.0));
     for (label, webview) in app.webviews() {
         if !label.starts_with(Surface::Panel.prefix()) {
             continue;
         }
         let outcome = if visible {
             webview
-                .set_position(position)
-                .and_then(|()| webview.set_size(size))
+                .set_bounds(Rect {
+                    position: position.into(),
+                    size: size.into(),
+                })
                 .and_then(|()| webview.show())
         } else {
             // Hidden state must be explicit: the native layer renders above
@@ -611,6 +606,27 @@ pub fn browser_panel_layout_update(
             native_log::log(
                 "browser.panel-webview-op-failed",
                 serde_json::json!({ "label": label, "visible": visible, "error": error.to_string() }),
+            );
+        }
+        // Geometry diagnostics (2026-09-04 report: page renders over the
+        // whole main area): read back the REAL frame after applying bounds.
+        if visible {
+            let readback = webview.bounds().map(|b| {
+                // Position/Size may arrive as Physical or Logical; normalize.
+                let pos = b.position.to_logical::<f64>(2.0);
+                let sz = b.size.to_logical::<f64>(2.0);
+                format!(
+                    "{}x{}+{}+{} ({:?}/{:?})",
+                    sz.width, sz.height, pos.x, pos.y, b.position, b.size
+                )
+            });
+            native_log::log(
+                "browser.panel-webview-bounds",
+                serde_json::json!({
+                    "label": label,
+                    "sent": format!("{}x{}+{}+{}", size.width, size.height, position.x, position.y),
+                    "readback": readback.unwrap_or_else(|e| format!("err: {e}")),
+                }),
             );
         }
     }
