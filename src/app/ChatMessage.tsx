@@ -19,6 +19,8 @@ import { AgentActivity } from "./AgentActivity";
 import { MarkdownContent } from "./MarkdownContent";
 
 interface ChatMessageProps {
+  /** Project threads render user turns as task-stream rows, not chat capsules (§31). */
+  projectScoped?: boolean;
   message: MessageRecord;
   groupedWithPrevious?: boolean;
   groupedWithNext?: boolean;
@@ -32,6 +34,7 @@ interface ChatMessageProps {
 }
 
 export function ChatMessage({
+  projectScoped = false,
   message,
   groupedWithPrevious = false,
   groupedWithNext = false,
@@ -119,7 +122,11 @@ export function ChatMessage({
   return (
     <Message from={role} className={`message-row message-${role} ${messageClass}`}>
       {role === "user" ? (
-        <div className="message-main flex min-w-0 flex-col items-end gap-1">
+        <div
+          className={`message-main flex min-w-0 flex-col gap-1 ${
+            projectScoped ? "items-stretch" : "items-end"
+          }`}
+        >
           {!groupedWithPrevious && (
             <header className="message-header flex h-5 items-center gap-2 text-[11px] text-muted">
               <time className="text-muted" dateTime={new Date(message.createdAt).toISOString()}>
@@ -133,11 +140,11 @@ export function ChatMessage({
             </header>
           )}
           <MessageContent
-            className={`message-content max-w-[min(560px,88%)] ${isEditing ? "w-full" : ""}`}
+            className={`message-content ${projectScoped ? "task-stream w-full" : "max-w-[min(560px,88%)]"} ${isEditing ? "w-full" : ""}`}
           >
             {message.activeSkills && message.activeSkills.length > 0 && (
               <div
-                className="mb-1 flex items-center justify-end gap-1.5 text-[11px] text-muted"
+                className={`mb-1 flex items-center gap-1.5 text-[11px] text-muted ${projectScoped ? "" : "justify-end"}`}
                 aria-label={t("chat.skillsUsed")}
               >
                 <Sparkles size={11} aria-hidden="true" />
@@ -153,7 +160,7 @@ export function ChatMessage({
               </div>
             )}
             {message.attachments && message.attachments.length > 0 && (
-              <div className="mb-1.5 flex flex-wrap justify-end gap-1.5">
+              <div className={`mb-1.5 flex flex-wrap gap-1.5 ${projectScoped ? "" : "justify-end"}`}>
                 {message.attachments.map((attachment) =>
                   attachment.type === "image" ? (
                     <img

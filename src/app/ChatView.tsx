@@ -89,6 +89,8 @@ interface ChatViewProps {
 
 interface MessageListProps {
   messages: MessageRecord[];
+  /** Project threads render user turns as task-stream rows (§31). */
+  projectScoped?: boolean;
   disabled: boolean;
   localUserName: string;
   localUserAvatar: string;
@@ -140,6 +142,7 @@ function isDuplicateFailedRetry(previous: MessageRecord, message: MessageRecord)
 }
 
 export const MessageList = memo(function MessageList({
+  projectScoped = false,
   messages,
   disabled,
   localUserName,
@@ -175,6 +178,7 @@ export const MessageList = memo(function MessageList({
           <ChatMessage
             key={msg.id}
             message={msg}
+            projectScoped={projectScoped}
             groupedWithPrevious={groupedWithPrevious}
             groupedWithNext={groupedWithNext}
             disabled={disabled}
@@ -519,6 +523,7 @@ export function ChatView({
           <div className="message-list mx-auto flex w-full min-w-0 max-w-[760px] flex-col gap-5">
             <MessageList
               messages={messages}
+              projectScoped={projectScoped}
               disabled={isCurrentConversationStreaming}
               localUserName={localUserName}
               localUserAvatar={localUserAvatar}

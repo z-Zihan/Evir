@@ -884,3 +884,13 @@
     opacity: 0.35;
   }
 }
+
+/* §31: project-thread user turns are task-stream rows — full-width document
+   flow with a quiet background instead of a chat capsule. Standalone chats
+   keep the classic bubble. */
+.message-content.task-stream {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+}
