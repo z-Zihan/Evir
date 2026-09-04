@@ -190,3 +190,14 @@ Coding Agent 必须：
 - Ready 判断、条件边、资源冲突、并发上限和 Capability 子集由代码执行，不能依赖 Prompt。
 - 子 Agent 使用独立 AgentRunContext、工具白名单和 AbortSignal；任何模型点名但未注册/未分配的工具都必须在 Executor 前拒绝。
 - 验证节点没有成功工具证据时不得完成。取消、审批阻塞和部分成功必须保持不同终态。
+
+## 20. 依赖规范（Feature Cost Audit）
+
+新增或升级较重依赖时必须回答四问并记录在 PR 描述里：
+
+1. **用途**——解决什么问题，为什么现有依赖不行；
+2. **体积**——解析后增量（gzip），对初始 chunk 还是懒加载 chunk；
+3. **替代方案**——考虑过哪些更轻的选择或自写实现，为何不选；
+4. **何时加载**——初始加载还是 `dynamic import`/`React.lazy`（高级 Preview、图表、PDF、Canvas、少用渲染器必须 0 初始加载）。
+
+当前重依赖分层结论（2026-09-04 审计）：mermaid / vega-embed / pdfjs-dist / katex / shiki / @viz-js 全部经渲染器内 `import()` 动态加载；@xyflow/react（Canvas）经 `React.lazy` 独立 chunk；全部 Keep + Lazy，无 Remove 项。
