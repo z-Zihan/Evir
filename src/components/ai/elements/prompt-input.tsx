@@ -7,6 +7,10 @@
  * - `@repo/shadcn-ui/*` imports mapped to Evir's `components/ui`;
  *   InputGroupButton/InputGroupTextarea/InputGroupAddon are rendered with
  *   Evir's Button/Textarea primitives plus the upstream class contract.
+ * - The InputGroup container contract is preserved on the trimmed root:
+ *   `data-slot="input-group-control"` on the textarea + `has-[…:focus-visible]`
+ *   border/ring propagation on the container, so focus visuals stay the
+ *   upstream mechanism (restrained via Evir's ring tokens).
  * - The upstream attachments controller, action menu, screenshot capture,
  *   model selector, speech input, and referenced-sources sub-features are
  *   intentionally not vendored: attachments/chips, skill picking, mode and
@@ -167,7 +171,14 @@ export const PromptInputTextarea = ({
 
   return (
     <textarea
-      className={cn("field-sizing-content max-h-48 min-h-16", className)}
+      // InputGroupTextarea contract (upstream): the control marks itself so
+      // the container can key its focus ring off it, and never draws its own
+      // focus indicator — the container owns the visible focus state.
+      data-slot="input-group-control"
+      className={cn(
+        "field-sizing-content max-h-48 min-h-16 flex-1 resize-none rounded-none border-0 bg-transparent shadow-none outline-none focus-visible:ring-0",
+        className,
+      )}
       name="message"
       onCompositionEnd={handleCompositionEnd}
       onCompositionStart={handleCompositionStart}
@@ -182,10 +193,11 @@ export const PromptInputTextarea = ({
 export type PromptInputFooterProps = HTMLAttributes<HTMLDivElement>;
 
 export const PromptInputFooter = ({ className, ...props }: PromptInputFooterProps) => (
-  // Upstream padds the footer through InputGroupAddon's inset; Evir keeps the
-  // equivalent inset on the footer itself since the form root is direct.
+  // Upstream renders the footer as InputGroupAddon align="block-end"
+  // (w-full px-3 pb-3); the trimmed core subset keeps the same inset on the
+  // footer itself since the form root is direct.
   <div
-    className={cn("flex items-center justify-between gap-1 px-2.5 pb-2.5", className)}
+    className={cn("flex w-full items-center justify-between gap-1 px-3 pb-3", className)}
     {...props}
   />
 );
@@ -303,14 +315,19 @@ export const PromptInput = ({ className, onSubmit, ...props }: PromptInputProps)
   };
 
   // Upstream wraps children in shadcn's InputGroup, which carries the visible
-  // container (rounded border, surface background, focus-within ring). The
-  // trimmed core subset renders the form directly, so the container contract
-  // lives here with Evir's tokens instead of an InputGroup dependency.
+  // container (rounded border, surface background, focus ring) and keys its
+  // focus state off the control via `has-[[data-slot=input-group-control]:
+  // focus-visible]`. The trimmed core subset renders the form directly, so the
+  // container contract lives here with Evir tokens at a restrained level
+  // (subtle border tint + light ring) instead of an InputGroup dependency.
   return (
     <form
       className={cn(
-        "w-full rounded-xl border border-border bg-surface shadow-xs transition-[border-color,box-shadow]",
-        "focus-within:border-border-strong focus-within:shadow-sm",
+        "w-full rounded-xl border border-border bg-surface shadow-xs transition-[border-color,box-shadow] outline-none",
+        "has-[[data-slot=input-group-control]:focus-visible]:border-ring/50",
+        "has-[[data-slot=input-group-control]:focus-visible]:ring-[3px]",
+        "has-[[data-slot=input-group-control]:focus-visible]:ring-ring/20",
+        "has-[[data-slot=input-group-control]:focus-visible]:shadow-sm",
         className,
       )}
       onSubmit={handleSubmit}

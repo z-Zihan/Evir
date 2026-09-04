@@ -1,8 +1,17 @@
 import { logger } from "../core/logging/logger";
 import { memo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pencil, Pin, Trash2 } from "lucide-react";
-import { Button, Input, Tip } from "../components/ui";
+import { Ellipsis, Pencil, Pin, Trash2 } from "lucide-react";
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  Input,
+  Tip,
+} from "../components/ui";
 import { cn } from "../components/ui/utils";
 import type { ConversationRecord } from "../core/storage/db";
 import type { ConversationRunStatus } from "./useConversationStatus";
@@ -72,6 +81,13 @@ function StatusMark({ status }: { status: ConversationRunStatus }) {
   );
 }
 
+/**
+ * Secondary actions live in one `•••` menu (§sidebar-more-menu): the row keeps
+ * icon / title / status only. The trigger occupies its layout slot at all
+ * times (opacity toggles on hover/focus-within), so revealing it never shifts
+ * the row. Rename re-opens the inline input; delete still flows through the
+ * shared confirmation dialog in Sidebar.
+ */
 export const SidebarConversationItem = memo(function SidebarConversationItem({
   conversation,
   isActive,
@@ -90,6 +106,11 @@ export const SidebarConversationItem = memo(function SidebarConversationItem({
     setRenaming(false);
     if (value.trim() && value !== conversation.title) onRename(value.trim());
     setValue(conversation.title);
+  };
+
+  const beginRename = () => {
+    setValue(conversation.title);
+    setRenaming(true);
   };
 
   const hasLiveRun = status === "streaming" || status === "preparing";
@@ -112,10 +133,7 @@ export const SidebarConversationItem = memo(function SidebarConversationItem({
           onSelect();
         }
       }}
-      onDoubleClick={() => {
-        setRenaming(true);
-        setValue(conversation.title);
-      }}
+      onDoubleClick={() => beginRename()}
     >
       {conversation.pinned ? (
         <Pin size={11} className="pin-indicator shrink-0 text-primary/70" aria-hidden="true" />
@@ -148,43 +166,38 @@ export const SidebarConversationItem = memo(function SidebarConversationItem({
       {!renaming && status && <StatusMark status={status} />}
       {!renaming && (
         <div
-          className="conversation-actions flex shrink-0 items-center gap-0.5 opacity-0 pointer-events-none transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
+          className="conversation-actions flex shrink-0 items-center opacity-0 pointer-events-none transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
           onClick={(event) => event.stopPropagation()}
         >
-          <Tip content={conversation.pinned ? t("sidebar.unpin") : t("sidebar.pin")}>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              aria-label={conversation.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
-              onClick={onTogglePin}
-            >
-              <Pin size={12} />
-            </Button>
-          </Tip>
-          <Tip content={t("sidebar.rename")}>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              aria-label={t("sidebar.rename")}
-              onClick={() => {
-                setRenaming(true);
-                setValue(conversation.title);
-              }}
-            >
-              <Pencil size={12} />
-            </Button>
-          </Tip>
-          <Tip content={t("provider.delete")}>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              className="conversation-delete hover:text-danger"
-              aria-label={t("provider.delete")}
-              onClick={onDelete}
-            >
-              <Trash2 size={13} />
-            </Button>
-          </Tip>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={t("sidebar.more")}
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <Ellipsis size={13} />
+                </Button>
+              }
+            />
+            <DropdownMenuContent side="bottom" align="end" className="min-w-40">
+              <DropdownMenuItem onClick={onTogglePin}>
+                <Pin aria-hidden="true" />
+                {conversation.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={beginRename}>
+                <Pencil aria-hidden="true" />
+                {t("sidebar.rename")}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem destructive onClick={onDelete}>
+                <Trash2 aria-hidden="true" />
+                {t("provider.delete")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       )}
     </div>

@@ -132,13 +132,8 @@ function selectedWorkspace(): string {
 const IPC_READ_ATTEMPT_TIMEOUT_MS = 10_000;
 const IPC_READ_MAX_ATTEMPTS = 3;
 
-/** Correlation threaded from the owning tool call when available; UI-direct
- * callers (file tree, preview) invoke without it. */
-export interface IpcCorrelation {
-  conversationId?: string;
-  runId?: string | null;
-  toolCallId?: string;
-}
+export type { IpcCorrelation } from "./ipc-correlation";
+import type { IpcCorrelation } from "./ipc-correlation";
 
 function ipcFields(command: string, attempt: number, durationMs: number, corr?: IpcCorrelation) {
   return {

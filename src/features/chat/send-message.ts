@@ -1,7 +1,7 @@
 import type { StoreApi } from "zustand";
 import type { ConversationRecord, MessageRecord, ProviderRecord } from "../../core/storage/db";
 import { useProviderStore } from "../provider/provider-store";
-import type { ChatState } from "./chat-store";
+import type { ChatState } from "./chat-contracts";
 import { providerReadinessError } from "./chat-stream";
 import { streamResponse } from "./stream-response";
 import { beginPreparation, endPreparation, slotFor, streamEpochFor } from "./stream-ownership";

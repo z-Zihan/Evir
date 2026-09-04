@@ -242,8 +242,8 @@ describe("tool definitions", () => {
     expect(LOCAL_FILE_TOOLS.find((t) => t.id === "restore_snapshot")?.riskLevel).toBe("L3");
   });
 
-  it("has 13 tools total", () => {
-    expect(LOCAL_FILE_TOOLS).toHaveLength(13);
+  it("has 14 tools total (13 built-ins + report_output)", () => {
+    expect(LOCAL_FILE_TOOLS).toHaveLength(14);
     expect(LOCAL_FILE_TOOLS.find(({ id }) => id === "search_docs")?.riskLevel).toBe("L1");
   });
 });
@@ -310,5 +310,70 @@ describe("mode tool isolation", () => {
   it("agent mode allows up to L4", () => {
     const limits = { ask: "L0", plan: "L1", agent: "L4" };
     expect(limits.agent).toBe("L4");
+  });
+});
+
+describe("report_output", () => {
+  const desktopRuntime = (storage: Record<string, unknown>, agentRun?: { id: string }) =>
+    ({
+      target: "desktop" as const,
+      capabilities: new Set(["filesystem"]),
+      has: () => true,
+      getWorkspaceRoot: () => "/tmp/project",
+      ...(agentRun ? { agentRun: { ...agentRun, snapshots: [], fileReferences: [] } } : {}),
+      storage,
+    }) as unknown as EvirRuntime;
+
+  it("registers an existing workspace file with an evidence payload", async () => {
+    const fileStat = vi.fn(() =>
+      Promise.resolve({
+        name: "photo.png",
+        path: "/tmp/project/photo.png",
+        is_dir: false,
+        is_file: true,
+        is_symlink: false,
+        size: 1234,
+        modified: 1,
+        exists: true,
+      }),
+    );
+    const tool = LOCAL_FILE_TOOLS.find((t) => t.id === "report_output")!;
+    const result = await tool.execute(
+      { path: "photo.png" },
+      desktopRuntime({ fileStat }, { id: "run-1" }),
+    );
+    expect(result.success).toBe(true);
+    expect(JSON.parse(result.output)).toEqual({
+      reported: true,
+      path: "/tmp/project/photo.png",
+      size: 1234,
+    });
+    expect(fileStat).toHaveBeenCalledWith("/tmp/project/photo.png", { runId: "run-1" });
+  });
+
+  it("honestly fails when the reported file does not exist", async () => {
+    const fileStat = vi.fn(() =>
+      Promise.resolve({
+        name: "missing.png",
+        path: "/tmp/project/missing.png",
+        is_dir: false,
+        is_file: false,
+        is_symlink: false,
+        size: 0,
+        modified: null,
+        exists: false,
+      }),
+    );
+    const tool = LOCAL_FILE_TOOLS.find((t) => t.id === "report_output")!;
+    const result = await tool.execute({ path: "missing.png" }, desktopRuntime({ fileStat }));
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("output_not_found");
+  });
+
+  it("blocks paths outside the workspace", async () => {
+    const tool = LOCAL_FILE_TOOLS.find((t) => t.id === "report_output")!;
+    const result = await tool.execute({ path: "../../etc/passwd" }, desktopRuntime({}));
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("path_blocked");
   });
 });

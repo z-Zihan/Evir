@@ -164,24 +164,33 @@ const OUTPUTS6_SCRIPT = [
   },
   {
     tool: "write_file",
-    args: { path: "table.csv", content: "name,role,risk\nbrowser_open,read,L1\nwrite_file,mutate,L3\n" },
+    args: {
+      path: "table.csv",
+      content: "name,role,risk\nbrowser_open,read,L1\nwrite_file,mutate,L3\n",
+    },
   },
   {
     tool: "write_file",
     args: {
       path: "page.html",
-      content: "<!DOCTYPE html><html><body style=\"font-family:sans-serif\"><h1>Evir HTML output</h1><p>Six-type outputs verification.</p></body></html>\n",
+      content:
+        '<!DOCTYPE html><html><body style="font-family:sans-serif"><h1>Evir HTML output</h1><p>Six-type outputs verification.</p></body></html>\n',
     },
   },
   {
     tool: "write_file",
-    args: { path: "summary.md", content: "# Outputs summary\n\nAll six artifact families render through Task → Outputs → Preview.\n" },
+    args: {
+      path: "summary.md",
+      content:
+        "# Outputs summary\n\nAll six artifact families render through Task → Outputs → Preview.\n",
+    },
   },
   {
     tool: "write_file",
     args: {
       path: "diagram.svg",
-      content: "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"220\" height=\"90\"><rect width=\"220\" height=\"90\" fill=\"#eef3ff\"/><text x=\"24\" y=\"50\" font-size=\"16\" fill=\"#1b4fd8\">Evir SVG output</text></svg>\n",
+      content:
+        '<svg xmlns="http://www.w3.org/2000/svg" width="220" height="90"><rect width="220" height="90" fill="#eef3ff"/><text x="24" y="50" font-size="16" fill="#1b4fd8">Evir SVG output</text></svg>\n',
     },
   },
   { tool: "read_file", args: { path: "photo.png" } },
@@ -214,6 +223,14 @@ const ORCH_TAGS = [
     tag: "[outputs-png]",
     artifact: "photo.png",
     script: [{ tool: "read_file", args: { path: "photo.png" } }],
+    verify: "PASSED",
+  },
+  {
+    tag: "[outputs-report]",
+    artifact: "photo.png",
+    // The deliverable already exists in the workspace (produced by a script
+    // outside the snapshot chain); the agent registers it as a run output.
+    script: [{ tool: "report_output", args: { path: "photo.png" } }],
     verify: "PASSED",
   },
   {

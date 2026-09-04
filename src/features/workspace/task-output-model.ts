@@ -10,7 +10,7 @@ import { matchingSnapshotForPath } from "./changes-model";
  * thread shows the same set.
  */
 
-export type TaskOutputKind = "created-file" | "screenshot";
+export type TaskOutputKind = "created-file" | "screenshot" | "reported";
 
 export interface TaskOutput {
   /** Stable per-run identity: runId + source call/path. */
@@ -30,7 +30,7 @@ export const taskOutputSchema = z.object({
   id: z.string().min(1),
   runId: z.string().min(1),
   conversationId: z.string().min(1),
-  kind: z.enum(["created-file", "screenshot"]),
+  kind: z.enum(["created-file", "screenshot", "reported"]),
   type: z.string().min(1),
   path: z.string().min(1),
   mimeType: z.string().optional(),
@@ -107,6 +107,14 @@ export function isArtifactPath(path: string): boolean {
 
 const screenshotOutputSchema = z.object({ path: z.string().min(1) });
 
+// report_output results: the tool executor already verified existence; the
+// result payload carries the resolved absolute path + size as evidence.
+const reportedOutputSchema = z.object({
+  reported: z.literal(true),
+  path: z.string().min(1),
+  size: z.number().min(0),
+});
+
 function callArgumentString(call: ToolCallRecord, keys: string[]): string | null {
   for (const key of keys) {
     const value = call.arguments[key];
@@ -126,6 +134,28 @@ export function deriveTaskOutput(
   context: { runId: string; conversationId: string; newSnapshots: readonly SnapshotResult[] },
 ): TaskOutput | null {
   if (!result.success) return null;
+  if (call.toolName === "report_output") {
+    let payload: unknown;
+    try {
+      payload = JSON.parse(result.output || "{}");
+    } catch {
+      return null;
+    }
+    const parsed = reportedOutputSchema.safeParse(payload);
+    if (!parsed.success) return null;
+    const extension = extensionOf(parsed.data.path);
+    return {
+      id: `${context.runId}:${call.id}`,
+      runId: context.runId,
+      conversationId: context.conversationId,
+      kind: "reported",
+      type: extension || "binary",
+      path: parsed.data.path,
+      mimeType: mimeTypeForPath(parsed.data.path) ?? "application/octet-stream",
+      sourceTool: call.toolName,
+      createdAt: result.completedAt ?? Date.now(),
+    };
+  }
   if (call.toolName === "browser_screenshot") {
     let payload: unknown;
     try {
@@ -201,11 +231,12 @@ export function deriveTaskOutputs(
   const seenPaths = new Set<string>();
   return outputs.filter((output) => {
     if (seen.has(output.id)) return false;
-    // A file rewritten later in the same run yields one output, not two.
+    // A file rewritten (or re-reported) later in the same run yields one
+    // output, not two.
     const pathKey = `${output.runId}:${output.path}`;
-    if (output.kind === "created-file" && seenPaths.has(pathKey)) return false;
+    if (output.kind !== "screenshot" && seenPaths.has(pathKey)) return false;
     seen.add(output.id);
-    if (output.kind === "created-file") seenPaths.add(pathKey);
+    if (output.kind !== "screenshot") seenPaths.add(pathKey);
     return true;
   });
 }

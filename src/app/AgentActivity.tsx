@@ -173,12 +173,12 @@ export function AgentActivity({
       : status === "denied"
         ? t("tools.permissionDenied")
         : status === "running"
-        ? t("agent.processing")
-        : status === "cancelled"
-          ? t("chat.stopped")
-          : status === "failed"
-            ? t("agent.completedWithErrors")
-            : t("agent.completed");
+          ? t("agent.processing")
+          : status === "cancelled"
+            ? t("chat.stopped")
+            : status === "failed"
+              ? t("agent.completedWithErrors")
+              : t("agent.completed");
 
   return (
     <section

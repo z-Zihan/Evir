@@ -1,0 +1,21 @@
+/* Personalization page layout (theme/language cards are utilities). */
+
+.personalization-settings {
+  border-color: var(--border);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--background) 42%, var(--surface));
+  box-shadow: none;
+}
+
+.personalization-settings form {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.personalization-settings fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}

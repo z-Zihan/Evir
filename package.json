@@ -31,6 +31,7 @@
     "test:a11y": "playwright test --project=web-a11y --project=desktop-a11y e2e/accessibility.spec.ts",
     "test:stress": "playwright test --project=web-e2e --project=desktop-e2e e2e/stress-boundary.spec.ts",
     "benchmark": "node scripts/benchmark.mjs",
+    "test:cycles": "node scripts/cycle-audit.mjs",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:rust && pnpm release:validate-workflow && pnpm --dir extensions/vscode check && pnpm --dir packages/cli check",
     "tauri": "tauri",
     "dev": "tauri dev"

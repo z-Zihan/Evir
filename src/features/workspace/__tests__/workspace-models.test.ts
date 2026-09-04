@@ -155,6 +155,73 @@ describe("task output classification", () => {
     expect(outputs[0]?.path).toBe("/p/landing.html");
   });
 
+  it("attributes report_output registrations as reported outputs", () => {
+    const output = deriveTaskOutput(
+      call("t7", "report_output", { path: "photo.png" }),
+      result(
+        "t7",
+        "report_output",
+        true,
+        JSON.stringify({ reported: true, path: "/proj/photo.png", size: 900 }),
+      ),
+      { ...CONTEXT, newSnapshots: [] },
+    );
+    expect(output).toMatchObject({
+      kind: "reported",
+      type: "png",
+      path: "/proj/photo.png",
+      mimeType: "image/png",
+      sourceTool: "report_output",
+    });
+  });
+
+  it("falls back to the binary type for reported files without a known extension", () => {
+    const output = deriveTaskOutput(
+      call("t8", "report_output", { path: "deliverable" }),
+      result(
+        "t8",
+        "report_output",
+        true,
+        JSON.stringify({ reported: true, path: "/proj/deliverable", size: 10 }),
+      ),
+      { ...CONTEXT, newSnapshots: [] },
+    );
+    expect(output).toMatchObject({ kind: "reported", type: "binary" });
+    expect(output?.mimeType).toBe("application/octet-stream");
+  });
+
+  it("ignores report_output results without a valid evidence payload", () => {
+    expect(
+      deriveTaskOutput(
+        call("t9", "report_output", { path: "photo.png" }),
+        result("t9", "report_output", false, "reported output not found: photo.png"),
+        { ...CONTEXT, newSnapshots: [] },
+      ),
+    ).toBeNull();
+    expect(
+      deriveTaskOutput(
+        call("t10", "report_output", { path: "photo.png" }),
+        result("t10", "report_output", true, "ok"),
+        { ...CONTEXT, newSnapshots: [] },
+      ),
+    ).toBeNull();
+  });
+
+  it("dedupes repeated reports of the same path within one run", () => {
+    const payload = JSON.stringify({ reported: true, path: "/proj/data.csv", size: 5 });
+    const outputs = deriveTaskOutputs(
+      [
+        call("r1", "report_output", { path: "data.csv" }),
+        call("r2", "report_output", { path: "data.csv" }),
+      ],
+      [result("r1", "report_output", true, payload), result("r2", "report_output", true, payload)],
+      [],
+      CONTEXT,
+    );
+    expect(outputs).toHaveLength(1);
+    expect(outputs[0]?.type).toBe("csv");
+  });
+
   it("merges outputs by id across approval continuations", () => {
     const first = deriveTaskOutputs(
       [call("a", "write_file", { path: "/p/x.svg" })],

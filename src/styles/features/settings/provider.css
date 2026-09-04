@@ -1,0 +1,126 @@
+/* Provider & MCP surfaces: connection rows, preset tiles, transport. */
+
+.mcp-settings,
+.personalization-settings,
+.provider-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.provider-connection-row {
+  display: grid;
+  min-height: 58px;
+  grid-template-columns: 30px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.provider-connection-row + .provider-connection-row {
+  border-top: 1px solid var(--border);
+}
+
+.provider-preset-tile {
+  display: grid;
+  min-width: 0;
+  min-height: 52px;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--foreground);
+  cursor: pointer;
+  text-align: left;
+}
+
+.provider-preset-tile:hover,
+.provider-preset-tile.selected {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+}
+
+.provider-preset-tile.selected {
+  box-shadow: inset 2px 0 0 var(--primary);
+}
+
+.provider-preset-tile > span:nth-child(2) {
+  min-width: 0;
+}
+
+.provider-preset-tile strong,
+.provider-preset-tile small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.provider-preset-tile strong {
+  font-size: 10px;
+  font-weight: 610;
+}
+
+.provider-preset-tile small {
+  margin-top: 3px;
+  color: var(--muted-foreground);
+  font-size: 8.5px;
+}
+
+.provider-preset-tile > svg:last-child {
+  color: var(--muted-foreground);
+}
+
+.provider-preset-tile.custom > svg:first-child {
+  justify-self: center;
+  color: var(--primary);
+}
+
+@media (max-width: 640px) {
+  .provider-connection-row {
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+  }
+  .skill-item {
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+    padding: 10px;
+  }
+}
+
+.provider-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.provider-settings h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+}
+
+.provider-settings label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
+.provider-settings input,
+.provider-settings select,
+.provider-settings textarea {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font-size: var(--font-size-sm);
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.provider-settings input:focus,
+.provider-settings select:focus {
+  border-color: var(--primary);
+}

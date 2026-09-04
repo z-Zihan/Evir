@@ -1,7 +1,7 @@
 import type { StoreApi } from "zustand";
 import { logger } from "../../core/logging/logger";
-import type { ChatState, StreamSlot } from "./chat-store";
-import type { PendingToolApproval } from "./tool-approval";
+import type { ChatState, StreamSlot } from "./chat-contracts";
+import type { PendingToolApproval } from "./chat-contracts";
 
 type ChatStoreSet = StoreApi<ChatState>["setState"];
 type ChatStoreGet = StoreApi<ChatState>["getState"];

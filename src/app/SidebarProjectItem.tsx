@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import {
   ChevronDown,
   ChevronRight,
+  Ellipsis,
   FolderSearch,
   Pencil,
   Pin,
@@ -10,7 +11,16 @@ import {
   ShieldCheck,
   Trash2,
 } from "lucide-react";
-import { Button, Input, Tip } from "../components/ui";
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  Input,
+  Tip,
+} from "../components/ui";
 import { cn } from "../components/ui/utils";
 import type { ProjectRecord } from "../core/storage/db";
 
@@ -29,6 +39,14 @@ interface SidebarProjectItemProps {
   onRemove: () => void;
 }
 
+/**
+ * Project row: `新任务` stays exposed as the single high-frequency action
+ * (§sidebar-more exception — creating a task IS the project row's purpose);
+ * every secondary action (permission, pin, rename, locate, remove) lives in
+ * the `•••` menu. The two trailing controls occupy their slots at all times
+ * (opacity toggles), so hover never shifts the row. Remove flows through the
+ * shared confirmation dialog in Sidebar.
+ */
 export const SidebarProjectItem = memo(function SidebarProjectItem({
   project,
   expanded,
@@ -53,6 +71,11 @@ export const SidebarProjectItem = memo(function SidebarProjectItem({
     setValue(project.displayName);
   };
 
+  const beginRename = () => {
+    setValue(project.displayName);
+    setRenaming(true);
+  };
+
   return (
     <div
       className={cn(
@@ -65,10 +88,7 @@ export const SidebarProjectItem = memo(function SidebarProjectItem({
       <div
         className="project-row flex min-w-0 cursor-pointer items-center gap-1 rounded-lg py-[5px] pr-1 pl-1 text-[12.5px] font-medium transition-colors select-none hover:bg-surface-hover/70"
         onClick={onSelect}
-        onDoubleClick={() => {
-          setRenaming(true);
-          setValue(project.displayName);
-        }}
+        onDoubleClick={() => beginRename()}
       >
         <button
           className="project-chevron grid size-5 shrink-0 cursor-pointer place-items-center rounded-md text-muted transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
@@ -125,18 +145,6 @@ export const SidebarProjectItem = memo(function SidebarProjectItem({
             className="conversation-actions project-actions flex shrink-0 items-center gap-0.5 opacity-0 pointer-events-none transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
             onClick={(event) => event.stopPropagation()}
           >
-            {folderMissing && (
-              <Tip content={t("sidebar.locateFolder")}>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label={t("sidebar.locateFolder")}
-                  onClick={onLocate}
-                >
-                  <FolderSearch size={12} />
-                </Button>
-              </Tip>
-            )}
             <Tip content={t("sidebar.newTask")}>
               <Button
                 variant="ghost"
@@ -147,50 +155,45 @@ export const SidebarProjectItem = memo(function SidebarProjectItem({
                 <Plus size={12} />
               </Button>
             </Tip>
-            <Tip content={t("sidebar.permission")}>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                aria-label={t("sidebar.permission")}
-                onClick={onPermission}
-              >
-                <ShieldCheck size={12} />
-              </Button>
-            </Tip>
-            <Tip content={project.pinned ? t("sidebar.unpin") : t("sidebar.pin")}>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                aria-label={project.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
-                onClick={onTogglePin}
-              >
-                <Pin size={12} />
-              </Button>
-            </Tip>
-            <Tip content={t("sidebar.rename")}>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                aria-label={t("sidebar.rename")}
-                onClick={() => {
-                  setRenaming(true);
-                  setValue(project.displayName);
-                }}
-              >
-                <Pencil size={12} />
-              </Button>
-            </Tip>
-            <Tip content={t("sidebar.removeProject")}>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                className="conversation-delete hover:text-danger"
-                aria-label={t("sidebar.removeProject")}
-                onClick={onRemove}
-              >
-                <Trash2 size={13} />
-              </Button>
-            </Tip>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={t("sidebar.more")}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <Ellipsis size={13} />
+                  </Button>
+                }
+              />
+              <DropdownMenuContent side="bottom" align="end" className="min-w-44">
+                <DropdownMenuItem onClick={onPermission}>
+                  <ShieldCheck aria-hidden="true" />
+                  {t("sidebar.permission")}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onTogglePin}>
+                  <Pin aria-hidden="true" />
+                  {project.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={beginRename}>
+                  <Pencil aria-hidden="true" />
+                  {t("sidebar.rename")}
+                </DropdownMenuItem>
+                {folderMissing && (
+                  <DropdownMenuItem onClick={onLocate}>
+                    <FolderSearch aria-hidden="true" />
+                    {t("sidebar.locateFolder")}
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem destructive onClick={onRemove}>
+                  <Trash2 aria-hidden="true" />
+                  {t("sidebar.removeProject")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         )}
       </div>

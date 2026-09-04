@@ -1,0 +1,246 @@
+/* Local identity & avatar: upload tile, crop dialog, palette swatches. */
+
+.identity-avatar-upload {
+  position: relative;
+  display: grid;
+  width: 80px;
+  height: 80px;
+  overflow: hidden;
+  place-items: center;
+  padding: 0;
+  border: 2px solid var(--surface);
+  border-radius: 22px;
+  outline: 1px solid var(--border-strong);
+  color: white;
+  cursor: pointer;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.identity-avatar-upload:hover,
+.identity-avatar-upload:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.identity-avatar-upload img,
+.sidebar-identity-avatar img,
+.message-user .message-role-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.identity-avatar-upload i {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  border: 2px solid var(--surface);
+  border-radius: 8px;
+  background: var(--foreground);
+  color: var(--background);
+  font-style: normal;
+}
+
+.avatar-crop-dialog {
+  width: min(470px, calc(100vw - 40px));
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 24px 70px color-mix(in srgb, black 24%, transparent);
+}
+
+.avatar-crop-dialog > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 17px 18px 15px;
+  border-bottom: 1px solid var(--border);
+}
+
+.avatar-crop-dialog h4,
+.avatar-crop-dialog p {
+  margin: 0;
+}
+
+.avatar-crop-dialog h4 {
+  font-size: 14px;
+  font-weight: 680;
+}
+
+.avatar-crop-dialog header p {
+  margin-top: 5px;
+  color: var(--muted-foreground);
+  font-size: 9.5px;
+  line-height: 1.5;
+}
+
+.avatar-crop-dialog header button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.avatar-crop-dialog header button:hover {
+  background: var(--surface-hover);
+  color: var(--foreground);
+}
+
+.avatar-crop-stage {
+  position: relative;
+  height: 320px;
+  background: var(--background);
+}
+
+.avatar-crop-controls {
+  display: grid;
+  grid-template-columns: auto auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 18px;
+  border-top: 1px solid var(--border);
+  color: var(--muted-foreground);
+}
+
+.avatar-crop-controls label {
+  color: var(--foreground);
+  font-size: 9.5px;
+  font-weight: 620;
+}
+
+.avatar-crop-controls input[type="range"] {
+  width: 100%;
+  accent-color: var(--primary);
+}
+
+.avatar-crop-error {
+  padding: 0 18px 10px;
+  color: var(--danger);
+  font-size: 9px;
+}
+
+.avatar-crop-dialog > footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+}
+
+.avatar-crop-dialog > footer button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 620;
+}
+
+@media (max-width: 640px) {
+  .avatar-crop-dialog {
+    width: 100vw;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 14px 14px 0 0;
+  }
+  .avatar-crop-stage {
+    height: min(92vw, 390px);
+  }
+}
+
+.sidebar-identity-avatar {
+  display: grid;
+  place-items: center;
+  color: white;
+  font-weight: 680;
+}
+
+.sidebar-identity-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.sidebar-identity-copy strong,
+.sidebar-identity-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-identity-copy strong {
+  font-size: 10px;
+}
+
+.sidebar-identity-copy small {
+  color: var(--muted-foreground);
+  font-size: 8.5px;
+}
+
+.avatar-sage {
+  background: #507467;
+}
+
+.avatar-ocean {
+  background: #426e8f;
+}
+
+.avatar-clay {
+  background: #9b5c4f;
+}
+
+.avatar-gold {
+  background: #9a772e;
+}
+
+.avatar-slate {
+  background: #596372;
+}
+
+.avatar-color-field {
+  display: grid;
+  gap: 7px;
+}
+
+.avatar-color-field > span {
+  font-size: 9.5px;
+  font-weight: 620;
+}
+
+.avatar-color-field > div {
+  display: flex;
+  gap: 7px;
+}
+
+.avatar-color-option {
+  width: 25px;
+  height: 25px;
+  padding: 0;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  outline: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.avatar-color-option.active {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}

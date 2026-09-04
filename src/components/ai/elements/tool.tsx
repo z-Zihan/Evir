@@ -10,7 +10,9 @@
  * - the upstream CodeBlock dependency is rendered as a styled <pre> (Evir's
  *   syntax-highlighted CodeBlockView is reserved for chat/code artifacts);
  * - the default "Running/Pending/…" labels stay in English: Evir passes
- *   localized titles via props at the adapter layer.
+ *   localized titles via props at the adapter layer;
+ * - status icon colors use Evir semantic tokens (warning/primary/success/
+ *   danger) instead of the upstream raw palette.
  */
 
 import { Badge } from "../../ui/badge";
@@ -62,13 +64,13 @@ const statusLabels: Record<ToolPart["state"], string> = {
 };
 
 const statusIcons: Record<ToolPart["state"], ReactNode> = {
-  "approval-requested": <ClockIcon className="size-4 text-yellow-600" />,
-  "approval-responded": <CheckCircleIcon className="size-4 text-blue-600" />,
+  "approval-requested": <ClockIcon className="size-4 text-warning" />,
+  "approval-responded": <CheckCircleIcon className="size-4 text-primary" />,
   "input-available": <ClockIcon className="size-4 animate-pulse" />,
   "input-streaming": <CircleIcon className="size-4" />,
-  "output-available": <CheckCircleIcon className="size-4 text-green-600" />,
+  "output-available": <CheckCircleIcon className="size-4 text-success" />,
   "output-denied": <XCircleIcon className="size-4 text-orange-600" />,
-  "output-error": <XCircleIcon className="size-4 text-red-600" />,
+  "output-error": <XCircleIcon className="size-4 text-danger" />,
 };
 
 export const getStatusBadge = (status: ToolPart["state"]) => (

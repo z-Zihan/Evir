@@ -306,7 +306,7 @@ export function ChatComposer({
           onChange={(e) => onInputChange(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={streaming}
-          className="max-h-[200px] min-h-[52px] w-full resize-none bg-transparent px-3.5 py-3 text-[13.5px] leading-relaxed text-foreground outline-none placeholder:text-muted disabled:opacity-60"
+          className="max-h-[200px] min-h-[52px] px-3.5 py-3 text-[13.5px] leading-relaxed text-foreground placeholder:text-muted disabled:opacity-60"
         />
         <PromptInputFooter>
           <PromptInputTools>

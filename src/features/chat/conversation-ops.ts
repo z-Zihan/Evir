@@ -1,6 +1,6 @@
 import type { StoreApi } from "zustand";
 import type { ConversationRecord, MessageRecord } from "../../core/storage/db";
-import type { ChatState } from "./chat-store";
+import type { ChatState } from "./chat-contracts";
 import { getStructuredStorage } from "../../runtime/structured-storage";
 import type { AgentRunRecord } from "./agent-run-record";
 import type { MemoryRecord } from "../../core/memory/types";

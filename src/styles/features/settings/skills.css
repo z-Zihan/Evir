@@ -1,0 +1,71 @@
+/* Skills library: list items, risk/source badges, enable toggle. */
+
+.skill-item {
+  display: grid;
+  min-height: 72px;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--background) 20%, var(--surface));
+}
+
+.skill-item + .skill-item {
+  border-top: 1px solid var(--border);
+}
+
+.skill-item.enabled {
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--primary) 76%, transparent);
+}
+
+.skill-toggle {
+  display: block !important;
+}
+
+.skill-item {
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.skill-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.skill-toggle input[type="checkbox"] {
+  appearance: none;
+  width: 36px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  background: var(--border-strong);
+  position: relative;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.skill-toggle input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-full);
+  background: white;
+  transition: transform var(--transition-fast);
+}
+
+.skill-toggle input[type="checkbox"]:checked {
+  background: var(--success);
+}
+
+.skill-toggle input[type="checkbox"]:checked::after {
+  transform: translateX(16px);
+}

@@ -1,5 +1,4 @@
 import type { MessageRecord } from "../storage/db";
-import type { Checkpoint } from "./checkpoint";
 
 export interface RunCapsule {
   objective: string;
@@ -10,6 +9,14 @@ export interface RunCapsule {
   errors: string[];
   lastVerificationEvidence: string[];
   createdAt: number;
+}
+
+/** The only checkpoint field this module consumes. Structural instead of the
+ * concrete Checkpoint type so the capsule stays a leaf (§circular-dependency
+ * governance: checkpoint.ts depends on run-capsule, never the reverse). */
+interface CapsuleSeed {
+  objective?: string;
+  [key: string]: unknown;
 }
 
 const CONSTRAINT_MARKERS = ["must not", "must", "don't", "不要", "必须"];
@@ -33,7 +40,7 @@ function pendingApprovalOf(msg: MessageRecord): unknown {
  * summaries (narrative). Optionally seeded with a Checkpoint's objective when
  * no user message is available yet.
  */
-export function buildRunCapsule(messages: MessageRecord[], checkpoint?: Checkpoint): RunCapsule {
+export function buildRunCapsule(messages: MessageRecord[], checkpoint?: CapsuleSeed): RunCapsule {
   const now = Date.now();
 
   const firstUserMessage = messages.find((msg) => msg.role === "user");

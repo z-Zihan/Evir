@@ -1,0 +1,288 @@
+/* Usage insights: metric cards, charts, heatmap, per-model bars. */
+
+.usage-metrics {
+  display: grid;
+  overflow: hidden;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--background) 34%, var(--surface));
+}
+
+.usage-metric {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 92px;
+  align-content: center;
+  justify-items: center;
+  padding: 13px 8px;
+  text-align: center;
+}
+
+.usage-metric + .usage-metric::before {
+  position: absolute;
+  top: 18px;
+  bottom: 18px;
+  left: 0;
+  width: 1px;
+  background: var(--border);
+  content: "";
+}
+
+.usage-metric svg {
+  margin-bottom: 7px;
+  color: var(--muted-foreground);
+}
+
+.usage-metric strong {
+  overflow: hidden;
+  max-width: 100%;
+  color: var(--foreground);
+  font-size: clamp(15px, 2vw, 20px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 590;
+  letter-spacing: -0.025em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usage-metric span {
+  margin-top: 3px;
+  color: var(--muted-foreground);
+  font-size: 9.5px;
+}
+
+.usage-chart-wrap {
+  padding: 10px 13px 5px;
+}
+
+.usage-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.usage-grid-line {
+  stroke: var(--border);
+  stroke-width: 0.8;
+  stroke-dasharray: 2 5;
+}
+
+.usage-bar {
+  fill: color-mix(in srgb, var(--primary) 70%, var(--surface));
+  opacity: 0.86;
+}
+
+.usage-line-halo,
+.usage-line {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.usage-line-halo {
+  stroke: color-mix(in srgb, var(--primary) 12%, transparent);
+  stroke-width: 8;
+}
+
+.usage-line {
+  stroke: var(--primary);
+  stroke-width: 2;
+}
+
+.usage-axis-label {
+  fill: var(--muted-foreground);
+  font-family: var(--font-sans);
+  font-size: 8px;
+}
+
+.usage-streak-note {
+  flex: 0 0 auto;
+  color: var(--muted-foreground);
+  font-size: 9.5px;
+}
+
+.usage-heatmap-scroll {
+  overflow: hidden;
+  padding: 14px 13px 13px;
+}
+
+.usage-months {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  height: 18px;
+}
+
+.usage-months span {
+  position: absolute;
+  color: var(--muted-foreground);
+  font-size: 8px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.usage-months span:first-child {
+  transform: none;
+}
+
+.usage-heatmap {
+  display: grid;
+  width: 100%;
+  grid-auto-flow: column;
+  grid-template-columns: repeat(53, minmax(0, 1fr));
+  grid-template-rows: repeat(7, auto);
+  gap: clamp(1px, 0.28vw, 3px);
+}
+
+.usage-day {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--border) 54%, transparent);
+}
+
+.usage-day.level-1 {
+  background: color-mix(in srgb, var(--primary) 20%, var(--surface));
+}
+
+.usage-day.level-2 {
+  background: color-mix(in srgb, var(--primary) 40%, var(--surface));
+}
+
+.usage-day.level-3 {
+  background: color-mix(in srgb, var(--primary) 66%, var(--surface));
+}
+
+.usage-day.level-4 {
+  background: var(--primary);
+}
+
+.model-usage-list {
+  padding: 2px 13px;
+}
+
+.model-usage-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.9fr) minmax(100px, 1.4fr) minmax(150px, 0.8fr);
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+}
+
+.model-usage-row + .model-usage-row {
+  border-top: 1px solid var(--border);
+}
+
+.model-usage-name {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 8px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+}
+
+.model-signal {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 10%, transparent);
+}
+
+.model-usage-name strong {
+  overflow: hidden;
+  font-size: 10.5px;
+  font-weight: 620;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-usage-name > span:last-child {
+  display: inline-flex;
+  grid-column: 2;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted-foreground);
+  font-size: 9px;
+}
+
+.model-usage-bar {
+  overflow: hidden;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--border);
+}
+
+.model-usage-bar span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+  transform-origin: left;
+}
+
+.model-usage-values {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+  color: var(--muted-foreground);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.model-usage-values strong {
+  color: var(--foreground);
+  font-size: 11px;
+}
+
+.model-usage-values span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+@media (max-width: 640px) {
+  .usage-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .usage-metric:last-child {
+    grid-column: 1 / -1;
+  }
+  .usage-metric:nth-child(3)::before,
+  .usage-metric:nth-child(5)::before {
+    display: none;
+  }
+  .usage-metric:nth-child(n + 3) {
+    border-top: 1px solid var(--border);
+  }
+  .model-usage-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 12px;
+  }
+  .model-usage-bar {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .model-usage-values {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .model-usage-values span {
+    display: none;
+  }
+  .usage-heatmap-scroll {
+    padding-right: 9px;
+    padding-left: 9px;
+  }
+  .usage-months span:nth-child(even) {
+    display: none;
+  }
+  .usage-day {
+    border-radius: 1px;
+  }
+}

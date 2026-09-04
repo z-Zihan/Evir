@@ -1,6 +1,6 @@
 import type { MessageRecord } from "../../core/storage/db";
 import type { AgentLoopTurn } from "./agent-loop";
-import type { ChatState } from "./chat-store";
+import type { ChatState } from "./chat-contracts";
 
 export function toMessage(
   turn: AgentLoopTurn,

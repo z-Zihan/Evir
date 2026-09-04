@@ -424,7 +424,8 @@ test("conversation rename, pin, persistence, and delete form a complete loop", a
   await seedFixture(page, { messages: agentMessages("complete") });
   let row = page.locator(".conversation-item", { hasText: "Quality verification" });
   await row.hover();
-  await row.getByRole("button", { name: "Rename" }).click();
+  await row.getByRole("button", { name: "More actions" }).click();
+  await page.getByRole("menuitem", { name: "Rename" }).click();
   const rename = page.locator(".conversation-item.active .rename-input");
   await rename.fill("Renamed verification");
   await rename.press("Enter");
@@ -432,15 +433,23 @@ test("conversation rename, pin, persistence, and delete form a complete loop", a
   await expect(row).toBeVisible();
 
   await row.hover();
-  await row.getByRole("button", { name: "Pin" }).click();
+  await row.getByRole("button", { name: "More actions" }).click();
+  await page.getByRole("menuitem", { name: "Pin" }).click();
   row = page.locator(".conversation-item", { hasText: "Renamed verification" });
-  await expect(row.getByRole("button", { name: "Unpin" })).toBeAttached();
+  await row.hover();
+  await row.getByRole("button", { name: "More actions" }).click();
+  await expect(page.getByRole("menuitem", { name: "Unpin" })).toBeAttached();
+  await page.keyboard.press("Escape");
   await page.reload();
   row = page.locator(".conversation-item", { hasText: "Renamed verification" });
-  await expect(row.getByRole("button", { name: "Unpin" })).toBeAttached();
+  await row.hover();
+  await row.getByRole("button", { name: "More actions" }).click();
+  await expect(page.getByRole("menuitem", { name: "Unpin" })).toBeAttached();
+  await page.keyboard.press("Escape");
 
   await row.hover();
-  await row.getByRole("button", { name: "Delete" }).click();
+  await row.getByRole("button", { name: "More actions" }).click();
+  await page.getByRole("menuitem", { name: "Delete" }).click();
   const confirmation = page.getByRole("alertdialog", { name: "Delete this item?" });
   await expect(confirmation).toBeVisible();
   await confirmation.getByRole("button", { name: "Delete", exact: true }).click();
@@ -760,6 +769,67 @@ test("token usage lives in Usage settings instead of the composer", async ({ pag
   );
 });
 
+test("reported binary outputs are attributed to their run and listed in Outputs", async ({
+  page,
+}, testInfo) => {
+  test.skip(!isDesktop(testInfo), "Desktop Agent UI only");
+  await configurePage(page);
+  await seedFixture(page, { messages: agentMessages("complete") });
+  await page.evaluate(async () => {
+    localStorage.setItem("evir-workspace", JSON.stringify(["/tmp/evir-fixture"]));
+    localStorage.setItem("evir-workspace-current", "/tmp/evir-fixture");
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("evir");
+      request.onerror = () => reject(request.error ?? new Error("Unable to open Evir test DB"));
+      request.onsuccess = () => resolve(request.result);
+    });
+    const transaction = database.transaction(["agentRuns"], "readwrite");
+    transaction.objectStore("agentRuns").put({
+      id: "agent-run-reported-output",
+      conversationId: "fixture-conversation",
+      status: "completed",
+      // A script produced a binary deliverable; the agent registered it via
+      // report_output (the executor verified the file exists).
+      toolCalls: [
+        { id: "run-tool-9", toolName: "report_output", arguments: { path: "photo.png" } },
+      ],
+      toolResults: [
+        {
+          toolCallId: "run-tool-9",
+          toolName: "report_output",
+          success: true,
+          output: JSON.stringify({
+            reported: true,
+            path: "/tmp/evir-fixture/photo.png",
+            size: 1024,
+          }),
+        },
+      ],
+      snapshots: [],
+      fileReferences: [],
+      verificationEvidence: [],
+      resolution: { complete: true, reason: "Verified" },
+      maxIterationsReached: false,
+      createdAt: Date.parse("2026-09-03T09:00:00+08:00"),
+      updatedAt: Date.parse("2026-09-03T09:00:00+08:00"),
+    });
+    await new Promise<void>((resolve, reject) => {
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () =>
+        reject(transaction.error ?? new Error("Unable to seed Agent run"));
+    });
+    database.close();
+  });
+  await page.reload();
+  await page.locator(".conversation-item", { hasText: "Quality verification" }).click();
+  await expect(page.getByRole("heading", { name: "Agent Run Summary" })).toBeVisible();
+  await page.getByRole("button", { name: "Open workspace" }).click();
+  await page.getByRole("tab", { name: /Outputs/ }).click();
+  const row = page.locator(".workspace-output-row-primary", { hasText: "photo.png" });
+  await expect(row).toBeVisible();
+  await expect(row.getByText("PNG", { exact: true })).toBeVisible();
+});
+
 test("persisted Agent completion evidence returns after reloading a conversation", async ({
   page,
 }, testInfo) => {
@@ -844,7 +914,8 @@ test("persisted Agent completion evidence returns after reloading a conversation
 
   const row = page.locator(".conversation-item", { hasText: "Quality verification" });
   await row.hover();
-  await row.getByRole("button", { name: "Delete" }).click();
+  await row.getByRole("button", { name: "More actions" }).click();
+  await page.getByRole("menuitem", { name: "Delete" }).click();
   await page
     .getByRole("alertdialog", { name: "Delete this item?" })
     .getByRole("button", { name: "Delete", exact: true })

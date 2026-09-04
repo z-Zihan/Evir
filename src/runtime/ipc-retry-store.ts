@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import type { IpcCorrelation } from "./desktop-storage-adapter";
+import type { IpcCorrelation } from "./ipc-correlation";
 
 /**
  * Live view of in-flight read-invoke retries caused by the macOS ipc:// scheme

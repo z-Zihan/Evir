@@ -22,14 +22,6 @@
   }
 }
 
-/* Project actions float above the row so the name can use the full width at */
-
-.project-item.folder-missing:hover .project-name,
-.project-item.folder-missing.active .project-name,
-.project-item.folder-missing:focus-within .project-name {
-  padding-right: 164px;
-}
-
 /* ===== Project permission panel ===== */
 
 .project-permission-panel {

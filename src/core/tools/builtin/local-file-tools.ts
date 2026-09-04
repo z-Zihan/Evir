@@ -476,6 +476,45 @@ async function createDirectory(
   }
 }
 
+// §Output attribution: commands and scripts can produce deliverables the
+// snapshot chain cannot see (a python plot, an exported PDF). The model may
+// register them through this tool, but the registration is only accepted when
+// the file actually exists inside the workspace — the runtime verifies the
+// evidence, never the model's word.
+const reportOutputArgsSchema = z.object({ path: z.string().min(1) }).strict();
+
+async function reportOutput(
+  args: Record<string, unknown>,
+  runtime: EvirRuntime,
+  _signal?: AbortSignal,
+  call?: ToolCallContext,
+): Promise<ToolResult> {
+  if (runtime.target !== "desktop" || !runtime.storage) return unavailable();
+  const parsed = reportOutputArgsSchema.safeParse(args);
+  if (!parsed.success) return toolError(new Error(parsed.error.issues[0]?.message));
+  const safePath = validateWorkspacePath(parsed.data.path, runtime);
+  if (!safePath) return pathBlocked();
+  try {
+    const stat = await runtime.storage.fileStat(safePath, {
+      runId: runtime.agentRun?.id ?? null,
+      ...(call ?? {}),
+    });
+    if (!stat.exists || !stat.is_file) {
+      return {
+        success: false,
+        output: `reported output not found: ${parsed.data.path}`,
+        error: "output_not_found",
+      };
+    }
+    return {
+      success: true,
+      output: JSON.stringify({ reported: true, path: safePath, size: stat.size }, null, 2),
+    };
+  } catch (error) {
+    return toolError(error);
+  }
+}
+
 async function fileStat(
   args: Record<string, unknown>,
   runtime: EvirRuntime,
@@ -713,6 +752,17 @@ export const LOCAL_FILE_TOOLS: readonly ToolDefinition[] = [
     requiredCapability: "filesystem",
     schema: pathJsonSchema,
     execute: fileStat,
+  },
+  {
+    id: "report_output",
+    name: "report_output",
+    description:
+      "Register a file as a task output (deliverable) for this run. Use it after a command or script produced a file the user should find in Outputs. The file must already exist inside the workspace; registration fails otherwise.",
+    source: "evir-local",
+    riskLevel: "L1",
+    requiredCapability: "filesystem",
+    schema: pathJsonSchema,
+    execute: reportOutput,
   },
   {
     id: "create_snapshot",

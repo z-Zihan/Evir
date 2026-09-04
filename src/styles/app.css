@@ -22,6 +22,7 @@
   --color-primary-fg: #ffffff;
   --color-sidebar: #f0f2f4;
   --color-focus: #1769e0;
+  --color-ring: #1769e0;
   --color-success: #167a52;
   --color-danger: #c93632;
   --color-warning: #985600;
@@ -72,6 +73,7 @@
   --color-primary-fg: #ffffff;
   --color-sidebar: #12161b;
   --color-focus: #70a2ff;
+  --color-ring: #70a2ff;
   --color-success: #54c392;
   --color-danger: #ff7770;
   --color-warning: #e7a751;
@@ -104,6 +106,7 @@
   --primary-foreground: var(--color-primary-fg);
   --sidebar: var(--color-sidebar);
   --focus: var(--color-focus);
+  --ring: var(--color-ring);
   --success: var(--color-success);
   --danger: var(--color-danger);
   --warning: var(--color-warning);
@@ -193,12 +196,46 @@ select {
   font: inherit;
 }
 
-button:focus-visible,
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
+/* Shared utilities (moved from the settings feature sheet — consumed across
+ * pages: sr-only by usage/about/shortcuts, table-scroll by MarkdownContent). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+textarea {
+  resize: none;
+  min-height: 44px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.table-scroll {
+  max-width: 100%;
+  margin: var(--space-3) 0;
+  overflow-x: auto;
+}
+
+/* Keyboard focus safety net for controls that don't carry their own focus
+ * treatment. Lives in @layer base so component utilities (e.g. a textarea
+ * inside an InputGroup whose container shows focus) can override it — as an
+ * un-layered rule it outranked every utility and produced the double
+ * browser-blue + container focus ring (§focus-unification). */
+@layer base {
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
 }
 
 /* Scrollbar — low-interference, discoverable, identical geometry in both themes */

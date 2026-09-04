@@ -34,27 +34,9 @@ import {
   type ToolApprovalDetails,
   type ToolSource,
 } from "../../core/providers/tool-registry";
+import type { PendingToolApproval } from "./chat-contracts";
 
-export interface PendingToolApproval {
-  approvalId?: string;
-  toolCallId: string;
-  toolName: string;
-  args: Record<string, unknown>;
-  riskLevel?: RiskLevel;
-  source?: ToolSource;
-  approval?: ToolApprovalDetails;
-  conversationId: string;
-  messages: AgentMessage[];
-  providerId: string;
-  turn: AgentLoopTurn;
-  agentRun: AgentRunContext;
-  mode?: "plan" | "goal" | "agent";
-  allowedToolIds?: string[];
-  orchestration?: { runId: string; nodeId: string };
-  remainingApprovals?: PendingToolApproval[];
-  /** Workspace root captured by the originating run; continuations rebind to it. */
-  workspaceRoot?: string | null;
-}
+export type { PendingToolApproval };
 
 export interface ApprovalRecord {
   id: string;

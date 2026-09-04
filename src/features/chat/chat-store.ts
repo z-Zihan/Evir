@@ -1,25 +1,15 @@
 import { create } from "zustand";
 // NOTE: Uses Dexie directly for indexed queries; StoragePort covers basic CRUD
-import type { AttachmentRecord, ConversationRecord, MessageRecord } from "../../core/storage/db";
+import type { AttachmentRecord } from "../../core/storage/db";
 import { stopActiveStream } from "./chat-stream";
-import type { InteractionMode } from "../../core/providers/tool-registry";
-import {
-  processFile,
-  validateAttachmentCount,
-  type ProcessedAttachment,
-  AttachmentError,
-} from "./attachment-utils";
+
+import { processFile, validateAttachmentCount, AttachmentError } from "./attachment-utils";
 import { sendChatMessage } from "./send-message";
 import { streamResponse } from "./stream-response";
 import { getRuntime } from "../../runtime/use-runtime";
 import { branchConversation as doBranchConversation } from "./branch-conversation";
 import { onProjectRemoved } from "../projects/project-events";
-import {
-  approveTool,
-  cancelPendingToolApprovals,
-  denyTool,
-  type PendingToolApproval,
-} from "./tool-approval";
+import { approveTool, cancelPendingToolApprovals, denyTool } from "./tool-approval";
 import {
   bumpStreamEpoch,
   beginPreparation,
@@ -41,81 +31,11 @@ import {
 import { getStructuredStorage } from "../../runtime/structured-storage";
 import { cancelTaskPreparation } from "../orchestration/orchestration-session";
 import { logger } from "../../core/logging/logger";
-import type { AgentRunRecord } from "./agent-run-record";
 import { useSkillStore } from "../skills/skill-store";
 
-/** Live run state for ONE conversation — the unit of multi-task isolation. */
-export interface StreamSlot {
-  conversationId: string;
-  /** "preparing" covers the intake/plan round trips before any tokens stream. */
-  phase: "preparing" | "streaming";
-  /** Wall-clock of beginConversationStream; null while preparing. */
-  startedAt: number | null;
-  /** Latest streamed content — survives switching away and back. */
-  content: string;
-}
+export type { ChatState, PendingToolApproval, StreamSlot } from "./chat-contracts";
+import type { ChatState } from "./chat-contracts";
 
-export interface ChatState {
-  conversations: ConversationRecord[];
-  currentConversationId: string | null;
-  messages: MessageRecord[];
-  mode: InteractionMode;
-  isStreaming: boolean;
-  activeStreamConversationId: string | null;
-  activeStreamStartedAt: number | null;
-  /** Incremented on every stop so in-flight preparation sends can detect cancellation. */
-  streamEpoch: number;
-  streamingContent: string;
-  error: string | null;
-  pendingAttachments: ProcessedAttachment[];
-  pendingToolApproval: PendingToolApproval | null;
-  privateSession: boolean;
-  privateConversationId: string | null;
-  latestAgentRun: AgentRunRecord | null;
-  selectedSkillIds: Set<string>;
-  /** Source of truth for concurrent runs, keyed by conversationId. */
-  streamSlots: Record<string, StreamSlot>;
-  /** Per-conversation stop epochs (the global streamEpoch is kept for logging only). */
-  streamEpochs: Record<string, number>;
-  /** Pending tool approvals keyed by conversationId; the flat field mirrors the viewed one. */
-  pendingApprovals: Record<string, PendingToolApproval>;
-  /** Last settled outcome per conversation (background runs included) for sidebar status. */
-  runOutcomes: Record<string, { status: "completed" | "failed" | "stopped"; at: number }>;
-  /** Wall-clock of the last time each conversation was viewed (unread dots). */
-  conversationViewedAt: Record<string, number>;
-  loadConversations: () => Promise<void>;
-  createConversation: (
-    providerId: string,
-    modelId: string,
-    projectId?: string | null,
-  ) => Promise<string>;
-  createOrReuseConversation: (
-    providerId: string,
-    modelId: string,
-    projectId?: string | null,
-  ) => Promise<string>;
-  selectConversation: (id: string) => Promise<void>;
-  deleteConversation: (id: string) => Promise<void>;
-  renameConversation: (id: string, title: string) => Promise<void>;
-  togglePin: (id: string) => Promise<void>;
-  updateConversationProvider: (providerId: string, modelId: string) => Promise<void>;
-  /** Resolves after the run settles; onAccepted fires once the user message is safely accepted. */
-  sendMessage: (text: string, onAccepted?: () => void) => Promise<boolean>;
-  regenerate: () => Promise<void>;
-  editMessage: (messageId: string, newContent: string) => Promise<void>;
-  /** Stops ONE conversation's run (defaults to the viewed conversation); others keep running. */
-  stopGeneration: (conversationId?: string) => void;
-  addAttachment: (file: File) => Promise<void>;
-  removeAttachment: (id: string) => void;
-  clearAttachments: () => void;
-  setMode: (mode: InteractionMode) => void;
-  togglePrivateSession: () => void;
-  approveTool: () => Promise<void>;
-  denyTool: () => Promise<void>;
-  branchConversation: (messageId: string) => Promise<string>;
-  toggleSelectedSkill: (id: string) => void;
-  clearSelectedSkills: () => void;
-}
 export const useChatStore = create<ChatState>((set, get) => ({
   conversations: [],
   currentConversationId: null,

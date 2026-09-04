@@ -20,9 +20,9 @@ import {
   toolResultWireMessages,
 } from "./agent-loop";
 import type { StreamResult } from "./chat-stream";
-import type { ChatState } from "./chat-store";
+import type { ChatState } from "./chat-contracts";
 import { toMessage, sorted } from "./chat-helpers";
-import type { PendingToolApproval } from "./tool-approval";
+import type { PendingToolApproval } from "./chat-contracts";
 import { getStructuredStorage } from "../../runtime/structured-storage";
 import { logger } from "../../core/logging/logger";
 import {

@@ -9,7 +9,7 @@ import {
   toolResultWireMessages,
   type AgentLoopResult,
 } from "./agent-loop";
-import type { ChatState } from "./chat-store";
+import type { ChatState } from "./chat-contracts";
 import {
   createActiveTaskController,
   providerReadinessError,
