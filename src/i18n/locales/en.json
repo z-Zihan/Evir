@@ -1324,5 +1324,28 @@
     "failed": "Something went wrong",
     "copySuccess": "Copied",
     "copyFailed": "Copy failed"
+  },
+  "canvas": {
+    "loading": "Loading canvas…",
+    "loadFailed": "Could not load the canvas document",
+    "region": "Canvas: {{title}}",
+    "summary": "{{nodes}} nodes · {{edges}} links",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "saveFailed": "Save failed",
+    "fit": "Fit view",
+    "export": "Export JSON",
+    "openCard": "Open Canvas",
+    "nodeType": {
+      "note": "Note",
+      "task": "Task",
+      "resource": "Resource",
+      "decision": "Decision"
+    },
+    "nodeStatus": {
+      "todo": "To do",
+      "doing": "In progress",
+      "done": "Done"
+    }
   }
 }

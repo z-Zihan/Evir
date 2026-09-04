@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ComponentRuntime } from "../../core/components/component-runtime";
 import { LOCAL_FILE_TOOLS } from "../../core/tools/builtin/local-file-tools";
 import { BROWSER_TOOLS } from "../../core/tools/builtin/browser-tools";
+import { CANVAS_TOOLS } from "../../core/tools/builtin/canvas-tools";
 import { createToolRegistry } from "../../core/tools/tool-registry-impl";
 import { BUILTIN_TOOL_COMPONENTS } from "../components/builtin-tool-components";
 
@@ -26,7 +27,9 @@ describe("built-in tool components", () => {
   it("preserves the complete Desktop tool set through component assembly", () => {
     const { componentRuntime, toolRegistry } = registerBuiltins("desktop");
 
-    const expected = [...LOCAL_FILE_TOOLS, ...BROWSER_TOOLS].map(({ id }) => id).sort();
+    const expected = [...LOCAL_FILE_TOOLS, ...CANVAS_TOOLS, ...BROWSER_TOOLS]
+      .map(({ id }) => id)
+      .sort();
     expect(
       toolRegistry
         .list()

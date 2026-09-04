@@ -42,8 +42,20 @@ export interface ScreenshotResource {
   label?: string | undefined;
 }
 
+export interface CanvasResource {
+  kind: "canvas";
+  /** Absolute path of a .evir-canvas document inside the workspace root. */
+  path: string;
+  title?: string | undefined;
+}
+
 export type WorkspaceResource =
-  FileResource | DiffResource | ArtifactResource | UrlResource | ScreenshotResource;
+  | FileResource
+  | DiffResource
+  | ArtifactResource
+  | UrlResource
+  | ScreenshotResource
+  | CanvasResource;
 
 export const fileResourceSchema = z.object({
   kind: z.literal("file"),
@@ -76,12 +88,19 @@ export const screenshotResourceSchema = z.object({
   label: z.string().optional(),
 });
 
+export const canvasResourceSchema = z.object({
+  kind: z.literal("canvas"),
+  path: z.string().min(1),
+  title: z.string().optional(),
+});
+
 export const workspaceResourceSchema = z.discriminatedUnion("kind", [
   fileResourceSchema,
   diffResourceSchema,
   artifactResourceSchema,
   urlResourceSchema,
   screenshotResourceSchema,
+  canvasResourceSchema,
 ]);
 
 /** Validate untrusted (tool-derived or persisted) resource payloads. */
@@ -103,6 +122,8 @@ export function workspaceResourceKey(resource: WorkspaceResource): string {
       return `url:${resource.uri}`;
     case "screenshot":
       return `screenshot:${resource.path}`;
+    case "canvas":
+      return `canvas:${resource.path}`;
   }
 }
 
@@ -120,5 +141,7 @@ export function workspaceResourceTitle(resource: WorkspaceResource): string {
       return resource.uri.replace(/^https?:\/\//, "").slice(0, 60);
     case "screenshot":
       return resource.label ?? "screenshot.png";
+    case "canvas":
+      return resource.title ?? resource.path.split(/[\\/]/).pop() ?? resource.path;
   }
 }

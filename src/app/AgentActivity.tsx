@@ -8,6 +8,7 @@ import {
   Globe,
   ShieldAlert as ShieldAlertIcon,
   SquareTerminal,
+  Workflow,
   Wrench,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -31,6 +32,7 @@ import {
   TOOL_PERMISSION_REQUIRED,
 } from "../core/tools/tool-executor";
 import { useChatStore } from "../features/chat/chat-store";
+import { useWorkspacePanelStore } from "../features/workspace/workspace-panel-store";
 import { groupSummary, groupToolCalls, type ToolGroupKind } from "./agent-activity-groups";
 
 interface AgentActivityProps {
@@ -67,6 +69,37 @@ function getArgumentSummary(call: ToolCallRecord): string {
     if (typeof key === "string") return key;
   }
   return "";
+}
+
+/** §77: canvas tools surface an "Open Canvas" card — never an inline canvas. */
+function canvasPathFromRecords(
+  call: ToolCallRecord,
+  result: ToolResultRecord | undefined,
+): string | null {
+  if (call.toolName !== "create_canvas" && call.toolName !== "update_canvas") return null;
+  if (!result?.success) return null;
+  try {
+    const payload = JSON.parse(result.output || "{}") as { path?: unknown };
+    return typeof payload.path === "string" && payload.path.length > 0 ? payload.path : null;
+  } catch {
+    return null;
+  }
+}
+
+function OpenCanvasCard({ path }: { path: string }) {
+  const { t } = useTranslation();
+  const openResource = useWorkspacePanelStore((state) => state.openResource);
+  return (
+    <button
+      type="button"
+      className="open-canvas-card mt-0.5 flex w-fit cursor-pointer items-center gap-1.5 rounded-lg border border-primary/35 bg-primary/[0.05] px-2 py-1 text-[11.5px] font-medium text-primary transition-colors hover:bg-primary/[0.09] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
+      onClick={() => openResource({ kind: "canvas", path })}
+    >
+      <Workflow size={13} aria-hidden="true" />
+      {t("canvas.openCard")}
+      <span className="max-w-44 truncate font-normal opacity-75">{path.split("/").pop()}</span>
+    </button>
+  );
 }
 
 function GroupIcon({ kind }: { kind: ToolGroupKind }) {
@@ -251,21 +284,24 @@ export function AgentActivity({
                     const toolName = i18n.exists(toolKey) ? t(toolKey) : call.toolName;
                     const summaryText = getArgumentSummary(call);
                     const statusLabelRow = toolStatusLabel(toolStatus, t, result);
+                    const canvasPath = canvasPathFromRecords(call, result);
                     return (
-                      <ToolRow
-                        key={call.id}
-                        status={toolStatus}
-                        name={toolName}
-                        detail={summaryText}
-                        detailTitle={summaryText}
-                        statusLabel={
-                          <>
-                            {resolvedLabel ?? statusLabelRow}
-                            {result?.durationMs !== undefined &&
-                              ` · ${(result.durationMs / 1000).toFixed(1)}s`}
-                          </>
-                        }
-                      />
+                      <div key={call.id} className="flex min-w-0 flex-col">
+                        <ToolRow
+                          status={toolStatus}
+                          name={toolName}
+                          detail={summaryText}
+                          detailTitle={summaryText}
+                          statusLabel={
+                            <>
+                              {resolvedLabel ?? statusLabelRow}
+                              {result?.durationMs !== undefined &&
+                                ` · ${(result.durationMs / 1000).toFixed(1)}s`}
+                            </>
+                          }
+                        />
+                        {canvasPath && <OpenCanvasCard path={canvasPath} />}
+                      </div>
                     );
                   })}
                 </ToolGroupCalls>

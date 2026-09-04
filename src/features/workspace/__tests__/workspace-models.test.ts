@@ -33,6 +33,30 @@ function snapshot(path: string, existed: boolean): SnapshotResult {
 
 const CONTEXT = { runId: "run-1", conversationId: "c-1" };
 
+describe("canvas workspace resources", () => {
+  it("keys and titles canvas resources", async () => {
+    const { workspaceResourceKey, workspaceResourceTitle } = await import("../resource-model");
+    expect(workspaceResourceKey({ kind: "canvas", path: "/tmp/p/b.evir-canvas" })).toBe(
+      "canvas:/tmp/p/b.evir-canvas",
+    );
+    expect(
+      workspaceResourceTitle({ kind: "canvas", path: "/tmp/p/b.evir-canvas", title: "看板" }),
+    ).toBe("看板");
+    expect(workspaceResourceTitle({ kind: "canvas", path: "/tmp/p/b.evir-canvas" })).toBe(
+      "b.evir-canvas",
+    );
+  });
+
+  it("accepts canvas resources in the resource schema and rejects unknown kinds", async () => {
+    const { parseWorkspaceResource } = await import("../resource-model");
+    expect(parseWorkspaceResource({ kind: "canvas", path: "/tmp/p/b.evir-canvas" })).toEqual({
+      kind: "canvas",
+      path: "/tmp/p/b.evir-canvas",
+    });
+    expect(parseWorkspaceResource({ kind: "holodeck" })).toBeNull();
+  });
+});
+
 describe("workspace resource model", () => {
   it("parses valid resources and rejects malformed ones", () => {
     expect(parseWorkspaceResource({ kind: "file", path: "/tmp/a.txt" })).toEqual({

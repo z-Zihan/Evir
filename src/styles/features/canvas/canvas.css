@@ -1,0 +1,175 @@
+/* Evir canvas view (§75). Loaded only inside the lazy canvas chunk — keep
+   every rule scoped under .canvas-view so nothing leaks into the app shell. */
+
+.canvas-view {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  background: var(--color-surface);
+}
+
+.canvas-view-loading,
+.canvas-view-error {
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.canvas-view-error small {
+  max-width: 420px;
+  overflow-wrap: anywhere;
+  color: var(--color-danger);
+  font-size: 11px;
+}
+
+.canvas-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  padding: 0.5rem 0.75rem;
+}
+
+.canvas-flow-root {
+  flex: 1;
+  min-height: 0;
+}
+
+.canvas-flow-root .react-flow__attribution {
+  display: none;
+}
+
+.canvas-flow-root .react-flow__edge-text {
+  fill: var(--color-muted);
+  font-size: 10px;
+}
+
+.canvas-flow-root .react-flow__edge-textbg {
+  fill: var(--color-surface);
+}
+
+.canvas-flow-root .react-flow__handle {
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid var(--color-border-strong);
+  background: var(--color-surface);
+}
+
+.canvas-flow-root .react-flow__handle-connecting {
+  border-color: var(--color-primary);
+}
+
+/* Node cards: one card per document node type with a shared base. */
+.canvas-card {
+  width: 200px;
+  max-width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 8%);
+  padding: 0.55rem 0.7rem;
+  font-size: 12px;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.canvas-card:hover {
+  border-color: var(--color-border-strong);
+}
+
+.canvas-flow-root .react-flow__node.selected .canvas-card {
+  border-color: var(--color-primary);
+  box-shadow:
+    0 0 0 1.5px color-mix(in srgb, var(--color-primary) 45%, transparent),
+    0 1px 4px rgb(0 0 0 / 10%);
+}
+
+.canvas-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.canvas-card-type {
+  border-radius: 999px;
+  padding: 0 0.4rem;
+  background: var(--color-surface-hover);
+  color: var(--color-muted);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.canvas-card-status {
+  display: inline-flex;
+  color: var(--color-muted);
+}
+
+.canvas-card-status-done {
+  color: var(--color-success);
+}
+
+.canvas-card-status-doing {
+  color: var(--color-primary);
+}
+
+.canvas-card-title {
+  color: var(--color-foreground);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.canvas-card-detail {
+  margin: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
+  color: var(--color-muted);
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+/* Type accents (§74): left rail distinguishes note/task/resource/decision. */
+.canvas-card::before {
+  content: "";
+  position: absolute;
+  inset: 6px auto 6px 0;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--color-border-strong);
+}
+
+.canvas-card {
+  position: relative;
+}
+
+.canvas-card-note::before {
+  background: var(--color-primary);
+}
+
+.canvas-card-task::before {
+  background: var(--color-warning);
+}
+
+.canvas-card-resource::before {
+  background: var(--color-success);
+}
+
+.canvas-card-decision::before {
+  background: var(--color-danger);
+}

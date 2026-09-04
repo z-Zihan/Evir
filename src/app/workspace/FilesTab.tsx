@@ -88,6 +88,11 @@ export function FilesTab() {
   }
 
   const openFile = (path: string) => {
+    // Canvas documents open in the canvas view, not as raw text.
+    if (path.toLowerCase().endsWith(".evir-canvas")) {
+      openResource({ kind: "canvas", path });
+      return;
+    }
     openResource({ kind: "file", path });
   };
 

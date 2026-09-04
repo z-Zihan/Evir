@@ -1323,5 +1323,28 @@
     "failed": "出了点问题",
     "copySuccess": "已复制",
     "copyFailed": "复制失败"
+  },
+  "canvas": {
+    "loading": "正在加载画布…",
+    "loadFailed": "无法加载画布文档",
+    "region": "画布：{{title}}",
+    "summary": "{{nodes}} 个节点 · {{edges}} 条连接",
+    "saving": "保存中…",
+    "saved": "已保存",
+    "saveFailed": "保存失败",
+    "fit": "适配视图",
+    "export": "导出 JSON",
+    "openCard": "打开画布",
+    "nodeType": {
+      "note": "笔记",
+      "task": "任务",
+      "resource": "资源",
+      "decision": "决策"
+    },
+    "nodeStatus": {
+      "todo": "待办",
+      "doing": "进行中",
+      "done": "已完成"
+    }
   }
 }

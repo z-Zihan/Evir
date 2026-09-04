@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FileCode2, FolderSearch, ImageIcon, PackageOpen } from "lucide-react";
+import { FileCode2, FolderSearch, ImageIcon, PackageOpen, Workflow } from "lucide-react";
 import {
   ItemInteractive,
   ItemMedia,
@@ -39,6 +39,7 @@ const TYPE_CHIP: Record<string, string> = {
   mermaid: "MERMAID",
   mmd: "MERMAID",
   dot: "GRAPHVIZ",
+  canvas: "CANVAS",
 };
 
 function typeChip(output: TaskOutput): string {
@@ -46,6 +47,9 @@ function typeChip(output: TaskOutput): string {
 }
 
 function outputIcon(output: TaskOutput) {
+  if (output.kind === "canvas") {
+    return <Workflow size={15} aria-hidden="true" />;
+  }
   if (
     output.kind === "screenshot" ||
     output.type === "png" ||
@@ -80,6 +84,10 @@ function openOutputResource(output: TaskOutput, root: string | null) {
       path: output.path,
       ...(label ? { label } : {}),
     });
+    return;
+  }
+  if (output.kind === "canvas") {
+    withEvent(openResource, { kind: "canvas" as const, path: output.path });
     return;
   }
   const path = resolveWorkspacePath(output.path, root);

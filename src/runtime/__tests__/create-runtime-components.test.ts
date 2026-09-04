@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LOCAL_FILE_TOOLS } from "../../core/tools/builtin/local-file-tools";
 import { BROWSER_TOOLS } from "../../core/tools/builtin/browser-tools";
+import { CANVAS_TOOLS } from "../../core/tools/builtin/canvas-tools";
 import { createRuntime } from "../create-runtime";
 
 describe("createRuntime component assembly", () => {
@@ -20,7 +21,7 @@ describe("createRuntime component assembly", () => {
         ?.list()
         .map(({ id }) => id)
         .sort(),
-    ).toEqual([...LOCAL_FILE_TOOLS, ...BROWSER_TOOLS].map(({ id }) => id).sort());
+    ).toEqual([...LOCAL_FILE_TOOLS, ...CANVAS_TOOLS, ...BROWSER_TOOLS].map(({ id }) => id).sort());
     expect(runtime.componentRuntime?.inspect().every(({ state }) => state === "active")).toBe(true);
   });
 

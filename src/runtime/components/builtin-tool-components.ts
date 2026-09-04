@@ -3,6 +3,7 @@ import type { ComponentDefinition } from "../../core/components/types";
 import type { Capability } from "../types";
 import { LOCAL_FILE_TOOLS } from "../../core/tools/builtin/local-file-tools";
 import { BROWSER_TOOLS } from "../../core/tools/builtin/browser-tools";
+import { CANVAS_TOOLS } from "../../core/tools/builtin/canvas-tools";
 
 const emptyConfigSchema = z.object({}).strict().optional();
 
@@ -30,7 +31,10 @@ function createBrowserToolComponent() {
 }
 
 function createToolComponent(capability: "filesystem" | "terminal" | "git") {
-  const tools = LOCAL_FILE_TOOLS.filter((tool) => tool.requiredCapability === capability);
+  const tools = [
+    ...LOCAL_FILE_TOOLS.filter((tool) => tool.requiredCapability === capability),
+    ...(capability === "filesystem" ? CANVAS_TOOLS : []),
+  ];
   const definition: ComponentDefinition<null> = {
     manifest: {
       id: `evir.tools.${capability}`,

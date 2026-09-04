@@ -43,6 +43,10 @@ const DiffPreview = lazy(() =>
   import("../../features/preview/renderers/DiffPreview").then((m) => ({ default: m.DiffPreview })),
 );
 
+// Canvas (React Flow) is a heavy surface: only this lazy chunk pulls
+// @xyflow/react + its CSS, never the initial bundle (§83).
+const CanvasView = lazy(() => import("../../features/canvas/CanvasView"));
+
 type LoadingState = { phase: "loading" } | { phase: "ready" } | { phase: "error"; message: string };
 
 interface ResolvedContent {
@@ -124,6 +128,17 @@ function useResolvedResource(
     setContent(null);
     const resolve = async () => {
       try {
+        if (resource.kind === "canvas") {
+          // The canvas view loads and parses its own document.
+          return {
+            text: null,
+            language: "",
+            base64: null,
+            diff: null,
+            rendererId: null,
+            imageDataUrl: null,
+          } satisfies ResolvedContent;
+        }
         if (resource.kind === "artifact") {
           const artifact = await loadArtifact(resource.artifactId);
           if (!artifact) throw new Error("artifact-unavailable");
@@ -533,11 +548,17 @@ export function PreviewTab() {
         </header>
       )}
       <div className="workspace-preview-body">
-        {state.phase === "loading" && (
-          <div className="workspace-empty">
-            <LoaderCircle size={20} className="spin" aria-hidden="true" />
-            <p>{t("workspace.loading")}</p>
-          </div>
+        {activeResource?.kind === "canvas" ? (
+          <Suspense fallback={<p className="preview-loading-text">{t("preview.loading")}</p>}>
+            <CanvasView path={activeResource.path} title={activeResource.title} />
+          </Suspense>
+        ) : (
+          state.phase === "loading" && (
+            <div className="workspace-empty">
+              <LoaderCircle size={20} className="spin" aria-hidden="true" />
+              <p>{t("workspace.loading")}</p>
+            </div>
+          )
         )}
         {state.phase === "error" && <ResourceError message={state.message} />}
         {state.phase === "ready" &&

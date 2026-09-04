@@ -10,7 +10,7 @@ import { matchingSnapshotForPath } from "./changes-model";
  * thread shows the same set.
  */
 
-export type TaskOutputKind = "created-file" | "screenshot" | "reported";
+export type TaskOutputKind = "created-file" | "screenshot" | "reported" | "canvas";
 
 export interface TaskOutput {
   /** Stable per-run identity: runId + source call/path. */
@@ -30,7 +30,7 @@ export const taskOutputSchema = z.object({
   id: z.string().min(1),
   runId: z.string().min(1),
   conversationId: z.string().min(1),
-  kind: z.enum(["created-file", "screenshot", "reported"]),
+  kind: z.enum(["created-file", "screenshot", "reported", "canvas"]),
   type: z.string().min(1),
   path: z.string().min(1),
   mimeType: z.string().optional(),
@@ -64,6 +64,7 @@ const ARTIFACT_EXTENSIONS = new Set([
   "vega",
   "vl.json",
   "json",
+  "evir-canvas",
 ]);
 
 const MIME_BY_EXTENSION: Record<string, string> = {
@@ -85,6 +86,7 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   mermaid: "text/x-mermaid",
   mmd: "text/x-mermaid",
   dot: "text/vnd.graphviz",
+  "evir-canvas": "application/json",
 };
 
 export function extensionOf(path: string): string {
@@ -106,6 +108,13 @@ export function isArtifactPath(path: string): boolean {
 }
 
 const screenshotOutputSchema = z.object({ path: z.string().min(1) });
+
+// Canvas tools verify the document themselves before writing; the result
+// payload carries the resolved path so the output derives from real evidence.
+const canvasOutputSchema = z.object({
+  path: z.string().min(1),
+  title: z.string().min(1).optional(),
+});
 
 // report_output results: the tool executor already verified existence; the
 // result payload carries the resolved absolute path + size as evidence.
@@ -152,6 +161,27 @@ export function deriveTaskOutput(
       type: extension || "binary",
       path: parsed.data.path,
       mimeType: mimeTypeForPath(parsed.data.path) ?? "application/octet-stream",
+      sourceTool: call.toolName,
+      createdAt: result.completedAt ?? Date.now(),
+    };
+  }
+  if (call.toolName === "create_canvas" || call.toolName === "update_canvas") {
+    let payload: unknown;
+    try {
+      payload = JSON.parse(result.output || "{}");
+    } catch {
+      return null;
+    }
+    const parsed = canvasOutputSchema.safeParse(payload);
+    if (!parsed.success) return null;
+    return {
+      id: `${context.runId}:${call.id}`,
+      runId: context.runId,
+      conversationId: context.conversationId,
+      kind: "canvas",
+      type: "canvas",
+      path: parsed.data.path,
+      mimeType: "application/json",
       sourceTool: call.toolName,
       createdAt: result.completedAt ?? Date.now(),
     };
