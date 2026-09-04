@@ -168,6 +168,7 @@ export class EvirDB extends Dexie {
   artifacts!: Table<GenericEntityRecord, string>;
   memories!: Table<GenericEntityRecord, string>;
   traces!: Table<GenericEntityRecord, string>;
+  plugins!: Table<GenericEntityRecord, string>;
 
   constructor(name = dexieDatabaseName()) {
     super(name);
@@ -290,6 +291,7 @@ export class EvirDB extends Dexie {
       artifacts: "id, relatedEntityId, createdAt",
       memories: "id, scope, type, updatedAt, enabled, pinned",
       traces: "id, conversationId, startedAt",
+      plugins: "id",
     });
   }
 }

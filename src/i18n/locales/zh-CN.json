@@ -274,6 +274,7 @@
     "providers": "模型供应商",
     "personalization": "个性化",
     "users": "用户",
+    "plugins": "插件",
     "agent": "Agent",
     "skills": "Skill",
     "mcp": "MCP",
@@ -1101,6 +1102,42 @@
     "isolationDescription": "对话、供应商凭据、记忆与日志保存在按用户划分的存储命名空间中，切换用户不会带过去。",
     "loadError": "用户列表加载失败",
     "saveError": "保存用户失败"
+  },
+  "plugins": {
+    "eyebrow": "本地能力包",
+    "pageDescription": "插件以声明式 manifest 打包斜杠命令、技能与设置项，从本地文件夹安装。不执行代码、没有应用市场——一切只保存在本设备，且仅属于当前用户。",
+    "installTitle": "安装",
+    "installDescription": "选择包含合法 manifest.json 的文件夹。安装前会展示贡献内容与权限。",
+    "installFromFolder": "从文件夹安装",
+    "desktopOnly": "安装插件需要桌面版。",
+    "installedTitle": "已安装插件",
+    "noneInstalled": "还没有安装插件。",
+    "statusEnabled": "已启用",
+    "statusDisabled": "已停用",
+    "toggleLabel": "启用 {{name}}",
+    "delete": "卸载",
+    "installed": "已安装 {{name}}",
+    "uninstalled": "已卸载 {{name}}",
+    "confirmTitle": "安装 {{name}}？",
+    "confirmDescription": "安装前请确认此插件的贡献内容。",
+    "confirmInstall": "安装插件",
+    "permissionsTitle": "权限",
+    "noNewPermissions": "与已安装版本相比没有新增权限。",
+    "permissionsFootnote": "插件不能执行代码、访问 shell 或在运行时读取文件。所有贡献均为纯声明式。",
+    "sourceLabel": "来源",
+    "permission": {
+      "slash-commands": "贡献斜杠命令",
+      "skills": "贡献技能",
+      "settings": "自有设置开关"
+    },
+    "deleteTitle": "卸载此插件？",
+    "deleteDescription": "将移除 {{name}} 及其为当前用户贡献的命令、技能与设置。",
+    "deleteConfirm": "卸载",
+    "cancelled": "已取消安装",
+    "desktopOnlyError": "安装插件需要桌面版。",
+    "errors": {
+      "manifest": "该文件夹不包含合法的 manifest.json。"
+    }
   },
   "trace": {
     "details": "运行详情",

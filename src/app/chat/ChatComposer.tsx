@@ -178,6 +178,19 @@ export function ChatComposer({
     return () => window.removeEventListener("evir:focus-composer", focusComposer);
   }, []);
 
+  // Plugin slash commands (§48) are declarative: running one inserts its
+  // prompt template into the composer for the user to review and send.
+  useEffect(() => {
+    const insertTemplate = (event: Event) => {
+      const template = (event as CustomEvent<{ template?: string }>).detail?.template ?? "";
+      if (!template) return;
+      onInputChange(inputRef.current ? `${inputRef.current}\n${template}` : template);
+      textareaRef.current?.focus();
+    };
+    window.addEventListener("evir:plugin-command", insertTemplate);
+    return () => window.removeEventListener("evir:plugin-command", insertTemplate);
+  }, [onInputChange]);
+
   return (
     <footer className="composer-wrap mx-auto w-full min-w-0 max-w-[760px] shrink-0 px-0 pb-3 pt-1.5 max-[860px]:px-4">
       {errorBanner}

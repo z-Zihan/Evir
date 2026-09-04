@@ -49,6 +49,7 @@ const STRUCTURED_ENTITIES: &[&str] = &[
     "personalization",
     "usage_records",
     "traces",
+    "plugins",
     "settings",
 ];
 

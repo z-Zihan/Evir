@@ -10,6 +10,7 @@ import {
   Info,
   Keyboard,
   Palette,
+  Puzzle,
   ShieldCheck,
   ServerCog,
   SlidersHorizontal,
@@ -27,6 +28,9 @@ const PersonalizationPanel = lazy(() =>
 );
 const UserProfilesPanel = lazy(() =>
   import("./UserProfilesSettings").then((m) => ({ default: m.UserProfilesPanel })),
+);
+const PluginSettingsPanel = lazy(() =>
+  import("./PluginSettings").then((m) => ({ default: m.PluginSettingsPanel })),
 );
 const ShortcutsSettings = lazy(() =>
   import("./ShortcutsSettings").then((m) => ({ default: m.ShortcutsSettings })),
@@ -99,6 +103,7 @@ const SETTINGS_GROUPS: Array<{ labelKey: string; items: SettingsNavItem[] }> = [
     items: [
       { tab: "skills", labelKey: "settings.skills", icon: Braces },
       { tab: "mcp", labelKey: "settings.mcp", icon: Boxes },
+      { tab: "plugins", labelKey: "settings.plugins", icon: Puzzle },
       { tab: "browser", labelKey: "settings.browser", icon: Globe2 },
       { tab: "memory", labelKey: "memory.title", icon: Brain },
     ],
@@ -278,6 +283,7 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
               <Suspense fallback={<SettingsPanelFallback />}>
                 {effectiveActiveTab === "providers" && <ProviderSettings />}
                 {effectiveActiveTab === "users" && <UserProfilesPanel />}
+                {effectiveActiveTab === "plugins" && <PluginSettingsPanel />}
                 {effectiveActiveTab === "personalization" && <PersonalizationPanel />}
                 {effectiveActiveTab === "shortcuts" && <ShortcutsSettings />}
                 {effectiveActiveTab === "skills" && <SkillSettings />}

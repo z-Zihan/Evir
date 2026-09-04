@@ -102,6 +102,7 @@ pub fn run() {
             commands::profiles_set_active,
             commands::profiles_delete,
             commands::profile_paths,
+            commands::plugin_read_manifest,
             commands::db_query,
             commands::db_update,
             commands::entity_get,

@@ -124,6 +124,8 @@ export function App() {
       await initializeRuntimeStorage();
       installWorkspaceResolver();
       await Promise.all([loadProviders(), loadConversations(), loadUsageRecords(), loadProjects()]);
+      const { usePluginStore } = await import("../features/plugins/plugin-store");
+      await usePluginStore.getState().load();
       setUnfinishedRuns(await findUnfinishedRuns());
     } catch (error) {
       setInitializationError(error instanceof Error ? error.message : String(error));

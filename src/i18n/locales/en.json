@@ -275,6 +275,7 @@
     "providers": "Model providers",
     "personalization": "Personalization",
     "users": "Users",
+    "plugins": "Plugins",
     "agent": "Agent",
     "skills": "Skills",
     "mcp": "MCP",
@@ -1102,6 +1103,42 @@
     "isolationDescription": "Conversations, provider credentials, memory and logs live in per-user storage namespaces. Nothing carries over when you switch.",
     "loadError": "Failed to load users",
     "saveError": "Failed to save the user"
+  },
+  "plugins": {
+    "eyebrow": "Local capability packages",
+    "pageDescription": "Plugins package slash commands, skills and settings as declarative manifests installed from a local folder. No code execution, no marketplace — everything stays on this device and inside the current user's data.",
+    "installTitle": "Install",
+    "installDescription": "Pick a folder containing a validated manifest.json. Contributions and permissions are reviewed before anything is installed.",
+    "installFromFolder": "Install from folder",
+    "desktopOnly": "Installing plugins requires the desktop app.",
+    "installedTitle": "Installed plugins",
+    "noneInstalled": "No plugins installed yet.",
+    "statusEnabled": "enabled",
+    "statusDisabled": "disabled",
+    "toggleLabel": "Enable {{name}}",
+    "delete": "Uninstall",
+    "installed": "Installed {{name}}",
+    "uninstalled": "Uninstalled {{name}}",
+    "confirmTitle": "Install {{name}}?",
+    "confirmDescription": "Review what this plugin contributes before installing.",
+    "confirmInstall": "Install plugin",
+    "permissionsTitle": "Permissions",
+    "noNewPermissions": "No new permissions compared to the installed version.",
+    "permissionsFootnote": "Plugins cannot run code, access the shell, or read files at runtime. Contributions are declarative only.",
+    "sourceLabel": "Source",
+    "permission": {
+      "slash-commands": "Contribute slash commands",
+      "skills": "Contribute skills",
+      "settings": "Own settings toggles"
+    },
+    "deleteTitle": "Uninstall this plugin?",
+    "deleteDescription": "{{name}} and its contributed commands, skills and settings will be removed for the current user.",
+    "deleteConfirm": "Uninstall",
+    "cancelled": "Install cancelled",
+    "desktopOnlyError": "Installing plugins requires the desktop app.",
+    "errors": {
+      "manifest": "The folder does not contain a valid manifest.json."
+    }
   },
   "trace": {
     "details": "Run details",

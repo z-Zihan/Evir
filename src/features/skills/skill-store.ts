@@ -18,6 +18,8 @@ interface SkillState {
   skills: InstalledSkill[];
   enabledSkillIds: Set<string>;
   loadSkills: () => Promise<void>;
+  /** Plugin-contributed skills (§42): merged live from the plugin lifecycle. */
+  mergePluginSkills: (entries: PluginSkillEntry[]) => Promise<void>;
   toggleSkill: (id: string) => Promise<void>;
   isEnabled: (id: string) => boolean;
   getEnabledContent: (selectedIds?: ReadonlySet<string>) => Promise<string>;
@@ -35,8 +37,17 @@ interface SkillState {
   listAll: () => InstalledSkill[];
 }
 
+/** A plugin-contributed skill: manifest + inline body, plugin-owned lifetime. */
+export interface PluginSkillEntry {
+  pluginId: string;
+  manifest: SkillManifest;
+  content: string;
+}
+
 let registry: SkillRegistry | null = null;
 let loadPromise: Promise<void> | null = null;
+// Plugin contributions (memory only — records live with the plugin entity).
+let pluginSkills: PluginSkillEntry[] = [];
 
 function getRegistry(): SkillRegistry {
   if (!registry) {
@@ -82,6 +93,11 @@ export const useSkillStore = create<SkillState>((set, get) => ({
           ...customSkills.filter(
             (custom) => !builtins.some((item) => item.manifest.id === custom.manifest.id),
           ),
+          ...pluginSkills.map((entry) => ({
+            manifest: entry.manifest,
+            rootPath: "",
+            builtIn: false,
+          })),
         ];
 
         const record = settings.find(({ name }) => name === SKILL_ENABLED_SETTING);
@@ -106,6 +122,13 @@ export const useSkillStore = create<SkillState>((set, get) => ({
       }
     })();
     return loadPromise;
+  },
+
+  mergePluginSkills: async (entries) => {
+    pluginSkills = entries;
+    // Re-run the load so the catalog (and routing) reflects the new set; the
+    // loadPromise guard makes concurrent callers collapse into one pass.
+    await get().loadSkills();
   },
 
   toggleSkill: async (id: string) => {
@@ -250,8 +273,14 @@ export const useSkillStore = create<SkillState>((set, get) => ({
     const builtinContent = await reg.getEnabledContent(selectedBuiltinIds);
 
     const customSkills = skills.filter((s) => !s.builtIn && selectedIds.has(s.manifest.id));
+    const pluginById = new Map(pluginSkills.map((entry) => [entry.manifest.id, entry]));
     const customContents = await Promise.all(
       customSkills.map(async (s) => {
+        const pluginEntry = pluginById.get(s.manifest.id);
+        if (pluginEntry) {
+          // Plugin skills carry their body inline (manifest-declared).
+          return `## ${s.manifest.name}\n\n${pluginEntry.content}`;
+        }
         const record = await getStructuredStorage().read<SettingRecord>(
           "settings",
           `skill:${s.manifest.id}`,

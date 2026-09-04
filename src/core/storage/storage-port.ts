@@ -24,6 +24,7 @@ export type EntityName =
   | "personalization"
   | "usage_records"
   | "traces"
+  | "plugins"
   | "settings";
 
 export interface StoragePort {

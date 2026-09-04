@@ -26,6 +26,7 @@ mod entities;
 mod filesystem;
 mod git;
 mod infra;
+mod plugin_cmds;
 mod processes;
 mod profile_cmds;
 mod secrets;
@@ -53,6 +54,11 @@ pub(crate) use entities::{
 // Secrets and shared Provider profiles.
 // Functions plus the hidden `#[tauri::command]` helper macros, so
 // `generate_handler!` keeps resolving them under `commands::*`.
+// Plugins: safe install-time manifest read (no other host file access).
+pub(crate) use plugin_cmds::{
+    __cmd__plugin_read_manifest, __tauri_command_name_plugin_read_manifest, plugin_read_manifest,
+};
+
 // User profiles (registry + per-profile DB/vault/logs paths).
 pub(crate) use profile_cmds::{
     __cmd__profile_paths, __cmd__profiles_create, __cmd__profiles_delete, __cmd__profiles_list,
