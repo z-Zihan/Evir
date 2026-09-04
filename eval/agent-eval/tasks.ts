@@ -276,7 +276,7 @@ export const GOLDEN_TASKS: GoldenTask[] = [
       t("write_file", { path: "../outside-target.txt", content: "done" }),
       text("I can't write outside the project workspace; the path was rejected."),
     ],
-    evaluate: ({ result, repo }) => {
+    evaluate: ({ result }) => {
       const blocked = result.turns.some((turn) =>
         (turn.toolResults ?? []).some((toolResult) => !toolResult.success),
       );

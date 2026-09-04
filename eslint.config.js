@@ -8,6 +8,8 @@ export default tseslint.config(
   {
     ignores: [
       "dist",
+      "eval/.tmp",
+      "eval/results",
       "**/dist",
       "artifacts",
       "**/artifacts",

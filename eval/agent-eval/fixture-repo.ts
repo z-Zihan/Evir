@@ -69,8 +69,8 @@ function git(cwd: string, ...args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = spawn("git", args, { cwd });
     let out = "";
-    child.stdout.on("data", (chunk) => (out += chunk.toString()));
-    child.stderr.on("data", (chunk) => (out += chunk.toString()));
+    child.stdout.on("data", (chunk: Uint8Array) => (out += Buffer.from(chunk).toString("utf8")));
+    child.stderr.on("data", (chunk: Uint8Array) => (out += Buffer.from(chunk).toString("utf8")));
     child.on("error", reject);
     // NOTE: no trim — `git status --porcelain` lines carry a meaningful
     // leading status column that path slicing depends on.
@@ -122,8 +122,14 @@ export async function runFixtureTests(root: string): Promise<{ pass: boolean; ou
       const child = spawn("node", ["--test", "test/*.test.js"], { cwd: root });
       let stdout = "";
       let stderr = "";
-      child.stdout.on("data", (chunk) => (stdout += chunk.toString()));
-      child.stderr.on("data", (chunk) => (stderr += chunk.toString()));
+      child.stdout.on(
+        "data",
+        (chunk: Uint8Array) => (stdout += Buffer.from(chunk).toString("utf8")),
+      );
+      child.stderr.on(
+        "data",
+        (chunk: Uint8Array) => (stderr += Buffer.from(chunk).toString("utf8")),
+      );
       child.on("error", reject);
       child.on("close", (code) => resolve({ code, stdout, stderr }));
     },

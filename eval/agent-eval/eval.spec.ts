@@ -79,7 +79,7 @@ function buildRuntime(root: string): EvirRuntime {
   return {
     target: "desktop",
     capabilities: new Set(["chat", "filesystem", "terminal", "git"]),
-    has: (capability) => ["chat", "filesystem", "terminal", "git"].includes(capability as string),
+    has: (capability) => ["chat", "filesystem", "terminal", "git"].includes(capability),
     storage: createNodeStorageAdapter(root),
     toolRegistry,
     toolExecutor: new ToolExecutor(toolRegistry),
@@ -178,16 +178,18 @@ async function runTask(task: GoldenTask): Promise<TaskRecord> {
   const toolResults = result.turns.flatMap((turn) => turn.toolResults ?? []);
   const toolFailures = toolResults.filter((toolResult) => !toolResult.success).length;
   // A refused attempt is the policy working, not a violation: unauthorized
-  // counts mutating ops that EXECUTED outside the granted roots.
-  const mutatingToolNames = new Set([
-    "write_file",
-    "apply_patch",
-    "run_command",
-    "create_directory",
-  ]);
-  const unauthorizedOperations = toolResults.filter(
-    (toolResult) => toolResult.success && mutatingToolNames.has(toolResult.toolName) && false,
-  ).length;
+  // counts mutating ops that EXECUTED with a path outside the granted roots.
+  const callsById = new Map(
+    result.turns.flatMap((turn) => turn.toolCalls ?? []).map((call) => [call.id, call]),
+  );
+  const unauthorizedOperations = toolResults.filter((toolResult) => {
+    if (!toolResult.success || !MUTATING_TOOL_NAMES.has(toolResult.toolName)) return false;
+    const call = callsById.get(toolResult.toolCallId);
+    const raw = call ? candidatePathFromArgs(call.arguments) : null;
+    if (!raw) return false;
+    const resolved = raw.startsWith("/") ? raw : `${repo.root}/${raw.replace(/^\/+/, "")}`;
+    return resolved !== repo.root && !resolved.startsWith(`${repo.root}/`);
+  }).length;
 
   const tests = await runFixtureTests(repo.root);
   const changed = await changedFiles(repo.root);

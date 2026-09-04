@@ -47,8 +47,8 @@ function run(
     let stdout = "";
     let stderr = "";
     const timer = setTimeout(() => child.kill("SIGKILL"), timeoutMs);
-    child.stdout.on("data", (chunk) => (stdout += chunk.toString()));
-    child.stderr.on("data", (chunk) => (stderr += chunk.toString()));
+    child.stdout.on("data", (chunk: Uint8Array) => (stdout += Buffer.from(chunk).toString("utf8")));
+    child.stderr.on("data", (chunk: Uint8Array) => (stderr += Buffer.from(chunk).toString("utf8")));
     const finish = (code: number | null) => {
       clearTimeout(timer);
       resolve({
@@ -79,17 +79,17 @@ export function createNodeStorageAdapter(root: string): DesktopStorageAdapter {
   return {
     // Raw SQLite/keychain surfaces are desktop-only plumbing; the eval harness
     // never exercises them.
-    query: async () => [],
-    update: async () => 0,
-    keychainSet: async () => undefined,
-    keychainGet: async () => null,
-    keychainDelete: async () => undefined,
-    sharedProviderProfilesRead: async () => [],
-    sharedProviderProfilesWrite: async () => undefined,
+    query: () => Promise.resolve([]),
+    update: () => Promise.resolve(0),
+    keychainSet: () => Promise.resolve(),
+    keychainGet: () => Promise.resolve(null),
+    keychainDelete: () => Promise.resolve(),
+    sharedProviderProfilesRead: () => Promise.resolve([]),
+    sharedProviderProfilesWrite: () => Promise.resolve(),
     readFile: async (relative) => fs.readFile(workspaceResolve(root, relative), "utf8"),
     readFileBase64: async (relative) =>
       (await fs.readFile(workspaceResolve(root, relative))).toString("base64"),
-    realPath: async (relative) => workspaceResolve(root, relative),
+    realPath: (relative) => Promise.resolve(workspaceResolve(root, relative)),
     writeFile: async (relative, content) => {
       const target = workspaceResolve(root, relative);
       await fs.mkdir(path.dirname(target), { recursive: true });
@@ -159,7 +159,7 @@ export function createNodeStorageAdapter(root: string): DesktopStorageAdapter {
     },
     runCommand: (cwd, program, args, timeoutMs) =>
       run(program, args, cwd ? workspaceResolve(root, cwd) : root, timeoutMs ?? 30_000),
-    cancelActiveCommands: async () => undefined,
+    cancelActiveCommands: () => Promise.resolve(),
     gitStatus: async (relative) => {
       const target = workspaceResolve(root, relative);
       const result = await run("git", ["status", "--porcelain=v1", "-b"], target);
@@ -195,7 +195,7 @@ export function createNodeStorageAdapter(root: string): DesktopStorageAdapter {
         exists: true,
       } satisfies FileStat;
     },
-    revealInFileManager: async () => undefined,
+    revealInFileManager: () => Promise.resolve(),
     createSnapshot: async (filePath) => {
       const target = workspaceResolve(root, filePath);
       const existed = await pathExists(target);
@@ -210,8 +210,9 @@ export function createNodeStorageAdapter(root: string): DesktopStorageAdapter {
         original_hash: null,
       } satisfies SnapshotResult;
     },
-    sealSnapshot: async (snapshotId) => {
-      if (!snapshots.has(snapshotId)) throw new Error("unknown snapshot");
+    sealSnapshot: (snapshotId) => {
+      if (!snapshots.has(snapshotId)) return Promise.reject(new Error("unknown snapshot"));
+      return Promise.resolve();
     },
     restoreSnapshot: async (snapshotId) => {
       const snapshot = snapshots.get(snapshotId);
@@ -220,14 +221,11 @@ export function createNodeStorageAdapter(root: string): DesktopStorageAdapter {
       else await fs.writeFile(snapshot.filePath, snapshot.content, "utf8");
       return true;
     },
-    gitWorktreeCreate: async () => {
-      throw new Error("worktrees are not supported by the eval adapter");
-    },
-    gitWorktreeMerge: async () => {
-      throw new Error("worktrees are not supported by the eval adapter");
-    },
-    gitWorktreeRemove: async () => {
-      throw new Error("worktrees are not supported by the eval adapter");
-    },
+    gitWorktreeCreate: () =>
+      Promise.reject(new Error("worktrees are not supported by the eval adapter")),
+    gitWorktreeMerge: () =>
+      Promise.reject(new Error("worktrees are not supported by the eval adapter")),
+    gitWorktreeRemove: () =>
+      Promise.reject(new Error("worktrees are not supported by the eval adapter")),
   } satisfies DesktopStorageAdapter;
 }
