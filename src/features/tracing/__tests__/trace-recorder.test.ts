@@ -152,7 +152,7 @@ describe("TraceRecorder", () => {
       expect.objectContaining({
         toolCallId: "call-deny",
         decision: "denied",
-        durationMs: expect.any(Number),
+        durationMs: expect.any(Number) as number,
       }),
     ]);
     expect(snapshot.events).toContainEqual(
@@ -267,7 +267,9 @@ describe("TraceRecorder", () => {
     expect(textDeltas.at(-1)?.size).toBe(5);
     const argsDelta = trace
       .snapshot()
-      .events.find((event) => event.kind === "stream.delta" && event.summary === "tool-call-arguments");
+      .events.find(
+        (event) => event.kind === "stream.delta" && event.summary === "tool-call-arguments",
+      );
     expect(argsDelta?.offset).toBeUndefined();
   });
 

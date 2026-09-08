@@ -28,6 +28,7 @@ export const TRACE_EVENT_KINDS = [
   "approval.granted",
   "approval.denied",
   "usage",
+  "knowledge.retrieved",
   "stream.completed",
   "stream.error",
   "turn.completed",

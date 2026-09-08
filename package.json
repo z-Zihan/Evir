@@ -35,7 +35,8 @@
     "check": "pnpm format:check && node scripts/check-doc-facts.mjs && pnpm lint && pnpm typecheck && pnpm test && pnpm test:rust && pnpm release:validate-workflow && pnpm --dir extensions/vscode check && pnpm --dir packages/cli check",
     "tauri": "tauri",
     "dev": "tauri dev",
-    "test:agent-eval": "vitest run eval/agent-eval/eval.spec.ts"
+    "test:agent-eval": "vitest run eval/agent-eval/eval.spec.ts",
+    "test:knowledge-eval": "vitest run eval/knowledge-eval/knowledge-eval.spec.ts"
   },
   "dependencies": {
     "@base-ui-components/react": "1.0.0-rc.0",

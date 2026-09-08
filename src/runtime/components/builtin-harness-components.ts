@@ -3,6 +3,7 @@ import type { ComponentDefinition, ComponentRuntimePort } from "../../core/compo
 import { createContextBudgetManager } from "../../core/context/context-budget-manager";
 import { logger } from "../../core/logging/logger";
 import { retrieveMemoryContext } from "../../core/memory/memory-retrieval";
+import { defaultKnowledgeRetriever } from "../../core/knowledge/retrieval";
 import { routeSkill } from "../../core/skills/skill-router";
 import { taskResolver } from "../../core/tools/verification-evidence";
 import { requiresToolCalling } from "../../core/providers/tool-registry";
@@ -147,6 +148,31 @@ const memoryRetrieval = component("memory-retrieval", parseEmptyConfig, () =>
       });
     } catch (error) {
       logger.warn("memory", "memory.context-load-failed", {
+        conversationId: event.conversationId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return next(event);
+    }
+  }),
+);
+
+const knowledgeRetrieval = component("knowledge-retrieval", parseEmptyConfig, () =>
+  passthrough("knowledge-retrieval", async (event, next) => {
+    if (event.type !== "knowledge-retrieval") return next(event);
+    try {
+      const result = await defaultKnowledgeRetriever.retrieve(event.storage, {
+        baseIds: event.baseIds,
+        query: event.query,
+        maxCharacters: event.maxCharacters,
+      });
+      return next({
+        ...event,
+        context: result.context,
+        sourceCount: new Set(result.results.map((hit) => hit.location)).size,
+        chunkCount: result.results.length,
+      });
+    } catch (error) {
+      logger.warn("knowledge", "knowledge.retrieval-failed", {
         conversationId: event.conversationId,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -315,6 +341,7 @@ export const BUILTIN_HARNESS_COMPONENTS = [
   contextBudget,
   skillRouting,
   memoryRetrieval,
+  knowledgeRetrieval,
   loopDetection,
   checkpoint,
   verification,
@@ -330,6 +357,7 @@ export function registerBuiltinHarnessComponents(
   runtime.register(contextBudget);
   runtime.register(skillRouting);
   runtime.register(memoryRetrieval);
+  runtime.register(knowledgeRetrieval);
   runtime.register(loopDetection);
   runtime.register(checkpoint);
   runtime.register(verification);

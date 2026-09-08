@@ -30,6 +30,10 @@ const SUPPORTED_ENTITIES = [
   "memories",
   "traces",
   "plugins",
+  "knowledge_bases",
+  "knowledge_sources",
+  "knowledge_documents",
+  "knowledge_chunks",
 ] as const satisfies readonly EntityName[];
 
 type SupportedEntity = (typeof SUPPORTED_ENTITIES)[number];

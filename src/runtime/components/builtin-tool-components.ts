@@ -4,6 +4,7 @@ import type { Capability } from "../types";
 import { LOCAL_FILE_TOOLS } from "../../core/tools/builtin/local-file-tools";
 import { BROWSER_TOOLS } from "../../core/tools/builtin/browser-tools";
 import { CANVAS_TOOLS } from "../../core/tools/builtin/canvas-tools";
+import { KNOWLEDGE_TOOLS } from "../../core/tools/builtin/knowledge-tools";
 
 const emptyConfigSchema = z.object({}).strict().optional();
 
@@ -57,11 +58,35 @@ function createToolComponent(capability: "filesystem" | "terminal" | "git") {
   return definition;
 }
 
+function createKnowledgeToolComponent(): ComponentDefinition<null> {
+  const definition: ComponentDefinition<null> = {
+    manifest: {
+      id: "evir.tools.knowledge",
+      version: "1.0.0",
+      kind: "tool",
+      targets: ["web", "desktop"],
+      provides: ["tools:knowledge"],
+      requires: [],
+      defaultEnabled: true,
+      trust: "builtin",
+    },
+    parseConfig(input) {
+      emptyConfigSchema.parse(input);
+      return null;
+    },
+    activate(context) {
+      for (const tool of KNOWLEDGE_TOOLS) context.registerTool(tool);
+    },
+  };
+  return definition;
+}
+
 export const BUILTIN_TOOL_COMPONENTS = [
   createToolComponent("filesystem"),
   createToolComponent("terminal"),
   createToolComponent("git"),
   createBrowserToolComponent(),
+  createKnowledgeToolComponent(),
 ] as const;
 
 export function capabilityDependencies(capabilities: ReadonlySet<Capability>): string[] {

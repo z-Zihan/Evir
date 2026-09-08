@@ -9,6 +9,7 @@ export type LogChannel =
   | "agent"
   | "context"
   | "memory"
+  | "knowledge"
   | "tool"
   | "approval"
   | "filesystem"

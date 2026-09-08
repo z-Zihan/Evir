@@ -25,6 +25,10 @@ export type EntityName =
   | "usage_records"
   | "traces"
   | "plugins"
+  | "knowledge_bases"
+  | "knowledge_sources"
+  | "knowledge_documents"
+  | "knowledge_chunks"
   | "settings";
 
 export interface StoragePort {

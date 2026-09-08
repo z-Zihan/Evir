@@ -73,6 +73,7 @@ interface ProjectStoreState {
   ) => Promise<void>;
   addAccessRoot: (projectId: string, rootPath: string) => Promise<boolean>;
   removeAccessRoot: (projectId: string, rootPath: string) => Promise<void>;
+  setKnowledgeBaseIds: (projectId: string, baseIds: string[]) => Promise<void>;
   refreshFolderStatus: (projectId: string) => Promise<void>;
   currentProject: () => ProjectRecord | null;
 }
@@ -272,6 +273,24 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     }));
     logger.info("security", "project.access-root-added", { projectId });
     return true;
+  },
+
+  setKnowledgeBaseIds: async (projectId, baseIds) => {
+    const project = get().projects.find(({ id }) => id === projectId);
+    if (!project) return;
+    const updated = {
+      ...project,
+      knowledgeBaseIds: baseIds.slice(0, 10),
+      updatedAt: Date.now(),
+    };
+    await writeProject(updated);
+    set((state) => ({
+      projects: state.projects.map((item) => (item.id === projectId ? updated : item)),
+    }));
+    logger.info("knowledge", "project.knowledge-binding-changed", {
+      projectId,
+      bases: baseIds.length,
+    });
   },
 
   removeAccessRoot: async (projectId, rootPath) => {

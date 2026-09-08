@@ -3,6 +3,7 @@ import { ComponentRuntime } from "../../core/components/component-runtime";
 import { LOCAL_FILE_TOOLS } from "../../core/tools/builtin/local-file-tools";
 import { BROWSER_TOOLS } from "../../core/tools/builtin/browser-tools";
 import { CANVAS_TOOLS } from "../../core/tools/builtin/canvas-tools";
+import { KNOWLEDGE_TOOLS } from "../../core/tools/builtin/knowledge-tools";
 import { createToolRegistry } from "../../core/tools/tool-registry-impl";
 import { BUILTIN_TOOL_COMPONENTS } from "../components/builtin-tool-components";
 
@@ -27,7 +28,7 @@ describe("built-in tool components", () => {
   it("preserves the complete Desktop tool set through component assembly", () => {
     const { componentRuntime, toolRegistry } = registerBuiltins("desktop");
 
-    const expected = [...LOCAL_FILE_TOOLS, ...CANVAS_TOOLS, ...BROWSER_TOOLS]
+    const expected = [...LOCAL_FILE_TOOLS, ...CANVAS_TOOLS, ...BROWSER_TOOLS, ...KNOWLEDGE_TOOLS]
       .map(({ id }) => id)
       .sort();
     expect(
@@ -56,7 +57,14 @@ describe("built-in tool components", () => {
   it("keeps Desktop-only components inactive in the Web runtime", () => {
     const { componentRuntime, toolRegistry } = registerBuiltins("web");
 
-    expect(toolRegistry.list()).toEqual([]);
-    expect(componentRuntime.inspect().every(({ state }) => state === "incompatible")).toBe(true);
+    // The knowledge index lives in the shared entity store, so its tool
+    // stays active on web; every FS/terminal/browser component stays off.
+    expect(toolRegistry.list().map(({ id }) => id)).toEqual(KNOWLEDGE_TOOLS.map(({ id }) => id));
+    expect(
+      componentRuntime
+        .inspect()
+        .filter(({ id }) => id !== "evir.tools.knowledge")
+        .every(({ state }) => state === "incompatible"),
+    ).toBe(true);
   });
 });

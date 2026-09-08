@@ -128,6 +128,8 @@ export interface ProjectRecord {
   pinned?: number;
   permissionProfile: PermissionProfile;
   additionalAccessRoots: string[];
+  /** Knowledge bases attached to this project (Knowledge Base v1, §64). */
+  knowledgeBaseIds?: string[];
   createdAt: number;
   updatedAt: number;
   lastOpenedAt: number;
@@ -169,6 +171,10 @@ export class EvirDB extends Dexie {
   memories!: Table<GenericEntityRecord, string>;
   traces!: Table<GenericEntityRecord, string>;
   plugins!: Table<GenericEntityRecord, string>;
+  knowledge_bases!: Table<GenericEntityRecord, string>;
+  knowledge_sources!: Table<GenericEntityRecord, string>;
+  knowledge_documents!: Table<GenericEntityRecord, string>;
+  knowledge_chunks!: Table<GenericEntityRecord, string>;
 
   constructor(name = dexieDatabaseName()) {
     super(name);
@@ -292,6 +298,12 @@ export class EvirDB extends Dexie {
       memories: "id, scope, type, updatedAt, enabled, pinned",
       traces: "id, conversationId, startedAt",
       plugins: "id",
+    });
+    this.version(10).stores({
+      knowledge_bases: "id, updatedAt",
+      knowledge_sources: "id, baseId, type, status",
+      knowledge_documents: "id, sourceId, baseId",
+      knowledge_chunks: "id, documentId, sourceId, baseId",
     });
   }
 }

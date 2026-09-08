@@ -310,7 +310,8 @@
       "capabilities": "能力",
       "system": "系统"
     },
-    "browser": "浏览器"
+    "browser": "浏览器",
+    "knowledge": "知识库"
   },
   "provider": {
     "add": "添加供应商",
@@ -1230,7 +1231,8 @@
       "stream.completed": "流式结束",
       "stream.error": "流式错误",
       "turn.completed": "回合完成",
-      "turn.failed": "回合失败"
+      "turn.failed": "回合失败",
+      "knowledge.retrieved": "知识库检索"
     },
     "export": {
       "copySummary": "复制摘要",
@@ -1437,5 +1439,63 @@
     "onboardingRecommended": "推荐",
     "onboardingAsk": "每次询问",
     "onboardingDismiss": "保持默认（每次询问）并关闭"
+  },
+  "knowledge": {
+    "title": "知识库",
+    "intro": "显式接入的本地文档与网页知识源，按项目绑定后供 Agent 检索；与 Memory（个人记忆）相互独立。",
+    "bases": {
+      "title": "知识库",
+      "new": "新建知识库",
+      "namePlaceholder": "新建知识库名称",
+      "create": "创建",
+      "empty": "还没有知识库",
+      "emptyHint": "创建一个知识库，然后添加本地文件夹、文件或网页作为知识源。",
+      "stats": "{{sources}} 个来源 · {{docs}} 文档 · {{chunks}} 分块",
+      "enable": "启用/禁用知识库",
+      "rename": "重命名",
+      "delete": "删除",
+      "deleteConfirmTitle": "删除知识库「{{name}}」？",
+      "deleteConfirmBody": "将删除其全部索引与分块；你的原始文件与网页不受影响。"
+    },
+    "sources": {
+      "title": "知识源 — {{name}}",
+      "type": "来源类型",
+      "types": {
+        "local-folder": "本地文件夹",
+        "project-docs": "项目文档目录",
+        "local-file": "本地文件",
+        "web-url": "网页 URL",
+        "mcp-resource": "MCP 资源",
+        "historical-task": "历史任务输出"
+      },
+      "pickFolder": "选择文件夹",
+      "ref": "路径或 URL",
+      "titlePlaceholder": "显示名称（可选）",
+      "add": "添加",
+      "needWorkspace": "本地知识源需在已打开的项目内，或在项目设置中先添加额外授权目录。",
+      "empty": "还没有知识源",
+      "emptyHint": "添加本地文件夹/文件或网页；添加后立即建立索引。",
+      "status": {
+        "pending": "待索引",
+        "indexing": "索引中",
+        "ready": "就绪",
+        "failed": "失败"
+      },
+      "indexed": "{{docs}} 文档 · {{chunks}} 分块 · 索引于 {{when}}",
+      "reindex": "重建索引",
+      "enable": "启用/禁用来源",
+      "remove": "移除",
+      "removeConfirmTitle": "移除知识源「{{name}}」？",
+      "removeConfirmBody": "仅删除索引与分块，不会删除你的原始文件。"
+    },
+    "sourceAdded": "知识源已添加并索引",
+    "reindexFailed": "索引失败",
+    "attach": {
+      "title": "知识库绑定",
+      "hint": "绑定后，该项目线程会自动检索所选知识库；Agent 也可用 search_knowledge 主动查询。",
+      "empty": "还没有可绑定的知识库，先在设置 → 知识库中创建。",
+      "attach": "绑定",
+      "detach": "解绑"
+    }
   }
 }

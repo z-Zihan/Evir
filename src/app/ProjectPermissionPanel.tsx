@@ -1,13 +1,14 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useOverlayBrowserGuard } from "./workspace/use-overlay-browser-guard";
-import { FolderPlus, ShieldCheck, X } from "lucide-react";
+import { Database, FolderPlus, ShieldCheck, X } from "lucide-react";
 import { Button, Dialog, DialogContent, DialogTitle } from "../components/ui";
 import { SettingsDescription, SettingsOptionCard, SettingsSection } from "../components/settings";
 import { InlineError, notify } from "../components/feedback";
 import type { PermissionProfile, ProjectRecord } from "../core/storage/db";
 import { useProjectStore } from "../features/projects/project-store";
 import { getRuntime } from "../runtime/use-runtime";
+import { useKnowledgeStore } from "../features/knowledge/knowledge-store";
 import { useConfirmationDialog } from "./useConfirmationDialog";
 
 interface ProjectPermissionPanelProps {
@@ -41,6 +42,13 @@ export function ProjectPermissionPanel({ project, onClose }: ProjectPermissionPa
   const addAccessRoot = useProjectStore((state) => state.addAccessRoot);
   const removeAccessRoot = useProjectStore((state) => state.removeAccessRoot);
   const [accessRootError, setAccessRootError] = useState<string | null>(null);
+  const knowledgeBases = useKnowledgeStore((state) => state.bases);
+  const loadKnowledgeBases = useKnowledgeStore((state) => state.load);
+  const setKnowledgeBaseIds = useProjectStore((state) => state.setKnowledgeBaseIds);
+  const [boundBaseIds, setBoundBaseIds] = useState<string[]>(project.knowledgeBaseIds ?? []);
+  useEffect(() => {
+    void loadKnowledgeBases();
+  }, [loadKnowledgeBases]);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   const chooseProfile = (profile: PermissionProfile) => {
@@ -143,6 +151,49 @@ export function ProjectPermissionPanel({ project, onClose }: ProjectPermissionPa
               </ul>
             )}
             {accessRootError && <InlineError message={accessRootError} />}
+          </SettingsSection>
+
+          <SettingsSection
+            title={t("knowledge.attach.title")}
+            description={t("knowledge.attach.hint")}
+          >
+            {knowledgeBases.length === 0 ? (
+              <SettingsDescription>{t("knowledge.attach.empty")}</SettingsDescription>
+            ) : (
+              <ul className="project-access-root-list" data-knowledge-attachments="">
+                {knowledgeBases.map((base) => {
+                  const bound = boundBaseIds.includes(base.id);
+                  return (
+                    <li key={base.id}>
+                      <span className="flex items-center gap-1.5">
+                        <Database size={12} aria-hidden="true" />
+                        <span>{base.name}</span>
+                        <SettingsDescription>
+                          {t("knowledge.bases.stats", {
+                            sources: base.sourceCount,
+                            docs: base.docCount,
+                            chunks: base.chunkCount,
+                          })}
+                        </SettingsDescription>
+                      </span>
+                      <Button
+                        variant={bound ? "secondary" : "ghost"}
+                        size="sm"
+                        onClick={() => {
+                          const next = bound
+                            ? boundBaseIds.filter((id) => id !== base.id)
+                            : [...boundBaseIds, base.id];
+                          setBoundBaseIds(next);
+                          void setKnowledgeBaseIds(project.id, next);
+                        }}
+                      >
+                        {bound ? t("knowledge.attach.detach") : t("knowledge.attach.attach")}
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </SettingsSection>
         </div>
         {confirmationDialog}

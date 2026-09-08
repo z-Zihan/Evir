@@ -10,6 +10,7 @@ import { estimateMessagesTokens, estimateTokens } from "../../../core/context/to
 import type { ContextBudgetSnapshot, FileContextReference } from "../../../core/context/types";
 import { logger } from "../../../core/logging/logger";
 import { retrieveMemoryContext } from "../../../core/memory/memory-retrieval";
+import type { ProjectRecord } from "../../../core/storage/db";
 import { DEFAULT_MAX_CONTEXT_TOKENS } from "../../../core/providers/model-defaults";
 import { requiresToolCalling } from "../../../core/providers/tool-registry";
 import { getStructuredStorage } from "../../../runtime/structured-storage";
@@ -25,6 +26,7 @@ import { effectiveModeForModel } from "../../projects/conversation-mode";
 import { routeSkill } from "../../../core/skills/skill-router";
 import type { InstalledSkill } from "../../../core/skills/types";
 import { visibleForConversation } from "../stream-ownership";
+import { activeTraceFor } from "../../tracing/trace-recorder";
 import type { ChatState } from "../chat-contracts";
 import type { PreparedTurn, TurnContext } from "./turn-state";
 import { normalizeLatestUserMessage, providerWireMessages } from "./wire-messages";
@@ -71,12 +73,23 @@ export async function prepareTurn(
     await checkpointCompaction(turn, effectiveHistory, mode, memory.relevantMemoryIds);
   }
 
+  const knowledge = await retrieveKnowledge(
+    turn,
+    normalizedUserInput,
+    effectiveHistory,
+    activeSkills,
+    skillRouting,
+    memory.context,
+    snapshot,
+  );
+
   const messages = await assembleProviderMessages(turn, {
     mode,
     effectiveHistory,
     activeSkills,
     skillRouting,
     memory: memory.context,
+    knowledge: knowledge.context,
   });
 
   return {
@@ -412,6 +425,101 @@ async function retrieveMemory(
   return { context, relevantMemoryIds };
 }
 
+/**
+ * Knowledge retrieval (§60): search the knowledge bases attached to the
+ * conversation's project with a strict share of whatever budget remains
+ * after history, skills, and memory. No project binding → no knowledge
+ * context (standalone chats never pull knowledge implicitly).
+ */
+async function retrieveKnowledge(
+  turn: TurnContext,
+  normalizedUserInput: string,
+  effectiveHistory: MessageRecord[],
+  activeSkills: string,
+  skillRouting: string,
+  memoryContext: string,
+  snapshot: ContextBudgetSnapshot,
+): Promise<{ context: string }> {
+  const { get, runtime, conversationId, conversation } = turn;
+  if (get().privateSession || !conversation?.projectId) return { context: "" };
+  const knowledgeStartedAt = Date.now();
+  const storage = getStructuredStorage();
+  const project = await storage.read<ProjectRecord>("projects", conversation.projectId);
+  const baseIds = (project?.knowledgeBaseIds ?? []).slice(0, 10);
+  if (baseIds.length === 0) return { context: "" };
+  const availableInputTokens =
+    snapshot.maxContextTokens -
+    snapshot.reservedOutputTokens -
+    snapshot.reservedToolTokens -
+    snapshot.safetyMarginTokens;
+  const remaining = Math.max(
+    0,
+    availableInputTokens -
+      estimateMessagesTokens(effectiveHistory) -
+      estimateTokens(activeSkills) -
+      estimateTokens(skillRouting) -
+      estimateTokens(memoryContext) -
+      estimateTokens(normalizedUserInput),
+  );
+  const maxCharacters = Math.min(4_000, Math.floor(remaining * 0.1) * 4);
+  if (maxCharacters <= 0) return { context: "" };
+  try {
+    let retrieval: { context: string; sourceCount: number; chunkCount: number };
+    if (runtime.harnessMiddlewareRegistry) {
+      const event = await runtime.harnessMiddlewareRegistry.dispatch({
+        type: "knowledge-retrieval",
+        conversationId,
+        storage,
+        workspacePath: runtime.getWorkspaceRoot?.() ?? null,
+        query: normalizedUserInput,
+        baseIds,
+        maxCharacters,
+        context: "",
+        sourceCount: 0,
+        chunkCount: 0,
+      });
+      retrieval = {
+        context: event.context,
+        sourceCount: event.sourceCount,
+        chunkCount: event.chunkCount,
+      };
+    } else {
+      const { defaultKnowledgeRetriever } = await import("../../../core/knowledge/retrieval");
+      const result = await defaultKnowledgeRetriever.retrieve(storage, {
+        baseIds,
+        query: normalizedUserInput,
+        maxCharacters,
+      });
+      retrieval = {
+        context: result.context,
+        sourceCount: new Set(result.results.map((hit) => hit.location)).size,
+        chunkCount: result.results.length,
+      };
+    }
+    if (retrieval.context.length > 0) {
+      activeTraceFor(conversationId)?.knowledgeRetrieved(
+        retrieval.chunkCount,
+        retrieval.sourceCount,
+      );
+    }
+    logger.debug("knowledge", "knowledge.turn-retrieval", {
+      conversationId,
+      bases: baseIds.length,
+      chunks: retrieval.chunkCount,
+      sources: retrieval.sourceCount,
+      contextCharacters: retrieval.context.length,
+      durationMs: Date.now() - knowledgeStartedAt,
+    });
+    return { context: retrieval.context };
+  } catch (error) {
+    logger.warn("knowledge", "knowledge.turn-retrieval-failed", {
+      conversationId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return { context: "" };
+  }
+}
+
 /** Forced checkpoint before context is dropped at >90% utilization. */
 async function checkpointCompaction(
   turn: TurnContext,
@@ -485,6 +593,7 @@ async function assembleProviderMessages(
     activeSkills: string;
     skillRouting: string;
     memory: string;
+    knowledge: string;
   },
 ): Promise<{ role: string; content: unknown }[]> {
   const { get, provider, conversationId } = turn;
@@ -500,6 +609,7 @@ async function assembleProviderMessages(
     activeSkills: parts.activeSkills,
     skillRouting: parts.skillRouting,
     memory: parts.memory,
+    ...(parts.knowledge ? { knowledge: parts.knowledge } : {}),
     fileReferences,
     personalization,
     workspaceContext: collectWorkspaceContext(),

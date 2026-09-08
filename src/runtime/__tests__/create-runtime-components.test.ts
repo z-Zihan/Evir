@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LOCAL_FILE_TOOLS } from "../../core/tools/builtin/local-file-tools";
+import { KNOWLEDGE_TOOLS } from "../../core/tools/builtin/knowledge-tools";
 import { BROWSER_TOOLS } from "../../core/tools/builtin/browser-tools";
 import { CANVAS_TOOLS } from "../../core/tools/builtin/canvas-tools";
 import { createRuntime } from "../create-runtime";
@@ -21,7 +22,11 @@ describe("createRuntime component assembly", () => {
         ?.list()
         .map(({ id }) => id)
         .sort(),
-    ).toEqual([...LOCAL_FILE_TOOLS, ...CANVAS_TOOLS, ...BROWSER_TOOLS].map(({ id }) => id).sort());
+    ).toEqual(
+      [...LOCAL_FILE_TOOLS, ...CANVAS_TOOLS, ...BROWSER_TOOLS, ...KNOWLEDGE_TOOLS]
+        .map(({ id }) => id)
+        .sort(),
+    );
     expect(runtime.componentRuntime?.inspect().every(({ state }) => state === "active")).toBe(true);
   });
 
@@ -47,6 +52,7 @@ describe("createRuntime component assembly", () => {
     const runtime = createRuntime();
 
     expect(runtime.target).toBe("web");
-    expect(runtime.toolRegistry?.list()).toEqual([]);
+    // Web keeps only the target-agnostic knowledge tool (shared entity index).
+    expect(runtime.toolRegistry?.list().map(({ id }) => id)).toEqual(["search_knowledge"]);
   });
 });

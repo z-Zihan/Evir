@@ -21,6 +21,8 @@ export interface ContextBuildSections {
   activeSkills?: string;
   skillRouting?: string;
   memory?: string;
+  /** Knowledge-base excerpts with provenance (Knowledge Base v1). */
+  knowledge?: string;
   personalization?: string;
   fileReferences?: FileContextReference[];
   /** Lightweight "what the user is looking at" lines (paths / URLs only). */
@@ -54,6 +56,7 @@ export class ContextBuilderImpl {
     if (sections.skillRouting)
       parts.push(`<skill_routing>\n${sections.skillRouting}\n</skill_routing>`);
     if (sections.memory) parts.push(`<memory>\n${sections.memory}\n</memory>`);
+    if (sections.knowledge) parts.push(`<knowledge>\n${sections.knowledge}\n</knowledge>`);
     if (sections.personalization) {
       parts.push(`<personalization>\n${sections.personalization}\n</personalization>`);
     }

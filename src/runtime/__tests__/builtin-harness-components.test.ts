@@ -28,6 +28,7 @@ describe("built-in Harness middleware components", () => {
       "context-budget",
       "skill-routing",
       "memory-retrieval",
+      "knowledge-retrieval",
       "tool-policy",
       "loop-detection",
       "checkpoint",
@@ -212,6 +213,65 @@ describe("built-in Harness middleware components", () => {
       memoryIds: [],
     });
     expect(memory.context).toContain("Prefer Chinese");
+
+    // Knowledge retrieval shares the same dispatch pattern (§60): seeded
+    // base/source/chunks come back as provenance-lined context.
+    await storage.write("knowledge_bases", "kb-1", {
+      id: "kb-1",
+      name: "Docs",
+      enabled: true,
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    await storage.write("knowledge_sources", "src-1", {
+      id: "src-1",
+      baseId: "kb-1",
+      type: "local-file",
+      title: "architecture.md",
+      ref: "/ws/architecture.md",
+      enabled: true,
+      status: "ready",
+      docCount: 1,
+      chunkCount: 1,
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    await storage.write("knowledge_documents", "doc-1", {
+      id: "doc-1",
+      sourceId: "src-1",
+      baseId: "kb-1",
+      title: "architecture.md",
+      location: "/ws/architecture.md",
+      contentHash: "hash",
+      charCount: 100,
+      updatedAt: 1,
+    });
+    await storage.write("knowledge_chunks", "doc-1:0", {
+      id: "doc-1:0",
+      documentId: "doc-1",
+      sourceId: "src-1",
+      baseId: "kb-1",
+      ordinal: 0,
+      text: "The deployment pipeline uses blue-green rollout.",
+      heading: "Deployment",
+      updatedAt: 1,
+    });
+    const knowledge = await harness.dispatch({
+      type: "knowledge-retrieval",
+      conversationId: "conversation-1",
+      storage,
+      workspacePath: null,
+      query: "deployment pipeline",
+      baseIds: ["kb-1"],
+      maxCharacters: 2_000,
+      context: "",
+      sourceCount: 0,
+      chunkCount: 0,
+    });
+    expect(knowledge.context).toContain("blue-green");
+    expect(knowledge.context).toContain("/ws/architecture.md");
+    expect(knowledge.chunkCount).toBe(1);
+    expect(knowledge.sourceCount).toBe(1);
 
     const persistCheckpoint = vi.fn(() => Promise.resolve());
     const checkpoint = await harness.dispatch({

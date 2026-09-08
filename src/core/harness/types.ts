@@ -13,6 +13,7 @@ export type HarnessMiddlewareId =
   | "context-budget"
   | "skill-routing"
   | "memory-retrieval"
+  | "knowledge-retrieval"
   | "tool-policy"
   | "loop-detection"
   | "checkpoint"
@@ -26,6 +27,7 @@ export const HARNESS_MIDDLEWARE_ORDER: readonly HarnessMiddlewareId[] = [
   "context-budget",
   "skill-routing",
   "memory-retrieval",
+  "knowledge-retrieval",
   "tool-policy",
   "loop-detection",
   "checkpoint",
@@ -79,6 +81,18 @@ export interface HarnessMemoryRetrievalEvent extends HarnessEventBase {
   memoryIds: string[];
 }
 
+export interface HarnessKnowledgeRetrievalEvent extends HarnessEventBase {
+  type: "knowledge-retrieval";
+  storage: StoragePort;
+  workspacePath: string | null;
+  query: string;
+  baseIds: string[];
+  maxCharacters: number;
+  context: string;
+  sourceCount: number;
+  chunkCount: number;
+}
+
 export interface HarnessToolCallEvent extends HarnessEventBase {
   type: "tool-call";
   phase: "before-execute" | "after-execute" | "run-end";
@@ -123,6 +137,7 @@ export type HarnessEvent =
   | HarnessContextBudgetEvent
   | HarnessSkillRoutingEvent
   | HarnessMemoryRetrievalEvent
+  | HarnessKnowledgeRetrievalEvent
   | HarnessToolCallEvent
   | HarnessCheckpointEvent
   | HarnessCompletionEvent

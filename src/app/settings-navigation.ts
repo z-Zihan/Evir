@@ -14,6 +14,7 @@ export type SettingsTab =
   | "theme"
   | "language"
   | "memory"
+  | "knowledge"
   | "diagnostics"
   | "about";
 

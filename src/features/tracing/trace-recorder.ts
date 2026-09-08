@@ -173,7 +173,7 @@ export class TraceRecorder {
       // Visible-text chunks carry their cumulative char offset so the final
       // message text can be mapped onto chunk timing without duplicating it.
       const offset =
-        kind === "text" ? this.visibleTextOffset : this.otherDeltaOffset.get(kind) ?? 0;
+        kind === "text" ? this.visibleTextOffset : (this.otherDeltaOffset.get(kind) ?? 0);
       this.record("stream.delta", { summary: kind, size, ...(kind === "text" ? { offset } : {}) });
       if (kind === "text") this.visibleTextOffset += size;
       else this.otherDeltaOffset.set(kind, (this.otherDeltaOffset.get(kind) ?? 0) + size);
@@ -280,6 +280,17 @@ export class TraceRecorder {
     });
   }
 
+  /**
+   * Knowledge retrieval provenance (§61): records THAT knowledge was used
+   * and how much — source locations/titles never carry chunk text.
+   */
+  knowledgeRetrieved(chunkCount: number, sourceCount: number): void {
+    this.record("knowledge.retrieved", {
+      summary: `${chunkCount} chunks · ${sourceCount} sources`,
+      size: chunkCount,
+    });
+  }
+
   approvalRequested(toolCallId: string, toolName: string): void {
     // Each toolCallId opens its own span; a queued approval requested in the
     // same batch keeps its original start (the user saw it from the start).
@@ -346,8 +357,7 @@ export class TraceRecorder {
       .filter((duration): duration is number => duration !== undefined);
     const approvalWaitTotalMs =
       resolvedWaits.length > 0 ? resolvedWaits.reduce((total, wait) => total + wait, 0) : undefined;
-    const approvalWaitMaxMs =
-      resolvedWaits.length > 0 ? Math.max(...resolvedWaits) : undefined;
+    const approvalWaitMaxMs = resolvedWaits.length > 0 ? Math.max(...resolvedWaits) : undefined;
     const approvalWaitAvgMs =
       approvalWaitTotalMs !== undefined ? approvalWaitTotalMs / resolvedWaits.length : undefined;
     return {

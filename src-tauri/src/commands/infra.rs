@@ -50,6 +50,10 @@ const STRUCTURED_ENTITIES: &[&str] = &[
     "usage_records",
     "traces",
     "plugins",
+    "knowledge_bases",
+    "knowledge_sources",
+    "knowledge_documents",
+    "knowledge_chunks",
     "settings",
 ];
 

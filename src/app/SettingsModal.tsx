@@ -4,6 +4,7 @@ import { useOverlayBrowserGuard } from "./workspace/use-overlay-browser-guard";
 import {
   BarChart3,
   Brain,
+  Database,
   Boxes,
   Braces,
   Globe2,
@@ -50,6 +51,9 @@ const DiagnosticsSettings = lazy(() =>
 );
 const MemorySettings = lazy(() =>
   import("./MemorySettings").then((m) => ({ default: m.MemorySettings })),
+);
+const KnowledgeSettings = lazy(() =>
+  import("./KnowledgeSettings").then((m) => ({ default: m.KnowledgeSettings })),
 );
 const ThemeSettings = lazy(() =>
   import("./ThemeSettings").then((m) => ({ default: m.ThemeSettings })),
@@ -106,6 +110,7 @@ const SETTINGS_GROUPS: Array<{ labelKey: string; items: SettingsNavItem[] }> = [
       { tab: "plugins", labelKey: "settings.plugins", icon: Puzzle },
       { tab: "browser", labelKey: "settings.browser", icon: Globe2 },
       { tab: "memory", labelKey: "memory.title", icon: Brain },
+      { tab: "knowledge", labelKey: "settings.knowledge", icon: Database },
     ],
   },
   {
@@ -343,6 +348,9 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
                     conversationId={currentConversationId}
                     workspacePath={currentWorkspace}
                   />
+                )}
+                {effectiveActiveTab === "knowledge" && (
+                  <KnowledgeSettings workspacePath={currentWorkspace} />
                 )}
                 {effectiveActiveTab === "diagnostics" && <DiagnosticsSettings />}
               </Suspense>

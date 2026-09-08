@@ -311,7 +311,8 @@
       "capabilities": "Capabilities",
       "system": "System"
     },
-    "browser": "Browser"
+    "browser": "Browser",
+    "knowledge": "Knowledge"
   },
   "provider": {
     "add": "Add provider",
@@ -1231,7 +1232,8 @@
       "stream.completed": "Stream completed",
       "stream.error": "Stream error",
       "turn.completed": "Turn completed",
-      "turn.failed": "Turn failed"
+      "turn.failed": "Turn failed",
+      "knowledge.retrieved": "Knowledge retrieved"
     },
     "export": {
       "copySummary": "Copy summary",
@@ -1438,5 +1440,63 @@
     "onboardingRecommended": "recommended",
     "onboardingAsk": "Ask every time",
     "onboardingDismiss": "Keep the default (ask every time) and dismiss"
+  },
+  "knowledge": {
+    "title": "Knowledge",
+    "intro": "Explicitly attached local documents and web sources, bound per project for agent retrieval; separate from Memory (personal recollections).",
+    "bases": {
+      "title": "Knowledge bases",
+      "new": "New base",
+      "namePlaceholder": "New knowledge base name",
+      "create": "Create",
+      "empty": "No knowledge bases yet",
+      "emptyHint": "Create a knowledge base, then add local folders, files, or web pages as sources.",
+      "stats": "{{sources}} sources · {{docs}} docs · {{chunks}} chunks",
+      "enable": "Enable/disable base",
+      "rename": "Rename",
+      "delete": "Delete",
+      "deleteConfirmTitle": "Delete knowledge base \"{{name}}\"?",
+      "deleteConfirmBody": "All its indexes and chunks are removed; your original files and pages are untouched."
+    },
+    "sources": {
+      "title": "Sources — {{name}}",
+      "type": "Source type",
+      "types": {
+        "local-folder": "Local folder",
+        "project-docs": "Project docs folder",
+        "local-file": "Local file",
+        "web-url": "Web URL",
+        "mcp-resource": "MCP resource",
+        "historical-task": "Historical task output"
+      },
+      "pickFolder": "Choose folder",
+      "ref": "Path or URL",
+      "titlePlaceholder": "Display name (optional)",
+      "add": "Add",
+      "needWorkspace": "Local sources must live inside the open project, or be added as an additional access root in project settings first.",
+      "empty": "No sources yet",
+      "emptyHint": "Add a local folder/file or a web page; indexing starts immediately.",
+      "status": {
+        "pending": "Pending",
+        "indexing": "Indexing",
+        "ready": "Ready",
+        "failed": "Failed"
+      },
+      "indexed": "{{docs}} docs · {{chunks}} chunks · indexed {{when}}",
+      "reindex": "Reindex",
+      "enable": "Enable/disable source",
+      "remove": "Remove",
+      "removeConfirmTitle": "Remove source \"{{name}}\"?",
+      "removeConfirmBody": "Removes only the index and chunks — never your original files."
+    },
+    "sourceAdded": "Source added and indexed",
+    "reindexFailed": "Indexing failed",
+    "attach": {
+      "title": "Knowledge bases",
+      "hint": "Bound bases are retrieved automatically in this project's threads; the agent can also query them via search_knowledge.",
+      "empty": "No knowledge bases to attach yet — create one in Settings → Knowledge.",
+      "attach": "Attach",
+      "detach": "Detach"
+    }
   }
 }
