@@ -4,6 +4,7 @@ import type {
   ComponentDefinition,
   ComponentRuntimePort,
 } from "../components/types";
+import type { McpResourceSummary } from "./protocol";
 import { McpClient, type McpClientSnapshot } from "./mcp-client";
 import { parseMcpServerConfig, type McpServerRepository } from "./mcp-repository";
 import { McpToolPublisher } from "./tool-adapter";
@@ -25,6 +26,8 @@ export interface McpRuntimePort {
   activatePersisted(): Promise<void>;
   getSnapshot(serverId: string): McpServerRuntimeSnapshot | undefined;
   subscribe(listener: (snapshot: McpServerRuntimeSnapshot) => void): () => void;
+  listResources(serverId: string): Promise<McpResourceSummary[]>;
+  readResourceText(serverId: string, uri: string): Promise<{ text: string; mimeType?: string }>;
   dispose(): Promise<void>;
 }
 
@@ -74,6 +77,21 @@ export class McpRuntimeService implements McpRuntimePort {
   subscribe(listener: (snapshot: McpServerRuntimeSnapshot) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  async listResources(serverId: string): Promise<McpResourceSummary[]> {
+    const runtime = this.servers.get(serverId);
+    if (!runtime) throw new Error(`MCP server not active: ${serverId}`);
+    return runtime.client.listResources();
+  }
+
+  async readResourceText(
+    serverId: string,
+    uri: string,
+  ): Promise<{ text: string; mimeType?: string }> {
+    const runtime = this.servers.get(serverId);
+    if (!runtime) throw new Error(`MCP server not active: ${serverId}`);
+    return runtime.client.readResourceText(uri);
   }
 
   getSnapshot(serverId: string): McpServerRuntimeSnapshot | undefined {

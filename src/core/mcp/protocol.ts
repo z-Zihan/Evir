@@ -5,6 +5,7 @@ export const MCP_PROTOCOL_VERSION = "2025-06-18";
 export const DEFAULT_MCP_REQUEST_TIMEOUT_MS = 60_000;
 export const MAX_MCP_RESPONSE_BYTES = 5 * 1024 * 1024;
 export const MAX_MCP_TOOL_COUNT = 2_000;
+export const MAX_MCP_RESOURCE_COUNT = 2_000;
 export const MAX_MCP_DISCOVERY_PAGES = 100;
 export const MAX_MCP_SCHEMA_BYTES = 256 * 1024;
 
@@ -103,6 +104,58 @@ export function parseListToolsResult(value: unknown): McpListToolsResult {
   const parsed = ListToolsResultSchema.safeParse(value);
   if (!parsed.success) throw new McpProtocolError("Invalid MCP tools/list result");
   return parsed.data;
+}
+
+const ResourceSummarySchema = z.object({
+  uri: z.string().min(1),
+  name: z.string().min(1),
+  description: z.string().optional(),
+  mimeType: z.string().optional(),
+});
+
+const ListResourcesResultSchema = z.object({
+  resources: z.array(ResourceSummarySchema).max(MAX_MCP_RESOURCE_COUNT),
+  nextCursor: z.string().optional(),
+});
+
+const TextResourceContentSchema = z.object({
+  uri: z.string().min(1),
+  mimeType: z.string().optional(),
+  text: z.string(),
+});
+
+const ReadResourceResultSchema = z.object({
+  contents: z
+    .array(z.union([TextResourceContentSchema, z.object({ uri: z.string(), blob: z.string() })]))
+    .min(1),
+});
+
+export interface McpResourceSummary {
+  uri: string;
+  name: string;
+  description?: string | undefined;
+  mimeType?: string | undefined;
+}
+
+export interface McpListResourcesResult {
+  resources: McpResourceSummary[];
+  nextCursor?: string | undefined;
+}
+
+export function parseListResourcesResult(value: unknown): McpListResourcesResult {
+  const parsed = ListResourcesResultSchema.safeParse(value);
+  if (!parsed.success) throw new McpProtocolError("Invalid MCP resources/list result");
+  return parsed.data;
+}
+
+export function parseReadResourceResult(value: unknown): { text: string; mimeType?: string } {
+  const parsed = ReadResourceResultSchema.safeParse(value);
+  if (!parsed.success) throw new McpProtocolError("Invalid MCP resources/read result");
+  const first = parsed.data.contents[0]!;
+  if (!("text" in first) || typeof first.text !== "string") {
+    throw new McpProtocolError("MCP resource is binary; text-only resources are supported in v1");
+  }
+  return { text: first.text, ...(first.mimeType ? { mimeType: first.mimeType } : {}) };
 }
 
 export function parseCallToolResult(value: unknown): McpCallToolResult {

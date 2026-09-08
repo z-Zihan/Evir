@@ -289,6 +289,94 @@ describe("knowledge repository (§54-68)", () => {
     await expect(io.readTextFile("/ws/data.csv")).resolves.toContain("alpha"); // original intact
   });
 
+  it("mcp-resource sources ingest text resources from the server (§55)", async () => {
+    const base = await repository.createBase({ name: "MCP KB" });
+    const source = await repository.createSource({
+      baseId: base.id,
+      type: "mcp-resource",
+      title: "docs server",
+      ref: "server-1",
+    });
+    const mcpIo = {
+      ...io,
+      listMcpResources: () =>
+        Promise.resolve([
+          { uri: "docs://guide", name: "Guide" },
+          { uri: "docs://binary", name: "Binary", mimeType: "application/octet-stream" },
+        ]),
+      readMcpResourceText: (serverId: string, uri: string) =>
+        serverId === "server-1" && uri === "docs://guide"
+          ? Promise.resolve("# Guide\nDeployment uses blue-green rollout.")
+          : Promise.reject(new Error("binary resource")),
+    };
+    const reindexed = await repository.reindexSource(source, mcpIo);
+    expect(reindexed.status).toBe("ready");
+    expect(reindexed.docCount).toBe(1);
+    const documents = [...storage.dump("knowledge_documents").values()];
+    expect(documents[0]).toMatchObject({ title: "Guide", location: "docs://guide" });
+  });
+
+  it("mcp-resource ingestion fails honestly when the runtime is unavailable", async () => {
+    const base = await repository.createBase({ name: "MCP Missing" });
+    const source = await repository.createSource({
+      baseId: base.id,
+      type: "mcp-resource",
+      title: "offline",
+      ref: "server-x",
+    });
+    const result = await repository.reindexSource(source, io); // no MCP methods on plain io
+    expect(result.status).toBe("failed");
+    expect(result.error).toMatch(/desktop app|no readable|resources/i);
+  });
+
+  it("historical-task sources ingest the conversation's artifact outputs (§55)", async () => {
+    await storage.write("agent_runs", "run-1", {
+      id: "run-1",
+      conversationId: "conv-hist",
+      status: "completed",
+      toolEvents: [],
+      fileReferences: [],
+      snapshots: [],
+      startedMode: "agent",
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    await storage.write("tool_executions", "run-1:call-1", {
+      id: "run-1:call-1",
+      toolCall: {
+        id: "call-1",
+        toolName: "report_output",
+        arguments: { path: "/ws/report-final.md" },
+      },
+      result: {
+        toolCallId: "call-1",
+        toolName: "report_output",
+        success: true,
+        output: JSON.stringify({ reported: true, path: "/ws/report-final.md", size: 64 }),
+        exitCode: 0,
+        startedAt: 1,
+        completedAt: 2,
+      },
+    });
+    const histIo = fakeIo({
+      "/ws/report-final.md": "# Final Report\nThe migration completed with zero downtime.",
+    });
+    const base = await repository.createBase({ name: "History KB" });
+    const source = await repository.createSource({
+      baseId: base.id,
+      type: "historical-task",
+      title: "migration task",
+      ref: "conv-hist",
+    });
+    const reindexed = await repository.reindexSource(source, histIo);
+    expect(reindexed.status).toBe("ready");
+    expect(reindexed.docCount).toBe(1);
+    const chunks = [...storage.dump("knowledge_chunks").values()];
+    expect(
+      chunks.some((chunk) => String((chunk as { text: string }).text).includes("zero downtime")),
+    ).toBe(true);
+  });
+
   it("failed ingestion marks the source failed with the error, keeping prior index", async () => {
     const base = await repository.createBase({ name: "Fail" });
     const source = await repository.createSource({

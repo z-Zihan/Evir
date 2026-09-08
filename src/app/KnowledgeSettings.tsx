@@ -25,6 +25,7 @@ import type { KnowledgeSourceType } from "../core/knowledge/types";
 import { useConfirmationDialog } from "./useConfirmationDialog";
 
 const LOCAL_TYPES = new Set<KnowledgeSourceType>(["local-file", "local-folder", "project-docs"]);
+const REF_TYPES = new Set<KnowledgeSourceType>(["mcp-resource", "historical-task"]);
 
 function SourceTypeIcon({ type }: { type: KnowledgeSourceType }) {
   if (type === "web-url") return <Globe2 size={13} aria-hidden="true" />;
@@ -281,8 +282,14 @@ export function KnowledgeSettings({ workspacePath }: { workspacePath: string | n
                           {t("knowledge.sources.types.local-file")}
                         </option>
                         <option value="web-url">{t("knowledge.sources.types.web-url")}</option>
+                        <option value="mcp-resource">
+                          {t("knowledge.sources.types.mcp-resource")}
+                        </option>
+                        <option value="historical-task">
+                          {t("knowledge.sources.types.historical-task")}
+                        </option>
                       </select>
-                      {LOCAL_TYPES.has(sourceType) && sourceType !== "local-file" && (
+                      {(sourceType === "local-folder" || sourceType === "project-docs") && (
                         <Button size="sm" variant="secondary" onClick={() => void pickFolder()}>
                           <FolderOpen size={13} />
                           {t("knowledge.sources.pickFolder")}
@@ -313,6 +320,9 @@ export function KnowledgeSettings({ workspacePath }: { workspacePath: string | n
                         {t("knowledge.sources.add")}
                       </Button>
                     </div>
+                    {REF_TYPES.has(sourceType) && (
+                      <p className="text-[11px] text-muted">{t("knowledge.sources.refTypeHint")}</p>
+                    )}
                     {addError && <InlineError message={addError} />}
                     {LOCAL_TYPES.has(sourceType) && !workspacePath && (
                       <p className="text-[11px] text-muted">

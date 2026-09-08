@@ -52,13 +52,30 @@ pnpm test:agent-eval
 
 - **workspace 档相对路径写入被误判越权**（task 01 首跑暴露）：`tool-executor` 的权限边界检查未把相对路径解析到 workspace root 再判定，导致 workspace profile 下 `apply_patch src/x.js` 仍要求审批。已修复（`src/core/tools/tool-executor.ts` 的 `resolveCandidatePath`）。
 
-## 真实 Provider 档（real-model tier）
+## 真实 Provider 档（real-model tier）— 已实现并实跑
 
-本仓库当前只包含确定性档。真实 provider 档协议：
+Runner：`eval/agent-eval/real-provider.spec.ts`（env 未配置时如实 skip = NOT RUN）。
 
-1. 同样的 20 个 prompt + fixture + criteria，模型响应来自真实 provider（OpenAI-compatible / Anthropic / Gemini / GLM）而非脚本。
-2. Runner 记录 Model / Provider / Evir Version / Commit / Metrics 到 `eval/results/real-<date>.json`。
+```bash
+EVIR_REAL_EVAL_BASE_URL=https://<endpoint>/v1 \
+EVIR_REAL_EVAL_MODEL=<model-id> \
+EVIR_REAL_EVAL_KEY_FILE=<key-file>   # 或 EVIR_REAL_EVAL_API_KEY（不落日志） \
+EVIR_REAL_EVAL_TASKS=10              # 10 | 20 | 逗号分隔任务 id \
+EVIR_REAL_EVAL_UPDATE_VALIDATION=1   # 达标时写入 provider-validation.json \
+pnpm vitest run eval/agent-eval/real-provider.spec.ts
+```
+
+1. 同样的 20 个 prompt + fixture + criteria，模型响应来自真实端点（生产流式适配器，无模型层 mock）。
+2. 结果写入 `eval/results/real-<date>.json` + `real-latest.json`（含 model/provider/version/commit/全部指标 + headless 偏差说明：ask-profile 任务以 workspace 运行，无交互审批）。
 3. 没有合法可用的 API 配额时，结果必须标 **NOT RUN**——禁止假 PASS（§50）。
-4. Provider 成熟度分级以此为准：跑过 Golden Agent Tasks 的才可标 **Agent Verified**（§48）。
+4. 达标运行（≥10 任务、成功率 ≥0.8、toolCallSuccess ≥0.8、0 越权、0 越界）在 `EVIR_REAL_EVAL_UPDATE_VALIDATION=1` 时把证据条目写入 `src/core/providers/provider-validation.json`——`effectiveAgentTier` 据此让 Agent Verified 生效（§48），README/设置页由 `scripts/check-doc-facts.mjs` 保持一致。
 
-**当前状态：real-model tier = NOT RUN（本轮未消耗真实配额）。**
+**当前状态（2026-09-08）：GLM/智谱经 EvoMap 网关（evomap-deepseek-v4-flash）实跑 10 任务 9 过（09 因审批无法 headless 交互如实 FAIL），证据在 `provider-validation.json`；20 任务全量运行见 `eval/results/real-latest.json`。**
+
+## 多场景档（multi-scenario）
+
+`pnpm test:multi-scenario`：数据 / 网页（loopback fixture）/ 文档 / 自动化四类黄金任务，确定性脚本档 + §51 指标。真实档：`eval/multi-scenario/real-scenarios.spec.ts`（同样 env 门控）。
+
+## Skill ON/OFF 对照档（skill A/B）
+
+`eval/skill-ab/skill-ab.spec.ts`（env 门控）：5 个核心 Skill 的 ON/OFF 真实模型对照，单样本方向性信号（报告内注明样本量限制）。

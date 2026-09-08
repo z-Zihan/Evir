@@ -6,11 +6,13 @@
  * project's granted roots before any read (§65).
  */
 import type { StoragePort } from "../storage/storage-port";
+import type { AgentRunRecord } from "../../features/chat/agent-run-record";
 import { logger } from "../logging/logger";
 import { chunkDocument } from "./chunking";
 import { contentHash, extractContent } from "./extraction";
 import { filterIngestibleFiles, type KnowledgeIoPort } from "./knowledge-io";
 import {
+  MAX_FOLDER_FILES,
   MAX_INGEST_FILE_BYTES,
   isPdfPath,
   type KnowledgeBaseRecord,
@@ -310,11 +312,70 @@ export class KnowledgeRepository {
           { location: source.ref, title: extracted.title || source.ref, text: extracted.text },
         ];
       }
-      case "mcp-resource":
-      case "historical-task":
-        throw new Error(
-          `${source.type} sources are managed by their dedicated providers and cannot be reindexed directly`,
+      case "mcp-resource": {
+        if (!io.listMcpResources || !io.readMcpResourceText) {
+          throw new Error("MCP resources require the desktop app with an enabled MCP server");
+        }
+        const resources = await io.listMcpResources(source.ref);
+        if (resources.length === 0) throw new Error("server exposes no resources");
+        const results: { location: string; title: string; text: string }[] = [];
+        for (const resource of resources.slice(0, MAX_FOLDER_FILES)) {
+          try {
+            const text = await io.readMcpResourceText(source.ref, resource.uri);
+            if (text.trim().length > 0) {
+              results.push({ location: resource.uri, title: resource.name, text });
+            }
+          } catch (error) {
+            logger.warn("knowledge", "knowledge.mcp-resource-skip-failed", {
+              uri: resource.uri.slice(0, 200),
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+        if (results.length === 0) throw new Error("no readable text resources on the server");
+        return results;
+      }
+      case "historical-task": {
+        // Derive the conversation's task outputs from persisted run records
+        // and ingest those files — outputs are recomputed, never trusted
+        // from model claims (task-output-model contract).
+        const { deriveTaskOutput, isArtifactPath } =
+          await import("../../features/workspace/task-output-model");
+        const runs = (await this.storage.readAll<AgentRunRecord>("agent_runs")).filter(
+          (run) => run.conversationId === source.ref,
         );
+        if (runs.length === 0) throw new Error("conversation not found or has no runs");
+        const executions = await this.storage.readAll<{
+          id: string;
+          toolCall?: unknown;
+          result?: unknown;
+        }>("tool_executions");
+        const outputs: { location: string; title: string; text: string }[] = [];
+        const seen = new Set<string>();
+        for (const run of runs) {
+          for (const execution of executions) {
+            if (!execution.id.startsWith(`${run.id}:`)) continue;
+            const call = execution.toolCall as never as
+              Parameters<typeof deriveTaskOutput>[0] | undefined;
+            const result = execution.result as Parameters<typeof deriveTaskOutput>[1] | undefined;
+            if (!call || !result) continue;
+            const output = deriveTaskOutput(call, result, {
+              runId: run.id,
+              conversationId: source.ref,
+              newSnapshots: [],
+            });
+            if (!output || !isArtifactPath(output.path) || seen.has(output.path)) continue;
+            seen.add(output.path);
+            try {
+              outputs.push(await this.ingestOne(output.path, io));
+            } catch {
+              // Output file no longer on disk — skip honestly.
+            }
+          }
+        }
+        if (outputs.length === 0) throw new Error("conversation has no ingestible task outputs");
+        return outputs;
+      }
     }
   }
 

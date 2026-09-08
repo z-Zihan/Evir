@@ -14,6 +14,9 @@ export interface KnowledgeIoPort {
   listIngestibleFiles(folderPath: string): Promise<string[]>;
   /** Fetch a URL's body as text (web-url source, §66: explicit adds only). */
   fetchText(url: string): Promise<string>;
+  /** MCP resource discovery (text resources only in v1). */
+  listMcpResources?(serverId: string): Promise<{ uri: string; name: string; mimeType?: string }[]>;
+  readMcpResourceText?(serverId: string, uri: string): Promise<string>;
 }
 
 /** Shared folder-walk logic so desktop and test implementations agree on bounds. */

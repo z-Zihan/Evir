@@ -188,7 +188,14 @@ export function TraceDetailsDialog({
                     key={tool.toolCallId}
                     className="flex items-center gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-[12px]"
                   >
-                    <span className="min-w-0 flex-1 truncate font-medium">{tool.toolName}</span>
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate font-medium">{tool.toolName}</span>
+                      {(tool.inputSummary || tool.outputSummary) && (
+                        <span className="truncate text-[10.5px] text-muted" title={tool.inputSummary}>
+                          {[tool.inputSummary, tool.outputSummary].filter(Boolean).join(" · ")}
+                        </span>
+                      )}
+                    </span>
                     <span className="shrink-0 text-[11px] text-muted tabular-nums">
                       {formatMs(tool.durationMs)}
                     </span>

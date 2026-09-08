@@ -2,14 +2,18 @@ import type { McpServerConfig, McpTool } from "./types";
 import {
   MCP_PROTOCOL_VERSION,
   MAX_MCP_DISCOVERY_PAGES,
+  MAX_MCP_RESOURCE_COUNT,
   MAX_MCP_SCHEMA_BYTES,
   MAX_MCP_TOOL_COUNT,
   McpProtocolError,
   parseCallToolResult,
   parseInitializeResult,
+  parseListResourcesResult,
   parseListToolsResult,
+  parseReadResourceResult,
   type McpCallToolResult,
   type McpInitializeResult,
+  type McpResourceSummary,
 } from "./protocol";
 import {
   HttpMcpTransport,
@@ -22,7 +26,7 @@ import {
 
 export type { McpTool } from "./types";
 export type { InvokeFn, ListenFn, McpTransport } from "./transports";
-export type { McpCallToolResult } from "./protocol";
+export type { McpCallToolResult, McpResourceSummary } from "./protocol";
 
 export type McpConnectionState =
   | "disconnected"
@@ -249,6 +253,45 @@ export class McpClient {
 
   listTools(): Promise<McpTool[]> {
     return Promise.resolve([...this.snapshot.tools]);
+  }
+
+  /** Discover the server's resources (paged, text-only surfaced in v1). */
+  async listResources(options: McpRequestOptions = {}): Promise<McpResourceSummary[]> {
+    if (!this.transport || this.snapshot.state !== "ready") {
+      throw new McpClientError("MCP client is not ready");
+    }
+    const resources: McpResourceSummary[] = [];
+    let cursor: string | undefined;
+    let pages = 0;
+    do {
+      pages += 1;
+      if (pages > MAX_MCP_DISCOVERY_PAGES) {
+        throw new McpProtocolError("MCP resource discovery exceeded the page limit");
+      }
+      const page = parseListResourcesResult(
+        await this.transport.request("resources/list", cursor ? { cursor } : {}, options),
+      );
+      resources.push(...page.resources);
+      if (resources.length > MAX_MCP_RESOURCE_COUNT) {
+        throw new McpProtocolError("MCP resource discovery exceeded the resource limit");
+      }
+      cursor = page.nextCursor;
+    } while (cursor);
+    return resources;
+  }
+
+  /** Read a resource's text content; binary resources are refused in v1. */
+  async readResourceText(
+    uri: string,
+    options: McpRequestOptions = {},
+  ): Promise<{ text: string; mimeType?: string }> {
+    if (!this.transport || this.snapshot.state !== "ready") {
+      throw new McpClientError("MCP client is not ready");
+    }
+    const result = parseReadResourceResult(
+      await this.transport.request("resources/read", { uri }, options),
+    );
+    return result;
   }
 
   async callTool(

@@ -6,6 +6,7 @@
  * selected. Web URLs are fetched once, explicitly, with a size cap (§66).
  */
 import { invoke } from "@tauri-apps/api/core";
+import { getRuntime } from "../../runtime/use-runtime";
 import type { KnowledgeIoPort } from "../../core/knowledge/knowledge-io";
 import { filterIngestibleFiles } from "../../core/knowledge/knowledge-io";
 import { isIngestiblePath, MAX_INGEST_FILE_BYTES } from "../../core/knowledge/types";
@@ -45,6 +46,21 @@ export function createDesktopKnowledgeIo(roots: readonly string[]): KnowledgeIoP
       });
       const filtered = await filterIngestibleFiles(() => Promise.resolve(all), folder);
       return filtered.filter((file) => isIngestiblePath(file));
+    },
+    listMcpResources: async (serverId) => {
+      const mcp = await getRuntime().getMcpRuntime?.();
+      if (!mcp) throw new Error("MCP runtime unavailable");
+      const resources = await mcp.listResources(serverId);
+      return resources.map((resource) => ({
+        uri: resource.uri,
+        name: resource.name,
+        ...(resource.mimeType ? { mimeType: resource.mimeType } : {}),
+      }));
+    },
+    readMcpResourceText: async (serverId, uri) => {
+      const mcp = await getRuntime().getMcpRuntime?.();
+      if (!mcp) throw new Error("MCP runtime unavailable");
+      return (await mcp.readResourceText(serverId, uri)).text;
     },
     fetchText: async (url) => {
       const controller = new AbortController();

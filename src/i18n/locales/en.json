@@ -1487,7 +1487,8 @@
       "enable": "Enable/disable source",
       "remove": "Remove",
       "removeConfirmTitle": "Remove source \"{{name}}\"?",
-      "removeConfirmBody": "Removes only the index and chunks — never your original files."
+      "removeConfirmBody": "Removes only the index and chunks — never your original files.",
+      "refTypeHint": "MCP sources take an enabled server id (text resources only); historical sources take a conversation id (output files must still exist under granted roots)."
     },
     "sourceAdded": "Source added and indexed",
     "reindexFailed": "Indexing failed",
