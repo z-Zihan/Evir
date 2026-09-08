@@ -71,6 +71,17 @@ Capabilities (streaming, tool calling, vision, structured output) are shown befo
 
 Priority management, not freezing: the Desktop Project Agent holds the highest quality priority; Plugin, Multi-user, Canvas, Ego Lite, Browser Provider, and Web / VS Code / CLI are shipped capabilities that stay maintained and optimized. Any new complex capability must keep four red lines intact: core agent quality, runtime, performance budgets, and the Golden Eval.
 
+## Knowledge Base (v1)
+
+Explicitly attached knowledge sources, bound per project for agent retrieval — separate from Memory (personal recollections):
+
+- **Six source types**: local folder / local file / project docs / web URL (explicit adds, fetch time recorded) / MCP resource (text) / historical task outputs (derived from real run records, never model claims).
+- **Structure-first chunking**: heading sections, code blocks never split, paragraph packing; Markdown / text / code / JSON / CSV / HTML / PDF (via the bundled pdf.js).
+- **Retrieval with provenance**: every hit cites `document › heading | path/URL`; when the agent uses knowledge, the run trace records a `knowledge.retrieved` event; no-match returns an honest no-result instead of fabricated content.
+- **Permissions & isolation**: local sources must live under the project's granted roots (re-checked at the Rust boundary); knowledge data is physically isolated per user profile; removing a source deletes only its index — never your files.
+- **Budget-bounded**: injected knowledge is capped by the remaining context budget; a read-only `search_knowledge` tool lets the model query on demand.
+- **Verified**: `pnpm test:knowledge-eval` (10 golden retrieval tasks).
+
 ## Skills: quality over quantity
 
 Built-in skills ship in two layers: **15 core coding skills** (systematic-debugging, test-driven-development, code-review, security-review, verification-before-completion, … — curated for the coding / project-agent path) plus an **optional general pack** (office, writing, analysis; enable per taste in settings). Skill count is not a KPI — core-skill value is checked against the [Agent Eval](eval/).

@@ -79,6 +79,17 @@ Provider、协议、模型能力三层分离：已实现 7 种协议适配器（
 
 优先级管理而非冻结：Desktop Project Agent 是最高质量优先级；Plugin、Multi-user、Canvas、Ego Lite、Browser Provider、Web / VS Code / CLI 都是已交付能力，继续保留、维护、优化。新增任何复杂能力需守住核心 Agent 质量 / Runtime / 性能预算 / Golden Eval 四条不退化红线。
 
+## 知识库（Knowledge Base v1）
+
+显式接入的知识源，按项目绑定供 Agent 检索——与 Memory（个人记忆沉淀）相互独立：
+
+- **六类知识源**：本地文件夹 / 本地文件 / 项目文档目录 / 网页 URL（显式添加、记录抓取时间）/ MCP Resource（文本型）/ 历史任务产物（从真实 run 记录派生，不信任模型自述）。
+- **结构优先分块**：标题分区、代码块不切断、段落打包；Markdown / 文本 / 代码 / JSON / CSV / HTML / PDF（复用内置 pdf.js 抽取）。
+- **检索即溯源**：命中片段带 `文档 › 标题 | 路径/URL` 出处；Agent 用知识回答时，运行详情（Trace）记录 `knowledge.retrieved` 事件；检索不到时诚实返回 no-result，不编造知识库内容。
+- **权限与隔离**：本地源必须在项目授权目录内（workspace/额外授权目录），Rust 边界二次校验；知识库数据按用户 Profile 物理隔离；删除知识源只删索引，不动你的原文件。
+- **预算受控**：注入上下文的知识量受剩余预算硬上限约束；`search_knowledge` 工具（L1 只读）供模型主动查询。
+- **验证**：`pnpm test:knowledge-eval`（10 项检索金任务：多文件/CSV/JSON/HTML/冲突知识/过时知识/诚实无结果/绑定隔离/Profile 隔离）。
+
 ## Skill：质量优先
 
 内置 Skill 分两层：**15 个核心编码 Skill**（systematic-debugging、test-driven-development、code-review、security-review、verification-before-completion 等，面向 Coding / Project Agent 主路径精选）+ **通用可选包**（办公、写作、分析等，设置里可自选启用）。Skill 数量不是 KPI——核心 Skill 的价值由 [Agent Eval](eval/) 对照验证。
@@ -99,7 +110,8 @@ Provider 配置       → 版本化非敏感本地文件
 ## 质量与验证
 
 - **确定性测试**：`pnpm check`（format + lint + strict TS + 全部单测 + Rust 测试 + 发布校验）+ E2E / UI / 视觉 / 无障碍矩阵。当前基线数字以 [Release Readiness](docs/release-readiness.md) 为唯一事实源，不在 README 里复制会漂移的数字。
-- **Agent Eval**：20 个 Golden Agent Tasks 跑在冻结 fixture 仓库上（`pnpm test:agent-eval`），指标含成功率、越权操作（必须为 0）、越界修改（必须为 0）、恢复、证据。真实 Provider 档未消耗配额前如实标 **NOT RUN**。
+- **Agent Eval**：20 个 Golden Agent Tasks 跑在冻结 fixture 仓库上（`pnpm test:agent-eval`），指标含成功率、越权操作（必须为 0）、越界修改（必须为 0）、恢复、证据。真实 Provider 档已实跑（GLM 经 EvoMap 网关 10 任务 9 过 / 20 任务 18 过，见 [eval/README](eval/README.md)）。
+- **多场景 Eval**：数据 / 网页 / 文档 / 自动化黄金任务（`pnpm test:multi-scenario`，另有真实档）；**知识库 Eval**：`pnpm test:knowledge-eval`。
 - 性能预算与实测数字以 [最近一次基准](docs/benchmarks/latest.json) 为准（Web 初始 JS gzip ≤ 350 KiB、桌面前端 ≤ 15 MiB、冷启动 P50 < 2s）。
 
 ## 当前状态
