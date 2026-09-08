@@ -71,20 +71,34 @@ export function stopActiveStream(conversationId?: string): void {
   activeControllers.delete(conversationId);
 }
 
+// rAF exists in browsers/Tauri; Node (tests, CLI, eval runners) falls back
+// to a macrotask tick so streaming never hard-requires a DOM.
+type DeltaTick = { schedule: (callback: () => void) => number; cancel: (handle: number) => void };
+const deltaTick: DeltaTick =
+  typeof requestAnimationFrame === "function"
+    ? {
+        schedule: (callback) => requestAnimationFrame(callback),
+        cancel: (handle) => cancelAnimationFrame(handle),
+      }
+    : {
+        schedule: (callback) => setTimeout(callback, 16) as unknown as number,
+        cancel: (handle) => clearTimeout(handle as unknown as ReturnType<typeof setTimeout>),
+      };
+
 function batchDeltas(onDelta: (content: string) => void) {
   let frame: number | null = null;
   let latest = "";
   const schedule = (content: string) => {
     latest = content;
     if (frame !== null) return;
-    frame = requestAnimationFrame(() => {
+    frame = deltaTick.schedule(() => {
       frame = null;
       onDelta(latest);
     });
   };
   const flush = (content: string) => {
     if (frame !== null) {
-      cancelAnimationFrame(frame);
+      deltaTick.cancel(frame);
       frame = null;
     }
     onDelta(content);

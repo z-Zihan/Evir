@@ -98,6 +98,7 @@ interface TaskRecord {
   fixtureSha: string;
   pass: boolean;
   notes: string;
+  toolSummary: string[];
   metrics: {
     testsPass: boolean;
     buildPass: boolean;
@@ -154,13 +155,25 @@ async function runRealTask(task: GoldenTask, provider: ProviderRecord): Promise<
   const runtime = buildRuntime(repo.root);
   const startedAt = Date.now();
   pushRunRoot(repo.root, { profile: effectiveProfile, roots: [repo.root] });
+  // The real product always sends a system prompt describing the agent
+  // environment; without it a reasoning model answers in text instead of
+  // using tools. Mirror that environment (tool names + workspace root).
+  const toolNames = (runtime.toolRegistry?.listForMode("agent") ?? [])
+    .map(({ name }) => name)
+    .join(", ");
+  const systemPrompt = [
+    "You are Evir, a desktop coding agent working directly in a local repository.",
+    `Working directory: ${repo.root}`,
+    `Available tools: ${toolNames}.`,
+    "Read files before changing them, keep changes minimal and inside the repository, and verify your work by running the project's tests (run_command with cwd set to the working directory, program 'node', args ['--test']). Do not modify files outside the repository. When the task is done, reply with a short summary of what changed.",
+  ].join("\n");
   let result: AgentLoopResult;
   try {
     result = await runAgentLoop({
       provider,
       conversationId: `eval-conversation-${task.id}`,
       messages: [
-        { role: "system", content: "eval" },
+        { role: "system", content: systemPrompt },
         { role: "user", content: task.prompt },
       ],
       runtime,
@@ -271,6 +284,13 @@ async function runRealTask(task: GoldenTask, provider: ProviderRecord): Promise<
     : null;
   const pass = verdict.pass && failureReason === null;
 
+  const toolSummary = result.turns.flatMap((turn) => [
+    ...(turn.pendingApproval ? ["<pending-approval>"] : []),
+    ...(turn.toolResults ?? []).map(
+      (toolResult) =>
+        `${toolResult.toolName} ${toolResult.success ? "ok" : `error:${toolResult.error ?? "?"}`}`,
+    ),
+  ]);
   return {
     id: task.id,
     name: task.name,
@@ -278,6 +298,7 @@ async function runRealTask(task: GoldenTask, provider: ProviderRecord): Promise<
     fixtureSha: repo.initialSha,
     pass,
     notes: failureReason ?? verdict.notes,
+    toolSummary,
     metrics,
   };
 }
@@ -312,6 +333,7 @@ runner("Golden Agent Tasks (real provider tier)", () => {
       console.info(
         `${record.pass ? "PASS" : "FAIL"}  ${record.id}  turns=${record.metrics.providerCalls} tools=${record.metrics.toolCalls} (${Math.round(record.metrics.durationMs / 1000)}s) — ${record.notes}`,
       );
+      console.info(`    tools: ${record.toolSummary.join(" | ") || "(none)"}`);
       if (!record.pass) {
         expect.soft(`real-tier task failed: ${record.notes}`, "task").toBe("task passed");
       }
