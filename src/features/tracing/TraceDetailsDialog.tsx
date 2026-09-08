@@ -191,7 +191,10 @@ export function TraceDetailsDialog({
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate font-medium">{tool.toolName}</span>
                       {(tool.inputSummary || tool.outputSummary) && (
-                        <span className="truncate text-[10.5px] text-muted" title={tool.inputSummary}>
+                        <span
+                          className="truncate text-[10.5px] text-muted"
+                          title={tool.inputSummary}
+                        >
                           {[tool.inputSummary, tool.outputSummary].filter(Boolean).join(" · ")}
                         </span>
                       )}

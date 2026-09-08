@@ -73,6 +73,7 @@ test("captures the required responsive, theme, and language matrix", async ({ pa
     "skills",
     ...(isDesktop(testInfo) ? ["mcp", "browser", "plugins"] : []),
     "memory",
+    "knowledge",
     "keyboard-shortcuts",
     "usage",
     "data-and-privacy",

@@ -102,7 +102,11 @@ describe("multi-scenario golden tasks (deterministic)", () => {
             : turn;
         vi.mocked(streamAssistant).mockResolvedValueOnce(scriptToStream(scripted, index));
       });
-      const record = await runScenarioTask(task, provider, ...(server ? [{ baseUrl: server.url }] : []));
+      const record = await runScenarioTask(
+        task,
+        provider,
+        ...(server ? [{ baseUrl: server.url }] : []),
+      );
       records.push(record);
       console.info(
         `${record.pass ? "PASS" : "FAIL"}  ${record.id} tools=${record.metrics.toolCalls} unnecessary=${record.metrics.unnecessaryToolCalls} — ${record.notes}`,
