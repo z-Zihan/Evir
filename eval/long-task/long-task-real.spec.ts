@@ -50,6 +50,14 @@ const TASK_PROMPT = [
   "约束：只允许修改 packages/cli 内的文件；不引入新依赖（不得改动任何 package.json）；遵守仓库 TypeScript strict 与现有代码风格。",
 ].join("\n");
 
+// EVIR_LONG_TASK_PROMPT_FILE 可替换为更大的同构任务（保持 README 小节标记与
+// “只改 packages/cli/不改 package.json”约束不变，断言才继续成立）。
+async function resolveTaskPrompt(): Promise<string> {
+  const file = env.EVIR_LONG_TASK_PROMPT_FILE?.trim();
+  if (!file) return TASK_PROMPT;
+  return (await fs.readFile(file, "utf8")).trim();
+}
+
 const RESUME_PROMPT = [
   "继续执行该任务：上一轮运行在中途被打断（用户停止）。",
   "请先检查当前仓库状态（git status/diff 与已写内容）确认已完成到哪个阶段，然后从断点继续，不要重做已完成的阶段，也不要重复添加 README 的“## JSON 输出 schema”小节。",
@@ -176,7 +184,7 @@ describe.skipIf(!enabled)("real long task with interruption + resume (§85-89)",
           conversationId: "eval-long-task",
           messages: [
             { role: "system", content: systemPrompt },
-            { role: "user", content: TASK_PROMPT },
+            { role: "user", content: await resolveTaskPrompt() },
           ],
           runtime,
           maxIterations: 40,
