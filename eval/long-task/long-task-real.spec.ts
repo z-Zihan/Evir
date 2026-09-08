@@ -232,27 +232,56 @@ describe.skipIf(!enabled)("real long task with interruption + resume (§85-89)",
       }
 
       // ---- 阶段 B：同一会话历史 + 续跑消息恢复 ----
-      const resumeMessages = [
-        { role: "system", content: systemPrompt },
-        ...messagesA.filter((message) => message.role !== "system"),
-        { role: "user", content: RESUME_PROMPT },
-      ];
+      // 真实产品中 provider 流错误会终止该轮 run，用户随后重发续跑消息；此处允许
+      // 在“终轮流状态为 failed”时重试一次（等价用户重发），全部尝试计入总时长。
+      const lastStreamStatus = (result: AgentLoopResult): string =>
+        result.turns.at(-1)?.stream.status ?? "unknown";
+      const runResume = async (
+        messages: { role: string; content: unknown }[],
+        signal: AbortSignal,
+      ): Promise<AgentLoopResult> =>
+        runAgentLoop({
+          provider,
+          conversationId: "eval-long-task",
+          messages,
+          runtime,
+          maxIterations: 60,
+          onDelta: () => undefined,
+          signal,
+        });
+
       const phaseBStarted = Date.now();
       const remainingBudget = totalBudgetMs - phaseADuration;
       const abortB = new AbortController();
       const budgetTimer = setTimeout(() => abortB.abort(), Math.max(remainingBudget, 60_000));
       pushRunRoot(root, { profile: "workspace", roots: [root] });
+      let resumeMessages = [
+        { role: "system", content: systemPrompt },
+        ...messagesA.filter((message) => message.role !== "system"),
+        { role: "user", content: RESUME_PROMPT },
+      ];
       let resultB: AgentLoopResult;
+      let resumeAttempts = 1;
       try {
-        resultB = await runAgentLoop({
-          provider,
-          conversationId: "eval-long-task",
-          messages: resumeMessages,
-          runtime,
-          maxIterations: 60,
-          onDelta: () => undefined,
-          signal: abortB.signal,
-        });
+        resultB = await runResume(resumeMessages, abortB.signal);
+        console.info(
+          `[long-task] phase B attempt 1: lastStreamStatus=${lastStreamStatus(resultB)}`,
+        );
+        if (lastStreamStatus(resultB) === "failed") {
+          resumeAttempts += 1;
+          resumeMessages = [
+            ...resultB.messages.filter((message) => message.role !== "system"),
+            {
+              role: "user",
+              content:
+                "上一轮续跑因 Provider 流错误中断。请再次从断点继续该任务（仍然不要重做已完成阶段、不要重复 README 小节），完成剩余阶段并跑绿测试。",
+            },
+          ];
+          resultB = await runResume(resumeMessages, abortB.signal);
+          console.info(
+            `[long-task] phase B attempt 2 (provider-error retry): lastStreamStatus=${lastStreamStatus(resultB)}`,
+          );
+        }
       } finally {
         clearTimeout(budgetTimer);
         popRunRoot();
@@ -266,7 +295,7 @@ describe.skipIf(!enabled)("real long task with interruption + resume (§85-89)",
         .trim();
 
       console.info(
-        `[long-task] phase B: ${fmt(phaseBDuration)}, providerCalls=${resultB.turns.length}, total=${fmt(totalDuration)} (interrupt budget ${Math.round(interruptAfterMs / 60000)}min, total budget ${Math.round(totalBudgetMs / 60000)}min)`,
+        `[long-task] phase B: ${fmt(phaseBDuration)} (attempts=${resumeAttempts}), providerCalls=${resultB.turns.length}, total=${fmt(totalDuration)} (interrupt budget ${Math.round(interruptAfterMs / 60000)}min, total budget ${Math.round(totalBudgetMs / 60000)}min)`,
       );
 
       // ---- 终局断言 ----
@@ -294,12 +323,16 @@ describe.skipIf(!enabled)("real long task with interruption + resume (§85-89)",
 
       // 3) 实现确实存在：--json 在 CLI 源码里被解析。
       const cliSource = await fs.readFile(path.join(root, "packages/cli/src/cli.ts"), "utf8");
-      expect(
-        cliSource.includes('"--json"') ||
-          cliSource.includes("'--json'") ||
-          cliSource.includes("`--json`") ||
-          cliSource.includes("json"),
-      ).toBe(true);
+      const argsSource = await fs.readFile(
+        path.join(root, "packages/cli/src/arguments.ts"),
+        "utf8",
+      );
+      const jsonFlagImplemented = [cliSource, argsSource].some((source) =>
+        ['"--json"', "'--json'", "`--json`"].some((literal) => source.includes(literal)),
+      );
+      expect(jsonFlagImplemented, "--json flag must be parsed in cli.ts or arguments.ts").toBe(
+        true,
+      );
 
       // 4) 评审侧复跑 CLI 测试与类型检查（agent 阶段5 的独立复核）。
       const pnpmDir = path.join(root, "packages/cli");
@@ -328,6 +361,8 @@ describe.skipIf(!enabled)("real long task with interruption + resume (§85-89)",
         },
         phaseB: {
           durationMs: phaseBDuration,
+          attempts: resumeAttempts,
+          lastStreamStatus: lastStreamStatus(resultB),
           providerCalls: resultB.turns.length,
           toolCalls: resultB.turns.flatMap((turn) => turn.toolResults ?? []).length,
         },
