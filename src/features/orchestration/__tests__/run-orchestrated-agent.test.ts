@@ -671,6 +671,126 @@ describe("sub-agent security ceiling", () => {
     expect(inspectLoop?.tools).not.toContain("write_file");
   });
 
+  it("verification nodes may run acceptance commands even when the plan omits the terminal capability", async () => {
+    // Real model-built plans (observed 2026-09-08) declare only filesystem on
+    // the verify node; the run_command carve-out must not depend on the
+    // plan author remembering the terminal capability.
+    const verificationPlan: PlanGraph = {
+      ...plan,
+      nodes: [
+        {
+          id: "inspect",
+          kind: "task",
+          title: "Inspect files",
+          objective: "List the files",
+          dependencies: [],
+          requiredCapabilities: ["filesystem"],
+          resourceScopes: [],
+          expectedArtifacts: [],
+          successCriteria: [],
+          status: "ready",
+        },
+        {
+          id: "verify",
+          kind: "verification",
+          title: "Verify result",
+          objective: "Run the project checks and confirm they pass",
+          dependencies: ["inspect"],
+          requiredCapabilities: ["filesystem"],
+          resourceScopes: [{ access: "read", kind: "workspace", value: "/project" }],
+          expectedArtifacts: [],
+          successCriteria: [
+            "Use the project's existing checks and verify the requested observable outcome",
+          ],
+          status: "pending",
+        },
+      ],
+      edges: [{ from: "inspect", to: "verify", when: "success" }],
+    };
+    seedOrchestration({
+      runId: "run-1",
+      conversationId: "conversation-1",
+      phase: "execution",
+      brief,
+      plan: verificationPlan,
+      assignments: [],
+      events: [],
+    });
+    const registry = createToolRegistry();
+    registry.register({
+      id: "read_file",
+      name: "read_file",
+      description: "read",
+      source: "evir-local",
+      riskLevel: "L1",
+      requiredCapability: "filesystem",
+      schema: { type: "object" },
+      execute: () => Promise.resolve({ success: true, output: "" }),
+    });
+    registry.register({
+      id: "run_command",
+      name: "run_command",
+      description: "run a shell command",
+      source: "evir-local",
+      riskLevel: "L3",
+      requiredCapability: "terminal",
+      schema: { type: "object" },
+      execute: () => Promise.resolve({ success: true, output: "ok" }),
+    });
+    registry.register({
+      id: "write_file",
+      name: "write_file",
+      description: "write",
+      source: "evir-local",
+      riskLevel: "L3",
+      requiredCapability: "filesystem",
+      schema: { type: "object" },
+      execute: () => Promise.resolve({ success: true, output: "" }),
+    });
+    const observed: string[][] = [];
+    vi.mocked(runAgentLoop).mockImplementation((options) => {
+      observed.push(options.runtime.toolRegistry?.list().map(({ id }) => id) ?? []);
+      const content = String(options.messages.at(-1)?.content);
+      const isVerification = content.includes("Verify");
+      return Promise.resolve({
+        turns: [
+          {
+            stream: { content, status: "complete" },
+            ...(isVerification
+              ? {
+                  toolResults: [
+                    { toolCallId: "v", toolName: "run_command", success: true, output: "ok" },
+                  ],
+                }
+              : {}),
+          },
+        ],
+        maxIterationsReached: false,
+        messages: options.messages,
+        agentRun: options.runtime.agentRun!,
+      });
+    });
+
+    await runOrchestratedAgent({
+      provider,
+      conversationId: "conversation-1",
+      messages: [{ role: "user", content: brief.objective }],
+      runtime: {
+        target: "desktop",
+        capabilities: new Set(["chat", "filesystem", "terminal"]),
+        has: (capability: string) => ["chat", "filesystem", "terminal"].includes(capability),
+        toolRegistry: registry,
+      } satisfies EvirRuntime,
+      privateSession: true,
+      onDelta: vi.fn(),
+    });
+
+    const verifyLoop = observed.at(-1);
+    expect(verifyLoop).toContain("run_command");
+    expect(verifyLoop).toContain("read_file");
+    expect(verifyLoop).not.toContain("write_file");
+  });
+
   it("workers inherit the parent permission context and never gain extra tools", async () => {
     seedOrchestration({
       runId: "run-1",

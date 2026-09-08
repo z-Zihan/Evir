@@ -79,3 +79,7 @@ pnpm vitest run eval/agent-eval/real-provider.spec.ts
 ## Skill ON/OFF 对照档（skill A/B）
 
 `eval/skill-ab/skill-ab.spec.ts`（env 门控）：5 个核心 Skill 的 ON/OFF 真实模型对照，单样本方向性信号（报告内注明样本量限制）。
+
+## 真实长任务档（§85-89 中断+续跑）
+
+`eval/long-task/long-task-real.spec.ts`（env 门控，`EVIR_LONG_TASK=1`）：真实 Provider 驱动产品同一 `runAgentLoop`，在预装的 fixture 克隆（`EVIR_LONG_TASK_REPO`）上执行六阶段 --json 任务；阶段 A 在 `EVIR_LONG_TASK_INTERRUPT_MIN`（默认 15 分钟）处经 AbortSignal 真实中断（等价 Stop 按钮），阶段 B 以续跑消息恢复同一会话历史。确定性断言：README schema 小节恰好一次（不重复副作用）、变更仅限 packages/cli 且不触碰任何 package.json、CLI 测试与 typecheck 全绿（评审侧复跑）。报告写入 `eval/.tmp/long-task-report.json`。共用 real 档的 base-url/model/key-file 环境变量，key 不落日志。

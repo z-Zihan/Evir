@@ -181,6 +181,13 @@ export function toolsForNode(node: PlanNode, runtime: EvirRuntime): string[] {
   const writes = node.resourceScopes.some(({ access }) => access === "write");
   return (runtime.toolRegistry?.list() ?? [])
     .filter((tool) => {
+      // Verification nodes exist to run the acceptance commands the confirmed
+      // plan promised. The carve-out bypasses the capability and write filters
+      // because model-built plans routinely omit the terminal capability (and
+      // write scopes) on verify nodes; execution-time approval gating still
+      // applies, and every other tool keeps its usual boundary.
+      if (node.kind === "verification" && tool.id === "run_command") return true;
+      if (!writes && tool.riskLevel !== "L0" && tool.riskLevel !== "L1") return false;
       if (!tool.requiredCapability || node.requiredCapabilities.includes(tool.requiredCapability)) {
         return true;
       }
@@ -190,15 +197,6 @@ export function toolsForNode(node: PlanNode, runtime: EvirRuntime): string[] {
       // node's explicit capability set.
       return tool.riskLevel === "L0" || tool.riskLevel === "L1";
     })
-    .filter(
-      (tool) =>
-        writes ||
-        tool.riskLevel === "L0" ||
-        tool.riskLevel === "L1" ||
-        // Verification nodes exist to run the acceptance commands the confirmed
-        // plan promised; execution-time approval gating still applies.
-        (node.kind === "verification" && tool.id === "run_command"),
-    )
     .map(({ id }) => id);
 }
 
