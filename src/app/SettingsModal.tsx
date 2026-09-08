@@ -349,9 +349,7 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
                     workspacePath={currentWorkspace}
                   />
                 )}
-                {effectiveActiveTab === "knowledge" && (
-                  <KnowledgeSettings workspacePath={currentWorkspace} />
-                )}
+                {effectiveActiveTab === "knowledge" && <KnowledgeSettings />}
                 {effectiveActiveTab === "diagnostics" && <DiagnosticsSettings />}
               </Suspense>
             </div>

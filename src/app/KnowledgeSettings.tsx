@@ -41,7 +41,7 @@ function SourceTypeIcon({ type }: { type: KnowledgeSourceType }) {
  * open project's granted roots — a folder outside them must be added as an
  * additional access root first (§65).
  */
-export function KnowledgeSettings({ workspacePath }: { workspacePath: string | null }) {
+export function KnowledgeSettings() {
   const { t } = useTranslation();
   const {
     bases,
@@ -59,6 +59,7 @@ export function KnowledgeSettings({ workspacePath }: { workspacePath: string | n
     reindexSource,
   } = useKnowledgeStore();
   const projects = useProjectStore((state) => state.projects);
+  const currentProjectId = useProjectStore((state) => state.currentProjectId);
   const [selectedBaseId, setSelectedBaseId] = useState<string | null>(null);
   const [newBaseName, setNewBaseName] = useState("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -73,13 +74,17 @@ export function KnowledgeSettings({ workspacePath }: { workspacePath: string | n
     void load();
   }, [load]);
 
+  // Local sources are validated against the CURRENT project's granted
+  // roots (workspace + additional access roots) — the same roots the
+  // permission model enforces at run time.
   const permissionRoots = useMemo(() => {
-    const project = projects.find((item) => item.canonicalRootPath === workspacePath);
+    const project = projects.find((item) => item.id === currentProjectId);
     return {
-      workspaceRoot: workspacePath,
+      workspaceRoot: project?.canonicalRootPath ?? null,
       additionalRoots: project?.additionalAccessRoots ?? [],
     };
-  }, [projects, workspacePath]);
+  }, [projects, currentProjectId]);
+  const workspacePath = permissionRoots.workspaceRoot;
 
   const selectedBase = bases.find((base) => base.id === selectedBaseId) ?? null;
   const sources = selectedBaseId ? (sourcesByBase[selectedBaseId] ?? []) : [];
