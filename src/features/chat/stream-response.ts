@@ -126,6 +126,21 @@ async function runTurn(
     persist: !get().privateSession,
   });
 
+  // Recovery coverage (§21-25): a checkpoint at run start means ANY crash
+  // mid-run — not only >90% context pressure — leaves a recovery trail.
+  // Tools are never replayed on resume; the checkpoint only marks state.
+  if (!get().privateSession) {
+    try {
+      const { createCheckpoint } = await import("../../core/context/checkpoint");
+      const objective = lastUserMessage?.content.slice(0, 200) ?? "Unknown objective";
+      await createCheckpoint(conversationId, history, objective, {
+        mode: get().mode ?? "agent",
+      });
+    } catch {
+      // Recovery checkpointing must never block the turn.
+    }
+  }
+
   const prepared = await prepareTurn(turn);
   if (prepared.blocked) {
     if (visibleForConversation(get, conversationId)) set({ error: prepared.reason });

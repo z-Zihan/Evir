@@ -177,7 +177,28 @@ async function applyContextBudget(
     const compactionStartedAt = Date.now();
     const beforeMessageCount = history.length;
     const maxToolChars = snapshot.reservedToolTokens * 4;
-    effectiveHistory = compactToolOutputs(history, maxToolChars);
+    effectiveHistory = await compactToolOutputs(history, maxToolChars, {
+      // Full outputs survive in the artifacts store (§20); only the
+      // in-context copy shrinks. Private sessions stay in-memory only.
+      ...(get().privateSession
+        ? {}
+        : {
+            archiveFullOutput: async ({ toolCallId, toolName, output }) => {
+              const artifactId = `tool-output-${toolCallId}`;
+              await getStructuredStorage().write("artifacts", artifactId, {
+                id: artifactId,
+                type: "tool-output-source",
+                relatedEntityId: conversationId,
+                toolCallId,
+                toolName,
+                charCount: output.length,
+                output,
+                createdAt: Date.now(),
+              });
+              return artifactId;
+            },
+          }),
+    });
 
     // LLM-based conversation summary when utilization > 75%; persisted to DB so the
     // next request doesn't re-load the un-summarized messages and lose the compaction.

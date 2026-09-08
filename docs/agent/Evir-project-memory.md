@@ -31,7 +31,7 @@
 - Run 状态机唯一事实源：`src/features/chat/run-phase.ts`（派生优先级与真相映射）；`StreamSlot.phase` 含 verifying。
 - 权限判定：`src/core/tools/tool-executor.ts`（L2+ 边界；相对路径先解析到 workspace root 再判）。
 - Skill 分层：manifest `tier: core|general`；核心 15 个（`skills/builtin/*/manifest.json` 标记）。
-- Provider 分级：证据驱动——`provider-tiers.ts` 的 `effectiveAgentTier`（agent-verified 声明必须在 `provider-validation.json` 有合格真实 Eval 条目才生效；当前无条目 → GLM 有效档为 protocol-verified）。README/Settings/docs 由 `scripts/check-doc-facts.mjs` 门禁统一。
+- Provider 分级：证据驱动——`provider-tiers.ts` 的 `effectiveAgentTier`（agent-verified 声明必须在 `provider-validation.json` 有合格真实 Eval 条目才生效）。GLM/智谱已凭 2026-09-08 真实端点 Golden Tasks（EvoMap 网关，9/10）升为 agent-verified；README/Settings/docs 由 `scripts/check-doc-facts.mjs` 门禁统一。
 - Agent Eval：`eval/agent-eval/`（`pnpm test:agent-eval`；结果 `eval/results/latest.json`）。
 
 ## 当前测试基线指针

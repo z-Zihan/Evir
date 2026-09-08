@@ -126,7 +126,14 @@ export function App() {
       await Promise.all([loadProviders(), loadConversations(), loadUsageRecords(), loadProjects()]);
       const { usePluginStore } = await import("../features/plugins/plugin-store");
       await usePluginStore.getState().load();
-      setUnfinishedRuns(await findUnfinishedRuns());
+      const detected = await findUnfinishedRuns();
+      if (detected.length > 0) {
+        logger.info("runtime", "run.recovery-detected", {
+          count: detected.length,
+          newestConversationId: detected[0]?.conversationId,
+        });
+      }
+      setUnfinishedRuns(detected);
     } catch (error) {
       setInitializationError(error instanceof Error ? error.message : String(error));
     }
@@ -138,11 +145,13 @@ export function App() {
 
   const dismissRecovery = async (run: UnfinishedRun) => {
     await clearCheckpoint(run.conversationId);
+    logger.info("runtime", "run.recovery-dismissed", { conversationId: run.conversationId });
     setUnfinishedRuns((runs) => runs.filter((item) => item.conversationId !== run.conversationId));
   };
 
   const resumeRecovery = async (run: UnfinishedRun) => {
     await selectConversation(run.conversationId);
+    logger.info("runtime", "run.recovery-resumed", { conversationId: run.conversationId });
     await dismissRecovery(run);
     window.dispatchEvent(new Event("evir:focus-composer"));
   };

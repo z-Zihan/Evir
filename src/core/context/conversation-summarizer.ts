@@ -55,6 +55,8 @@ export async function summarizeConversation(
 5. Any errors encountered
 6. Current progress status
 7. Pending tasks or next steps
+8. Permission/approval state — what was approved or denied, and any directories declared off-limits
+9. The model/provider in use, but only if it changed mid-task
 
 Output a concise summary. Do not include pleasantries.`,
     },

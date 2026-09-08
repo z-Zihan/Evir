@@ -43,13 +43,13 @@ The first time you open a project you choose explicitly: **Workspace Access** (r
 
 "Can chat ≠ can call tools ≠ can reliably finish a project-agent task." Providers carry a tier, driven by machine-verifiable evidence (`src/core/providers/provider-validation.json` + the `scripts/check-doc-facts.mjs` gate); settings and the table below share that source:
 
-| Tier                  | Meaning                                                                  | Vendors                                                                                   |
-| --------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
-| **Agent Verified**    | Ran the Golden Agent Tasks against a real endpoint ([Agent Eval](eval/)) | None yet — upgrades automatically when evidence lands                                     |
-| **Protocol Verified** | Streaming + tool-call protocol covered by automated tests                | OpenAI, Anthropic, Google Gemini API, Microsoft Azure OpenAI, Ollama, 智谱 BigModel / GLM |
-| **Preset**            | Configuration template, no agent-level evidence                          | the other 30 built-in presets                                                             |
+| Tier                  | Meaning                                                                  | Vendors                                                              |
+| --------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| **Agent Verified**    | Ran the Golden Agent Tasks against a real endpoint ([Agent Eval](eval/)) | 智谱 BigModel / GLM                                                  |
+| **Protocol Verified** | Streaming + tool-call protocol covered by automated tests                | OpenAI, Anthropic, Google Gemini API, Microsoft Azure OpenAI, Ollama |
+| **Preset**            | Configuration template, no agent-level evidence                          | the other 30 built-in presets                                        |
 
-GLM previously carried an Agent Verified label; it stays at Protocol Verified until the Golden Agent Tasks are re-run against the real endpoint with recorded evidence (honest tiering: the historical manual real-machine QA log remains in [Release Readiness](docs/release-readiness.md) but is not Golden-Tasks evidence).
+GLM's Agent Verified tier comes from re-running the Golden Agent Tasks against a real endpoint (the real tier of `pnpm test:agent-eval`: 9/10 passed, 0 unauthorized operations, 0 out-of-scope changes; the evidence is machine-readable in `src/core/providers/provider-validation.json`, and README/settings/docs are kept consistent by the `scripts/check-doc-facts.mjs` gate). Historical manual real-machine QA logs also live in [Release Readiness](docs/release-readiness.md).
 
 Providers, protocols, and model capabilities are separate layers: 7 implemented protocol adapters (OpenAI Chat Completions / Responses, Anthropic Messages, Gemini, Azure OpenAI, native Ollama, OpenAI-compatible) and custom compatible endpoints. API keys live in a local encrypted vault (AES-256-GCM) and never enter logs.
 

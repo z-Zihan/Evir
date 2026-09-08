@@ -96,7 +96,7 @@ describe("compactToolOutputs", () => {
     };
   }
 
-  it("preserves messages without tool results", () => {
+  it("preserves messages without tool results", async () => {
     const messages: MessageRecord[] = [
       {
         id: "1",
@@ -107,28 +107,54 @@ describe("compactToolOutputs", () => {
         createdAt: 1,
       },
     ];
-    const result = compactToolOutputs(messages, 1000);
+    const result = await compactToolOutputs(messages, 1000);
     expect(result).toEqual(messages);
   });
 
-  it("preserves short tool outputs", () => {
+  it("preserves short tool outputs", async () => {
     const msg = makeMessage([{ toolCallId: "call-1", output: "short" }]);
-    const result = compactToolOutputs([msg], 1000);
+    const result = await compactToolOutputs([msg], 1000);
     expect(result[0]?.toolResults?.[0]?.output).toBe("short");
   });
 
-  it("truncates long tool outputs when total exceeds limit", () => {
+  it("truncates long tool outputs when total exceeds limit", async () => {
     const longOutput = "x".repeat(500);
     const msg = makeMessage([{ toolCallId: "call-1", output: longOutput }]);
-    const result = compactToolOutputs([msg], 100);
+    const result = await compactToolOutputs([msg], 100);
     expect(result[0]?.toolResults?.[0]?.output.length).toBeLessThan(longOutput.length);
     expect(result[0]?.toolResults?.[0]?.output).toContain("[truncated]");
   });
 
-  it("preserves tool call IDs and success status", () => {
+  it("archives the full output and names the artifact in the truncation marker (§20)", async () => {
+    const longOutput = "y".repeat(500);
+    const msg = makeMessage([{ toolCallId: "call-arch", output: longOutput }]);
+    const archived: { toolCallId: string; output: string }[] = [];
+    const result = await compactToolOutputs([msg], 100, {
+      archiveFullOutput: ({ toolCallId, output }) => {
+        archived.push({ toolCallId, output });
+        return Promise.resolve("artifact-1");
+      },
+    });
+    expect(archived).toEqual([{ toolCallId: "call-arch", output: longOutput }]);
+    expect(result[0]?.toolResults?.[0]?.output).toContain("[full output archived: artifact-1]");
+    // The store's original message is never mutated.
+    expect(msg.toolResults?.[0]?.output).toBe(longOutput);
+  });
+
+  it("keeps plain truncation when archival fails", async () => {
+    const longOutput = "z".repeat(500);
+    const msg = makeMessage([{ toolCallId: "call-fail", output: longOutput }]);
+    const result = await compactToolOutputs([msg], 100, {
+      archiveFullOutput: () => Promise.reject(new Error("storage down")),
+    });
+    expect(result[0]?.toolResults?.[0]?.output).toContain("[truncated]");
+    expect(result[0]?.toolResults?.[0]?.output).not.toContain("archived");
+  });
+
+  it("preserves tool call IDs and success status", async () => {
     const longOutput = "x".repeat(500);
     const msg = makeMessage([{ toolCallId: "call-1", output: longOutput }]);
-    const result = compactToolOutputs([msg], 100);
+    const result = await compactToolOutputs([msg], 100);
     expect(result[0]?.toolResults?.[0]?.toolCallId).toBe("call-1");
     expect(result[0]?.toolResults?.[0]?.success).toBe(true);
   });

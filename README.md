@@ -51,13 +51,13 @@ Desktop 侧栏分为 **PROJECTS** 和 **CHATS** 两区。一个 Project 对应�
 
 “能聊天 ≠ 能工具调用 ≠ 能稳定跑完 Project Agent 任务”。Provider 分为三级；分级由机器可验证的证据驱动（`src/core/providers/provider-validation.json` + `scripts/check-doc-facts.mjs` 门禁），设置页与下表同源：
 
-| 分级                  | 含义                                                      | 厂商                                                                                      |
-| --------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| **Agent Verified**    | 真实端点跑过 Golden Agent Tasks（见 [Agent Eval](eval/)） | 暂无——以真实 Eval 证据为准，证据落地自动升级                                              |
-| **Protocol Verified** | 流式 + 工具调用协议有自动化覆盖                           | OpenAI、Anthropic、Google Gemini API、Microsoft Azure OpenAI、Ollama、智谱 BigModel / GLM |
-| **Preset**            | 配置模板，无 Agent 级验证                                 | 其余 30 家内置预设                                                                        |
+| 分级                  | 含义                                                      | 厂商                                                                 |
+| --------------------- | --------------------------------------------------------- | -------------------------------------------------------------------- |
+| **Agent Verified**    | 真实端点跑过 Golden Agent Tasks（见 [Agent Eval](eval/)） | 智谱 BigModel / GLM                                                  |
+| **Protocol Verified** | 流式 + 工具调用协议有自动化覆盖                           | OpenAI、Anthropic、Google Gemini API、Microsoft Azure OpenAI、Ollama |
+| **Preset**            | 配置模板，无 Agent 级验证                                 | 其余 30 家内置预设                                                   |
 
-GLM 曾标注 Agent Verified，但该标注在真实 Golden Agent Tasks 于真实端点复跑并留下证据前降级为 Protocol Verified（诚实分级：历史手工真机 QA 记录保留在 [Release Readiness](docs/release-readiness.md)，不等同于 Golden Tasks 证据）。
+GLM 的 Agent Verified 档来自真实端点 Golden Agent Tasks 复跑（`pnpm test:agent-eval` 的 real 档，9/10 通过、0 越权、0 越界；证据机器可读地保存在 `src/core/providers/provider-validation.json`，README/设置页/文档由 `scripts/check-doc-facts.mjs` 门禁保持一致）。历史手工真机 QA 记录另见 [Release Readiness](docs/release-readiness.md)。
 
 Provider、协议、模型能力三层分离：已实现 7 种协议适配器（OpenAI Chat Completions / Responses、Anthropic Messages、Gemini、Azure OpenAI、Ollama 原生、OpenAI-compatible），支持自定义兼容端点。API Key 存本地加密 vault（AES-256-GCM），密钥永远不进日志。
 

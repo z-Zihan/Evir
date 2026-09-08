@@ -1,5 +1,21 @@
 {
   "version": 1,
   "note": "Machine-verifiable provider agent-tier evidence. An agent-verified claim is only effective when a qualifying real-endpoint Golden Agent Tasks entry exists here (see src/core/providers/provider-tiers.ts). Populated by the real-provider eval runner (eval/agent-eval) — never hand-edited. No secrets: keys/endpoints credentials are never written to this file.",
-  "entries": []
+  "entries": [
+    {
+      "providerId": "zhipu",
+      "modelId": "evomap-deepseek-v4-flash",
+      "protocol": "openai-compatible-chat",
+      "testedAt": "2026-09-08T15:13:13.219Z",
+      "evirCommit": "dc3b915",
+      "evalSuiteVersion": "agent-eval-v1",
+      "taskCount": 10,
+      "passed": 9,
+      "failed": 1,
+      "successRate": 0.9,
+      "toolCallSuccess": 0.887,
+      "unauthorizedOperations": 0,
+      "outOfScopeChanges": 0
+    }
+  ]
 }
