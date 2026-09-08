@@ -45,8 +45,9 @@ export interface ProviderEndpointPreset {
 
 /**
  * Provider maturity tier (§48):
- * - "agent-verified": ran the Golden Agent Tasks against a real endpoint
- *   (chat ≠ tool-call ≠ stable project-agent task).
+ * - "agent-verified": the preset CLAIMS Golden Agent Tasks ran against a real
+ *   endpoint — the claim is only EFFECTIVE when provider-validation.json
+ *   carries a qualifying entry (see provider-tiers.ts).
  * - "protocol-verified": the vendor's protocol adapter (streaming + tool
  *   calls) is implemented and covered by automated protocol tests.
  * - "preset": a configuration template only — no agent-level evidence.

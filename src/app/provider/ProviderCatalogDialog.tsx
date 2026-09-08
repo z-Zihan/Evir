@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Check, ChevronRight, Search, SlidersHorizontal } from "lucide-react";
 import { Input } from "../../components/ui";
 import type { ProviderPreset } from "../../core/providers/types";
+import { effectiveAgentTier } from "../../core/providers/provider-tiers";
 import { SettingsFormDialog } from "../SettingsFormDialog";
 import { providerInitial } from "./form-model";
 
@@ -101,6 +102,9 @@ export function ProviderCatalogDialog({
         </button>
         {filteredPresets.map((preset) => {
           const selected = selectedPresetId === preset.id;
+          // Effective tier: an agent-verified claim only shows with real
+          // Golden-Tasks evidence (provider-validation.json) behind it.
+          const tier = effectiveAgentTier(preset);
           return (
             <button
               className={`provider-preset-tile flex min-h-13 min-w-0 cursor-pointer items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition-colors ${
@@ -121,16 +125,16 @@ export function ProviderCatalogDialog({
               <span className="min-w-0 flex-1">
                 <strong className="flex items-center gap-1 truncate text-[11px] font-semibold">
                   <span className="truncate">{preset.name}</span>
-                  {preset.agentTier !== "preset" && (
+                  {tier !== "preset" && (
                     <span
-                      className={`provider-tier provider-tier-${preset.agentTier} shrink-0 rounded px-1 text-[8.5px] font-bold uppercase ${
-                        preset.agentTier === "agent-verified"
+                      className={`provider-tier provider-tier-${tier} shrink-0 rounded px-1 text-[8.5px] font-bold uppercase ${
+                        tier === "agent-verified"
                           ? "bg-success/15 text-success"
                           : "bg-primary/12 text-primary"
                       }`}
-                      title={t(`provider.tiers.${preset.agentTier}`)}
+                      title={t(`provider.tiers.${tier}`)}
                     >
-                      {preset.agentTier === "agent-verified" ? "Agent" : "Protocol"}
+                      {tier === "agent-verified" ? "Agent" : "Protocol"}
                     </span>
                   )}
                 </strong>

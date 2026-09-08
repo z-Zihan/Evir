@@ -32,7 +32,7 @@
     "test:stress": "playwright test --project=web-e2e --project=desktop-e2e e2e/stress-boundary.spec.ts",
     "benchmark": "node scripts/benchmark.mjs",
     "test:cycles": "node scripts/cycle-audit.mjs",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:rust && pnpm release:validate-workflow && pnpm --dir extensions/vscode check && pnpm --dir packages/cli check",
+    "check": "pnpm format:check && node scripts/check-doc-facts.mjs && pnpm lint && pnpm typecheck && pnpm test && pnpm test:rust && pnpm release:validate-workflow && pnpm --dir extensions/vscode check && pnpm --dir packages/cli check",
     "tauri": "tauri",
     "dev": "tauri dev",
     "test:agent-eval": "vitest run eval/agent-eval/eval.spec.ts"

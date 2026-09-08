@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "note": "Machine-verifiable provider agent-tier evidence. An agent-verified claim is only effective when a qualifying real-endpoint Golden Agent Tasks entry exists here (see src/core/providers/provider-tiers.ts). Populated by the real-provider eval runner (eval/agent-eval) — never hand-edited. No secrets: keys/endpoints credentials are never written to this file.",
+  "entries": []
+}

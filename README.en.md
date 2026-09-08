@@ -41,13 +41,15 @@ The first time you open a project you choose explicitly: **Workspace Access** (r
 
 ## Bring your own model — with honesty about maturity
 
-"Can chat ≠ can call tools ≠ can reliably finish a project-agent task." Providers carry a tier, shown in settings and here:
+"Can chat ≠ can call tools ≠ can reliably finish a project-agent task." Providers carry a tier, driven by machine-verifiable evidence (`src/core/providers/provider-validation.json` + the `scripts/check-doc-facts.mjs` gate); settings and the table below share that source:
 
-| Tier                  | Meaning                                                                  | Vendors                                                |
-| --------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------ |
-| **Agent Verified**    | Ran the Golden Agent Tasks against a real endpoint ([Agent Eval](eval/)) | GLM (Zhipu)                                            |
-| **Protocol Verified** | Streaming + tool-call protocol covered by automated tests                | OpenAI, Anthropic, Google Gemini, Azure OpenAI, Ollama |
-| **Preset**            | Configuration template, no agent-level evidence                          | the other 30 built-in presets                          |
+| Tier                  | Meaning                                                                  | Vendors                                                                                   |
+| --------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| **Agent Verified**    | Ran the Golden Agent Tasks against a real endpoint ([Agent Eval](eval/)) | None yet — upgrades automatically when evidence lands                                     |
+| **Protocol Verified** | Streaming + tool-call protocol covered by automated tests                | OpenAI, Anthropic, Google Gemini API, Microsoft Azure OpenAI, Ollama, 智谱 BigModel / GLM |
+| **Preset**            | Configuration template, no agent-level evidence                          | the other 30 built-in presets                                                             |
+
+GLM previously carried an Agent Verified label; it stays at Protocol Verified until the Golden Agent Tasks are re-run against the real endpoint with recorded evidence (honest tiering: the historical manual real-machine QA log remains in [Release Readiness](docs/release-readiness.md) but is not Golden-Tasks evidence).
 
 Providers, protocols, and model capabilities are separate layers: 7 implemented protocol adapters (OpenAI Chat Completions / Responses, Anthropic Messages, Gemini, Azure OpenAI, native Ollama, OpenAI-compatible) and custom compatible endpoints. API keys live in a local encrypted vault (AES-256-GCM) and never enter logs.
 
@@ -59,13 +61,15 @@ Capabilities (streaming, tool calling, vision, structured output) are shown befo
 
 **Evir Desktop is the primary product**; the other surfaces carry their real maturity, not parity marketing:
 
-| Surface                                 | Maturity                | Notes                                                                             |
-| --------------------------------------- | ----------------------- | --------------------------------------------------------------------------------- |
-| **Desktop**                             | **Primary**             | All core product design lands here first; Agent Eval first; macOS / Windows first |
-| Web                                     | Maintenance             | Clean multi-model chat; does not replicate Desktop agent capabilities             |
-| VS Code                                 | Preview                 | In-editor agent (configure/Ask/Agent/approval/diff-rollback); blocking fixes only |
-| CLI                                     | Preview                 | `evir` configure/doctor/ask/agent; core contract maintenance only                 |
-| Plugin / Multi-user / Canvas / Ego Lite | **Experimental (Labs)** | Expansion frozen; not marketed as core capability                                 |
+| Surface                                 | Maturity     | Notes                                                                                              |
+| --------------------------------------- | ------------ | -------------------------------------------------------------------------------------------------- |
+| **Desktop**                             | **Primary**  | All core product design lands here first; Agent Eval first; macOS / Windows first                  |
+| Web                                     | Supported    | Clean multi-model chat, kept and maintained; does not replicate Desktop agent capabilities         |
+| VS Code                                 | Preview      | In-editor agent (configure/Ask/Agent/approval/diff-rollback), evolving                             |
+| CLI                                     | Preview      | `evir` configure/doctor/ask/agent, evolving                                                        |
+| Plugin / Multi-user / Canvas / Ego Lite | **Extended** | Shipped capabilities, kept maintained and improved; new complexity must not degrade the core agent |
+
+Priority management, not freezing: the Desktop Project Agent holds the highest quality priority; Plugin, Multi-user, Canvas, Ego Lite, Browser Provider, and Web / VS Code / CLI are shipped capabilities that stay maintained and optimized. Any new complex capability must keep four red lines intact: core agent quality, runtime, performance budgets, and the Golden Eval.
 
 ## Skills: quality over quantity
 

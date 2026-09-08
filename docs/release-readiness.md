@@ -84,12 +84,23 @@
 
 ## 产品面状态
 
-| 面                    | 状态               | 说明                         |
-| --------------------- | ------------------ | ---------------------------- |
-| Desktop (macOS arm64) | 功能完整，验证充分 | 主体产品                     |
-| Web                   | 稳定               | 静态部署、预算内、无后端依赖 |
-| VS Code               | **PREVIEW**        | 不阻塞 Desktop RC            |
-| CLI                   | **PREVIEW**        | 不阻塞 Desktop RC            |
+| 面                                      | 状态               | 说明                                                                                      |
+| --------------------------------------- | ------------------ | ----------------------------------------------------------------------------------------- |
+| Desktop (macOS arm64)                   | 功能完整，验证充分 | 主体产品（Primary）                                                                       |
+| Web                                     | Supported          | 保留维护；静态部署、预算内、无后端依赖                                                    |
+| VS Code                                 | **PREVIEW**        | 持续演进；不阻塞 Desktop RC                                                               |
+| CLI                                     | **PREVIEW**        | 持续演进；不阻塞 Desktop RC                                                               |
+| Plugin / Multi-user / Canvas / Ego Lite | **Extended**       | 已交付能力，保留维护并继续优化（优先级管理，非冻结；Ego Lite 需外部安装，集成验证进行中） |
+
+## Provider 成熟度分级（证据驱动）
+
+分级唯一来源：`src/core/providers/provider-validation.json`（由真实 Provider Golden Tasks Eval 生成）+ `effectiveAgentTier`。**Agent Verified 只在存在合格真实 Eval 条目时生效**；README/Settings/本表由 `scripts/check-doc-facts.mjs` 门禁保持一致。
+
+| 档                | 当前厂商                                                            | 依据                                                           |
+| ----------------- | ------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Agent Verified    | 暂无                                                                | 真实 Golden Agent Tasks 端到端跑通并留证据                     |
+| Protocol Verified | GLM（智谱）、OpenAI、Anthropic、Google Gemini、Azure OpenAI、Ollama | 协议适配器自动化覆盖；GLM 历史手工真机 QA 见 §真实 Provider 段 |
+| Preset            | 其余 30 家                                                          | 配置模板                                                       |
 
 ## 缺陷修复（RC Final + Full Regression，全部带回归测试）
 

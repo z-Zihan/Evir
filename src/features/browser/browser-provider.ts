@@ -1,7 +1,7 @@
 /**
  * Agent browser provider selection: "evir" (the bundled CDP runtime, default)
  * or "ego-lite" (the external ego lite app driven through its `ego-browser`
- * CLI — experimental, macOS-only, user-installed).
+ * CLI — user-installed, macOS-only, external integration validation pending).
  *
  * The choice is a profile-scoped preference (each Evir user can pick its own
  * provider) read synchronously so tool execution never constructs the app

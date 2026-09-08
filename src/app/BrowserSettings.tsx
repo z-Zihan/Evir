@@ -33,10 +33,10 @@ interface EgoStatus {
 
 /**
  * Settings panel for the browser runtimes: runtime detection status, agent
- * browser lifecycle, the agent browser provider (Evir Browser / Ego Lite
- * experimental), and the Browser Workbench entry point. CfT auto-download is
- * intentionally not bundled — the runtime is reused from the system, and ego
- * lite is never installed silently.
+ * browser lifecycle, the agent browser provider (Evir Browser / Ego Lite —
+ * external app required), and the Browser Workbench entry point. CfT
+ * auto-download is intentionally not bundled — the runtime is reused from
+ * the system, and ego lite is never installed silently.
  */
 export function BrowserSettings() {
   const { t } = useTranslation();

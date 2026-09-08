@@ -49,13 +49,15 @@ Desktop 侧栏分为 **PROJECTS** 和 **CHATS** 两区。一个 Project 对应�
 
 ## 自带模型（BYOM）——按成熟度分级
 
-“能聊天 ≠ 能工具调用 ≠ 能稳定跑完 Project Agent 任务”。Provider 分为三级，设置页与下表如实标注：
+“能聊天 ≠ 能工具调用 ≠ 能稳定跑完 Project Agent 任务”。Provider 分为三级；分级由机器可验证的证据驱动（`src/core/providers/provider-validation.json` + `scripts/check-doc-facts.mjs` 门禁），设置页与下表同源：
 
-| 分级                  | 含义                                                      | 厂商                                                   |
-| --------------------- | --------------------------------------------------------- | ------------------------------------------------------ |
-| **Agent Verified**    | 真实端点跑过 Golden Agent Tasks（见 [Agent Eval](eval/)） | GLM（智谱）                                            |
-| **Protocol Verified** | 流式 + 工具调用协议有自动化覆盖                           | OpenAI、Anthropic、Google Gemini、Azure OpenAI、Ollama |
-| **Preset**            | 配置模板，无 Agent 级验证                                 | 其余 30 家内置预设                                     |
+| 分级                  | 含义                                                      | 厂商                                                                                      |
+| --------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| **Agent Verified**    | 真实端点跑过 Golden Agent Tasks（见 [Agent Eval](eval/)） | 暂无——以真实 Eval 证据为准，证据落地自动升级                                              |
+| **Protocol Verified** | 流式 + 工具调用协议有自动化覆盖                           | OpenAI、Anthropic、Google Gemini API、Microsoft Azure OpenAI、Ollama、智谱 BigModel / GLM |
+| **Preset**            | 配置模板，无 Agent 级验证                                 | 其余 30 家内置预设                                                                        |
+
+GLM 曾标注 Agent Verified，但该标注在真实 Golden Agent Tasks 于真实端点复跑并留下证据前降级为 Protocol Verified（诚实分级：历史手工真机 QA 记录保留在 [Release Readiness](docs/release-readiness.md)，不等同于 Golden Tasks 证据）。
 
 Provider、协议、模型能力三层分离：已实现 7 种协议适配器（OpenAI Chat Completions / Responses、Anthropic Messages、Gemini、Azure OpenAI、Ollama 原生、OpenAI-compatible），支持自定义兼容端点。API Key 存本地加密 vault（AES-256-GCM），密钥永远不进日志。
 
@@ -67,13 +69,15 @@ Provider、协议、模型能力三层分离：已实现 7 种协议适配器（
 
 **Evir Desktop 是主产品**；其余产品面按真实成熟度标注，不并列营销：
 
-| 产品面                                  | 成熟度                   | 说明                                                            |
-| --------------------------------------- | ------------------------ | --------------------------------------------------------------- |
-| **Desktop**                             | **Primary**              | 全部核心产品设计优先；Agent Eval 优先；macOS / Windows 优先     |
-| Web                                     | Maintenance              | 纯净多模型聊天，不复制 Desktop Agent 能力                       |
-| VS Code                                 | Preview                  | 编辑器内 Agent（配置/Ask/Agent/审批/Diff 回滚）；只修阻断性 bug |
-| CLI                                     | Preview                  | `evir` configure/doctor/ask/agent；只维护核心契约               |
-| Plugin / Multi-user / Canvas / Ego Lite | **Experimental（Labs）** | 冻结扩张，默认不作为核心能力宣传                                |
+| 产品面                                  | 成熟度       | 说明                                                                    |
+| --------------------------------------- | ------------ | ----------------------------------------------------------------------- |
+| **Desktop**                             | **Primary**  | 全部核心产品设计优先；Agent Eval 优先；macOS / Windows 优先             |
+| Web                                     | Supported    | 纯净多模型聊天，持续保留与维护，不复制 Desktop Agent 能力               |
+| VS Code                                 | Preview      | 编辑器内 Agent（配置/Ask/Agent/审批/Diff 回滚），持续演进               |
+| CLI                                     | Preview      | `evir` configure/doctor/ask/agent，持续演进                             |
+| Plugin / Multi-user / Canvas / Ego Lite | **Extended** | 已交付能力，保留维护并继续优化；新增复杂度以核心 Agent 质量不退化为前提 |
+
+优先级管理而非冻结：Desktop Project Agent 是最高质量优先级；Plugin、Multi-user、Canvas、Ego Lite、Browser Provider、Web / VS Code / CLI 都是已交付能力，继续保留、维护、优化。新增任何复杂能力需守住核心 Agent 质量 / Runtime / 性能预算 / Golden Eval 四条不退化红线。
 
 ## Skill：质量优先
 
