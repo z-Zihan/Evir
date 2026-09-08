@@ -128,12 +128,147 @@ describe("TraceRecorder", () => {
 
     const snapshot = trace.snapshot();
     expect(snapshot.metrics.approvalWaitMs).toBeGreaterThanOrEqual(1_400);
+    expect(snapshot.metrics.approvalWaitMaxMs).toBeGreaterThanOrEqual(1_400);
     expect(snapshot.events).toContainEqual(
       expect.objectContaining({ kind: "approval.requested", toolCallId: "call-1" }),
     );
     expect(snapshot.events).toContainEqual(
       expect.objectContaining({ kind: "approval.granted", toolCallId: "call-1" }),
     );
+  });
+
+  it("records a denied approval span with its own wait (§24)", () => {
+    const trace = beginTrace("conversation-1");
+    advance(50);
+    trace.approvalRequested("call-deny", "write_file");
+    advance(800);
+    trace.approvalResolved("denied", "call-deny");
+    completeTrace("conversation-1", "completed");
+
+    const snapshot = trace.snapshot();
+    expect(snapshot.metrics.approvalCount).toBe(1);
+    expect(snapshot.metrics.approvalWaitMaxMs).toBeGreaterThanOrEqual(700);
+    expect(snapshot.approvals).toEqual([
+      expect.objectContaining({
+        toolCallId: "call-deny",
+        decision: "denied",
+        durationMs: expect.any(Number),
+      }),
+    ]);
+    expect(snapshot.events).toContainEqual(
+      expect.objectContaining({
+        kind: "approval.denied",
+        toolCallId: "call-deny",
+        status: "cancelled",
+      }),
+    );
+  });
+
+  it("isolates consecutive approval spans — second wait excludes in-between time (§24)", () => {
+    const trace = beginTrace("conversation-1");
+    advance(100);
+    trace.approvalRequested("call-1", "run_command");
+    advance(2_000);
+    trace.approvalResolved("granted", "call-1");
+    // 8s of tool execution + model streaming between the two approvals: this
+    // must NOT leak into the second approval's wait.
+    advance(8_000);
+    trace.toolStarted("call-tool", "read_file");
+    trace.recordDelta("text", 42);
+    trace.toolSettled("call-tool", { success: true, durationMs: 20 });
+    trace.approvalRequested("call-2", "write_file");
+    advance(3_000);
+    trace.approvalResolved("granted", "call-2");
+    completeTrace("conversation-1", "completed");
+
+    const snapshot = trace.snapshot();
+    const spans = snapshot.approvals ?? [];
+    expect(spans).toHaveLength(2);
+    expect(spans[0]?.durationMs).toBeGreaterThanOrEqual(1_900);
+    expect(spans[1]?.durationMs).toBeGreaterThanOrEqual(2_900);
+    expect(spans[1]?.durationMs).toBeLessThan(8_000); // excludes the 8s gap
+    expect(snapshot.metrics.approvalCount).toBe(2);
+    expect(snapshot.metrics.approvalWaitTotalMs).toBe(
+      spans[0]!.durationMs! + spans[1]!.durationMs!,
+    );
+    expect(snapshot.metrics.approvalWaitMaxMs).toBe(
+      Math.max(spans[0]!.durationMs!, spans[1]!.durationMs!),
+    );
+    expect(snapshot.metrics.approvalWaitAvgMs).toBe(
+      Math.round((spans[0]!.durationMs! + spans[1]!.durationMs!) / 2),
+    );
+  });
+
+  it("keeps a pending approval span pending when the turn stops mid-approval (§24)", () => {
+    const trace = beginTrace("conversation-1");
+    advance(40);
+    trace.approvalRequested("call-stopped", "apply_patch");
+    advance(500);
+    completeTrace("conversation-1", "stopped");
+
+    const snapshot = trace.snapshot();
+    expect(snapshot.approvals).toEqual([
+      expect.objectContaining({ toolCallId: "call-stopped", decision: "pending" }),
+    ]);
+    // Pending approvals never contribute wait metrics.
+    expect(snapshot.metrics.approvalCount).toBeUndefined();
+    expect(snapshot.metrics.approvalWaitMs).toBeUndefined();
+  });
+
+  it("resolves without a span when the recorder never saw the request", () => {
+    const trace = beginTrace("conversation-1");
+    trace.approvalResolved("granted", "call-unknown");
+    const snapshot = trace.snapshot();
+    expect(snapshot.approvals).toBeUndefined();
+    expect(snapshot.events).toContainEqual(
+      expect.objectContaining({ kind: "approval.granted", toolCallId: "call-unknown" }),
+    );
+    // No duration is fabricated for an unseen span.
+    const granted = snapshot.events.find((event) => event.kind === "approval.granted");
+    expect(granted?.durationMs).toBeUndefined();
+  });
+
+  it("stamps independent starts for a queued approval batch (§24)", () => {
+    const trace = beginTrace("conversation-1");
+    advance(60);
+    trace.approvalRequested("call-a", "write_file");
+    trace.approvalRequested("call-b", "run_command");
+    advance(1_000);
+    trace.approvalResolved("granted", "call-a");
+    advance(2_000);
+    trace.approvalResolved("granted", "call-b");
+    completeTrace("conversation-1", "completed");
+
+    const spans = Object.fromEntries(
+      (trace.snapshot().approvals ?? []).map((span) => [span.toolCallId, span]),
+    );
+    // call-b was requested at the same moment as call-a: its wait measures
+    // from that shared request, not from call-a's resolution.
+    expect(spans["call-b"]?.durationMs).toBeGreaterThanOrEqual(2_900);
+    expect(trace.snapshot().metrics.approvalCount).toBe(2);
+  });
+
+  it("maps chunk timing onto the final text via cumulative offsets (§25/§26)", () => {
+    const trace = beginTrace("conversation-offsets");
+    advance(30);
+    trace.recordDelta("text", 12); // offset 0
+    advance(10);
+    trace.recordDelta("text", 8); // offset 12
+    advance(10);
+    trace.recordDelta("tool-call-arguments", 40); // no offset — not message text
+    advance(10);
+    trace.recordDelta("text", 5); // offset 20
+    completeTrace("conversation-offsets", "completed");
+
+    const textDeltas = trace
+      .snapshot()
+      .events.filter((event) => event.kind === "stream.delta" && event.summary === "text");
+    expect(textDeltas.map((event) => event.offset)).toEqual([0, 12, 20]);
+    expect(textDeltas.at(-1)?.size).toBe(5);
+    const argsDelta = trace
+      .snapshot()
+      .events.find((event) => event.kind === "stream.delta" && event.summary === "tool-call-arguments");
+    expect(argsDelta?.offset).toBeUndefined();
   });
 
   it("never carries content or hidden reasoning — metadata only (§23/§26)", () => {
@@ -160,6 +295,7 @@ describe("TraceRecorder", () => {
       "summary",
       "size",
       "durationMs",
+      "offset",
     ]);
     const snapshotJson = JSON.stringify(trace.snapshot());
     for (const event of trace.snapshot().events) {

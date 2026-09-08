@@ -57,6 +57,12 @@ export interface TraceEventRecord {
   size?: number | undefined;
   /** Span duration for settled events (tools, requests). */
   durationMs?: number | undefined;
+  /**
+   * Cumulative char offset within the delta's content class (visible text)
+   * when this chunk began arriving — maps chunk timing onto the final
+   * message text without storing the text twice (§25/§26).
+   */
+  offset?: number | undefined;
 }
 
 export interface TraceToolSummary {
@@ -71,6 +77,21 @@ export interface TraceToolSummary {
   outputSummary?: string | undefined;
 }
 
+/**
+ * One approval span (§24): requested → granted/denied, measured per
+ * toolCallId. Each span is independent — the wait between two approvals
+ * never absorbs model streaming or tool time that ran in between.
+ */
+export interface TraceApprovalSpan {
+  toolCallId: string;
+  toolName: string;
+  requestedAt: number;
+  decision: "pending" | "granted" | "denied";
+  decidedAt?: number | undefined;
+  /** request → decision wall-clock duration; undefined while pending. */
+  durationMs?: number | undefined;
+}
+
 export interface TraceMetrics {
   totalDurationMs?: number | undefined;
   ttfbMs?: number | undefined;
@@ -81,6 +102,15 @@ export interface TraceMetrics {
   p95GapMs?: number | undefined;
   tokensPerSecond?: number | undefined;
   outputTokens?: number | undefined;
+  /** Resolved approval count. */
+  approvalCount?: number | undefined;
+  approvalWaitTotalMs?: number | undefined;
+  approvalWaitMaxMs?: number | undefined;
+  approvalWaitAvgMs?: number | undefined;
+  /**
+   * Longest single approval wait. Retained for older exports; equals
+   * approvalWaitMaxMs on traces written after the multi-span fix.
+   */
   approvalWaitMs?: number | undefined;
 }
 
@@ -124,6 +154,7 @@ export interface TraceRecord {
   status: "running" | "completed" | "failed" | "stopped";
   events: TraceEventRecord[];
   tools: TraceToolSummary[];
+  approvals?: TraceApprovalSpan[] | undefined;
   metrics: TraceMetrics;
   visibleOutput?: TraceVisibleOutput | undefined;
 }
@@ -140,6 +171,7 @@ export const traceEventSchema = z.object({
   summary: z.string().optional(),
   size: z.number().nonnegative().optional(),
   durationMs: z.number().nonnegative().optional(),
+  offset: z.number().nonnegative().optional(),
 });
 
 export const traceToolSummarySchema = z.object({
@@ -165,6 +197,15 @@ export const traceVisibleOutputSchema = z.object({
   totalChars: z.number().int().nonnegative(),
 });
 
+export const traceApprovalSpanSchema = z.object({
+  toolCallId: z.string(),
+  toolName: z.string(),
+  requestedAt: z.number().int().nonnegative(),
+  decision: z.enum(["pending", "granted", "denied"]),
+  decidedAt: z.number().int().nonnegative().optional(),
+  durationMs: z.number().nonnegative().optional(),
+});
+
 export const traceRecordSchema = z.object({
   id: z.string(),
   version: z.literal(1),
@@ -180,6 +221,7 @@ export const traceRecordSchema = z.object({
   status: z.enum(["running", "completed", "failed", "stopped"]),
   events: z.array(traceEventSchema),
   tools: z.array(traceToolSummarySchema),
+  approvals: z.array(traceApprovalSpanSchema).optional(),
   visibleOutput: traceVisibleOutputSchema.optional(),
   metrics: z.object({
     totalDurationMs: z.number().nonnegative().optional(),
@@ -191,6 +233,10 @@ export const traceRecordSchema = z.object({
     p95GapMs: z.number().nonnegative().optional(),
     tokensPerSecond: z.number().nonnegative().optional(),
     outputTokens: z.number().nonnegative().optional(),
+    approvalCount: z.number().int().nonnegative().optional(),
+    approvalWaitTotalMs: z.number().nonnegative().optional(),
+    approvalWaitMaxMs: z.number().nonnegative().optional(),
+    approvalWaitAvgMs: z.number().nonnegative().optional(),
     approvalWaitMs: z.number().nonnegative().optional(),
   }),
 });

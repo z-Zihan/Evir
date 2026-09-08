@@ -512,16 +512,25 @@ export function ChatView({
 
 /**
  * Single 运行详情 dialog host (§32): message action buttons and the /trace
- * slash action both open this one instance via the trace dialog store.
+ * slash action both open this one instance via the trace dialog store. The
+ * traced message's final text is passed in so 运行详情 can rebuild the full
+ * visible response from the message + chunk timing metadata (§25/§26).
  */
 function TraceDialogHost() {
   const messageId = useTraceDialogStore((state) => state.messageId);
   const close = useTraceDialogStore((state) => state.close);
   const trace = useTraceForMessage(messageId ?? "");
+  const message = useChatStore((state) =>
+    messageId ? state.messages.find((entry) => entry.id === messageId) : undefined,
+  );
   if (!messageId || !trace) return null;
   return (
     <Suspense fallback={null}>
-      <TraceDetailsDialog trace={trace} onClose={close} />
+      <TraceDetailsDialog
+        trace={trace}
+        responseText={message?.role === "assistant" ? message.content : undefined}
+        onClose={close}
+      />
     </Suspense>
   );
 }

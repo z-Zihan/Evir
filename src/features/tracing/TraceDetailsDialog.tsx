@@ -14,9 +14,10 @@ import { downloadBlob } from "../chat/conversation-export";
 import type { TraceEventRecord, TraceRecord } from "./trace-types";
 
 /**
- * 运行详情 (§29-31): per-assistant-turn trace view — summary metrics, a
- * timeline of every recorded event with +Δ gaps, tool table, a bounded
- * redacted sample of the user-visible output stream (§27), and export. Hidden
+ * 运行详情 (§29-31): per-assistant-turn trace view — summary metrics,
+ * approval spans, tool table, the full visible response rebuilt from the
+ * message text plus chunk timing offsets, a bounded redacted diagnostic
+ * sample of the stream (§27), the event timeline, and export. Hidden
  * chain-of-thought is never recorded into a trace to begin with (§23); the
  * visible sample only mirrors text the chat message already shows.
  */
@@ -44,6 +45,12 @@ function summaryLine(trace: TraceRecord, t: (key: string) => string): string {
     `${t("trace.summary.maxGap")}: ${formatMs(metrics.maxGapMs)}`,
     `${t("trace.summary.tools")}: ${trace.tools.length}`,
     `${t("trace.summary.failures")}: ${trace.tools.filter((tool) => tool.status === "error").length}`,
+    ...(metrics.approvalCount !== undefined
+      ? [
+          `${t("trace.summary.approvalCount")}: ${metrics.approvalCount}`,
+          `${t("trace.summary.approvalWaitMax")}: ${formatMs(metrics.approvalWaitMaxMs)}`,
+        ]
+      : []),
     `status: ${trace.status}`,
   ].join(" · ");
 }
@@ -59,14 +66,21 @@ function MetricCard({ label, value }: { label: string; value: string }) {
 
 export function TraceDetailsDialog({
   trace,
+  responseText,
   onClose,
 }: {
   trace: TraceRecord;
+  /** Final visible text of the traced message — rebuilds the full response. */
+  responseText?: string | undefined;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
   const metrics = trace.metrics;
   const failedTools = trace.tools.filter((tool) => tool.status === "error").length;
+  const textChunkEvents = useMemo(
+    () => trace.events.filter((event) => event.kind === "stream.delta" && event.summary === "text"),
+    [trace.events],
+  );
 
   const summaryText = useMemo(() => summaryLine(trace, t), [trace, t]);
 
@@ -105,7 +119,63 @@ export function TraceDetailsDialog({
                 value={metrics.tokensPerSecond.toFixed(1)}
               />
             )}
+            {metrics.approvalCount !== undefined && (
+              <MetricCard
+                label={t("trace.summary.approvalCount")}
+                value={String(metrics.approvalCount)}
+              />
+            )}
+            {metrics.approvalWaitMaxMs !== undefined && (
+              <MetricCard
+                label={t("trace.summary.approvalWaitMax")}
+                value={formatMs(metrics.approvalWaitMaxMs)}
+              />
+            )}
+            {metrics.approvalWaitAvgMs !== undefined && (
+              <MetricCard
+                label={t("trace.summary.approvalWaitAvg")}
+                value={formatMs(metrics.approvalWaitAvgMs)}
+              />
+            )}
           </div>
+
+          {trace.approvals && trace.approvals.length > 0 && (
+            <section aria-label={t("trace.approvals.title")} className="flex flex-col gap-1.5">
+              <h3 className="text-[11px] font-semibold tracking-wide text-muted uppercase">
+                {t("trace.approvals.title")}
+              </h3>
+              <div className="flex flex-col gap-1">
+                {trace.approvals.map((span, index) => (
+                  <div
+                    key={span.toolCallId}
+                    className="flex items-center gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-[12px]"
+                    data-trace-approval={span.decision}
+                  >
+                    <span className="w-6 shrink-0 text-[11px] text-muted tabular-nums">
+                      #{index + 1}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate font-medium">{span.toolName}</span>
+                    <span className="shrink-0 text-[11px] text-muted tabular-nums">
+                      {span.durationMs !== undefined
+                        ? t("trace.approvals.waited", { duration: formatMs(span.durationMs) })
+                        : "…"}
+                    </span>
+                    <Badge
+                      variant={
+                        span.decision === "granted"
+                          ? "success"
+                          : span.decision === "denied"
+                            ? "danger"
+                            : "secondary"
+                      }
+                    >
+                      {t(`trace.approvals.${span.decision}`)}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {trace.tools.length > 0 && (
             <section aria-label={t("trace.tools.title")} className="flex flex-col gap-1.5">
@@ -135,11 +205,43 @@ export function TraceDetailsDialog({
               {failedTools > 0 && (
                 <p className="text-[11px] text-muted">
                   {t("trace.summary.failures")}: {failedTools}
-                  {metrics.approvalWaitMs !== undefined
-                    ? ` · ${t("trace.summary.approvalWait")}: ${formatMs(metrics.approvalWaitMs)}`
-                    : ""}
                 </p>
               )}
+            </section>
+          )}
+
+          {responseText !== undefined && responseText.length > 0 && (
+            <section aria-label={t("trace.response.title")} className="flex flex-col gap-1.5">
+              <h3 className="text-[11px] font-semibold tracking-wide text-muted uppercase">
+                {t("trace.response.title")}
+              </h3>
+              <div className="trace-response max-h-56 overflow-y-auto rounded-lg border border-border bg-surface px-2.5 py-2 text-[12px] whitespace-pre-wrap break-words">
+                {responseText}
+              </div>
+              {textChunkEvents.length > 0 && (
+                <details className="text-[11px] text-muted">
+                  <summary className="cursor-pointer select-none">
+                    {t("trace.response.chunkMap")} ({textChunkEvents.length})
+                  </summary>
+                  <div className="trace-chunk-map mt-1 flex max-h-40 flex-col gap-px overflow-y-auto rounded-lg border border-border bg-surface">
+                    {textChunkEvents.map((event) => (
+                      <div
+                        key={event.seq}
+                        className="grid grid-cols-[64px_1fr_70px] items-center gap-2 px-2 py-0.5 tabular-nums"
+                        data-trace-chunk-row=""
+                      >
+                        <span>{(event.at / 1000).toFixed(3)}</span>
+                        <span>
+                          chars {event.offset ?? "–"}
+                          {event.size !== undefined ? `–${(event.offset ?? 0) + event.size}` : ""}
+                        </span>
+                        <span className="text-right">+{event.size ?? 0}</span>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+              <p className="text-[11px] text-muted">{t("trace.response.note")}</p>
             </section>
           )}
 

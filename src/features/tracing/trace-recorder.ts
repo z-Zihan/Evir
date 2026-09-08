@@ -9,6 +9,7 @@ import {
   type TraceEventRecord,
   type TraceRecord,
   type TraceToolSummary,
+  type TraceApprovalSpan,
   type TraceVisibleSegment,
 } from "./trace-types";
 import { useTraceStore } from "./trace-store";
@@ -52,6 +53,14 @@ export class TraceRecorder {
   private messageIds: string[] = [];
   private events: TraceEventRecord[] = [];
   private tools = new Map<string, TraceToolSummary>();
+  // Per-span approval tracking (§24): each requested toolCallId gets its own
+  // wait window so a second approval never absorbs the streaming/tool time
+  // that ran between the two approvals.
+  private pendingApprovals = new Map<
+    string,
+    { span: TraceApprovalSpan; startedAtMonotonic: number }
+  >();
+  private approvalSpans: TraceApprovalSpan[] = [];
   private status: TraceRecord["status"] = "running";
   private seq = 0;
   private lastAt = 0;
@@ -67,8 +76,10 @@ export class TraceRecorder {
   private lastDeltaAt: number | undefined;
   private streamingStartAt: number | undefined;
   private outputTokens: number | undefined;
-  private approvalWaitStartedAt: number | undefined;
-  private approvalWaitMs: number | undefined;
+  // Cumulative chars per delta class — offsets map chunk timing onto the
+  // final message text (visible) or the call arguments, without storing text.
+  private visibleTextOffset = 0;
+  private otherDeltaOffset = new Map<TraceDeltaKind, number>();
   // Bounded sample of the user-visible text stream (§27). Only provider
   // "text" deltas reach here — reasoning/CoT is never appended.
   private visibleSegments: TraceVisibleSegment[] = [];
@@ -109,6 +120,7 @@ export class TraceRecorder {
       summary?: string | undefined;
       durationMs?: number | undefined;
       size?: number | undefined;
+      offset?: number | undefined;
     } = {},
   ): void {
     if (this.finalized) return;
@@ -130,6 +142,7 @@ export class TraceRecorder {
       ...(detail.summary !== undefined ? { summary: detail.summary } : {}),
       ...(detail.durationMs !== undefined ? { durationMs: detail.durationMs } : {}),
       ...(detail.size !== undefined ? { size: detail.size } : {}),
+      ...(detail.offset !== undefined ? { offset: detail.offset } : {}),
     });
     this.scheduleFlush();
   }
@@ -157,7 +170,17 @@ export class TraceRecorder {
     }
     this.lastDeltaAt = at;
     if (this.events.length < MAX_STORED_DELTA_EVENTS) {
-      this.record("stream.delta", { summary: kind, size });
+      // Visible-text chunks carry their cumulative char offset so the final
+      // message text can be mapped onto chunk timing without duplicating it.
+      const offset =
+        kind === "text" ? this.visibleTextOffset : this.otherDeltaOffset.get(kind) ?? 0;
+      this.record("stream.delta", { summary: kind, size, ...(kind === "text" ? { offset } : {}) });
+      if (kind === "text") this.visibleTextOffset += size;
+      else this.otherDeltaOffset.set(kind, (this.otherDeltaOffset.get(kind) ?? 0) + size);
+    } else if (kind === "text") {
+      this.visibleTextOffset += size;
+    } else {
+      this.otherDeltaOffset.set(kind, (this.otherDeltaOffset.get(kind) ?? 0) + size);
     }
   }
 
@@ -258,22 +281,46 @@ export class TraceRecorder {
   }
 
   approvalRequested(toolCallId: string, toolName: string): void {
-    if (this.approvalWaitStartedAt === undefined)
-      this.approvalWaitStartedAt = performance.now() - this.origin;
+    // Each toolCallId opens its own span; a queued approval requested in the
+    // same batch keeps its original start (the user saw it from the start).
+    if (!this.pendingApprovals.has(toolCallId) && !this.hasResolvedApproval(toolCallId)) {
+      const span: TraceApprovalSpan = {
+        toolCallId,
+        toolName,
+        requestedAt: Date.now(),
+        decision: "pending",
+      };
+      this.pendingApprovals.set(toolCallId, {
+        span,
+        startedAtMonotonic: performance.now() - this.origin,
+      });
+    }
     this.record("approval.requested", { toolCallId, summary: toolName });
   }
 
   approvalResolved(decision: "granted" | "denied", toolCallId: string): void {
-    if (this.approvalWaitStartedAt !== undefined) {
-      const waited = performance.now() - this.origin - this.approvalWaitStartedAt;
-      this.approvalWaitMs = Math.max(this.approvalWaitMs ?? 0, waited);
-      // A next approval in the same turn restarts the wait window.
-      this.approvalWaitStartedAt = performance.now() - this.origin;
+    const pending = this.pendingApprovals.get(toolCallId);
+    let durationMs: number | undefined;
+    if (pending) {
+      durationMs = Math.max(0, performance.now() - this.origin - pending.startedAtMonotonic);
+      pending.span.decision = decision;
+      pending.span.decidedAt = Date.now();
+      pending.span.durationMs = durationMs;
+      this.pendingApprovals.delete(toolCallId);
+      this.approvalSpans.push(pending.span);
     }
+    // An unknown toolCallId (recorder restarted mid-approval) still records
+    // the decision event — just without a wait duration.
     this.record(decision === "granted" ? "approval.granted" : "approval.denied", {
       toolCallId,
+      status: decision === "granted" ? "ok" : "cancelled",
       summary: decision === "granted" ? "approved" : "denied",
+      ...(durationMs !== undefined ? { durationMs } : {}),
     });
+  }
+
+  private hasResolvedApproval(toolCallId: string): boolean {
+    return this.approvalSpans.some((span) => span.toolCallId === toolCallId);
   }
 
   finalize(status: TraceRecord["status"]): void {
@@ -294,6 +341,15 @@ export class TraceRecorder {
     const p95GapMs = sortedGaps.length
       ? sortedGaps[Math.min(sortedGaps.length - 1, Math.ceil(0.95 * (sortedGaps.length - 1)))]
       : undefined;
+    const resolvedWaits = this.approvalSpans
+      .map((span) => span.durationMs)
+      .filter((duration): duration is number => duration !== undefined);
+    const approvalWaitTotalMs =
+      resolvedWaits.length > 0 ? resolvedWaits.reduce((total, wait) => total + wait, 0) : undefined;
+    const approvalWaitMaxMs =
+      resolvedWaits.length > 0 ? Math.max(...resolvedWaits) : undefined;
+    const approvalWaitAvgMs =
+      approvalWaitTotalMs !== undefined ? approvalWaitTotalMs / resolvedWaits.length : undefined;
     return {
       id: this.traceId,
       version: 1,
@@ -309,6 +365,14 @@ export class TraceRecorder {
       status: this.status,
       events: [...this.events],
       tools: [...this.tools.values()],
+      ...(this.approvalSpans.length + this.pendingApprovals.size > 0
+        ? {
+            approvals: [
+              ...this.approvalSpans.map((span) => ({ ...span })),
+              ...[...this.pendingApprovals.values()].map((pending) => ({ ...pending.span })),
+            ],
+          }
+        : {}),
       ...(this.visibleSegments.length > 0
         ? {
             visibleOutput: {
@@ -339,8 +403,15 @@ export class TraceRecorder {
                 Math.round((this.outputTokens / (streamingDurationMs / 1000)) * 10) / 10,
             }
           : {}),
-        ...(this.approvalWaitMs !== undefined
-          ? { approvalWaitMs: Math.round(this.approvalWaitMs) }
+        ...(resolvedWaits.length > 0
+          ? {
+              approvalCount: resolvedWaits.length,
+              approvalWaitTotalMs: Math.round(approvalWaitTotalMs ?? 0),
+              approvalWaitMaxMs: Math.round(approvalWaitMaxMs ?? 0),
+              approvalWaitAvgMs: Math.round(approvalWaitAvgMs ?? 0),
+              // Longest single wait — kept for older readers of the export.
+              approvalWaitMs: Math.round(approvalWaitMaxMs ?? 0),
+            }
           : {}),
       },
     };

@@ -1198,7 +1198,10 @@
       "tps": "token/秒",
       "tools": "工具数",
       "failures": "失败数",
-      "approvalWait": "审批等待"
+      "approvalWait": "审批等待",
+      "approvalCount": "审批次数",
+      "approvalWaitMax": "最长审批等待",
+      "approvalWaitAvg": "平均审批等待"
     },
     "tools": {
       "title": "工具",
@@ -1236,10 +1239,22 @@
       "failed": "导出失败"
     },
     "visibleOutput": {
-      "title": "可见输出",
+      "title": "可见输出采样（诊断）",
       "note": "共 {{count}} 字符的可见文本流采样",
       "truncated": "已截断采样（完整内容见消息）",
       "noHidden": "不含隐藏推理"
+    },
+    "approvals": {
+      "title": "审批",
+      "granted": "已批准",
+      "denied": "已拒绝",
+      "pending": "等待中",
+      "waited": "等待 {{duration}}"
+    },
+    "response": {
+      "title": "完整回复",
+      "note": "来自消息正文的完整可见回复；下方分片时间映射来自 Trace",
+      "chunkMap": "分片时间映射"
     }
   },
   "slash": {

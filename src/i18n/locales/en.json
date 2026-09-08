@@ -1199,7 +1199,10 @@
       "tps": "Tokens/s",
       "tools": "Tools",
       "failures": "Failures",
-      "approvalWait": "Approval wait"
+      "approvalWait": "Approval wait",
+      "approvalCount": "Approvals",
+      "approvalWaitMax": "Max approval wait",
+      "approvalWaitAvg": "Avg approval wait"
     },
     "tools": {
       "title": "Tools",
@@ -1237,10 +1240,22 @@
       "failed": "Trace export failed"
     },
     "visibleOutput": {
-      "title": "Visible output",
+      "title": "Sampled visible output (diagnostic)",
       "note": "Sampled {{count}} chars of the visible text stream",
       "truncated": "Sample truncated (full text stays in the message)",
       "noHidden": "no hidden reasoning"
+    },
+    "approvals": {
+      "title": "Approvals",
+      "granted": "granted",
+      "denied": "denied",
+      "pending": "pending",
+      "waited": "waited {{duration}}"
+    },
+    "response": {
+      "title": "Response",
+      "note": "Full visible response from the message text; chunk timing below is from the trace",
+      "chunkMap": "Chunk timing"
     }
   },
   "slash": {
