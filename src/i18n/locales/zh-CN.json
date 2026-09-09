@@ -1073,9 +1073,9 @@
       "found": "已找到",
       "notFound": "未找到",
       "sources": {
-        "login-shell": "登录 Shell 解析",
         "inherited": "继承环境",
-        "fallback": "安全基础合并"
+        "fallback": "安全基础合并",
+        "login_shell": "登录 Shell 解析"
       }
     }
   },

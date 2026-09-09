@@ -1074,9 +1074,9 @@
       "found": "Found",
       "notFound": "Not Found",
       "sources": {
-        "login-shell": "Login shell",
         "inherited": "Inherited",
-        "fallback": "Safe base merge"
+        "fallback": "Safe base merge",
+        "login_shell": "Login shell"
       }
     }
   },

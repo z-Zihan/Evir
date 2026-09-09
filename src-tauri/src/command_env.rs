@@ -150,10 +150,21 @@ pub(crate) fn path_looks_complete(path: &[String]) -> bool {
 
 /// Probe the user's login shell for its environment. Fixed command string,
 /// hard timeout, whitelisted read-back; any failure returns None.
-fn probe_login_shell(shell: &str) -> Option<LoginEnv> {
+/// `interactive` adds `-i` so zsh/bash also load their rc files (.zshrc /
+/// .bashrc) — many users export dev-tool PATHs there (nvm, rustup, volta),
+/// and the user's real terminal is an interactive login shell, so tool
+/// discovery must match it (§17/§25). The rc file runs exactly as it would
+/// in the user's own terminal; output pollution is handled by the
+/// whitelist parser (first valid KEY=VALUE wins).
+fn probe_login_shell(shell: &str, interactive: bool) -> Option<LoginEnv> {
     use std::process::{Command, Stdio};
-    let mut child = Command::new(shell)
-        .args(["-l", "-c", "/usr/bin/printenv"])
+    let mut command = Command::new(shell);
+    if interactive {
+        command.args(["-i", "-l", "-c", "/usr/bin/printenv"]);
+    } else {
+        command.args(["-l", "-c", "/usr/bin/printenv"]);
+    }
+    let mut child = command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -205,7 +216,7 @@ pub fn resolve_command_environment() -> &'static CommandEnv {
         let mut lang = inherited_lang;
 
         if !path_looks_complete(&inherited) && !shell.is_empty() {
-            if let Some(login) = probe_login_shell(&shell) {
+            if let Some(login) = probe_login_shell(&shell, false) {
                 if let Some(login_path) = &login.path {
                     path_lists.push(split_path(login_path));
                 }
@@ -217,6 +228,20 @@ pub fn resolve_command_environment() -> &'static CommandEnv {
                     lang = login.lang;
                 }
                 source = CommandEnvSource::LoginShell;
+                // Second pass: interactive rc files (.zshrc etc.) often add
+                // MORE tool directories (rustup, volta); union them in so
+                // anything the user's real terminal can find, we find too.
+                if let Some(interactive_env) = probe_login_shell(&shell, true) {
+                    if let Some(interactive_path) = &interactive_env.path {
+                        path_lists.push(split_path(interactive_path));
+                    }
+                    if home.is_none() {
+                        home = interactive_env.home;
+                    }
+                    if lang.is_none() {
+                        lang = interactive_env.lang;
+                    }
+                }
             }
         }
         if source == CommandEnvSource::Inherited && !path_looks_complete(&inherited) {
@@ -338,8 +363,17 @@ pub fn command_environment_info() -> CommandEnvironmentInfo {
             let found = lookup_on_path(name, &dirs);
             let version = found.as_ref().and_then(|path| {
                 use std::process::{Command, Stdio};
+                let probe_env = {
+                    let mut map = std::collections::HashMap::new();
+                    map.insert("PATH".to_owned(), env.path.clone());
+                    if let Some(home) = &env.home {
+                        map.insert("HOME".to_owned(), home.clone());
+                    }
+                    map
+                };
                 let output = Command::new(path)
                     .arg("--version")
+                    .envs(probe_env)
                     .stdin(Stdio::null())
                     .stdout(Stdio::piped())
                     .stderr(Stdio::piped())

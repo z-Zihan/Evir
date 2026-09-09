@@ -74,11 +74,18 @@ describe("shipped validation data integrity", () => {
     }
   });
 
-  it("the shipped 10-task gateway evidence is smoke-scale, never agent-verified", () => {
+  it("the shipped evidence carries the gateway endpoint and its real scale", () => {
     const models = verifiedModelsForProvider("zhipu");
     const deepseek = models.find((model) => model.modelId === "evomap-deepseek-v4-flash");
-    expect(deepseek?.tier).toBe("smoke-verified");
+    // 2026-09-09: the full 20-task required suite passed (16/20, all gates)
+    // — the latest run legitimately holds agent-verified, and the same-day
+    // partial stays in history (see modelValidationHistory below).
+    expect(deepseek?.tier).toBe("agent-verified");
     expect(deepseek?.endpointClass).toBe("gateway");
+    expect(deepseek?.taskCount).toBe(20);
+    const history = modelValidationHistory("zhipu", "evomap-deepseek-v4-flash");
+    expect(history.length).toBeGreaterThanOrEqual(3); // 10-pass, 20-partial, 20-pass
+    expect(history.some((entry) => entry.status === "partial")).toBe(true);
   });
 
   it("no preset claims provider-level agent-verified anymore (§7)", () => {
@@ -112,7 +119,7 @@ describe("model-level evidence (no cross-model borrowing, §8)", () => {
 
   it("model match is case-insensitive but exact — no family wildcards", () => {
     expect(effectiveModelAgentTier(zhipuPreset(), "EVOMAP-DeepSeek-V4-Flash")).toBe(
-      "smoke-verified",
+      "agent-verified",
     );
     expect(effectiveModelAgentTier(zhipuPreset(), "evomap-deepseek-v4")).toBe("protocol-verified");
   });
@@ -185,7 +192,7 @@ describe("suite scale separates agent-verified from smoke (§60)", () => {
   });
 
   it("provider rollup reflects the strongest verified model", () => {
-    expect(effectiveAgentTier(zhipuPreset())).toBe("smoke-verified"); // today: gateway deepseek, smoke scale
+    expect(effectiveAgentTier(zhipuPreset())).toBe("agent-verified"); // today: gateway deepseek, full 20-task suite
   });
 
   it("verifiedModelsForProvider lists per-model tiers from a given history", () => {

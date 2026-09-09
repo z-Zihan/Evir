@@ -15,7 +15,7 @@ export interface ToolProbeResult {
 export interface CommandEnvironmentInfo {
   shell: string;
   resolvedPath: string;
-  source: "login-shell" | "inherited" | "fallback";
+  source: "login_shell" | "inherited" | "fallback";
   tools: ToolProbeResult[];
 }
 
