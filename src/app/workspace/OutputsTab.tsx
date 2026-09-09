@@ -9,14 +9,7 @@ import {
   SquareArrowOutUpRight,
   Workflow,
 } from "lucide-react";
-import {
-  ItemInteractive,
-  ItemMedia,
-  ItemContent,
-  ItemTitle,
-  ItemDescription,
-  Tip,
-} from "../../components/ui";
+import { ItemMedia, ItemContent, ItemTitle, ItemDescription, Tip } from "../../components/ui";
 import { copyTextWithFeedback } from "../../components/feedback";
 import { useRunWorkspaceStore } from "../../features/workspace/workspace-run-store";
 import { useActiveWorkspaceRoot } from "../../features/workspace/workspace-bridge";
@@ -167,8 +160,10 @@ export function OutputsTab() {
             return (
               <li key={output.id}>
                 <Tip content={output.path}>
-                  <ItemInteractive
-                    className="workspace-output-row-primary group/row"
+                  {/* Click-carrying div row with sibling action buttons: a
+                      <button> row would nest interactive controls. */}
+                  <div
+                    className="workspace-output-row-primary group/row flex min-w-0 w-full cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-[12.5px] text-foreground transition-colors select-none hover:bg-surface-hover"
                     onClick={() => openTaskOutput(output, root)}
                   >
                     <ItemMedia className="workspace-output-icon text-muted">
@@ -231,7 +226,7 @@ export function OutputsTab() {
                     <span className="workspace-output-chip ml-auto shrink-0 rounded-full border border-border bg-surface-hover px-1.5 py-px text-[9.5px] font-semibold tracking-wide text-muted">
                       {typeChip(output)}
                     </span>
-                  </ItemInteractive>
+                  </div>
                 </Tip>
               </li>
             );

@@ -313,6 +313,11 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   refreshFolderStatus: async (projectId) => {
     const project = get().projects.find(({ id }) => id === projectId);
     if (!project) return;
+    // Unknown is not missing: without desktop storage the folder cannot be
+    // verified (e.g. the desktop shell rendered in a plain webview), and the
+    // sidebar must not badge every project as "Folder not found".
+    const runtime = getRuntime();
+    if (runtime.target !== "desktop" || !runtime.storage) return;
     const exists = (await canonicalizeFolder(project.rootPath)) !== null;
     set((state) => ({
       folderMissing: { ...state.folderMissing, [projectId]: !exists },

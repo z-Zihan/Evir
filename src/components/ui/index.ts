@@ -90,12 +90,4 @@ export {
   ToolbarGroup,
 } from "./toolbar";
 export { ResizableGroup, ResizablePanel, ResizableHandle, useDefaultLayout } from "./resizable";
-export {
-  Item,
-  ItemInteractive,
-  ItemMedia,
-  ItemContent,
-  ItemTitle,
-  ItemDescription,
-  ItemActions,
-} from "./item";
+export { Item, ItemMedia, ItemContent, ItemTitle, ItemDescription, ItemActions } from "./item";

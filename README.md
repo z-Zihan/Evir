@@ -22,7 +22,7 @@
 
 ---
 
-![Evir Desktop：侧栏 Projects 与 Chats，项目任务中的 Agent 执行时间线](assets/readme/desktop-overview.png)
+![Evir Desktop：三栏工作台 —— 侧栏 Projects / Chats、任务流（含工具时间线与结果摘要）、右侧 Context Workbench 变更面板](assets/readme/desktop-overview.png)
 
 ## Desktop Project Agent（主产品）
 
@@ -38,8 +38,13 @@ Desktop 侧栏分为 **PROJECTS** 和 **CHATS** 两区。一个 Project 对应�
 ```
 
 - **默认 Project Task**：普通问答直接回复；需要操作项目时，按权限策略使用 13 个内置工具（读/写/搜索/patch/命令/git/快照）与 MCP 工具，可暂停、审批、回滚。Plan / Goal 通过 `/plan`、`/goal` 触达。
-- **Plan**：只用只读工具检查项目并产出结构化计划，一键 **Execute Plan** 转入 Agent 执行。
+- **Plan**：只用只读工具检查项目并产出结构化计划（含验证节点），一键 **Execute Plan** 转入 Agent 执行。
 - **Goal**：面向长期目标，附带“完成条件”；Evir 用真实证据逐条验证，模型说“完成”不算完成。
+
+<p align="center">
+  <img src="assets/readme/plan-confirm.png" width="49.2%" alt="Plan 模式：结构化计划（步骤 + 验证节点）等待确认，一键开始执行">
+  <img src="assets/readme/goal-progress.png" width="49.2%" alt="Goal 模式：完成条件逐条以真实证据核验，手动条件等你确认">
+</p>
 
 ### 权限决定自动程度
 
@@ -82,6 +87,8 @@ Provider、协议、模型能力三层分离：已实现 7 种协议适配器（
 ## 知识库（Knowledge Base v1）
 
 显式接入的知识源，按项目绑定供 Agent 检索——与 Memory（个人记忆沉淀）相互独立：
+
+![知识库设置：多个知识库，六类知识源（项目文档目录 / 本地文件夹 / 网页 URL / 历史任务等）](assets/readme/knowledge-settings.png)
 
 - **六类知识源**：本地文件夹 / 本地文件 / 项目文档目录 / 网页 URL（显式添加、记录抓取时间）/ MCP Resource（文本型）/ 历史任务产物（从真实 run 记录派生，不信任模型自述）。
 - **结构优先分块**：标题分区、代码块不切断、段落打包；Markdown / 文本 / 代码 / JSON / CSV / HTML / PDF（复用内置 pdf.js 抽取）。

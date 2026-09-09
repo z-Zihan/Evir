@@ -14,7 +14,7 @@ A clean, local-first, bring-your-own-model **Desktop Project Agent**: open a pro
 
 ---
 
-![Evir Desktop: Projects and Chats in the sidebar, an agent run timeline inside a project thread](assets/readme/desktop-overview.png)
+![Evir Desktop: the three-column workbench — Projects / Chats sidebar, task stream with tool timeline and result summary, Context Workbench changes panel on the right](assets/readme/desktop-overview.png)
 
 ## Desktop Project Agent (the primary product)
 
@@ -30,8 +30,13 @@ Create a project (pick a folder) → new task → pick Permission / Model
 ```
 
 - **Default project task**: plain questions get plain answers; when the task needs the project, the agent uses 13 built-in tools (read/write/search/patch/command/git/snapshot) plus MCP tools under the permission policy, with pause, approval, and rollback. Plan / Goal are reachable via `/plan` and `/goal`.
-- **Plan**: read-only inspection producing a structured plan, then one-click **Execute Plan** continues as the agent.
+- **Plan**: read-only inspection producing a structured plan (verification nodes included), then one-click **Execute Plan** continues as the agent.
 - **Goal**: long-running objectives with explicit done-when conditions; Evir verifies each condition with real evidence — the model saying "done" is not done.
+
+<p align="center">
+  <img src="assets/readme/plan-confirm.png" width="49.2%" alt="Plan mode: a structured plan (steps plus a verification gate) awaiting one-click confirmation">
+  <img src="assets/readme/goal-progress.png" width="49.2%" alt="Goal mode: done-when conditions verified one by one with real evidence; manual conditions wait for you">
+</p>
 
 ### Permission decides autonomy
 
@@ -75,6 +80,8 @@ Priority management, not freezing: the Desktop Project Agent holds the highest q
 
 Explicitly attached knowledge sources, bound per project for agent retrieval — separate from Memory (personal recollections):
 
+![Knowledge settings: multiple bases with six source types (project docs folder, local folder, web URL, historical task, …)](assets/readme/knowledge-settings.png)
+
 - **Six source types**: local folder / local file / project docs / web URL (explicit adds, fetch time recorded) / MCP resource (text) / historical task outputs (derived from real run records, never model claims).
 - **Structure-first chunking**: heading sections, code blocks never split, paragraph packing; Markdown / text / code / JSON / CSV / HTML / PDF (via the bundled pdf.js).
 - **Retrieval with provenance**: every hit cites `document › heading | path/URL`; when the agent uses knowledge, the run trace records a `knowledge.retrieved` event; no-match returns an honest no-result instead of fabricated content.
@@ -102,7 +109,8 @@ Logs/diffs/snapshots → local directories
 ## Quality and verification
 
 - **Deterministic tests**: `pnpm check` (format + lint + strict TS + full unit tests + Rust tests + release validation) plus E2E / UI / visual / accessibility matrices. Current baseline numbers live in [Release Readiness](docs/release-readiness.md) as the single source of truth — this README doesn't duplicate numbers that drift.
-- **Agent Eval**: 20 Golden Agent Tasks on a frozen fixture repo (`pnpm test:agent-eval`), measuring success rate, unauthorized operations (must be 0), out-of-scope changes (must be 0), recovery, and completion evidence. The real-provider tier is honestly **NOT RUN** until real quota is spent.
+- **Agent Eval**: 20 Golden Agent Tasks on a frozen fixture repo (`pnpm test:agent-eval`), measuring success rate, unauthorized operations (must be 0), out-of-scope changes (must be 0), recovery, and completion evidence. The real-provider tier has run (GLM via the EvoMap gateway: 9/10 on 10 tasks, 18/20 on 20 — see [eval/README](eval/README.md)).
+- **Multi-scenario Eval**: data / web / document / automation golden tasks (`pnpm test:multi-scenario`, plus a real tier); **Knowledge Eval**: `pnpm test:knowledge-eval`.
 - Performance budgets and measured numbers defer to the [latest benchmark](docs/benchmarks/latest.json) (web initial JS gzip ≤ 350 KiB, desktop frontend ≤ 15 MiB, cold-start P50 < 2s).
 
 ## Current status

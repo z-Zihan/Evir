@@ -15,19 +15,6 @@ export function Item({ className, ...props }: ComponentProps<"div">) {
   );
 }
 
-export function ItemInteractive({ className, ...props }: ComponentProps<"button">) {
-  return (
-    <button
-      type="button"
-      className={cn(
-        "flex min-w-0 w-full cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-[12.5px] text-foreground transition-colors outline-offset-2 outline-focus select-none hover:bg-surface-hover focus-visible:outline-2",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
 export function ItemMedia({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
