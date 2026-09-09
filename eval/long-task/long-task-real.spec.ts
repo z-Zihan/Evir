@@ -321,18 +321,21 @@ describe.skipIf(!enabled)("real long task with interruption + resume (§85-89)",
         expect(file.endsWith("package.json"), `dependency file touched: ${file}`).toBe(false);
       }
 
-      // 3) 实现确实存在：--json 在 CLI 源码里被解析。
-      const cliSource = await fs.readFile(path.join(root, "packages/cli/src/cli.ts"), "utf8");
-      const argsSource = await fs.readFile(
-        path.join(root, "packages/cli/src/arguments.ts"),
-        "utf8",
-      );
-      const jsonFlagImplemented = [cliSource, argsSource].some((source) =>
+      // 3) 实现确实存在：--json 在 packages/cli/src 的任一源码文件里被解析
+      //    （模型可能把解析放进新模块，如 doctor.ts——判实现存在，不判文件名）。
+      const srcDir = path.join(root, "packages/cli/src");
+      const srcFiles = (await fs.readdir(srcDir)).filter((file) => file.endsWith(".ts"));
+      const jsonFlagImplemented = (
+        await Promise.all(
+          srcFiles.map(async (file) => fs.readFile(path.join(srcDir, file), "utf8")),
+        )
+      ).some((source) =>
         ['"--json"', "'--json'", "`--json`"].some((literal) => source.includes(literal)),
       );
-      expect(jsonFlagImplemented, "--json flag must be parsed in cli.ts or arguments.ts").toBe(
-        true,
-      );
+      expect(
+        jsonFlagImplemented,
+        "--json flag must be parsed somewhere under packages/cli/src",
+      ).toBe(true);
 
       // 4) 评审侧复跑 CLI 测试与类型检查（agent 阶段5 的独立复核）。
       const pnpmDir = path.join(root, "packages/cli");
