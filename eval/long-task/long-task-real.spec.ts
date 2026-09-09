@@ -59,8 +59,9 @@ async function resolveTaskPrompt(): Promise<string> {
 }
 
 const RESUME_PROMPT = [
-  "继续执行该任务：上一轮运行在中途被打断（用户停止）。",
+  "继续执行该任务：上一轮运行停在中途（用户停止或轮次结束）。",
   "请先检查当前仓库状态（git status/diff 与已写内容）确认已完成到哪个阶段，然后从断点继续，不要重做已完成的阶段，也不要重复添加 README 的“## JSON 输出 schema”小节。",
+  "重要：不要在单个阶段结束后停下等待确认——阶段进度用一行标注后立即继续下一阶段，直到全部六个阶段完成后才输出最终摘要。",
   "保持原任务全部约束：只改 packages/cli 内文件、不改任何 package.json、分阶段输出进度、最终给出变更摘要与验证证据（测试命令与结果）。",
 ].join("\n");
 
@@ -220,11 +221,20 @@ describe.skipIf(!enabled)("real long task with interruption + resume (§85-89)",
         .split("\n")
         .filter((line) => line.includes("packages/cli/test/")).length;
       const interruptedMidTask = !(headingsAfterA === 1 && testsAfterA > 0);
-      // 若模型在预算内自然完成（中断前），本次运行仍可评估续跑幂等性，但会记录未发生中断。
+      // The abort only counts as a real interruption when the timer actually
+      // fired inside phase A; the model may also stop early on its own (a
+      // natural stall), which the resume prompt must recover from either way.
+      const abortFired = phaseADuration >= interruptAfterMs - 5_000;
       console.info(
-        `[long-task] interruption status: ${interruptedMidTask ? "interrupted mid-task (abort signal)" : "model finished before the interrupt budget"}`,
+        `[long-task] interruption status: ${
+          abortFired
+            ? "interrupted mid-task (abort signal)"
+            : interruptedMidTask
+              ? "model stalled before the interrupt budget (natural stop, still mid-task)"
+              : "model finished before the interrupt budget"
+        }`,
       );
-      if (interruptedMidTask) {
+      if (interruptedMidTask && abortFired) {
         expect(
           resultA.turns.some((turn) => turn.stream.status === "stopped"),
           "abort should surface as a stopped turn",
