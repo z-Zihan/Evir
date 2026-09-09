@@ -41,6 +41,6 @@
 
 ## 当前已知约束（细节以权威文档为准）
 
-- LICENSE 未定（BLOCKED，须项目负责人决定）；Windows 全量验收 NOT RUN（TS 层有 deterministic Windows 路径测试，真机未跑）；单次连续 ≥30 分钟长任务 PASS 样本未取得（无头最佳 24.7min；GUI 4 次续跑交付物已独立复核全绿，见 release-readiness 长任务行）。GUI 子进程 PATH 无 pnpm 的问题已于 2026-09-09 修复（Rust `command_env.rs`：启动时 login-shell 解析+白名单+缓存，run_command/dev_server 注入，cwd 的 node_modules/.bin 前置；诊断面板有 Command Environment）。
+- LICENSE 未定（BLOCKED，须项目负责人决定）；Windows 全量验收 NOT RUN（TS 层有 deterministic Windows 路径测试，真机未跑）；单次连续 ≥30 分钟长任务 PASS 样本未取得（无头最佳 24.7min；GUI 4 次续跑交付物已独立复核全绿，见 release-readiness 长任务行）。GUI 子进程 PATH 无 pnpm 已于 2026-09-09 修复（Rust `command_env.rs`：login+interactive rc 双探测、白名单、OnceLock 缓存；run_command/dev_server 注入；cwd 的 node_modules/.bin 前置；诊断面板 Command Environment 实测 node/npm/npx/git/python3/cargo/rustc 全部可见）。已知平台问题：release 构建下 macOS 26.5 的 Tauri custom-scheme IPC 间歇 ~100s stall（desktop.ipc.timeout/retry，tauri#7662），曾阻塞安装版 App Preview 脚本检测（同代码 dev 实例正常）；App Preview 检测 IO 失败与真无脚本共用 noScript 文案是待改进项。单次连续 ≥30min 长任务 PASS 仍未取得（2026-09-09 深夜再补 3 个无头样本全 FAIL：断言面已修、模型多阶段驱动力不足+流错误；见 release-readiness 长任务行与桌面 Evidence）。
 - 测试不得消耗真实 Provider 配额（fixture 服务器或标 NOT RUN）；模型文字不能标记任务完成（mutating run 需证据；answer run 见 docs/01）。
 - 永不记录密钥/完整会话/文件正文；日志本地、脱敏、有界。
