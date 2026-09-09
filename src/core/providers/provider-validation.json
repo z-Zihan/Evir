@@ -21,6 +21,44 @@
       "unauthorizedOperations": 0,
       "outOfScopeChanges": 0,
       "status": "pass"
+    },
+    {
+      "providerId": "zhipu",
+      "modelId": "evomap-deepseek-v4-flash",
+      "endpointClass": "gateway",
+      "endpointHostClass": "api.evomap.ai",
+      "protocol": "openai-compatible-chat",
+      "testedAt": "2026-09-09T14:48:49.017Z",
+      "evirCommit": "6686077",
+      "suiteId": "golden-agent-tasks",
+      "evalSuiteVersion": "agent-eval-v1",
+      "taskCount": 20,
+      "passed": 17,
+      "failed": 3,
+      "successRate": 0.85,
+      "toolCallSuccessRate": 0.934,
+      "unauthorizedOperations": 0,
+      "outOfScopeChanges": 2,
+      "status": "partial"
+    },
+    {
+      "providerId": "zhipu",
+      "modelId": "evomap-deepseek-v4-flash",
+      "endpointClass": "gateway",
+      "endpointHostClass": "api.evomap.ai",
+      "protocol": "openai-compatible-chat",
+      "testedAt": "2026-09-09T15:02:06.713Z",
+      "evirCommit": "b3a62c4",
+      "suiteId": "golden-agent-tasks",
+      "evalSuiteVersion": "agent-eval-v1",
+      "taskCount": 20,
+      "passed": 16,
+      "failed": 4,
+      "successRate": 0.8,
+      "toolCallSuccessRate": 0.891,
+      "unauthorizedOperations": 0,
+      "outOfScopeChanges": 0,
+      "status": "pass"
     }
   ]
 }

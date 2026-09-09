@@ -58,12 +58,12 @@ Desktop 侧栏分为 **PROJECTS** 和 **CHATS** 两区。一个 Project 对应�
 
 | 分级                  | 含义                                                     | 厂商                                                                                      |
 | --------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| **Agent Verified**    | 最新一次全量（20 任务）真实端点 Golden Agent Tasks 通过  | 暂无                                                                                      |
-| **Smoke Verified**    | 最新一次真实端点评估为 10 任务冒烟规模通过，尚未全量验证 | 智谱 BigModel / GLM                                                                       |
+| **Agent Verified**    | 最新一次全量（20 任务）真实端点 Golden Agent Tasks 通过  | 智谱 BigModel / GLM                                                                       |
+| **Smoke Verified**    | 最新一次真实端点评估为 10 任务冒烟规模通过，尚未全量验证 | 暂无                                                                                      |
 | **Protocol Verified** | 流式 + 工具调用协议有自动化覆盖                          | OpenAI、Anthropic、Google Gemini API、Microsoft Azure OpenAI、Ollama、智谱 BigModel / GLM |
 | **Preset**            | 配置模板，无 Agent 级验证                                | 其余 30 家内置预设                                                                        |
 
-当前唯一模型级真实评估证据：智谱 preset 下的 `evomap-deepseek-v4-flash`（DeepSeek 系模型，经 EvoMap 第三方网关、`openai-compatible-chat` 协议接入）在 2026-09-08 以 10 任务冒烟规模复跑 Golden Agent Tasks，9/10 通过、0 越权、0 越界——按上述规则记为 **Smoke Verified**（不是 Agent Verified：规模是冒烟级；也**不代表 GLM 系模型**，模型间证据不互借）。GLM 系模型目前为 Protocol Verified，待全量真实评估后按最新结果升级或降级。历史手工真机 QA 记录另见 [Release Readiness](docs/release-readiness.md)。
+当前唯一模型级 Agent Verified 证据：智谱 preset 下的 `evomap-deepseek-v4-flash`（DeepSeek 系模型，经 EvoMap 第三方网关、`openai-compatible-chat` 协议接入）于 2026-09-09 以全量 20 任务 required suite 真实跑 Golden Agent Tasks，16/20 通过（0.8）、工具成功率 0.891、0 越权、0 越界。完整历史（同日早些时候一次 17/20 但含 2 处越界 → 如实记为 partial，不被后续 pass 掩盖）见 `src/core/providers/provider-validation.json`。**该证据只属于这个模型**——不代表 GLM 系模型（模型间证据不互借）；GLM 系模型目前为 Protocol Verified，待各自全量真实评估后按最新结果定档。历史手工真机 QA 记录另见 [Release Readiness](docs/release-readiness.md)。
 
 Provider、协议、模型能力三层分离：已实现 7 种协议适配器（OpenAI Chat Completions / Responses、Anthropic Messages、Gemini、Azure OpenAI、Ollama 原生、OpenAI-compatible），支持自定义兼容端点。API Key 存本地加密 vault（AES-256-GCM），密钥永远不进日志。
 

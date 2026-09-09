@@ -31,7 +31,7 @@
 - Run 状态机唯一事实源：`src/features/chat/run-phase.ts`（派生优先级与真相映射）；`StreamSlot.phase` 含 verifying。
 - 权限判定：`src/core/tools/tool-executor.ts`（L2+ 边界；相对路径先解析到 workspace root 再判）。
 - Skill 分层：manifest `tier: core|general`；核心 15 个（`skills/builtin/*/manifest.json` 标记）。
-- Provider 分级：**模型级证据驱动**——`provider-tiers.ts` 的 `effectiveModelAgentTier`（providerId+modelId+endpointClass 精确匹配，跨模型/跨端点不借证据）；每次真实 run（pass/fail/partial）都进 `provider-validation.json` 历史，**最新一次真实 run 决定档位**（20 任务达标=agent-verified，10 任务=smoke-verified，回归或 suite 升版=needs-revalidation）。当前唯一模型级证据：zhipu preset 经 EvoMap 网关 `evomap-deepseek-v4-flash` 2026-09-08 10 任务 9/10 → Smoke Verified（不代表 GLM 系模型）。README/Settings/docs 由 `scripts/check-doc-facts.mjs` 门禁统一。
+- Provider 分级：**模型级证据驱动**——`provider-tiers.ts` 的 `effectiveModelAgentTier`（providerId+modelId+endpointClass 精确匹配，跨模型/跨端点不借证据）；每次真实 run（pass/fail/partial）都进 `provider-validation.json` 历史，**最新一次真实 run 决定档位**（20 任务达标=agent-verified，10 任务=smoke-verified，回归或 suite 升版=needs-revalidation）。当前唯一 Agent Verified 模型：zhipu preset 经 EvoMap 网关 `evomap-deepseek-v4-flash` 2026-09-09 全量 20 任务 16/20（历史含同日 partial，不掩盖；不代表 GLM 系模型）。README/Settings/docs 由 `scripts/check-doc-facts.mjs` 门禁统一。
 - Agent Eval：`eval/agent-eval/`（`pnpm test:agent-eval`；结果 `eval/results/latest.json`）。真实长任务中断+续跑：`eval/long-task/`（env 门控 `EVIR_LONG_TASK=1`）。
 - 编排节点工具边界：`toolsForNode`（orchestrated-run-state.ts）——验证节点的 run_command 放行不依赖 plan 声明 terminal capability（2026-09-09 修复的死分支，有回归用例）。
 
