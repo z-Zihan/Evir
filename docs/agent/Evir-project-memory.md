@@ -41,6 +41,6 @@
 
 ## 当前已知约束（细节以权威文档为准）
 
-- LICENSE 未定（BLOCKED，须项目负责人决定）；Windows 全量验收 NOT RUN；GUI 安装版长任务续跑因屏幕锁 PENDING（无头真实档已 PASS，见 release-readiness 长任务行）。
+- LICENSE 未定（BLOCKED，须项目负责人决定）；Windows 全量验收 NOT RUN；单次连续 ≥30 分钟长任务 PASS 样本未取得（无头最佳 24.7min；GUI 4 次续跑交付物已独立复核全绿，见 release-readiness 长任务行）。已知改进项：GUI 子进程 PATH 无 pnpm（编排验收命令 os error 2，需工具沙箱 PATH 注入）。
 - 测试不得消耗真实 Provider 配额（fixture 服务器或标 NOT RUN）；模型文字不能标记任务完成（mutating run 需证据；answer run 见 docs/01）。
 - 永不记录密钥/完整会话/文件正文；日志本地、脱敏、有界。
