@@ -44,15 +44,22 @@ export interface ProviderEndpointPreset {
 }
 
 /**
- * Provider maturity tier (§48):
- * - "agent-verified": the preset CLAIMS Golden Agent Tasks ran against a real
- *   endpoint — the claim is only EFFECTIVE when provider-validation.json
- *   carries a qualifying entry (see provider-tiers.ts).
+ * Provider maturity tier (§48) — MODEL-level, evidence-driven:
+ * - "agent-verified": the LATEST required real eval (full suite, current
+ *   version) for this provider+model passed every gate in provider-tiers.ts.
+ * - "smoke-verified": the latest real eval passed every gate but only at
+ *   smoke scale (≥10 tasks) — never claims full agent-verified.
+ * - "needs-revalidation": a qualifying eval passed historically, but the
+ *   latest real eval regressed (or the suite version moved past it).
  * - "protocol-verified": the vendor's protocol adapter (streaming + tool
  *   calls) is implemented and covered by automated protocol tests.
  * - "preset": a configuration template only — no agent-level evidence.
+ *
+ * Evidence NEVER transfers across models or endpoints: an entry for
+ * provider "zhipu" + model "deepseek-x" cannot verify "glm-4.7" (§69).
  */
-export type ProviderAgentTier = "agent-verified" | "protocol-verified" | "preset";
+export type ProviderAgentTier =
+  "agent-verified" | "smoke-verified" | "needs-revalidation" | "protocol-verified" | "preset";
 
 export interface ProviderPreset {
   id: string;

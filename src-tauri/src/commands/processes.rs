@@ -74,6 +74,11 @@ fn run_command_blocking(
     let mut cmd = StdCommand::new(&program);
     cmd.args(&args);
     cmd.current_dir(&cwd);
+    // Tool subprocesses get the resolved command environment (login-shell
+    // PATH + project-local node_modules/.bin) so GUI launches can find
+    // pnpm/node/git exactly like the user's terminal. Explicit env vars
+    // from the tool call are applied afterwards and always win (§20-§22).
+    cmd.envs(crate::command_env::subprocess_env_for_cwd(&cwd));
     if let Some(env_vars) = env {
         cmd.envs(env_vars);
     }

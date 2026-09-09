@@ -370,7 +370,9 @@
       "url": "Enter a complete, valid URL"
     },
     "tiers": {
-      "agent-verified": "Agent Verified: ran the Golden Agent Tasks against a real endpoint",
+      "agent-verified": "Agent Verified: latest full-suite (20-task) real-endpoint Golden Agent Tasks passed (model-level evidence)",
+      "smoke-verified": "Smoke Verified: latest real-endpoint eval passed at 10-task smoke scale, not the full suite yet",
+      "needs-revalidation": "Needs Revalidation: passed historically, but the latest real eval regressed",
       "protocol-verified": "Protocol Verified: streaming + tool-call protocol covered by automated tests",
       "preset": "Preset: configuration template, no agent-level evidence"
     }
@@ -1064,7 +1066,19 @@
     "bundleConfirm": "Export",
     "bundleExported": "Bundle exported: {{path}}",
     "bundleCancelled": "Diagnostics bundle export cancelled",
-    "bundleExportFailed": "Failed to export diagnostics bundle"
+    "bundleExportFailed": "Failed to export diagnostics bundle",
+    "commandEnv": {
+      "title": "Command Environment",
+      "source": "Source",
+      "resolvedPath": "Resolved PATH",
+      "found": "Found",
+      "notFound": "Not Found",
+      "sources": {
+        "login-shell": "Login shell",
+        "inherited": "Inherited",
+        "fallback": "Safe base merge"
+      }
+    }
   },
   "project": {
     "permissionTitle": "Permission — {{name}}",

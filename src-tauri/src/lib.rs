@@ -5,6 +5,7 @@ mod browser_workbench;
 #[cfg(test)]
 mod browser_workbench_tests;
 mod cdp;
+mod command_env;
 mod commands;
 mod dev_server;
 mod diagnostics;
@@ -50,6 +51,13 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
+            // Warm up the resolved command environment (login-shell PATH) in
+            // the background so the first run_command/dev-server start does
+            // not pay the probe latency (§20).
+            std::thread::spawn(|| {
+                let env = command_env::resolve_command_environment();
+                eprintln!("[command-env] source={:?} path={}", env.source, env.path);
+            });
             let app_data_dir = app.path().app_data_dir().map_err(|error| {
                 eprintln!("Failed to get app data dir: {error}");
                 error
@@ -145,6 +153,7 @@ pub fn run() {
             mcp_stdio::mcp_stdio_send,
             mcp_stdio::mcp_stdio_status,
             mcp_stdio::mcp_stdio_stop,
+            command_env::command_environment_info,
             diagnostics::diagnostics_logs_overview,
             diagnostics::diagnostics_export_zip,
             preview_sandbox::preview_artifact_register,

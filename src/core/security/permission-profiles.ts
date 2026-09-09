@@ -24,9 +24,27 @@ export type PermissionDecision = {
     | "no-permission-context";
 };
 
-function comparable(path: string): string {
-  const lower = /^[A-Za-z]:\//.test(path);
-  const normalized = path.replace(/[\\/]+$/, "");
+/**
+ * Canonical form used for workspace-boundary comparisons (shared by tool
+ * permission checks AND knowledge local-source checks — one path-safety
+ * algorithm, §33-§34). Lexically resolves "." and ".." so traversal strings
+ * cannot pass a prefix check, normalizes separators, and case-folds only
+ * where the platform semantics say so:
+ * - drive paths (`C:\...` / `C:/...`) and UNC (`\\server\share`) are
+ *   separator-normalized AND case-folded (Windows paths are case-insensitive);
+ * - POSIX paths stay separator- and case-sensitive (file names may legally
+ *   contain `\` there).
+ */
+function looksLikeWindowsPath(path: string): boolean {
+  return /^[A-Za-z]:[\\/]/.test(path) || path.startsWith("\\\\");
+}
+
+export function comparable(path: string): string {
+  const windows = looksLikeWindowsPath(path);
+  const normalized = (windows ? path.replaceAll("\\", "/") : path.replace(/[\\/]+$/, "")).replace(
+    /[\\/]+$/,
+    "",
+  );
   // Resolve "." and ".." lexically so traversal strings cannot pass a prefix
   // check (e.g. /root/../other must not count as inside /root).
   const segments: string[] = [];
@@ -39,7 +57,8 @@ function comparable(path: string): string {
     segments.push(segment);
   }
   const resolved = segments.join("/");
-  return lower ? `/${resolved}`.toLowerCase() : `/${resolved}`;
+  const prefixed = `/${resolved}`;
+  return windows ? prefixed.toLowerCase() : prefixed;
 }
 
 export function isInsideRoots(path: string, roots: readonly string[]): boolean {

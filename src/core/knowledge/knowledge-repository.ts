@@ -8,6 +8,7 @@
 import type { StoragePort } from "../storage/storage-port";
 import type { AgentRunRecord } from "../../features/chat/agent-run-record";
 import { logger } from "../logging/logger";
+import { isInsideRoots } from "../security/permission-profiles";
 import { chunkDocument } from "./chunking";
 import { contentHash, extractContent } from "./extraction";
 import { filterIngestibleFiles, type KnowledgeIoPort } from "./knowledge-io";
@@ -36,15 +37,18 @@ export interface KnowledgePermissionRoots {
   additionalRoots: readonly string[];
 }
 
-function isInsideRoots(path: string, roots: KnowledgePermissionRoots): boolean {
+/**
+ * Boundary check delegates to the shared workspace path guard
+ * (permission-profiles.ts) — knowledge never carries its own path-safety
+ * algorithm, so cross-platform canonicalization (separators, case, "..",
+ * traversal) is identical to the tool layer's (§33-§36).
+ */
+function insideGrantedRoots(path: string, roots: KnowledgePermissionRoots): boolean {
   const allRoots = [roots.workspaceRoot, ...roots.additionalRoots].filter(
     (root): root is string => typeof root === "string" && root.length > 0,
   );
   if (allRoots.length === 0) return false;
-  return allRoots.some((root) => {
-    const normalizedRoot = root.replace(/\/+$/, "");
-    return path === normalizedRoot || path.startsWith(`${normalizedRoot}/`);
-  });
+  return isInsideRoots(path, allRoots);
 }
 
 export class KnowledgeRepository {
@@ -119,7 +123,7 @@ export class KnowledgeRepository {
       input.type === "project-docs"
     ) {
       const roots = input.permissionRoots ?? { workspaceRoot: null, additionalRoots: [] };
-      if (!isInsideRoots(input.ref, roots)) {
+      if (!insideGrantedRoots(input.ref, roots)) {
         throw new Error(
           "path is outside the project's granted roots — add it as an additional access root first",
         );
@@ -196,8 +200,11 @@ export class KnowledgeRepository {
 
   /**
    * Reindex a source: read → extract → chunk → replace its documents/chunks.
-   * Status moves indexing → ready|failed; failures keep the previous index
-   * intact until a successful pass replaces it.
+   * The replacement is a SINGLE storage transaction (`apply`): new records
+   * are written, superseded records are deleted, and the source flips to
+   * ready/failed atomically. Any failure — extraction, chunking, or the
+   * commit itself — rolls back and leaves the PREVIOUS index fully
+   * retrievable (§26-§31); lastSuccessfulIndexedAt only moves on success.
    */
   async reindexSource(
     source: KnowledgeSourceRecord,
@@ -242,26 +249,73 @@ export class KnowledgeRepository {
           }),
         );
       }
-      // Replace the source's previous index in one pass.
-      await this.deleteSourceArtifacts(source.id);
-      if (documentRecords.length > 0) {
-        await this.storage.writeMany("knowledge_documents", documentRecords);
-        await this.storage.writeMany("knowledge_chunks", chunkRecords);
-      }
-      const updated = await mark({
+      // Superseded records = old artifacts whose ids the new generation does
+      // NOT rewrite (same location ⇒ same deterministic id ⇒ write wins, and
+      // must never be deleted afterwards inside the same transaction).
+      const newDocumentIds = new Set(documentRecords.map((record) => record.id));
+      const previousArtifacts = await this.sourceArtifacts(source.id);
+      const supersededDocumentIds = previousArtifacts.documentIds.filter(
+        (id) => !newDocumentIds.has(id),
+      );
+      const supersededChunkIds = previousArtifacts.chunkIds.filter(
+        (id) => !chunkRecords.some((chunk) => chunk.id === id),
+      );
+
+      const currentSource =
+        (await this.storage.read<KnowledgeSourceRecord>("knowledge_sources", source.id)) ?? source;
+      const updatedSource: KnowledgeSourceRecord = {
+        ...currentSource,
         status: "ready",
         error: undefined,
         lastIndexedAt: timestamp,
         docCount: documentRecords.length,
         chunkCount: chunkRecords.length,
-      });
+        updatedAt: timestamp,
+      };
+
+      // One atomic pass: new generation writes + superseded deletes + the
+      // source flip commit together; a failed apply leaves the old index.
+      await this.storage.apply([
+        ...documentRecords.map(
+          (record) =>
+            ({
+              type: "write",
+              entity: "knowledge_documents",
+              id: record.id,
+              data: record,
+            }) as const,
+        ),
+        ...chunkRecords.map(
+          (record) =>
+            ({
+              type: "write",
+              entity: "knowledge_chunks",
+              id: record.id,
+              data: record,
+            }) as const,
+        ),
+        ...supersededDocumentIds.map(
+          (id) => ({ type: "delete", entity: "knowledge_documents", id }) as const,
+        ),
+        ...supersededChunkIds.map(
+          (id) => ({ type: "delete", entity: "knowledge_chunks", id }) as const,
+        ),
+        {
+          type: "write",
+          entity: "knowledge_sources",
+          id: source.id,
+          data: updatedSource,
+        } as const,
+      ]);
       logger.info("knowledge", "knowledge.source-reindexed", {
         sourceId: source.id,
         type: source.type,
         documents: documentRecords.length,
         chunks: chunkRecords.length,
+        supersededDocuments: supersededDocumentIds.length,
+        supersededChunks: supersededChunkIds.length,
       });
-      return updated;
+      return updatedSource;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       logger.warn("knowledge", "knowledge.source-reindex-failed", {
@@ -270,6 +324,21 @@ export class KnowledgeRepository {
       });
       return mark({ status: "failed", error: message.slice(0, 600) });
     }
+  }
+
+  private async sourceArtifacts(
+    sourceId: string,
+  ): Promise<{ documentIds: string[]; chunkIds: string[] }> {
+    const documents = (
+      await this.storage.readAll<KnowledgeDocumentRecord>("knowledge_documents")
+    ).filter((document) => document.sourceId === sourceId);
+    const chunks = (await this.storage.readAll<KnowledgeChunkRecord>("knowledge_chunks")).filter(
+      (chunk) => chunk.sourceId === sourceId,
+    );
+    return {
+      documentIds: documents.map((document) => document.id),
+      chunkIds: chunks.map((chunk) => chunk.id),
+    };
   }
 
   private async collectDocuments(
@@ -282,7 +351,7 @@ export class KnowledgeRepository {
         return [await this.ingestOne(source.ref, io)];
       case "local-folder":
       case "project-docs": {
-        if (permissionRoots && !isInsideRoots(source.ref, permissionRoots)) {
+        if (permissionRoots && !insideGrantedRoots(source.ref, permissionRoots)) {
           throw new Error("folder is outside the project's granted roots");
         }
         const files = await filterIngestibleFiles(

@@ -11,6 +11,7 @@ import { currentPlatform } from "../core/shortcuts/platform";
 import { downloadBlob } from "../features/chat/conversation-export";
 import { useMcpStore } from "../features/mcp/mcp-store";
 import { useProviderStore } from "../features/provider/provider-store";
+import type { CommandEnvironmentInfo } from "../runtime/command-environment";
 import { DesktopDiagnosticsExport } from "../runtime/diagnostics-export";
 import { getRuntime } from "../runtime/use-runtime";
 import { useConfirmationDialog } from "./useConfirmationDialog";
@@ -36,7 +37,7 @@ function formatBytes(bytes: number): string {
 
 function levelBadgeClass(level: LogLevel): string {
   if (level === "error" || level === "fatal") return "text-red-600 dark:text-red-400";
-  if (level === "warn") return "text-amber-600 dark:text-amber-400";
+  if (level === "warn") return "text-amber-700 dark:text-amber-400";
   if (level === "info") return "text-blue-600 dark:text-blue-400";
   return "text-muted";
 }
@@ -54,9 +55,25 @@ export function DiagnosticsSettings() {
     timestamp: string;
   } | null>(null);
   const persistence = logger.persistenceStatus();
+  const [commandEnv, setCommandEnv] = useState<CommandEnvironmentInfo | null>(null);
 
   useEffect(() => {
     return logger.subscribe(() => setEntries(logger.getEntries()));
+  }, []);
+
+  // Command environment (§23): desktop only; browsers have no tool subprocesses.
+  useEffect(() => {
+    if (getRuntime().target !== "desktop") return;
+    void (async () => {
+      try {
+        const { DesktopCommandEnvironment } = await import("../runtime/command-environment");
+        setCommandEnv(await new DesktopCommandEnvironment().describe());
+      } catch (error) {
+        logger.warn("artifact", "diagnostics.command-env-failed", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    })();
   }, []);
 
   const visibleEntries = useMemo(() => {
@@ -242,6 +259,58 @@ export function DiagnosticsSettings() {
           </div>
         )}
       </div>
+      {commandEnv && (
+        <section
+          className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-3"
+          aria-label={t("diagnostics.commandEnv.title")}
+        >
+          <div className="flex items-baseline justify-between gap-2 flex-wrap">
+            <h3 className="text-sm font-semibold">{t("diagnostics.commandEnv.title")}</h3>
+            <span className="text-xs text-muted">
+              {t("diagnostics.commandEnv.source")}:{" "}
+              {t(`diagnostics.commandEnv.sources.${commandEnv.source}`)}
+            </span>
+          </div>
+          <p className="text-xs text-muted break-all">
+            <code>{commandEnv.shell || "(default)"}</code>
+          </p>
+          <details className="text-xs">
+            <summary className="cursor-pointer text-muted">
+              {t("diagnostics.commandEnv.resolvedPath")}
+            </summary>
+            <code className="mt-1 block break-all text-foreground">{commandEnv.resolvedPath}</code>
+          </details>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-muted text-left">
+                <th className="py-1 pr-2 font-medium">Tool</th>
+                <th className="py-1 pr-2 font-medium">Status</th>
+                <th className="py-1 font-medium">Path / Version</th>
+              </tr>
+            </thead>
+            <tbody>
+              {commandEnv.tools.map((tool) => (
+                <tr key={tool.name} className="border-t border-border">
+                  <td className="py-1 pr-2">{tool.name}</td>
+                  <td className="py-1 pr-2">
+                    {tool.found ? (
+                      <span className="text-emerald-600 dark:text-emerald-400">
+                        {t("diagnostics.commandEnv.found")}
+                      </span>
+                    ) : (
+                      <span className="text-muted">{t("diagnostics.commandEnv.notFound")}</span>
+                    )}
+                  </td>
+                  <td className="py-1 break-all">
+                    {tool.path ?? "—"}
+                    {tool.version ? ` · ${tool.version}` : ""}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
       <div
         className="flex gap-2 flex-wrap self-start rounded-lg border border-border bg-background p-[3px]"
         role="group"

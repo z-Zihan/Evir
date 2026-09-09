@@ -160,7 +160,7 @@ export const SCENARIO_TASKS: ScenarioTask[] = [
     category: "document",
     name: "多文档整理生成结构化摘要",
     prompt:
-      "阅读 notes/ 下的三篇原始笔记，整理为一份 outline.md：保留每篇的主题标题结构，合并重复要点，结尾列出未决问题。输出进入任务产物。",
+      "阅读 notes/ 下的三篇原始笔记，整理为一份 outline.md：保留每篇的主题标题结构，内容要点去重后合并（同一要点只保留一次），结尾列出未决问题（限流方案、回滚演练）。输出进入任务产物。",
     allowedScope: ["outline.md"],
     expectedTools: ["read_file", "write_file", "report_output"],
     setup: (_root, write) => {
@@ -181,7 +181,7 @@ export const SCENARIO_TASKS: ScenarioTask[] = [
         args: {
           path: "outline.md",
           content:
-            "# 整理大纲\n\n## API\n- 统一错误码（与性能复盘重复，已合并）\n- 分页游标\n\n## 性能\n- P95 下降 40%\n\n## 发布\n- 蓝绿发布\n\n## 未决问题\n- 限流方案\n- 回滚演练\n",
+            "# 整理大纲\n\n## API\n- 统一错误码\n- 分页游标\n\n## 性能\n- P95 下降 40%\n\n## 发布\n- 蓝绿发布\n\n## 未决问题\n- 限流方案\n- 回滚演练\n",
         },
       },
       { kind: "text", content: "整理完成。", status: "complete" },
@@ -192,12 +192,22 @@ export const SCENARIO_TASKS: ScenarioTask[] = [
         return { pass: false, notes: "source notes modified" };
       }
       const outline = await read("outline.md").catch(() => "");
-      const hasStructure = /##\s/.test(outline);
-      const mergedDup = /合并|merged|duplicate/i.test(outline);
-      const openQuestions = /未决|open question/i.test(outline);
-      if (!hasStructure) return { pass: false, notes: "structure lost" };
-      if (!mergedDup) return { pass: false, notes: "duplicate points not merged" };
-      if (!openQuestions) return { pass: false, notes: "open questions missing" };
+      if (!/##\s/.test(outline)) return { pass: false, notes: "structure lost" };
+      // Machine-checkable merge semantics (§55): "统一错误码" appears in BOTH
+      // api.md and perf.md (duplicated input) — a merged outline contains it
+      // exactly once. No "merged/合并" wording required from the model.
+      const duplicates = outline.match(/统一错误码/g) ?? [];
+      if (duplicates.length === 0) return { pass: false, notes: "shared point dropped entirely" };
+      if (duplicates.length > 1) return { pass: false, notes: "duplicate points not merged" };
+      // Open questions judged by CONTENT (the two unresolved items from the
+      // sources), not by the literal phrase "未决".
+      if (!/限流/.test(outline)) return { pass: false, notes: "open question 限流方案 missing" };
+      if (!/回滚/.test(outline)) return { pass: false, notes: "open question 回滚演练 missing" };
+      // Topic coverage: at least two of the three source themes.
+      const themes = [/错误码|API|分页/i, /P95|性能/i, /蓝绿|发布/i].filter((pattern) =>
+        pattern.test(outline),
+      ).length;
+      if (themes < 2) return { pass: false, notes: "source topics not covered" };
       return { pass: true, notes: "structured, merged, open questions listed" };
     },
   },
@@ -206,7 +216,7 @@ export const SCENARIO_TASKS: ScenarioTask[] = [
     category: "automation",
     name: "脚本化汇总日志并运行",
     prompt:
-      "写一个 Node 脚本 summarize.mjs：统计 logs/ 下所有 .log 文件的总行数与 ERROR 行数，把脚本输出保存到 summary.txt。不要改动日志文件。",
+      "写一个 Node 脚本 summarize.mjs：统计 logs/ 下所有 .log 文件的总行数与 ERROR 行数。行数统计规则：只统计非空行（空行不算）。脚本以 `lines=<N> errors=<M>` 单行格式输出，并把脚本输出保存到 summary.txt。不要改动日志文件。",
     allowedScope: ["summarize.mjs", "summary.txt"],
     expectedTools: ["read_file", "write_file", "run_command"],
     setup: (_root, write) => {
@@ -225,7 +235,7 @@ export const SCENARIO_TASKS: ScenarioTask[] = [
         args: {
           path: "summarize.mjs",
           content:
-            "import { readdirSync, readFileSync } from 'node:fs';\nlet lines = 0; let errors = 0;\nfor (const f of readdirSync('logs')) { if (!f.endsWith('.log')) continue; for (const l of readFileSync('logs/' + f, 'utf8').split('\\n')) { if (!l) continue; lines++; if (l.includes('ERROR')) errors++; } }\nconsole.log(`lines=${lines} errors=${errors}`);\n",
+            "import { readdirSync, readFileSync } from 'node:fs';\nlet lines = 0; let errors = 0;\nfor (const f of readdirSync('logs')) { if (!f.endsWith('.log')) continue; for (const l of readFileSync('logs/' + f, 'utf8').split('\\n')) { if (!l.trim()) continue; lines++; if (l.includes('ERROR')) errors++; } }\nconsole.log(`lines=${lines} errors=${errors}`);\n",
         },
       },
       {
@@ -240,17 +250,49 @@ export const SCENARIO_TASKS: ScenarioTask[] = [
       },
       { kind: "text", content: "汇总完成。", status: "complete" },
     ],
-    evaluate: async ({ read, listChanged }) => {
+    evaluate: async ({ read, listChanged, root }) => {
       const changed = await listChanged();
       if (changed.some((file) => file.startsWith("logs/"))) {
         return { pass: false, notes: "log files modified" };
       }
       const summary = await read("summary.txt").catch(() => "");
-      if (!summary.includes("lines=6")) return { pass: false, notes: "total line count wrong" };
-      if (!summary.includes("errors=2")) return { pass: false, notes: "error count wrong" };
+      // §56: the prompt pins the output format and the non-empty-line rule, so
+      // the counts are machine-checkable without wording-sensitive matching.
+      const linesMatch = /lines\s*[=:：]?\s*(\d+)/i.exec(summary);
+      const errorsMatch = /errors\s*[=:：]?\s*(\d+)/i.exec(summary);
+      if (!linesMatch || !errorsMatch) {
+        return { pass: false, notes: "summary.txt missing lines=/errors= counts" };
+      }
+      if (Number(linesMatch[1]) !== 6) {
+        return {
+          pass: false,
+          notes: `total non-empty line count wrong (${linesMatch[1]}, expected 6)`,
+        };
+      }
+      if (Number(errorsMatch[1]) !== 2) {
+        return { pass: false, notes: `error count wrong (${errorsMatch[1]}, expected 2)` };
+      }
       const script = await read("summarize.mjs").catch(() => "");
-      if (!script.includes("readdir"))
+      if (!/readdir/.test(script)) {
         return { pass: false, notes: "script does not enumerate logs" };
+      }
+      // Anti-fabrication: re-run the submitted script and require its real
+      // output to equal what summary.txt claims.
+      if (root) {
+        const { execFile } = await import("node:child_process");
+        const run = await new Promise<{ ok: boolean; stdout: string }>((resolve) => {
+          execFile("node", ["summarize.mjs"], { cwd: root }, (error, stdout) =>
+            resolve({ ok: !error, stdout: String(stdout) }),
+          );
+        });
+        if (!run.ok) return { pass: false, notes: "submitted script fails to run" };
+        if (
+          !run.stdout.includes(`lines=${linesMatch[1]}`) ||
+          !run.stdout.includes(`errors=${errorsMatch[1]}`)
+        ) {
+          return { pass: false, notes: "summary.txt does not match the script's real output" };
+        }
+      }
       return { pass: true, notes: "script written, executed, correct counts" };
     },
   },

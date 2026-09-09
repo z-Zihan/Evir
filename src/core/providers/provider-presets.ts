@@ -418,7 +418,9 @@ export const PROVIDER_PRESETS = [
     ],
     supportsModelListing: true,
     webDirectCandidate: true,
-    agentTier: "agent-verified" as const,
+    // Agent-level evidence is MODEL-level (provider-validation.json): GLM
+    // models and gateway-hosted models each carry their own eval history.
+    agentTier: "protocol-verified" as const,
   },
   {
     id: "moonshot-kimi",

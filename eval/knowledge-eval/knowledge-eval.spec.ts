@@ -50,7 +50,14 @@ function memoryStorage(): StoragePort {
       return Promise.resolve();
     },
     query: () => Promise.resolve([] as never),
-    apply: () => Promise.resolve(),
+    apply: (mutations: readonly { type: string; entity: string; id: string; data?: object }[]) => {
+      for (const mutation of mutations) {
+        if (mutation.type === "write") bucket(mutation.entity).set(mutation.id, mutation.data!);
+        else if (mutation.type === "delete") bucket(mutation.entity).delete(mutation.id);
+        else if (mutation.type === "clear") bucket(mutation.entity).clear();
+      }
+      return Promise.resolve();
+    },
   } as never;
 }
 

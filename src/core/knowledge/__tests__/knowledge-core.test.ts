@@ -68,7 +68,14 @@ function memoryStorage(): StoragePort & { dump: (entity: string) => Map<string, 
           Object.entries(filter).every(([key, value]) => (record as never)[key] === value),
         ) as never,
       ),
-    apply: () => Promise.resolve(),
+    apply: (mutations: readonly { type: string; entity: string; id: string; data?: object }[]) => {
+      for (const mutation of mutations) {
+        if (mutation.type === "write") bucket(mutation.entity).set(mutation.id, mutation.data!);
+        else if (mutation.type === "delete") bucket(mutation.entity).delete(mutation.id);
+        else if (mutation.type === "clear") bucket(mutation.entity).clear();
+      }
+      return Promise.resolve();
+    },
   } as never;
 }
 
@@ -287,6 +294,113 @@ describe("knowledge repository (§54-68)", () => {
     expect(storage.dump("knowledge_chunks").size).toBe(0);
     expect(storage.dump("knowledge_documents").size).toBe(0);
     await expect(io.readTextFile("/ws/data.csv")).resolves.toContain("alpha"); // original intact
+  });
+
+  // --- reindex atomicity (§26-§31): every failure keeps the old index -------
+
+  /**
+   * Memory storage whose `apply` rejects BEFORE touching anything (rollback
+   * semantics) once `activate()` flips the injected failure on — the seed
+   * reindex runs against the clean storage first.
+   */
+  function failingApplyStorage(
+    failWhen: (mutation: { type: string; entity: string }) => boolean,
+  ): StoragePort & { dump: (entity: string) => Map<string, object>; activate: () => void } {
+    const memory = memoryStorage();
+    const originalApply = memory.apply.bind(memory);
+    let armed = false;
+    const armedApply = (mutations: never[]) => {
+      if (armed) {
+        for (const mutation of mutations as unknown as { type: string; entity: string }[]) {
+          if (failWhen(mutation)) {
+            return Promise.reject(
+              new Error(`injected commit failure at ${mutation.type}:${mutation.entity}`),
+            );
+          }
+        }
+      }
+      return originalApply(mutations);
+    };
+    return {
+      ...memory,
+      apply: armedApply,
+      activate: () => {
+        armed = true;
+      },
+    };
+  }
+
+  async function seedReadyIndex(
+    store: StoragePort,
+  ): Promise<{ repository: KnowledgeRepository; sourceId: string; lastIndexedAt: number }> {
+    const repository = new KnowledgeRepository(store);
+    const base = await repository.createBase({ name: "Atomic" });
+    const source = await repository.createSource({
+      baseId: base.id,
+      type: "local-file",
+      title: "csv",
+      ref: "/ws/data.csv",
+      permissionRoots: roots,
+    });
+    const ready = await repository.reindexSource(source, io, { permissionRoots: roots });
+    expect(ready.status).toBe("ready");
+    return { repository, sourceId: source.id, lastIndexedAt: ready.lastIndexedAt ?? 0 };
+  }
+
+  it("extraction failure keeps the previous index fully retrievable", async () => {
+    const store = memoryStorage();
+    const { repository, sourceId, lastIndexedAt } = await seedReadyIndex(store);
+    const source = (await store.read("knowledge_sources", sourceId)) as KnowledgeSourceRecord;
+    const brokenIo: KnowledgeIoPort = {
+      ...io,
+      readTextFile: () => Promise.reject(new Error("disk error")),
+    };
+    const failed = await repository.reindexSource(source, brokenIo, { permissionRoots: roots });
+    expect(failed.status).toBe("failed");
+    expect(failed.error).toContain("disk error");
+    expect(failed.lastIndexedAt).toBe(lastIndexedAt); // success timestamp did not move
+    expect(store.dump("knowledge_chunks").size).toBeGreaterThan(0);
+    expect(store.dump("knowledge_documents").size).toBeGreaterThan(0);
+  });
+
+  it("document/chunk write failure inside the commit rolls back to the old index", async () => {
+    for (const entity of ["knowledge_documents", "knowledge_chunks"] as const) {
+      const store = failingApplyStorage(
+        (mutation) => mutation.type === "write" && mutation.entity === entity,
+      );
+      const { repository, sourceId, lastIndexedAt } = await seedReadyIndex(store);
+      store.activate();
+      const source = (await store.read("knowledge_sources", sourceId)) as KnowledgeSourceRecord;
+      const failed = await repository.reindexSource(source, io, { permissionRoots: roots });
+      expect(failed.status).toBe("failed");
+      expect(failed.error).toContain("injected commit failure");
+      expect(failed.lastIndexedAt).toBe(lastIndexedAt);
+      expect(store.dump("knowledge_chunks").size).toBeGreaterThan(0);
+      expect(store.dump("knowledge_documents").size).toBeGreaterThan(0);
+    }
+  });
+
+  it("a failure in the source-commit mutation still leaves the old index usable", async () => {
+    const store = failingApplyStorage(
+      (mutation) => mutation.type === "write" && mutation.entity === "knowledge_sources",
+    );
+    const { repository, sourceId, lastIndexedAt } = await seedReadyIndex(store);
+    store.activate();
+    const source = (await store.read("knowledge_sources", sourceId)) as KnowledgeSourceRecord;
+    const failed = await repository.reindexSource(source, io, { permissionRoots: roots });
+    expect(failed.status).toBe("failed");
+    expect(failed.lastIndexedAt).toBe(lastIndexedAt);
+    expect(store.dump("knowledge_chunks").size).toBeGreaterThan(0);
+  });
+
+  it("a successful reindex after a failure replaces the index exactly once", async () => {
+    const store = failingApplyStorage(() => false);
+    const { repository, sourceId } = await seedReadyIndex(store);
+    const source = (await store.read("knowledge_sources", sourceId)) as KnowledgeSourceRecord;
+    const ready = await repository.reindexSource(source, io, { permissionRoots: roots });
+    expect(ready.status).toBe("ready");
+    expect(store.dump("knowledge_chunks").size).toBe(ready.chunkCount ?? 0);
+    expect(store.dump("knowledge_documents").size).toBe(ready.docCount ?? 0);
   });
 
   it("mcp-resource sources ingest text resources from the server (§55)", async () => {

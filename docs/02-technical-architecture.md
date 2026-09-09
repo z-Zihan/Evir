@@ -208,7 +208,7 @@ argv / stdin
 
 跨会话稳定事实和偏好。写入必须带来源、置信度、作用域和时间戳；支持用户查看、编辑、删除和关闭。
 
-第一阶段使用 SQLite + FTS；向量检索作为后续可插拔能力。
+当前实现为 Keyword Retriever v1（关键词 + CJK bigram 内存扫描）；升级路径为 SQLite FTS5（触发阈值见 docs/benchmarks），向量检索作为后续可插拔能力。
 
 ## 8. Provider 与协议架构
 

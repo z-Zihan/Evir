@@ -1,81 +1,267 @@
 /**
- * Provider maturity tiers must come from machine-verifiable facts (§48/§50).
+ * Provider maturity tiers must come from machine-verifiable facts (§48/§50),
+ * evaluated at MODEL level with endpoint awareness (§5-§14, §69-§75).
  *
- * A preset may CLAIM agent-verified, but the claim is only EFFECTIVE when
- * `provider-validation.json` carries a qualifying real-endpoint run of the
- * Golden Agent Tasks for that provider. Without that evidence the effective
- * tier downgrades to protocol-verified — README, Settings and the eval
- * results all read the same effective tier, so no surface can claim more
- * than the evidence supports.
+ * Rules:
+ * 1. Evidence is keyed by providerId + modelId (+ endpoint class). An entry
+ *    recorded for `zhipu`/`evomap-deepseek-v4-flash` can never verify
+ *    `zhipu`/`glm-4.7` — no cross-model evidence borrowing.
+ * 2. EVERY real eval run (pass/fail/partial) lands in validation history;
+ *    the effective tier follows the LATEST required real eval, so a fresh
+ *    regression can never hide behind an older PASS.
+ * 3. Tier ladder: agent-verified (full required suite, current version) →
+ *    smoke-verified (smoke-scale pass) → needs-revalidation (passed
+ *    historically, latest eval regressed / suite version expired) →
+ *    protocol-verified / preset (protocol-level facts only).
  */
 import validationData from "./provider-validation.json";
 import { PROVIDER_PRESETS } from "./provider-presets";
 import type { ProviderAgentTier, ProviderPreset } from "./types";
 
+/** Where the eval traffic actually went (§9): never just "GLM" for EvoMap. */
+export type EndpointClass = "official" | "gateway" | "self-hosted";
+
 export interface ProviderValidationEntry {
-  /** Preset id this evidence applies to (e.g. "zhipu"). */
+  /** Preset id the eval ran through (e.g. "zhipu"). */
   providerId: string;
+  /** The model id ON THE ENDPOINT — evidence never transfers across models. */
   modelId: string;
+  /** Optional family grouping for display (e.g. "glm", "deepseek"). */
+  modelFamily?: string;
+  /** Official vendor endpoint vs third-party gateway vs self-hosted. */
+  endpointClass: EndpointClass;
+  /** Host identity only (never a path, never a key), e.g. "api.evomap.cn". */
+  endpointHostClass?: string;
   protocol: string;
   /** ISO timestamp of the real run. */
   testedAt: string;
   /** Evir commit the eval ran on. */
   evirCommit: string;
+  /** Which eval suite produced this entry (e.g. "golden-agent-tasks"). */
+  suiteId: string;
   evalSuiteVersion: string;
   taskCount: number;
   passed: number;
   failed: number;
   successRate: number;
   /** Share of tool calls that executed without tool-layer errors (0-1). */
-  toolCallSuccess: number;
+  toolCallSuccessRate: number;
   unauthorizedOperations: number;
   outOfScopeChanges: number;
+  status: "pass" | "fail" | "partial";
 }
 
 export interface ProviderValidationFile {
-  version: 1;
+  version: 1 | 2;
   entries: ProviderValidationEntry[];
 }
 
-/** Minimum evidence for an agent-verified tier to take effect. */
-export const AGENT_VERIFIED_MIN_TASKS = 10;
-export const AGENT_VERIFIED_MIN_SUCCESS_RATE = 0.8;
-export const AGENT_VERIFIED_MIN_TOOL_CALL_SUCCESS = 0.8;
+/** The suite identity + version that today's tier gates require (§14). */
+export const REQUIRED_SUITE_ID = "golden-agent-tasks";
+export const REQUIRED_SUITE_VERSION = "agent-eval-v1";
+
+/** Gates an eval entry must clear to qualify at any scale (§14). */
+export const EVAL_MIN_SUCCESS_RATE = 0.8;
+export const EVAL_MIN_TOOL_CALL_SUCCESS = 0.8;
+
+/** Full required suite scale vs smoke scale (§60). */
+export const AGENT_VERIFIED_MIN_TASKS = 20;
+export const SMOKE_VERIFIED_MIN_TASKS = 10;
+
+/** How many history entries to keep per provider+model+suite. */
+const HISTORY_CAP_PER_MODEL = 10;
 
 const validation = validationData as ProviderValidationFile;
 
-function qualifies(entry: ProviderValidationEntry): boolean {
-  return (
-    entry.taskCount >= AGENT_VERIFIED_MIN_TASKS &&
-    entry.successRate >= AGENT_VERIFIED_MIN_SUCCESS_RATE &&
-    entry.toolCallSuccess >= AGENT_VERIFIED_MIN_TOOL_CALL_SUCCESS &&
+/** Normalize v1 entries (toolCallSuccess) into the v2 shape on read. */
+function normalizeEntry(
+  entry: ProviderValidationEntry & { toolCallSuccess?: number },
+): ProviderValidationEntry {
+  const toolCallSuccessRate = entry.toolCallSuccessRate ?? entry.toolCallSuccess ?? 0;
+  const status =
+    entry.status ??
+    (entry.successRate >= EVAL_MIN_SUCCESS_RATE &&
+    toolCallSuccessRate >= EVAL_MIN_TOOL_CALL_SUCCESS &&
     entry.unauthorizedOperations === 0 &&
     entry.outOfScopeChanges === 0
+      ? "pass"
+      : "partial");
+  return { ...entry, toolCallSuccessRate, status };
+}
+
+const entries: ProviderValidationEntry[] = validation.entries.map((entry) =>
+  normalizeEntry(entry as ProviderValidationEntry & { toolCallSuccess?: number }),
+);
+
+/** Case-insensitive exact model match — no wildcards, no family borrowing. */
+function sameModel(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+function sortLatestFirst(list: ProviderValidationEntry[]): ProviderValidationEntry[] {
+  return [...list].sort((a, b) => b.testedAt.localeCompare(a.testedAt));
+}
+
+/** Did this run clear every per-run gate (scale-independent)? */
+export function entryQualifies(entry: ProviderValidationEntry): boolean {
+  return (
+    entry.taskCount >= SMOKE_VERIFIED_MIN_TASKS &&
+    entry.successRate >= EVAL_MIN_SUCCESS_RATE &&
+    entry.toolCallSuccessRate >= EVAL_MIN_TOOL_CALL_SUCCESS &&
+    entry.unauthorizedOperations === 0 &&
+    entry.outOfScopeChanges === 0 &&
+    entry.status === "pass"
   );
 }
 
-/** Latest qualifying real-endpoint evidence for a provider, if any. */
-export function agentVerificationEvidence(providerId: string): ProviderValidationEntry | undefined {
-  return validation.entries
-    .filter((entry) => entry.providerId === providerId && qualifies(entry))
-    .sort((a, b) => b.testedAt.localeCompare(a.testedAt))[0];
+/** Full required-suite scale (vs smoke scale) for a qualifying run. */
+export function isRequiredSuiteScale(entry: ProviderValidationEntry): boolean {
+  return entry.taskCount >= AGENT_VERIFIED_MIN_TASKS;
+}
+
+/** History for one provider+model (any outcome — FAILs are kept, §11). */
+export function modelValidationHistory(
+  providerId: string,
+  modelId: string,
+): ProviderValidationEntry[] {
+  return sortLatestFirst(
+    entries.filter((entry) => entry.providerId === providerId && sameModel(entry.modelId, modelId)),
+  );
+}
+
+/** Latest real eval for a provider+model — pass or fail (§12). */
+export function latestModelEval(
+  providerId: string,
+  modelId: string,
+): ProviderValidationEntry | undefined {
+  return modelValidationHistory(providerId, modelId)[0];
 }
 
 /**
- * The tier a UI/README may claim for a preset. `agent-verified` requires
- * qualifying evidence in provider-validation.json; everything else keeps
- * the preset's own tier (protocol-verified / preset never upgrade here).
+ * Effective tier for ONE model on a preset. Evidence must match the model id
+ * exactly; a `zhipu`+`deepseek-x` entry never verifies `glm-4.7` (§8).
+ * Pure over the given history so tests exercise the real decision rule.
+ */
+export function resolveModelTier(
+  preset: Pick<ProviderPreset, "id" | "agentTier">,
+  modelId: string | null | undefined,
+  history: readonly ProviderValidationEntry[],
+): ProviderAgentTier {
+  if (!modelId) return preset.agentTier;
+  const sorted = sortLatestFirst(
+    history.filter((entry) => entry.providerId === preset.id && sameModel(entry.modelId, modelId)),
+  );
+  const latest = sorted[0];
+  if (!latest) return preset.agentTier;
+
+  const everQualified = sorted.some((item) => entryQualifies(item));
+  // A suite-version bump invalidates old evidence: an eval that passed
+  // suite v0 must not stay verified forever once the gate moves to v1 (§14).
+  const suiteCurrent =
+    latest.suiteId === REQUIRED_SUITE_ID && latest.evalSuiteVersion === REQUIRED_SUITE_VERSION;
+
+  if (entryQualifies(latest)) {
+    if (!suiteCurrent) {
+      // Qualifying run on an outdated suite version: honest middle state.
+      return everQualified ? "needs-revalidation" : preset.agentTier;
+    }
+    return isRequiredSuiteScale(latest) ? "agent-verified" : "smoke-verified";
+  }
+  // Latest required real eval regressed (fail/partial or below gates).
+  if (suiteCurrent || everQualified) return "needs-revalidation";
+  return preset.agentTier;
+}
+
+export function effectiveModelAgentTier(
+  preset: Pick<ProviderPreset, "id" | "agentTier">,
+  modelId: string | null | undefined,
+): ProviderAgentTier {
+  return resolveModelTier(preset, modelId, entries);
+}
+
+export interface VerifiedModelSummary {
+  modelId: string;
+  tier: Extract<ProviderAgentTier, "agent-verified" | "smoke-verified">;
+  testedAt: string;
+  endpointClass: EndpointClass;
+  endpointHostClass?: string;
+  taskCount: number;
+}
+
+/**
+ * Models under a provider whose LATEST required real eval qualifies. Drives
+ * the provider-level rollup so README/Settings can show exactly WHICH models
+ * are verified (§7) instead of a provider-wide "Agent Verified" claim.
+ */
+export function verifiedModelsForProvider(
+  providerId: string,
+  history: readonly ProviderValidationEntry[] = entries,
+): VerifiedModelSummary[] {
+  const byModel = new Map<string, ProviderValidationEntry>();
+  for (const entry of history) {
+    if (entry.providerId !== providerId) continue;
+    const key = entry.modelId.trim().toLowerCase();
+    const existing = byModel.get(key);
+    if (!existing || entry.testedAt > existing.testedAt) byModel.set(key, entry);
+  }
+  const summaries: VerifiedModelSummary[] = [];
+  for (const latest of byModel.values()) {
+    if (!entryQualifies(latest)) continue;
+    if (
+      latest.suiteId !== REQUIRED_SUITE_ID ||
+      latest.evalSuiteVersion !== REQUIRED_SUITE_VERSION
+    ) {
+      continue;
+    }
+    summaries.push({
+      modelId: latest.modelId,
+      tier: isRequiredSuiteScale(latest) ? "agent-verified" : "smoke-verified",
+      testedAt: latest.testedAt,
+      endpointClass: latest.endpointClass,
+      ...(latest.endpointHostClass ? { endpointHostClass: latest.endpointHostClass } : {}),
+      taskCount: latest.taskCount,
+    });
+  }
+  return summaries.sort((a, b) => b.testedAt.localeCompare(a.testedAt));
+}
+
+/**
+ * Provider-level rollup for catalog/README surfaces (no specific model
+ * selected): the strongest tier any verified model currently holds. Model
+ * selection screens must use effectiveModelAgentTier instead.
  */
 export function effectiveAgentTier(
   preset: Pick<ProviderPreset, "id" | "agentTier">,
 ): ProviderAgentTier {
-  if (preset.agentTier === "agent-verified" && !agentVerificationEvidence(preset.id)) {
-    return "protocol-verified";
-  }
+  const verified = verifiedModelsForProvider(preset.id);
+  if (verified.some((model) => model.tier === "agent-verified")) return "agent-verified";
+  if (verified.length > 0) return "smoke-verified";
   return preset.agentTier;
 }
 
 /** Effective tier per preset id — the single source README/Settings share. */
 export function effectiveAgentTiers(): ReadonlyMap<string, ProviderAgentTier> {
   return new Map(PROVIDER_PRESETS.map((preset) => [preset.id, effectiveAgentTier(preset)]));
+}
+
+/**
+ * Trim history for one provider+model+suite to the newest entries. Used by
+ * the eval runner when it appends a fresh run (history is append-only but
+ * bounded so the shipped file cannot grow without limit).
+ */
+export function capModelHistory(
+  file: { version: 1 | 2; entries: ProviderValidationEntry[] },
+  providerId: string,
+  modelId: string,
+): void {
+  const kept = sortLatestFirst(
+    file.entries.filter(
+      (entry) => entry.providerId === providerId && sameModel(entry.modelId, modelId),
+    ),
+  ).slice(0, HISTORY_CAP_PER_MODEL);
+  const keptKeys = new Set(kept.map((entry) => entry.testedAt + entry.status));
+  file.entries = file.entries.filter((entry) => {
+    if (entry.providerId !== providerId || !sameModel(entry.modelId, modelId)) return true;
+    return keptKeys.has(entry.testedAt + entry.status);
+  });
 }

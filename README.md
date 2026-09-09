@@ -54,15 +54,16 @@ Desktop 侧栏分为 **PROJECTS** 和 **CHATS** 两区。一个 Project 对应�
 
 ## 自带模型（BYOM）——按成熟度分级
 
-“能聊天 ≠ 能工具调用 ≠ 能稳定跑完 Project Agent 任务”。Provider 分为三级；分级由机器可验证的证据驱动（`src/core/providers/provider-validation.json` + `scripts/check-doc-facts.mjs` 门禁），设置页与下表同源：
+“能聊天 ≠ 能工具调用 ≠ 能稳定跑完 Project Agent 任务”。分级是**模型级**的：证据按 provider + 具体 modelId + 端点归属记录（`src/core/providers/provider-validation.json`），**跨模型、跨端点不借证据**；每次真实评估（无论通过与否）都进历史，**当前档位由该模型最新一次真实评估决定**——新失败会覆盖旧通过（Needs Revalidation）。设置页、下表与验证数据由 `scripts/check-doc-facts.mjs` 门禁保持同源一致。
 
-| 分级                  | 含义                                                      | 厂商                                                                 |
-| --------------------- | --------------------------------------------------------- | -------------------------------------------------------------------- |
-| **Agent Verified**    | 真实端点跑过 Golden Agent Tasks（见 [Agent Eval](eval/)） | 智谱 BigModel / GLM                                                  |
-| **Protocol Verified** | 流式 + 工具调用协议有自动化覆盖                           | OpenAI、Anthropic、Google Gemini API、Microsoft Azure OpenAI、Ollama |
-| **Preset**            | 配置模板，无 Agent 级验证                                 | 其余 30 家内置预设                                                   |
+| 分级                  | 含义                                                     | 厂商                                                                                      |
+| --------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| **Agent Verified**    | 最新一次全量（20 任务）真实端点 Golden Agent Tasks 通过  | 暂无                                                                                      |
+| **Smoke Verified**    | 最新一次真实端点评估为 10 任务冒烟规模通过，尚未全量验证 | 智谱 BigModel / GLM                                                                       |
+| **Protocol Verified** | 流式 + 工具调用协议有自动化覆盖                          | OpenAI、Anthropic、Google Gemini API、Microsoft Azure OpenAI、Ollama、智谱 BigModel / GLM |
+| **Preset**            | 配置模板，无 Agent 级验证                                | 其余 30 家内置预设                                                                        |
 
-GLM 的 Agent Verified 档来自真实端点 Golden Agent Tasks 复跑（`pnpm test:agent-eval` 的 real 档，9/10 通过、0 越权、0 越界；证据机器可读地保存在 `src/core/providers/provider-validation.json`，README/设置页/文档由 `scripts/check-doc-facts.mjs` 门禁保持一致）。历史手工真机 QA 记录另见 [Release Readiness](docs/release-readiness.md)。
+当前唯一模型级真实评估证据：智谱 preset 下的 `evomap-deepseek-v4-flash`（DeepSeek 系模型，经 EvoMap 第三方网关、`openai-compatible-chat` 协议接入）在 2026-09-08 以 10 任务冒烟规模复跑 Golden Agent Tasks，9/10 通过、0 越权、0 越界——按上述规则记为 **Smoke Verified**（不是 Agent Verified：规模是冒烟级；也**不代表 GLM 系模型**，模型间证据不互借）。GLM 系模型目前为 Protocol Verified，待全量真实评估后按最新结果升级或降级。历史手工真机 QA 记录另见 [Release Readiness](docs/release-readiness.md)。
 
 Provider、协议、模型能力三层分离：已实现 7 种协议适配器（OpenAI Chat Completions / Responses、Anthropic Messages、Gemini、Azure OpenAI、Ollama 原生、OpenAI-compatible），支持自定义兼容端点。API Key 存本地加密 vault（AES-256-GCM），密钥永远不进日志。
 

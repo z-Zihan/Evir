@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Check, ChevronRight, Search, SlidersHorizontal } from "lucide-react";
 import { Input } from "../../components/ui";
 import type { ProviderPreset } from "../../core/providers/types";
-import { effectiveAgentTier } from "../../core/providers/provider-tiers";
+import { effectiveAgentTier, verifiedModelsForProvider } from "../../core/providers/provider-tiers";
 import { SettingsFormDialog } from "../SettingsFormDialog";
 import { providerInitial } from "./form-model";
 
@@ -102,9 +102,11 @@ export function ProviderCatalogDialog({
         </button>
         {filteredPresets.map((preset) => {
           const selected = selectedPresetId === preset.id;
-          // Effective tier: an agent-verified claim only shows with real
-          // Golden-Tasks evidence (provider-validation.json) behind it.
+          // Effective tier: MODEL-level evidence rollup — a provider tile may
+          // only claim Agent/Smoke when specific models carry current
+          // qualifying real-eval entries (provider-validation.json).
           const tier = effectiveAgentTier(preset);
+          const verifiedModels = verifiedModelsForProvider(preset.id);
           return (
             <button
               className={`provider-preset-tile flex min-h-13 min-w-0 cursor-pointer items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition-colors ${
@@ -128,18 +130,40 @@ export function ProviderCatalogDialog({
                   {tier !== "preset" && (
                     <span
                       className={`provider-tier provider-tier-${tier} shrink-0 rounded px-1 text-[8.5px] font-bold uppercase ${
-                        tier === "agent-verified"
+                        tier === "agent-verified" || tier === "smoke-verified"
                           ? "bg-success/15 text-success"
-                          : "bg-primary/12 text-primary"
+                          : tier === "needs-revalidation"
+                            ? "bg-warning/15 text-warning"
+                            : "bg-primary/12 text-primary"
                       }`}
-                      title={t(`provider.tiers.${tier}`)}
+                      title={
+                        verifiedModels.length > 0
+                          ? `${t(`provider.tiers.${tier}`)} · ${verifiedModels
+                              .map(
+                                (model) =>
+                                  `${model.modelId} (${model.endpointClass}, ${model.taskCount} tasks)`,
+                              )
+                              .join(" · ")}`
+                          : t(`provider.tiers.${tier}`)
+                      }
                     >
-                      {tier === "agent-verified" ? "Agent" : "Protocol"}
+                      {tier === "agent-verified"
+                        ? "Agent"
+                        : tier === "smoke-verified"
+                          ? "Smoke"
+                          : tier === "needs-revalidation"
+                            ? "Revalidate"
+                            : "Protocol"}
                     </span>
                   )}
                 </strong>
                 <small className="mt-0.5 block truncate text-[10px] text-muted">
-                  {t(`provider.regions.${preset.region}`)}
+                  {verifiedModels.length > 0
+                    ? verifiedModels
+                        .map((model) => model.modelId)
+                        .slice(0, 2)
+                        .join(", ")
+                    : t(`provider.regions.${preset.region}`)}
                 </small>
               </span>
               {selected ? (

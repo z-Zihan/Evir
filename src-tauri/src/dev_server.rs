@@ -320,6 +320,7 @@ pub async fn dev_server_start(
     command
         .args(&args)
         .current_dir(&validated)
+        .envs(crate::command_env::subprocess_env_for_cwd(&validated))
         .env(
             // pnpm >=10 runs a dependency-status check (verify-deps-before-run)
             // before executing scripts; in Evir's non-TTY child environment that
@@ -371,18 +372,13 @@ fn lookup_program(program: &str) -> Result<PathBuf, String> {
     if program.contains('/') || program.contains('\\') {
         return Ok(PathBuf::from(program));
     }
-    // Resolve through PATH to avoid shell interpretation entirely.
-    let path = std::env::var("PATH").unwrap_or_default();
-    for dir in path.split(':') {
-        if dir.is_empty() {
-            continue;
-        }
-        let candidate = PathBuf::from(dir).join(program);
-        if candidate.is_file() {
-            return Ok(candidate);
-        }
-    }
-    Err(format!("program not found on PATH: {program}"))
+    // Resolve through the RESOLVED command environment (login-shell PATH,
+    // §16-§25), not the raw GUI-inherited PATH — a GUI launch must find
+    // pnpm/node exactly like the user's terminal does.
+    let env = crate::command_env::command_environment();
+    let dirs = crate::command_env::split_path(&env.path);
+    crate::command_env::lookup_on_path(program, &dirs)
+        .ok_or_else(|| format!("program not found on PATH: {program}"))
 }
 
 #[tauri::command]

@@ -14,8 +14,11 @@
  *   EVIR_REAL_EVAL_PROVIDER_ID  preset id the evidence upgrades (default: zhipu)
  *   EVIR_REAL_EVAL_TASKS      "10" (first ten, default) | "20" | comma-separated task ids
  *   EVIR_REAL_EVAL_MAX_ITERATIONS  agent loop cap per task (default 24)
- *   EVIR_REAL_EVAL_UPDATE_VALIDATION=1  write qualifying evidence into
- *     src/core/providers/provider-validation.json (tier upgrade source of truth)
+ *   EVIR_REAL_EVAL_UPDATE_VALIDATION=1  append this run (pass/fail/partial)
+ *     into src/core/providers/provider-validation.json — model-level history;
+ *     the latest run decides the effective tier (see provider-tiers.ts)
+ *   EVIR_REAL_EVAL_ENDPOINT_CLASS  official | gateway | self-hosted
+ *     (default: inferred from the base URL host vs the preset's endpoints)
  *
  * Without the configuration this spec reports NOT RUN (skip) — a missing
  * quota must never become a fake PASS (§50).
@@ -33,6 +36,7 @@ import { buildAgentRunRecord } from "../../src/features/chat/agent-run-record";
 import { useProjectStore } from "../../src/features/projects/project-store";
 import { popRunRoot, pushRunRoot } from "../../src/core/workspace/active-root";
 import { countDiffLines } from "../../src/features/workspace/changes-model";
+import type { ProviderValidationEntry } from "../../src/core/providers/provider-tiers";
 import { candidatePathFromArgs } from "../../src/core/security/permission-profiles";
 import { createNodeStorageAdapter } from "./node-storage-adapter";
 import {
@@ -412,6 +416,9 @@ runner("Golden Agent Tasks (real provider tier)", () => {
       summary.unauthorizedOperationsTotal === 0 &&
       summary.outOfScopeTotal === 0;
     if (updateValidation) {
+      // History is append-only and keeps EVERY real run (pass/fail/partial,
+      // §11): the effective tier follows the latest real eval per
+      // provider+model, so a regression can never hide behind an old PASS.
       const validationPath = path.join(
         process.cwd(),
         "src",
@@ -424,32 +431,61 @@ runner("Golden Agent Tasks (real provider tier)", () => {
         note?: string;
         entries: unknown[];
       };
-      const entry = {
+      const presetEndpoints = (
+        await import("../../src/core/providers/provider-presets")
+      ).PROVIDER_PRESETS.find((preset) => preset.id === providerId)?.endpoints;
+      const endpointHost = (() => {
+        try {
+          return new URL(baseUrl).hostname;
+        } catch {
+          return "unknown";
+        }
+      })();
+      const endpointClassFromEnv = env.EVIR_REAL_EVAL_ENDPOINT_CLASS?.trim();
+      const isLoopback = endpointHost === "localhost" || endpointHost === "127.0.0.1";
+      const isOfficialEndpoint = (presetEndpoints ?? []).some(
+        (endpoint) => new URL(endpoint.baseUrl).hostname === endpointHost,
+      );
+      const endpointClass =
+        endpointClassFromEnv === "official" ||
+        endpointClassFromEnv === "gateway" ||
+        endpointClassFromEnv === "self-hosted"
+          ? endpointClassFromEnv
+          : isLoopback
+            ? "self-hosted"
+            : isOfficialEndpoint
+              ? "official"
+              : "gateway";
+      const status = qualifies ? "pass" : summary.passed > 0 ? "partial" : "fail";
+      const entry: ProviderValidationEntry = {
         providerId,
         modelId,
+        endpointClass,
+        endpointHostClass: endpointHost,
         protocol: "openai-compatible-chat",
         testedAt: report.generatedAt,
         evirCommit: commit,
+        suiteId: "golden-agent-tasks",
         evalSuiteVersion: "agent-eval-v1",
         taskCount: summary.total,
         passed: summary.passed,
         failed: summary.failed,
         successRate: summary.successRate,
-        toolCallSuccess: summary.toolCallSuccess,
+        toolCallSuccessRate: summary.toolCallSuccess,
         unauthorizedOperations: summary.unauthorizedOperationsTotal,
         outOfScopeChanges: summary.outOfScopeTotal,
+        status,
       };
-      const existing = (validation.entries as { providerId: string }[]).filter(
-        (item) => item.providerId !== providerId,
-      );
-      if (qualifies) {
-        validation.entries = [...existing, entry];
-      }
-      await fs.writeFile(validationPath, JSON.stringify(validation, null, 2) + "\n", "utf8");
+      const { capModelHistory } = await import("../../src/core/providers/provider-tiers");
+      const file = {
+        version: 2 as const,
+        note: validation.note,
+        entries: [...(validation.entries as ProviderValidationEntry[]), entry],
+      };
+      capModelHistory(file, providerId, modelId);
+      await fs.writeFile(validationPath, JSON.stringify(file, null, 2) + "\n", "utf8");
       console.info(
-        qualifies
-          ? `provider-validation.json updated: ${providerId} agent-verified evidence recorded`
-          : `provider-validation.json unchanged: run did not qualify (see thresholds in provider-tiers.ts)`,
+        `provider-validation.json updated: ${providerId}/${modelId} ${endpointClass} run recorded as ${status} (${summary.passed}/${summary.total})`,
       );
     }
 

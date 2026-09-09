@@ -31,7 +31,7 @@
 - Run 状态机唯一事实源：`src/features/chat/run-phase.ts`（派生优先级与真相映射）；`StreamSlot.phase` 含 verifying。
 - 权限判定：`src/core/tools/tool-executor.ts`（L2+ 边界；相对路径先解析到 workspace root 再判）。
 - Skill 分层：manifest `tier: core|general`；核心 15 个（`skills/builtin/*/manifest.json` 标记）。
-- Provider 分级：证据驱动——`provider-tiers.ts` 的 `effectiveAgentTier`（agent-verified 声明必须在 `provider-validation.json` 有合格真实 Eval 条目才生效）。GLM/智谱已凭 2026-09-08 真实端点 Golden Tasks（EvoMap 网关，9/10）升为 agent-verified；README/Settings/docs 由 `scripts/check-doc-facts.mjs` 门禁统一。
+- Provider 分级：**模型级证据驱动**——`provider-tiers.ts` 的 `effectiveModelAgentTier`（providerId+modelId+endpointClass 精确匹配，跨模型/跨端点不借证据）；每次真实 run（pass/fail/partial）都进 `provider-validation.json` 历史，**最新一次真实 run 决定档位**（20 任务达标=agent-verified，10 任务=smoke-verified，回归或 suite 升版=needs-revalidation）。当前唯一模型级证据：zhipu preset 经 EvoMap 网关 `evomap-deepseek-v4-flash` 2026-09-08 10 任务 9/10 → Smoke Verified（不代表 GLM 系模型）。README/Settings/docs 由 `scripts/check-doc-facts.mjs` 门禁统一。
 - Agent Eval：`eval/agent-eval/`（`pnpm test:agent-eval`；结果 `eval/results/latest.json`）。真实长任务中断+续跑：`eval/long-task/`（env 门控 `EVIR_LONG_TASK=1`）。
 - 编排节点工具边界：`toolsForNode`（orchestrated-run-state.ts）——验证节点的 run_command 放行不依赖 plan 声明 terminal capability（2026-09-09 修复的死分支，有回归用例）。
 
@@ -41,6 +41,6 @@
 
 ## 当前已知约束（细节以权威文档为准）
 
-- LICENSE 未定（BLOCKED，须项目负责人决定）；Windows 全量验收 NOT RUN；单次连续 ≥30 分钟长任务 PASS 样本未取得（无头最佳 24.7min；GUI 4 次续跑交付物已独立复核全绿，见 release-readiness 长任务行）。已知改进项：GUI 子进程 PATH 无 pnpm（编排验收命令 os error 2，需工具沙箱 PATH 注入）。
+- LICENSE 未定（BLOCKED，须项目负责人决定）；Windows 全量验收 NOT RUN（TS 层有 deterministic Windows 路径测试，真机未跑）；单次连续 ≥30 分钟长任务 PASS 样本未取得（无头最佳 24.7min；GUI 4 次续跑交付物已独立复核全绿，见 release-readiness 长任务行）。GUI 子进程 PATH 无 pnpm 的问题已于 2026-09-09 修复（Rust `command_env.rs`：启动时 login-shell 解析+白名单+缓存，run_command/dev_server 注入，cwd 的 node_modules/.bin 前置；诊断面板有 Command Environment）。
 - 测试不得消耗真实 Provider 配额（fixture 服务器或标 NOT RUN）；模型文字不能标记任务完成（mutating run 需证据；answer run 见 docs/01）。
 - 永不记录密钥/完整会话/文件正文；日志本地、脱敏、有界。

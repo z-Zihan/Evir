@@ -162,4 +162,49 @@ describe("path helpers", () => {
     expect(candidatePathFromArgs({ query: "x" })).toBeNull();
     expect(candidatePathFromArgs({ path: 42 })).toBeNull();
   });
+
+  // --- cross-platform boundary (§32-§35): deterministic Windows semantics ---
+  // These are pure lexical tests — Windows NATIVE execution remains NOT RUN
+  // and must never be claimed from this file alone.
+
+  it("windows drive paths: separators, case, and prefix siblings", () => {
+    expect(isInsideRoots("C:\\Users\\A\\Project", ["C:\\Users\\A\\Project"])).toBe(true);
+    expect(isInsideRoots("C:\\Users\\A\\Project\\docs\\a.md", ["C:\\Users\\A\\Project"])).toBe(
+      true,
+    );
+    // Mixed slash separators still land inside the same root.
+    expect(isInsideRoots("C:/Users/A/Project/docs/a.md", ["C:\\Users\\A\\Project"])).toBe(true);
+    // Drive-letter case and path case are folded (Windows is case-insensitive).
+    expect(isInsideRoots("c:\\users\\a\\PROJECT\\Docs\\A.MD", ["C:\\Users\\A\\Project"])).toBe(
+      true,
+    );
+    // A sibling directory with a shared prefix must NOT count as inside.
+    expect(isInsideRoots("C:\\Users\\A\\Project2\\x.md", ["C:\\Users\\A\\Project"])).toBe(false);
+    expect(isInsideRoots("C:\\Users\\A\\Project", ["C:\\Users\\A\\Project2"])).toBe(false);
+  });
+
+  it("windows traversal strings cannot escape the root", () => {
+    expect(
+      isInsideRoots("C:\\Users\\A\\Project\\..\\Secret\\k.txt", ["C:\\Users\\A\\Project"]),
+    ).toBe(false);
+    expect(isInsideRoots("C:/Users/A/Project/../Secret/k.txt", ["C:/Users/A/Project"])).toBe(false);
+    expect(isInsideRoots("C:\\Users\\A\\Project\\.\\docs\\a.md", ["C:\\Users\\A\\Project"])).toBe(
+      true,
+    );
+  });
+
+  it("UNC paths compare within their own share root", () => {
+    expect(isInsideRoots("\\\\server\\share\\docs\\a.md", ["\\\\server\\share"])).toBe(true);
+    expect(isInsideRoots("\\\\server\\share2\\a.md", ["\\\\server\\share"])).toBe(false);
+    expect(isInsideRoots("\\\\other\\share\\a.md", ["\\\\server\\share"])).toBe(false);
+  });
+
+  it("posix semantics are unchanged: backslash is NOT a separator on posix paths", () => {
+    expect(isInsideRoots("/projects/evir/a.ts", ["/projects/evir"])).toBe(true);
+    // `evir\..\other` is ONE literal segment name on POSIX — the path sits in
+    // /projects, not inside /projects/evir (no backslash traversal semantics).
+    expect(isInsideRoots("/projects/evir\\..\\other", ["/projects/evir"])).toBe(false);
+    expect(isInsideRoots("/projects/evir\\..\\other", ["/projects"])).toBe(true);
+    expect(isInsideRoots("/Projects/Evir/a.ts", ["/projects/evir"])).toBe(false); // case-sensitive
+  });
 });

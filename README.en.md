@@ -46,15 +46,16 @@ The first time you open a project you choose explicitly: **Workspace Access** (r
 
 ## Bring your own model — with honesty about maturity
 
-"Can chat ≠ can call tools ≠ can reliably finish a project-agent task." Providers carry a tier, driven by machine-verifiable evidence (`src/core/providers/provider-validation.json` + the `scripts/check-doc-facts.mjs` gate); settings and the table below share that source:
+"Can chat ≠ can call tools ≠ can reliably finish a project-agent task." Tiers are **model-level**: evidence is recorded per provider + concrete modelId + endpoint class (`src/core/providers/provider-validation.json`), **never borrowed across models or endpoints**; every real eval (pass or fail) enters the history, and the **current tier follows the model's latest real eval** — a fresh regression overrides an older pass (Needs Revalidation). Settings, the table below, and the validation data are kept consistent by the `scripts/check-doc-facts.mjs` gate:
 
-| Tier                  | Meaning                                                                  | Vendors                                                              |
-| --------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------- |
-| **Agent Verified**    | Ran the Golden Agent Tasks against a real endpoint ([Agent Eval](eval/)) | 智谱 BigModel / GLM                                                  |
-| **Protocol Verified** | Streaming + tool-call protocol covered by automated tests                | OpenAI, Anthropic, Google Gemini API, Microsoft Azure OpenAI, Ollama |
-| **Preset**            | Configuration template, no agent-level evidence                          | the other 30 built-in presets                                        |
+| Tier                  | Meaning                                                                     | Vendors                                                                                   |
+| --------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| **Agent Verified**    | Latest full-suite (20-task) real-endpoint Golden Agent Tasks run passed     | None yet                                                                                  |
+| **Smoke Verified**    | Latest real-endpoint eval passed at 10-task smoke scale, full suite pending | 智谱 BigModel / GLM                                                                       |
+| **Protocol Verified** | Streaming + tool-call protocol covered by automated tests                   | OpenAI, Anthropic, Google Gemini API, Microsoft Azure OpenAI, Ollama, 智谱 BigModel / GLM |
+| **Preset**            | Configuration template, no agent-level evidence                             | the other 30 built-in presets                                                             |
 
-GLM's Agent Verified tier comes from re-running the Golden Agent Tasks against a real endpoint (the real tier of `pnpm test:agent-eval`: 9/10 passed, 0 unauthorized operations, 0 out-of-scope changes; the evidence is machine-readable in `src/core/providers/provider-validation.json`, and README/settings/docs are kept consistent by the `scripts/check-doc-facts.mjs` gate). Historical manual real-machine QA logs also live in [Release Readiness](docs/release-readiness.md).
+The only model-level real-eval evidence today: `evomap-deepseek-v4-flash` (a DeepSeek-family model reached through the EvoMap third-party gateway via the openai-compatible-chat protocol on the Zhipu preset) re-ran the Golden Agent Tasks on 2026-09-08 at 10-task smoke scale — 9/10 passed, 0 unauthorized operations, 0 out-of-scope changes — recorded as **Smoke Verified** (not Agent Verified: smoke scale only; and it does **not** represent GLM models — evidence never transfers across models). GLM models are Protocol Verified today and move up or down strictly by their own latest real eval. Historical manual real-machine QA logs also live in [Release Readiness](docs/release-readiness.md).
 
 Providers, protocols, and model capabilities are separate layers: 7 implemented protocol adapters (OpenAI Chat Completions / Responses, Anthropic Messages, Gemini, Azure OpenAI, native Ollama, OpenAI-compatible) and custom compatible endpoints. API keys live in a local encrypted vault (AES-256-GCM) and never enter logs.
 
