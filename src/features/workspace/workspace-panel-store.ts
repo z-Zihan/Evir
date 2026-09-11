@@ -70,7 +70,17 @@ interface WorkspacePanelState {
   /** New run changes landed (total count); applies §29 auto-switch rules. */
   noteRunChanges: (count: number) => void;
   saveConversationState: (conversationId: string) => void;
-  restoreConversationState: (conversationId: string) => void;
+  /**
+   * Restore the per-thread panel state. `options.defaultTab` marks a fresh
+   * conversation (no snapshot yet) whose thread should present the
+   * workbench by default — project threads pass "changes" (§30b) unless
+   * the user has explicitly closed the panel for that project; standalone
+   * chats restore closed (§53 no cross-thread bleed).
+   */
+  restoreConversationState: (
+    conversationId: string,
+    options?: { defaultTab?: WorkspaceTab },
+  ) => void;
 }
 
 function currentStateSnapshot(state: WorkspacePanelState): ConversationPanelSnapshot {
@@ -202,12 +212,16 @@ export const useWorkspacePanelStore = create<WorkspacePanelState>((set, get) => 
         [conversationId]: currentStateSnapshot(state),
       },
     })),
-  restoreConversationState: (conversationId) => {
+  restoreConversationState: (conversationId, options) => {
     const snapshot = get().conversationSnapshots[conversationId];
     if (!snapshot) {
-      // Fresh conversation: closed panel, no cross-thread resource bleed (§53).
+      // Fresh conversation: no cross-thread resource bleed (§53). With a
+      // default tab the workbench presents open on that tab — the project
+      // thread's "workbench first" default (§30b).
+      const defaultTab = options?.defaultTab;
       set({
-        open: false,
+        open: defaultTab !== undefined,
+        ...(defaultTab !== undefined ? { activeTab: defaultTab } : {}),
         activeResource: null,
         history: [],
         historyIndex: -1,

@@ -120,6 +120,30 @@ describe("workspace panel store", () => {
     expect(useWorkspacePanelStore.getState().activeResource).toBeNull();
   });
 
+  it("fresh project threads restore onto the default workbench tab; standalone stays closed", () => {
+    // Fresh conversation WITH a default tab (§30b project thread):
+    useWorkspacePanelStore.getState().restoreConversationState("fresh-project-thread", {
+      defaultTab: "changes",
+    });
+    expect(useWorkspacePanelStore.getState().open).toBe(true);
+    expect(useWorkspacePanelStore.getState().activeTab).toBe("changes");
+    expect(useWorkspacePanelStore.getState().activeResource).toBeNull();
+
+    // Fresh conversation WITHOUT one (standalone chat / user-closed project):
+    useWorkspacePanelStore.getState().restoreConversationState("fresh-standalone");
+    expect(useWorkspacePanelStore.getState().open).toBe(false);
+
+    // An existing snapshot always wins over the default.
+    useWorkspacePanelStore.getState().openResource({ kind: "file", path: "/a/1" });
+    useWorkspacePanelStore.getState().saveConversationState("snapshotted");
+    useWorkspacePanelStore.getState().closePanel();
+    useWorkspacePanelStore.getState().restoreConversationState("snapshotted", {
+      defaultTab: "changes",
+    });
+    expect(useWorkspacePanelStore.getState().open).toBe(true);
+    expect(useWorkspacePanelStore.getState().activeTab).toBe("preview");
+  });
+
   it("stacks overlay blockers and clears only when all close", () => {
     const setBlocked = useWorkspacePanelStore.getState().setOverlayBlocked;
     setBlocked("settings", true);
