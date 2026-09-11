@@ -10,7 +10,6 @@
 
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
-use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -100,6 +99,16 @@ fn probe_port(port: u16) -> bool {
         Duration::from_millis(500),
     )
     .is_ok()
+}
+
+fn environment_source_str(
+    source: &crate::command_env::CommandEnvSource,
+) -> &'static str {
+    match source {
+        crate::command_env::CommandEnvSource::LoginShell => "login_shell",
+        crate::command_env::CommandEnvSource::Inherited => "inherited",
+        crate::command_env::CommandEnvSource::Fallback => "fallback",
+    }
 }
 
 fn emit_status(app: &AppHandle, record: &DevServerRecord) {
@@ -193,6 +202,15 @@ fn spawn_watchers(app: AppHandle, project_id: String, child: Child, pgid: i32) {
                             DevStatus::Crashed
                         };
                         updated.exit_code = status.code();
+                        crate::native_log::log(
+                            "preview.exited",
+                            serde_json::json!({
+                                "projectId": project_id,
+                                "pid": updated.pid,
+                                "exitCode": status.code(),
+                                "outcome": if status.success() { "stopped" } else { "crashed" },
+                            }),
+                        );
                         Some(updated)
                     }
                 };
@@ -268,6 +286,15 @@ fn spawn_watchers(app: AppHandle, project_id: String, child: Child, pgid: i32) {
                                     record.url = Some(format!("http://localhost:{port}"));
                                     let updated = record.clone();
                                     drop(servers);
+                                    crate::native_log::log(
+                                        "preview.ready",
+                                        serde_json::json!({
+                                            "projectId": project_id,
+                                            "port": port,
+                                            "url": format!("http://localhost:{port}"),
+                                            "pid": updated.pid,
+                                        }),
+                                    );
                                     emit_status(&app, &updated);
                                 }
                             }
@@ -310,11 +337,32 @@ pub async fn dev_server_start(
     program: String,
     args: Vec<String>,
     workspace_root: String,
-) -> Result<DevServerRecord, String> {
+) -> Result<DevServerRecord, crate::command_env::CommandExecutionError> {
+    use crate::command_env::CommandExecutionError;
+
     // Same containment rule as run_command: the server runs inside the
     // project's validated workspace root.
-    let validated = crate::commands::validate_path_in_workspace(&cwd, &workspace_root)?;
-    let program_path = lookup_program(&program)?;
+    let validated = crate::commands::validate_path_in_workspace(&cwd, &workspace_root)
+        .map_err(|reason| CommandExecutionError::outside_workspace(&program, reason))?;
+    // Shared CommandExecutionEnvironment (§5): the same resolver run_command
+    // uses — project node_modules/.bin first, then the resolved login-shell
+    // PATH. A missing executable is a structured command_not_found (§9), not
+    // a bare io error.
+    let program_path = crate::command_env::resolve_executable(&program, &validated)
+        .ok_or_else(|| CommandExecutionError::command_not_found(&program, &validated))?;
+    let environment_source = crate::command_env::command_environment().source.clone();
+    let command_line = format!("{} {}", program, args.join(" "));
+    // §50 preview lifecycle trace — no environment variable VALUES are ever
+    // recorded, only where the environment came from.
+    crate::native_log::log(
+        "preview.spawn-requested",
+        serde_json::json!({
+            "projectId": project_id,
+            "command": command_line,
+            "cwd": validated.display().to_string(),
+            "environmentSource": environment_source_str(&environment_source),
+        }),
+    );
 
     let mut command = Command::new(program_path);
     command
@@ -339,7 +387,13 @@ pub async fn dev_server_start(
         use std::os::unix::process::CommandExt as _;
         command.process_group(0);
     }
-    let child = command.spawn().map_err(|error| error.to_string())?;
+    let child = command.spawn().map_err(|error| {
+        if error.kind() == std::io::ErrorKind::NotFound {
+            CommandExecutionError::command_not_found(&program, &validated)
+        } else {
+            CommandExecutionError::spawn_failed(&program, &validated, &error)
+        }
+    })?;
     let pid = child.id();
     #[cfg(unix)]
     let pgid = pid as i32;
@@ -363,22 +417,18 @@ pub async fn dev_server_start(
         let mut servers = state.servers.lock().expect("dev server lock");
         servers.insert(project_id.clone(), record.clone());
     }
+    crate::native_log::log(
+        "preview.started",
+        serde_json::json!({
+            "projectId": project_id,
+            "pid": pid,
+            "command": command_line,
+            "environmentSource": environment_source_str(&environment_source),
+        }),
+    );
     emit_status(&app, &record);
     spawn_watchers(app, project_id, child, pgid);
     Ok(record)
-}
-
-fn lookup_program(program: &str) -> Result<PathBuf, String> {
-    if program.contains('/') || program.contains('\\') {
-        return Ok(PathBuf::from(program));
-    }
-    // Resolve through the RESOLVED command environment (login-shell PATH,
-    // §16-§25), not the raw GUI-inherited PATH — a GUI launch must find
-    // pnpm/node exactly like the user's terminal does.
-    let env = crate::command_env::command_environment();
-    let dirs = crate::command_env::split_path(&env.path);
-    crate::command_env::lookup_on_path(program, &dirs)
-        .ok_or_else(|| format!("program not found on PATH: {program}"))
 }
 
 #[tauri::command]
@@ -402,6 +452,10 @@ fn stop_server(
         .get(project_id)
         .cloned();
     if let Some(process) = process {
+        crate::native_log::log(
+            "preview.stop-requested",
+            serde_json::json!({ "projectId": project_id }),
+        );
         let guard = process.lock().expect("dev server lock");
         kill_process_group(&guard);
     }

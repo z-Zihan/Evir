@@ -6,7 +6,11 @@ vi.mock("../workspace-services", () => ({
 }));
 
 import { readTextFile, statFile } from "../workspace-services";
-import { detectDevScript, detectDevScriptFromPackageJson } from "../dev-server-service";
+import {
+  detectDevScript,
+  detectDevScriptFromPackageJson,
+  parseDevServerStartError,
+} from "../dev-server-service";
 
 describe("detectDevScriptFromPackageJson", () => {
   it("prefers a browser-specific dev script over an app runtime", () => {
@@ -50,5 +54,36 @@ describe("detectDevScript failure split (§C2/G4)", () => {
     await expect(detectDevScript("/proj")).resolves.toMatchObject({
       plan: { program: "pnpm", scriptName: "dev" },
     });
+  });
+});
+
+describe("parseDevServerStartError (§9/§11 structured failures)", () => {
+  it("parses the structured command_not_found rejection from Rust", () => {
+    expect(
+      parseDevServerStartError({
+        kind: "command_not_found",
+        program: "pnpm",
+        cwd: "/tmp/proj",
+        environmentSource: "login_shell",
+        message: "command not found: pnpm — not on the resolved command PATH (source: login_shell)",
+      }),
+    ).toEqual({
+      kind: "command_not_found",
+      program: "pnpm",
+      environmentSource: "login_shell",
+      message: "command not found: pnpm — not on the resolved command PATH (source: login_shell)",
+    });
+  });
+
+  it("classifies the IPC stall timeout separately from unknown failures", () => {
+    expect(
+      parseDevServerStartError(
+        new Error(
+          "dev_server_start did not answer within 15s (known macOS custom-scheme IPC stall, tauri#7662).",
+        ),
+      ).kind,
+    ).toBe("ipc_timeout");
+    expect(parseDevServerStartError(new Error("boom")).kind).toBe("unknown");
+    expect(parseDevServerStartError("plain string").kind).toBe("unknown");
   });
 });

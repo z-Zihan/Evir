@@ -38,6 +38,9 @@ pub(crate) fn git_status(path: String, workspace_root: String) -> Result<GitStat
     let output = StdCommand::new("git")
         .args(["status", "--porcelain=v1", "-b"])
         .current_dir(&dir)
+        // Shared command environment (§16-§25): a GUI launch must resolve
+        // git exactly like the user's terminal.
+        .envs(crate::command_env::subprocess_env_for_cwd(&dir))
         .output()
         .map_err(|error| error.to_string())?;
 
@@ -80,8 +83,9 @@ pub(crate) fn git_diff(
     if staged {
         cmd.arg("--staged");
     }
-    cmd.current_dir(&dir);
-    cmd.stdout(std::process::Stdio::piped());
+    cmd.current_dir(&dir)
+        .envs(crate::command_env::subprocess_env_for_cwd(&dir))
+        .stdout(std::process::Stdio::piped());
 
     let output = cmd.output().map_err(|error| error.to_string())?;
     let diff = String::from_utf8_lossy(&output.stdout);
@@ -93,6 +97,7 @@ fn run_git(root: &std::path::Path, args: &[&str]) -> Result<String, String> {
         .arg("-C")
         .arg(root)
         .args(args)
+        .envs(crate::command_env::subprocess_env_for_cwd(root))
         .output()
         .map_err(|error| error.to_string())?;
     if !output.status.success() {
@@ -152,6 +157,7 @@ pub(crate) fn git_worktree_merge(root: String, id: String) -> Result<(), String>
         .arg(&root_path)
         .args(["apply", "--3way"])
         .arg(&patch_path)
+        .envs(crate::command_env::subprocess_env_for_cwd(&root_path))
         .output()
         .map_err(|error| error.to_string())?;
     let _ = std::fs::remove_file(&patch_path);

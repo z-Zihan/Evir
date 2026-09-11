@@ -136,16 +136,17 @@ pub(crate) fn parse_login_env(output: &str) -> LoginEnv {
     env
 }
 
-/// Does the PATH already contain the usual system tool directories? Used to
-/// decide whether the login-shell probe is worth running at all.
-pub(crate) fn path_looks_complete(path: &[String]) -> bool {
-    let has_usr_bin = path
+/// Executables that must resolve before the inherited environment counts as
+/// complete. Deciding the probe by whether required executables ACTUALLY
+/// resolve — not by directory names "looking complete" — is what catches
+/// nvm/fnm/volta/rustup layouts: `/usr/local/bin` can be present while the
+/// dev tools actually live in a user dir the GUI never inherited.
+const PROBE_REQUIRED_TOOLS: [&str; 3] = ["node", "npm", "git"];
+
+pub(crate) fn required_tools_resolve(path: &[String]) -> bool {
+    PROBE_REQUIRED_TOOLS
         .iter()
-        .any(|dir| dir == "/usr/bin" || dir == "C:\\Windows\\System32");
-    let has_local = path.iter().any(|dir| {
-        dir == "/usr/local/bin" || dir == "/opt/homebrew/bin" || dir.ends_with("\\scoop\\shims")
-    });
-    has_usr_bin && has_local
+        .all(|tool| lookup_on_path(tool, path).is_some())
 }
 
 /// Probe the user's login shell for its environment. Fixed command string,
@@ -217,7 +218,7 @@ fn resolve_env_from(
     let mut home = inherited_home;
     let mut lang = inherited_lang;
 
-    if !path_looks_complete(&inherited) && !shell.is_empty() {
+    if !required_tools_resolve(&inherited) && !shell.is_empty() {
         if let Some(login) = probe(shell, false) {
             if let Some(login_path) = &login.path {
                 path_lists.push(split_path(login_path));
@@ -246,7 +247,7 @@ fn resolve_env_from(
             }
         }
     }
-    if source == CommandEnvSource::Inherited && !path_looks_complete(&inherited) {
+    if source == CommandEnvSource::Inherited && !required_tools_resolve(&inherited) {
         source = CommandEnvSource::Fallback;
     }
 
@@ -309,9 +310,133 @@ pub fn subprocess_env_for_cwd(cwd: &std::path::Path) -> std::collections::HashMa
     map.insert("HOME".to_owned(), home.clone());
     }
     if let Some(lang) = &env.lang {
-    map.insert("LANG".to_owned(), lang.clone());
+        map.insert("LANG".to_owned(), lang.clone());
     }
     map
+}
+
+/// Resolve an executable for a working directory through the shared
+/// environment: the project's `node_modules/.bin` first, then the cached
+/// resolved PATH. Every subprocess entry point (run_command, App Preview,
+/// verification commands) resolves executables through THIS function, so
+/// "can Evir find pnpm" has exactly one answer.
+pub fn resolve_executable(program: &str, cwd: &std::path::Path) -> Option<std::path::PathBuf> {
+    let env = command_environment();
+    resolve_executable_in(env, cwd, program)
+}
+
+/// Testable core of [`resolve_executable`] over an injected environment.
+pub(crate) fn resolve_executable_in(
+    env: &CommandEnv,
+    cwd: &std::path::Path,
+    program: &str,
+) -> Option<std::path::PathBuf> {
+    if program.contains('/') || program.contains('\\') {
+        let candidate = std::path::PathBuf::from(program);
+        return candidate.is_file().then_some(candidate);
+    }
+    let mut dirs: Vec<Vec<String>> = Vec::new();
+    let local_bin = cwd.join("node_modules").join(".bin");
+    if local_bin.is_dir() {
+        dirs.push(vec![local_bin.to_string_lossy().into_owned()]);
+    }
+    dirs.push(split_path(&env.path));
+    let refs: Vec<&[String]> = dirs.iter().map(|list| list.as_slice()).collect();
+    lookup_on_path(program, &merge_paths(&refs))
+}
+
+/// Structured subprocess failure (§9): every entry point reports a missing
+/// executable as `command_not_found` with the program, cwd, and the
+/// environment source that was searched — never a bare `os error 2`.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CommandExecutionError {
+    pub kind: CommandExecutionErrorKind,
+    pub program: String,
+    pub cwd: Option<String>,
+    pub environment_source: Option<CommandEnvSource>,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum CommandExecutionErrorKind {
+    CommandNotFound,
+    SpawnFailed,
+    /// The cwd failed workspace validation — a permission boundary refusal,
+    /// not an environment problem.
+    OutsideWorkspace,
+}
+
+impl std::fmt::Display for CommandExecutionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.kind_str(), self.program)?;
+        if let Some(cwd) = &self.cwd {
+            write!(f, " (cwd: {cwd}")?;
+            if let Some(source) = &self.environment_source {
+                write!(f, "; environment: {}", source_str(source))?;
+            }
+            write!(f, ")")?;
+        }
+        Ok(())
+    }
+}
+
+impl CommandExecutionError {
+    pub fn command_not_found(program: &str, cwd: &std::path::Path) -> Self {
+        let env = command_environment();
+        Self {
+            kind: CommandExecutionErrorKind::CommandNotFound,
+            program: program.to_owned(),
+            cwd: Some(cwd.to_string_lossy().into_owned()),
+            environment_source: Some(env.source.clone()),
+            message: format!(
+                "command not found: {program} — not on the resolved command PATH (source: {})",
+                source_str(&env.source)
+            ),
+        }
+    }
+
+    pub fn spawn_failed(
+        program: &str,
+        cwd: &std::path::Path,
+        error: &std::io::Error,
+    ) -> Self {
+        let env = command_environment();
+        Self {
+            kind: CommandExecutionErrorKind::SpawnFailed,
+            program: program.to_owned(),
+            cwd: Some(cwd.to_string_lossy().into_owned()),
+            environment_source: Some(env.source.clone()),
+            message: format!("failed to start {program}: {error}"),
+        }
+    }
+
+    pub fn outside_workspace(program: &str, reason: String) -> Self {
+        Self {
+            kind: CommandExecutionErrorKind::OutsideWorkspace,
+            program: program.to_owned(),
+            cwd: None,
+            environment_source: None,
+            message: reason,
+        }
+    }
+
+    fn kind_str(&self) -> &'static str {
+        match self.kind {
+            CommandExecutionErrorKind::CommandNotFound => "command_not_found",
+            CommandExecutionErrorKind::SpawnFailed => "spawn_failed",
+            CommandExecutionErrorKind::OutsideWorkspace => "outside_workspace",
+        }
+    }
+}
+
+fn source_str(source: &CommandEnvSource) -> &'static str {
+    match source {
+        CommandEnvSource::LoginShell => "login_shell",
+        CommandEnvSource::Inherited => "inherited",
+        CommandEnvSource::Fallback => "fallback",
+    }
 }
 
 /// Find an executable on a PATH list (explicit paths pass through as files).
@@ -425,7 +550,26 @@ mod tests {
     use super::*;
 
     fn dirs(list: &[&str]) -> Vec<String> {
-    list.iter().map(|s| s.to_string()).collect()
+        list.iter().map(|s| s.to_string()).collect()
+    }
+
+    /// Create a temp bin dir containing executable stubs with the given names.
+    fn stub_bin(tag: &str, names: &[&str]) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("evir-cmdenv-stub-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("create stub bin dir");
+        for name in names {
+            let stub = dir.join(name);
+            std::fs::write(&stub, "#!/bin/sh\n").expect("write stub");
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let mut perms = std::fs::metadata(&stub).unwrap().permissions();
+                perms.set_mode(0o755);
+                std::fs::set_permissions(&stub, perms).unwrap();
+            }
+        }
+        dir
     }
 
     /// §C2 regression gate: a GUI-launched app inherits a minimal PATH
@@ -434,55 +578,63 @@ mod tests {
     /// program the user's terminal can find, the synthesized PATH finds too.
     #[test]
     fn gui_like_path_finds_pnpm_via_login_and_interactive_probes() {
-    // A real executable named `pnpm` in a fake user bin dir.
-    let user_bin = std::env::temp_dir().join("evir-c2-gate-pnpm-bin");
-    let _ = std::fs::remove_dir_all(&user_bin);
-    std::fs::create_dir_all(&user_bin).expect("create temp bin");
-    let pnpm = user_bin.join("pnpm");
-    std::fs::write(&pnpm, "#!/bin/sh\n").expect("write stub");
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut perms = std::fs::metadata(&pnpm).unwrap().permissions();
-        perms.set_mode(0o755);
-        std::fs::set_permissions(&pnpm, perms).unwrap();
-    }
-    let user_bin_str = user_bin.to_string_lossy().into_owned();
+        // A real executable named `pnpm` in a fake user bin dir.
+        let user_bin = std::env::temp_dir().join("evir-c2-gate-pnpm-bin");
+        let _ = std::fs::remove_dir_all(&user_bin);
+        std::fs::create_dir_all(&user_bin).expect("create temp bin");
+        let pnpm = user_bin.join("pnpm");
+        std::fs::write(&pnpm, "#!/bin/sh\n").expect("write stub");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = std::fs::metadata(&pnpm).unwrap().permissions();
+            perms.set_mode(0o755);
+            std::fs::set_permissions(&pnpm, perms).unwrap();
+        }
+        let user_bin_str = user_bin.to_string_lossy().into_owned();
 
-    let login_path = format!("/usr/bin:/bin:{user_bin_str}");
-    let probes = std::cell::Cell::new(0u32);
-    let probe = move |_shell: &str, interactive: bool| {
-        probes.set(probes.get() + 1);
-        Some(LoginEnv {
-            path: Some(if interactive {
-                login_path.clone()
-            } else {
-                "/usr/bin:/bin".to_owned()
-            }),
-            home: Some("/Users/gate".to_owned()),
-            lang: None,
-        })
-    };
+        let login_path = format!("/usr/bin:/bin:{user_bin_str}");
+        let probes = std::cell::Cell::new(0u32);
+        let probe = move |_shell: &str, interactive: bool| {
+            probes.set(probes.get() + 1);
+            Some(LoginEnv {
+                path: Some(if interactive {
+                    login_path.clone()
+                } else {
+                    "/usr/bin:/bin".to_owned()
+                }),
+                home: Some("/Users/gate".to_owned()),
+                lang: None,
+            })
+        };
 
-    let env = resolve_env_from(
-        "/bin/zsh",
-        "/usr/bin:/bin",
-        None,
-        None,
-        &probe,
-    );
-    assert_eq!(env.source, CommandEnvSource::LoginShell);
-    let resolved = split_path(&env.path);
-    assert!(
-        resolved.iter().any(|dir| dir == &user_bin_str),
-        "interactive rc PATH must be unioned in: {}",
-        env.path
-    );
-    assert!(resolved.iter().any(|dir| dir == "/usr/local/bin"));
-    // The actual discovery the user cares about: pnpm resolves.
-    let found = lookup_on_path("pnpm", &resolved);
-    assert!(found.is_some(), "pnpm must resolve on the synthesized PATH");
-    let _ = std::fs::remove_dir_all(&user_bin);
+        let env = resolve_env_from(
+            "/bin/zsh",
+            "/usr/bin:/bin",
+            None,
+            None,
+            &probe,
+        );
+        assert_eq!(env.source, CommandEnvSource::LoginShell);
+        let resolved = split_path(&env.path);
+        assert!(
+            resolved.iter().any(|dir| dir == &user_bin_str),
+            "interactive rc PATH must be unioned in: {}",
+            env.path
+        );
+        assert!(resolved.iter().any(|dir| dir == "/usr/local/bin"));
+        // The actual discovery the user cares about: pnpm resolves.
+        let found = lookup_on_path("pnpm", &resolved);
+        assert!(found.is_some(), "pnpm must resolve on the synthesized PATH");
+        // §15 hard gate, dev-server half: a package manager that exists ONLY
+        // in the resolved user PATH (not the GUI-inherited one) must also be
+        // found by the shared executable resolver that dev_server_start uses.
+        let cwd = std::path::Path::new("/tmp");
+        assert!(
+            resolve_executable_in(&env, cwd, "pnpm").is_some(),
+            "dev_server lookup must find pnpm through the shared environment"
+        );
+        let _ = std::fs::remove_dir_all(&user_bin);
     }
 
     /// Probe unavailable (broken shell / timeout): honest fallback — safe
@@ -502,24 +654,44 @@ mod tests {
     assert!(lookup_on_path("definitely-not-a-real-tool-xyz", &resolved).is_none());
     }
 
-    /// A complete inherited PATH skips probing entirely (no rc side effects
-    /// when they are not needed).
+    /// §12: a PATH only skips the login-shell probe when the REQUIRED
+    /// executables actually resolve on it — not when the directory list
+    /// "looks complete". /usr/local/bin + /usr/bin with no node/npm/git in
+    /// them must still probe (the nvm/volta case).
     #[test]
-    fn complete_inherited_path_skips_probe() {
-    let calls = std::cell::Cell::new(0u32);
-    let probe = |_shell: &str, _interactive: bool| {
-        calls.set(calls.get() + 1);
-        None
-    };
-    let env = resolve_env_from(
-        "/bin/zsh",
-        "/usr/local/bin:/usr/bin:/bin",
-        None,
-        None,
-        &probe,
-    );
-    assert_eq!(env.source, CommandEnvSource::Inherited);
-    assert_eq!(calls.get(), 0, "probe must not run for a complete PATH");
+    fn directory_names_alone_do_not_skip_the_probe() {
+        let calls = std::cell::Cell::new(0u32);
+        let probe = |_shell: &str, _interactive: bool| {
+            calls.set(calls.get() + 1);
+            None
+        };
+        let env = resolve_env_from(
+            "/bin/zsh",
+            "/usr/local/bin:/usr/bin:/bin",
+            None,
+            None,
+            &probe,
+        );
+        assert_eq!(env.source, CommandEnvSource::Fallback);
+        assert!(calls.get() > 0, "must probe when required tools do not resolve");
+    }
+
+    /// §12: a PATH where node/npm/git genuinely resolve (e.g. inherited from
+    /// a real terminal) skips the probe entirely — no rc side effects when
+    /// they are not needed.
+    #[test]
+    fn required_tools_resolving_skips_probe() {
+        let bin = stub_bin("complete", &["node", "npm", "git"]);
+        let bin_str = bin.to_string_lossy().into_owned();
+        let calls = std::cell::Cell::new(0u32);
+        let probe = |_shell: &str, _interactive: bool| {
+            calls.set(calls.get() + 1);
+            None
+        };
+        let env = resolve_env_from("/bin/zsh", &bin_str, None, None, &probe);
+        assert_eq!(env.source, CommandEnvSource::Inherited);
+        assert_eq!(calls.get(), 0, "probe must not run when required tools resolve");
+        let _ = std::fs::remove_dir_all(&bin);
     }
 
     #[test]
@@ -557,17 +729,18 @@ mod tests {
     }
 
     #[test]
-    fn minimal_gui_path_is_detected_incomplete() {
-    assert!(!path_looks_complete(&dirs(&["/usr/bin", "/bin"])));
-    assert!(path_looks_complete(&dirs(&[
-        "/usr/local/bin",
-        "/usr/bin",
-        "/bin"
-    ])));
-    assert!(path_looks_complete(&dirs(&[
-        "/opt/homebrew/bin",
-        "/usr/bin"
-    ])));
+    fn required_tools_resolution_ignores_directory_names() {
+        // Real stubs decide; the names of the directories are irrelevant.
+        let with_tools = stub_bin("req-yes", &["node", "npm", "git"]);
+        let without_tools = stub_bin("req-no", &["ls"]);
+        assert!(required_tools_resolve(&[
+            with_tools.to_string_lossy().into_owned()
+        ]));
+        assert!(!required_tools_resolve(&[
+            without_tools.to_string_lossy().into_owned()
+        ]));
+        let _ = std::fs::remove_dir_all(&with_tools);
+        let _ = std::fs::remove_dir_all(&without_tools);
     }
 
     #[test]
@@ -598,8 +771,83 @@ mod tests {
 
     #[test]
     fn subprocess_env_without_local_bin_still_has_resolved_path() {
-    let env = subprocess_env_for_cwd(std::path::Path::new("/tmp"));
-    assert!(env.get("PATH").map(|p| !p.is_empty()).unwrap_or(false));
+        let env = subprocess_env_for_cwd(std::path::Path::new("/tmp"));
+        assert!(env.get("PATH").map(|p| !p.is_empty()).unwrap_or(false));
+    }
+
+    /// §15: unicode + spaces in the project path must survive PATH building.
+    #[test]
+    fn subprocess_env_survives_unicode_and_spaces_in_cwd() {
+        let workspace = std::env::temp_dir().join(format!(
+            "evir-cmdenv-uni-{}-项目 名字",
+            std::process::id()
+        ));
+        let bin = workspace.join("node_modules").join(".bin");
+        std::fs::create_dir_all(&bin).expect("create unicode fixture bin");
+        let env = subprocess_env_for_cwd(&workspace);
+        let path = env.get("PATH").expect("PATH set");
+        let first = split_path(path).into_iter().next().expect("non-empty PATH");
+        assert!(first.contains("项目 名字"), "unicode cwd kept: {first}");
+        assert!(first.ends_with("node_modules/.bin"));
+        let _ = std::fs::remove_dir_all(workspace);
+    }
+
+    /// §15 cache behavior: the OnceLock hands every caller the same
+    /// resolution — run_command, preview, and verification cannot disagree.
+    #[test]
+    fn command_environment_is_cached_for_the_process_lifetime() {
+        let first = command_environment();
+        let second = command_environment();
+        assert!(std::ptr::eq(first, second));
+    }
+
+    /// §8: project-local node_modules/.bin wins over the resolved PATH, so
+    /// `vite`/`vitest` from the project resolve before any global ones.
+    #[test]
+    fn resolve_executable_prefers_project_local_bin() {
+        let env = CommandEnv {
+            shell: "/bin/zsh".to_owned(),
+            path: "/usr/bin:/bin".to_owned(),
+            home: None,
+            lang: None,
+            source: CommandEnvSource::Inherited,
+        };
+        let workspace = std::env::temp_dir().join(format!("evir-resolve-{}", std::process::id()));
+        let bin = workspace.join("node_modules").join(".bin");
+        std::fs::create_dir_all(&bin).expect("create local bin");
+        let local = bin.join("vitest");
+        std::fs::write(&local, "#!/bin/sh\n").expect("write stub");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = std::fs::metadata(&local).unwrap().permissions();
+            perms.set_mode(0o755);
+            std::fs::set_permissions(&local, perms).unwrap();
+        }
+        let resolved = resolve_executable_in(&env, &workspace, "vitest")
+            .expect("local vitest must resolve");
+        assert!(resolved.starts_with(&workspace), "local bin first: {resolved:?}");
+        assert!(
+            resolve_executable_in(&env, &workspace, "definitely-missing-xyz").is_none()
+        );
+        let _ = std::fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn command_execution_error_serializes_camel_case_fields() {
+        let error = CommandExecutionError {
+            kind: CommandExecutionErrorKind::CommandNotFound,
+            program: "pnpm".to_owned(),
+            cwd: Some("/tmp/project".to_owned()),
+            environment_source: Some(CommandEnvSource::LoginShell),
+            message: "command not found: pnpm".to_owned(),
+        };
+        let value = serde_json::to_value(&error).expect("serialize error");
+        assert_eq!(value["kind"], "command_not_found");
+        assert_eq!(value["program"], "pnpm");
+        assert_eq!(value["cwd"], "/tmp/project");
+        assert_eq!(value["environmentSource"], "login_shell");
+        assert_eq!(value["message"], "command not found: pnpm");
     }
 
     #[test]

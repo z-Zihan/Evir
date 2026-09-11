@@ -38,11 +38,17 @@ struct McpProcess {
     _stderr: Arc<Mutex<String>>,
 }
 
+/// Minimal child environment for MCP stdio servers: the shared resolved
+/// command environment (login-shell PATH — an `npx`-based server must be
+/// findable from a GUI launch exactly like in the user's terminal, §16-§25)
+/// plus the OS essentials the whitelist omits. User-provided env from the
+/// server config always wins (applied by the caller).
 fn baseline_env() -> HashMap<String, String> {
-    let mut env = HashMap::new();
+    let home = std::env::var_os("HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+    let mut env = crate::command_env::subprocess_env_for_cwd(&home);
     for key in [
-        "PATH",
-        "HOME",
         "USERPROFILE",
         "SystemRoot",
         "WINDIR",
@@ -50,11 +56,9 @@ fn baseline_env() -> HashMap<String, String> {
         "TMPDIR",
         "TMP",
         "TEMP",
-        "LANG",
-        "LC_ALL",
     ] {
         if let Ok(value) = std::env::var(key) {
-            env.insert(key.to_owned(), value);
+            env.entry(key.to_owned()).or_insert(value);
         }
     }
     env

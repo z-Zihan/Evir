@@ -818,7 +818,15 @@
       },
       "restart": "重启",
       "openInBrowser": "在浏览器中打开",
-      "lastStarted": "启动于 {{time}}"
+      "lastStarted": "启动于 {{time}}",
+      "openCommandEnv": "打开命令环境",
+      "failure": {
+        "commandNotFound": "找不到命令：{{program}}（不在解析后的命令 PATH 中）",
+        "spawnFailed": "进程启动失败：{{program}}",
+        "outsideWorkspace": "工作目录不在项目的授权范围内，已拒绝启动。",
+        "ipcTimeout": "启动请求超时（已知 macOS IPC 问题）；若实际已启动，状态会自动同步。",
+        "unknown": "预览启动失败。"
+      }
     },
     "copyPath": "复制路径",
     "pathCopied": "已复制路径",
@@ -1082,7 +1090,8 @@
         "inherited": "继承环境",
         "fallback": "安全基础合并",
         "login_shell": "登录 Shell 解析"
-      }
+      },
+      "probeNote": "环境通过登录 Shell（含交互式 rc 文件，如 .zshrc）探测获得——这会像你自己的终端一样执行初始化逻辑，是有意为之的取舍；只回读 PATH/HOME/LANG 白名单变量。"
     }
   },
   "project": {

@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import {
   invokeIdempotentWithRetry,
   invokeMutatingWithTimeout,
+  parseCommandExecutionError,
 } from "../../runtime/desktop-storage-adapter";
 import { readTextFile, statFile } from "./workspace-services";
 import { logger } from "../../core/logging/logger";
@@ -96,14 +97,20 @@ export type DetectDevScriptResult =
  * the same misleading "no recognizable script" line.
  */
 export async function detectDevScript(root: string): Promise<DetectDevScriptResult> {
+  // §50 preview lifecycle trace: detect start/end (result only, no file body).
+  logger.info("workspace", "dev-server.detect", { root });
   let source: string;
   try {
     source = await readTextFile(`${root}/package.json`);
   } catch {
+    logger.info("workspace", "dev-server.detect-end", { root, result: "inspect-failed" });
     return { reason: "inspect-failed" };
   }
   const plan = detectDevScriptFromPackageJson(source);
-  if (!plan) return { reason: "no-script" };
+  if (!plan) {
+    logger.info("workspace", "dev-server.detect-end", { root, result: "no-script" });
+    return { reason: "no-script" };
+  }
   try {
     const lockfiles: string[] = [];
     for (const name of ["pnpm-lock.yaml", "yarn.lock", "package-lock.json"]) {
@@ -115,6 +122,12 @@ export async function detectDevScript(root: string): Promise<DetectDevScriptResu
       }
     }
     const manager = packageManagerFor(lockfiles);
+    logger.info("workspace", "dev-server.detect-end", {
+      root,
+      result: "plan",
+      script: plan.scriptName,
+      program: manager.program,
+    });
     return {
       plan: {
         ...plan,
@@ -123,6 +136,7 @@ export async function detectDevScript(root: string): Promise<DetectDevScriptResu
       },
     };
   } catch {
+    logger.info("workspace", "dev-server.detect-end", { root, result: "inspect-failed" });
     return { reason: "inspect-failed" };
   }
 }
@@ -131,6 +145,33 @@ export async function detectDevScript(root: string): Promise<DetectDevScriptResu
 // invokes for ~100s: start/stop get a timeout whose error says the outcome
 // will be reconciled (status events + the list poll below), and the list
 // poll — idempotent — gets the standard timeout+retry protection.
+
+/** Structured start failure (§9/§11): distinct causes need distinct copy. */
+export interface DevServerStartError {
+  kind: "command_not_found" | "spawn_failed" | "outside_workspace" | "ipc_timeout" | "unknown";
+  program: string | null;
+  environmentSource: "login_shell" | "inherited" | "fallback" | null;
+  message: string;
+}
+
+/** Parse a dev_server_start rejection into the classified failure. */
+export function parseDevServerStartError(value: unknown): DevServerStartError {
+  const structured = parseCommandExecutionError(value);
+  if (structured) {
+    return {
+      kind: structured.kind,
+      program: structured.program || null,
+      environmentSource: structured.environmentSource,
+      message: structured.message,
+    };
+  }
+  const message = value instanceof Error ? value.message : String(value);
+  if (message.includes("did not answer within")) {
+    return { kind: "ipc_timeout", program: null, environmentSource: null, message };
+  }
+  return { kind: "unknown", program: null, environmentSource: null, message };
+}
+
 export function devServerStart(input: {
   projectId: string;
   cwd: string;

@@ -280,6 +280,9 @@ export function DiagnosticsSettings() {
             </summary>
             <code className="mt-1 block break-all text-foreground">{commandEnv.resolvedPath}</code>
           </details>
+          <p className="text-[11px] leading-relaxed text-muted">
+            {t("diagnostics.commandEnv.probeNote")}
+          </p>
           <table className="w-full text-xs">
             <thead>
               <tr className="text-muted text-left">

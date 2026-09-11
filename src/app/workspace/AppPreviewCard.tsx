@@ -9,6 +9,7 @@ import {
   RotateCw,
   Square,
   Globe,
+  Terminal,
 } from "lucide-react";
 import { Button, Tip } from "../../components/ui";
 import { copyTextWithFeedback } from "../../components/feedback";
@@ -20,6 +21,7 @@ import {
   openUrlInPanelBrowser,
   type DevServerUiController,
 } from "./use-dev-server-ui";
+import type { DevServerStartError } from "../../features/workspace/dev-server-service";
 import type { ProjectRecord } from "../../core/storage/db";
 
 /**
@@ -30,6 +32,28 @@ import type { ProjectRecord } from "../../core/storage/db";
  * Copy URL / View Logs. Dev-server facts come from the Rust lifecycle service
  * (single source of truth); this card only mirrors and dispatches.
  */
+
+/** §11: each start-failure class gets its own copy, not one vague "failed". */
+function startFailureCopy(
+  failureInfo: DevServerStartError,
+  t: ReturnType<typeof useTranslation>["t"],
+): string {
+  switch (failureInfo.kind) {
+    case "command_not_found":
+      return t("workspace.previewApp.failure.commandNotFound", {
+        program: failureInfo.program ?? "",
+      });
+    case "spawn_failed":
+      return t("workspace.previewApp.failure.spawnFailed", { program: failureInfo.program ?? "" });
+    case "outside_workspace":
+      return t("workspace.previewApp.failure.outsideWorkspace");
+    case "ipc_timeout":
+      return t("workspace.previewApp.failure.ipcTimeout");
+    default:
+      return failureInfo.message || t("workspace.previewApp.failure.unknown");
+  }
+}
+
 export function AppPreviewCard({
   controller,
   project,
@@ -43,7 +67,7 @@ export function AppPreviewCard({
   const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
   const [logsOpen, setLogsOpen] = useState(false);
 
-  const status = appPreviewStatus(controller.server, controller.starting);
+  const status = appPreviewStatus(controller.server, controller.starting, controller.failureInfo);
   const url = status === "ready" ? controller.server?.url : null;
   const lastOutput = controller.server?.lastOutput ?? [];
   const startedAt = controller.server?.startedAt;
@@ -243,7 +267,23 @@ export function AppPreviewCard({
           ) : (
             <p className="app-preview-state">{t("workspace.previewApp.noScript")}</p>
           ))}
-        {failure && <p className="app-preview-failure">{failure}</p>}
+        {failure && (
+          <p className="app-preview-failure" role="alert">
+            {controller.failureInfo ? startFailureCopy(controller.failureInfo, t) : failure}
+          </p>
+        )}
+        {controller.failureInfo?.kind === "command_not_found" && (
+          <div className="mt-1">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => window.dispatchEvent(new CustomEvent("evir:open-diagnostics"))}
+            >
+              <Terminal size={12} aria-hidden="true" />
+              {t("workspace.previewApp.openCommandEnv")}
+            </Button>
+          </div>
+        )}
         {crashed && failureCommand && (
           <div className="app-preview-failure-detail">
             <p>

@@ -819,7 +819,15 @@
       },
       "restart": "Restart",
       "openInBrowser": "Open in browser",
-      "lastStarted": "Started {{time}}"
+      "lastStarted": "Started {{time}}",
+      "openCommandEnv": "Open Command Environment",
+      "failure": {
+        "commandNotFound": "Command not found: {{program}} (not on the resolved command PATH)",
+        "spawnFailed": "Process failed to start: {{program}}",
+        "outsideWorkspace": "The working directory is outside the project's granted roots; start refused.",
+        "ipcTimeout": "The start request timed out (known macOS IPC issue); status syncs automatically if it actually started.",
+        "unknown": "Preview failed to start."
+      }
     },
     "copyPath": "Copy path",
     "pathCopied": "Path copied",
@@ -1083,7 +1091,8 @@
         "inherited": "Inherited",
         "fallback": "Safe base merge",
         "login_shell": "Login shell"
-      }
+      },
+      "probeNote": "The environment is probed through a login shell (including interactive rc files like .zshrc) — this deliberately runs the same initialization your own terminal would, and only whitelisted PATH/HOME/LANG values are read back."
     }
   },
   "project": {

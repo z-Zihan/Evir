@@ -170,7 +170,11 @@ export function PreviewTab() {
   const sourceLabel = activeResource
     ? t(`workspace.source.${activeResource.kind === "file" ? "files" : activeResource.kind}`)
     : null;
-  const previewStatus = appPreviewStatus(devController.server, devController.starting);
+  const previewStatus = appPreviewStatus(
+    devController.server,
+    devController.starting,
+    devController.failureInfo,
+  );
 
   return (
     <div className="workspace-preview-tab">

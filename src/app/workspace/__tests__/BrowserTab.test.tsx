@@ -30,6 +30,12 @@ vi.mock("../../../features/workspace/dev-server-service", () => ({
   devServerStart: vi.fn(),
   devServerStop: vi.fn(),
   subscribeDevServerStatus: vi.fn().mockResolvedValue(() => undefined),
+  parseDevServerStartError: vi.fn().mockImplementation((value: unknown) => ({
+    kind: "unknown",
+    program: null,
+    environmentSource: null,
+    message: value instanceof Error ? value.message : String(value),
+  })),
 }));
 
 vi.mock("../../../features/workspace/workspace-panel-store", () => ({

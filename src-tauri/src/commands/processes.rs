@@ -14,6 +14,7 @@ use serde::Serialize;
 use super::infra::{
     command_cancellations, truncate_string, validate_path_in_workspace, CommandRegistration,
 };
+use crate::command_env::CommandExecutionError;
 
 #[derive(Serialize)]
 pub struct CommandResult {
@@ -34,7 +35,7 @@ pub(crate) async fn run_command(
     timeout_ms: Option<u64>,
     env: Option<std::collections::HashMap<String, String>>,
     workspace_root: String,
-) -> Result<CommandResult, String> {
+) -> Result<CommandResult, CommandExecutionError> {
     // Sync commands run on the app main thread; this one polls for the whole
     // command lifetime, so it must stay off the main thread or the UI (and
     // cancel_command itself, which also arrives via IPC) freezes.
@@ -50,7 +51,13 @@ pub(crate) async fn run_command(
         )
     })
     .await
-    .map_err(|error| error.to_string())?
+    .map_err(|error| {
+        CommandExecutionError::spawn_failed(
+            "",
+            std::path::Path::new(""),
+            &std::io::Error::other(format!("command worker panicked: {error}")),
+        )
+    })?
 }
 
 fn run_command_blocking(
@@ -61,13 +68,20 @@ fn run_command_blocking(
     timeout_ms: Option<u64>,
     env: Option<std::collections::HashMap<String, String>>,
     workspace_root: String,
-) -> Result<CommandResult, String> {
+) -> Result<CommandResult, CommandExecutionError> {
     const MAX_COMMAND_TIMEOUT_MS: u64 = 600_000;
-    let cwd = validate_path_in_workspace(&cwd, &workspace_root)?;
+    let cwd = validate_path_in_workspace(&cwd, &workspace_root)
+        .map_err(|reason| CommandExecutionError::outside_workspace(&program, reason))?;
     let cancellation = Arc::new(AtomicBool::new(false));
     command_cancellations()
         .lock()
-        .map_err(|_| "command cancellation registry is poisoned".to_owned())?
+        .map_err(|_| {
+            CommandExecutionError::spawn_failed(
+                &program,
+                &cwd,
+                &std::io::Error::other("command cancellation registry is poisoned"),
+            )
+        })?
         .insert(command_id.clone(), Arc::clone(&cancellation));
     let _registration = CommandRegistration(command_id);
 
@@ -95,14 +109,15 @@ fn run_command_blocking(
         std::time::Duration::from_millis(timeout_ms.unwrap_or(30_000).min(MAX_COMMAND_TIMEOUT_MS));
     let start = std::time::Instant::now();
 
-    // A missing binary reads as a raw io error ("os error 2") on the TS side;
-    // surface an explicit, greppable marker so the UI can explain it instead
-    // (command-not-found banner → Command Environment diagnostics).
+    // A missing binary must surface as the structured §9 error
+    // (command_not_found + cwd + environment source) so the UI can explain
+    // it — command-not-found banner → Command Environment diagnostics —
+    // instead of a raw io error string.
     let mut child = cmd.spawn().map_err(|error| {
         if error.kind() == std::io::ErrorKind::NotFound {
-            format!("program not found: {program}")
+            CommandExecutionError::command_not_found(&program, &cwd)
         } else {
-            error.to_string()
+            CommandExecutionError::spawn_failed(&program, &cwd, &error)
         }
     })?;
     let stdout_reader = child.stdout.take().map(read_pipe);
@@ -143,7 +158,9 @@ fn run_command_blocking(
                 }
                 std::thread::sleep(std::time::Duration::from_millis(50));
             }
-            Err(error) => return Err(error.to_string()),
+            Err(error) => {
+                return Err(CommandExecutionError::spawn_failed(&program, &cwd, &error))
+            }
         }
     }
 }

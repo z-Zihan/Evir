@@ -4,9 +4,11 @@ import {
   devServerList,
   devServerStart,
   devServerStop,
+  parseDevServerStartError,
   subscribeDevServerStatus,
   type DevScriptPlan,
   type DevServerState,
+  type DevServerStartError,
 } from "../../features/workspace/dev-server-service";
 import { useWorkspacePanelStore } from "../../features/workspace/workspace-panel-store";
 import {
@@ -35,6 +37,8 @@ export interface DevServerUiController {
   active: boolean;
   /** Human-readable failure reason (invoke error or crash tail). */
   failure: string | null;
+  /** Classified start failure (§11) driving distinct error copy + actions. */
+  failureInfo: DevServerStartError | null;
   start: () => Promise<void>;
   stop: () => Promise<void>;
   /** Stop → Start cycle; the ready event re-opens the preview when it lands. */
@@ -44,14 +48,21 @@ export interface DevServerUiController {
 /** §15 user-facing states, derived from the Rust-side lifecycle facts. */
 export type AppPreviewStatus = "idle" | "starting" | "ready" | "error" | "stopped";
 
+/**
+ * A failed start (e.g. command_not_found) must hold the Error state until the
+ * user retries or changes something (§10/§49) — it may not silently fall
+ * back to Idle just because no process ever existed.
+ */
 export function appPreviewStatus(
   server: DevServerState | null,
   starting: boolean,
+  failureInfo?: DevServerStartError | null,
 ): AppPreviewStatus {
   if (starting || server?.status === "starting") return "starting";
   if (server?.status === "ready" || server?.status === "running") return "ready";
   if (server?.status === "crashed") return "error";
   if (server?.status === "stopped") return "stopped";
+  if (failureInfo) return "error";
   return "idle";
 }
 
@@ -74,10 +85,12 @@ export function useDevServerUi(): DevServerUiController {
   const [server, setServer] = useState<DevServerState | null>(null);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [failureInfo, setFailureInfo] = useState<DevServerStartError | null>(null);
 
   useEffect(() => {
     setServer(null);
     setError(null);
+    setFailureInfo(null);
     setStarting(false);
   }, [project?.id]);
 
@@ -136,6 +149,7 @@ export function useDevServerUi(): DevServerUiController {
       if (!plan || !root || !project) return;
       setStarting(true);
       setError(null);
+      setFailureInfo(null);
       try {
         const state = await devServerStart({
           projectId: project.id,
@@ -148,7 +162,19 @@ export function useDevServerUi(): DevServerUiController {
         // often lands first and must not be overwritten backwards.
         setServer((current) => (current?.status === "ready" ? current : state));
       } catch (startError) {
-        setError(startError instanceof Error ? startError.message : String(startError));
+        // §10: keep the failure (and its class) so the card holds the Error
+        // state with real copy until the user retries — never back to idle.
+        const classified = parseDevServerStartError(startError);
+        setFailureInfo(classified);
+        setError(
+          classified.message ||
+            (startError instanceof Error ? startError.message : String(startError)),
+        );
+        logger.error("workspace", "dev-server.start-failed", {
+          projectId: project.id,
+          kind: classified.kind,
+          program: classified.program,
+        });
       } finally {
         setStarting(false);
       }
@@ -211,17 +237,19 @@ export function useDevServerUi(): DevServerUiController {
     starting: starting || server?.status === "starting",
     active,
     failure: error,
+    failureInfo,
     start,
     stop,
     restart,
   };
 }
 
-/** Failure copy: invoke error, or the crash tail from the process output. */
+/** Failure copy: classified start failure, invoke error, or the crash tail. */
 export function devServerFailureText(
-  controller: Pick<DevServerUiController, "server" | "failure">,
+  controller: Pick<DevServerUiController, "server" | "failure" | "failureInfo">,
   fallback: string,
 ): string | null {
+  if (controller.failureInfo) return controller.failureInfo.message || controller.failure;
   if (controller.failure) return controller.failure;
   if (controller.server?.status === "crashed") {
     const tail = controller.server.lastOutput

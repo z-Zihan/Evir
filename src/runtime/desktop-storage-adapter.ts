@@ -191,6 +191,63 @@ export async function invokeMutatingWithTimeout<T>(
   }
 }
 
+/**
+ * Structured shape the Rust CommandExecutionError serializes to (§9).
+ * Tauri rejects the invoke promise with this object as the value.
+ */
+export interface CommandExecutionErrorInfo {
+  kind: "command_not_found" | "spawn_failed" | "outside_workspace";
+  program: string;
+  cwd: string | null;
+  environmentSource: "login_shell" | "inherited" | "fallback" | null;
+  message: string;
+}
+
+/** Parse an unknown invoke rejection into the structured error, if it is one. */
+export function parseCommandExecutionError(value: unknown): CommandExecutionErrorInfo | null {
+  if (typeof value !== "object" || value === null) return null;
+  const candidate = value as Partial<CommandExecutionErrorInfo>;
+  if (
+    candidate.kind !== "command_not_found" &&
+    candidate.kind !== "spawn_failed" &&
+    candidate.kind !== "outside_workspace"
+  ) {
+    return null;
+  }
+  return {
+    kind: candidate.kind,
+    program: typeof candidate.program === "string" ? candidate.program : "",
+    cwd: typeof candidate.cwd === "string" ? candidate.cwd : null,
+    environmentSource:
+      candidate.environmentSource === "login_shell" ||
+      candidate.environmentSource === "inherited" ||
+      candidate.environmentSource === "fallback"
+        ? candidate.environmentSource
+        : null,
+    message: typeof candidate.message === "string" ? candidate.message : "",
+  };
+}
+
+/**
+ * Normalize a run_command rejection into an Error, keeping the legacy
+ * "program not found: <program>" message contract (tests + UI matching)
+ * while attaching the structured info as `commandError`.
+ */
+function normalizeCommandError(value: unknown): Error {
+  if (value instanceof Error) return value;
+  const info = parseCommandExecutionError(value);
+  if (info) {
+    const message =
+      info.kind === "command_not_found" && info.program
+        ? `program not found: ${info.program}`
+        : info.message || JSON.stringify(value);
+    const error = new Error(message) as Error & { commandError?: CommandExecutionErrorInfo };
+    error.commandError = info;
+    return error;
+  }
+  return new Error(typeof value === "string" ? value : JSON.stringify(value));
+}
+
 async function invokeReadWithRetry<T>(
   label: string,
   run: () => Promise<T>,
@@ -341,6 +398,13 @@ export const desktopStorage: DesktopStorageAdapter = {
         env: env ?? null,
         workspaceRoot: rootForPath(cwd),
       });
+    } catch (error) {
+      // The Rust side rejects with the structured CommandExecutionError
+      // (§9): { kind, program, cwd, environmentSource, message }. Normalize
+      // it into an Error that keeps the "program not found: <program>"
+      // message contract while carrying the structured fields for UI
+      // deep-links (command environment diagnostics).
+      throw normalizeCommandError(error);
     } finally {
       activeCommandIds.delete(commandId);
     }
