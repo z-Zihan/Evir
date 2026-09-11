@@ -25,7 +25,7 @@ vi.mock("../../../features/workspace/browser-panel-service", () => ({
 }));
 
 vi.mock("../../../features/workspace/dev-server-service", () => ({
-  detectDevScript: vi.fn().mockResolvedValue(null),
+  detectDevScript: vi.fn().mockResolvedValue({ reason: "no-script" }),
   devServerList: vi.fn().mockResolvedValue([]),
   devServerStart: vi.fn(),
   devServerStop: vi.fn(),

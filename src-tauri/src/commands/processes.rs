@@ -95,7 +95,16 @@ fn run_command_blocking(
         std::time::Duration::from_millis(timeout_ms.unwrap_or(30_000).min(MAX_COMMAND_TIMEOUT_MS));
     let start = std::time::Instant::now();
 
-    let mut child = cmd.spawn().map_err(|error| error.to_string())?;
+    // A missing binary reads as a raw io error ("os error 2") on the TS side;
+    // surface an explicit, greppable marker so the UI can explain it instead
+    // (command-not-found banner → Command Environment diagnostics).
+    let mut child = cmd.spawn().map_err(|error| {
+        if error.kind() == std::io::ErrorKind::NotFound {
+            format!("program not found: {program}")
+        } else {
+            error.to_string()
+        }
+    })?;
     let stdout_reader = child.stdout.take().map(read_pipe);
     let stderr_reader = child.stderr.take().map(read_pipe);
 

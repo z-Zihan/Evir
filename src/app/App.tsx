@@ -85,6 +85,17 @@ export function App() {
     void createOrReuseConversation(provider.id, provider.modelId).then(focusComposer);
   }, [createOrReuseConversation, getDefaultProvider]);
 
+  // Error surfaces deep-link into diagnostics: e.g. the command-not-found
+  // banner dispatches this event instead of reaching into settings state.
+  useEffect(() => {
+    const openDiagnostics = () => {
+      setSettingsTab("diagnostics");
+      setSettingsOpen(true);
+    };
+    window.addEventListener("evir:open-diagnostics", openDiagnostics);
+    return () => window.removeEventListener("evir:open-diagnostics", openDiagnostics);
+  }, []);
+
   const openSettings = useCallback((tab: SettingsTab = "providers") => {
     logger.info("ui", "ui.open", {
       actionId: crypto.randomUUID(),

@@ -23,7 +23,7 @@ import {
   ToolTimeline,
   type ToolStatus,
 } from "../components/ai";
-import { Badge } from "../components/ui";
+import { Badge, Button } from "../components/ui";
 import { cn } from "../components/ui/utils";
 import type { MessageRecord, ToolCallRecord, ToolResultRecord } from "../core/storage/db";
 import {
@@ -46,6 +46,30 @@ interface AgentActivityProps {
   messageStatus: MessageRecord["status"];
   /** 连续相同失败重试被渲染层折叠时，附加到首条卡片的次数 */
   failedRetryCount?: number | undefined;
+}
+
+/**
+ * §C2: a run_command whose binary the resolved PATH cannot find gets an
+ * actionable inline strip — the raw io error alone explains nothing. The
+ * button deep-links Settings → Diagnostics → Command Environment.
+ */
+function CommandNotFoundStrip({ program }: { program: string }) {
+  const { t } = useTranslation();
+  return (
+    <div
+      className="command-not-found mt-1 flex flex-wrap items-center gap-2 rounded-lg border border-danger/35 bg-danger/[0.07] px-3 py-2 text-[12px] text-danger"
+      role="alert"
+    >
+      <span className="min-w-0 flex-1">{t("tools.commandNotFoundTitle", { program })}</span>
+      <Button
+        variant="secondary"
+        size="sm"
+        onClick={() => window.dispatchEvent(new CustomEvent("evir:open-diagnostics"))}
+      >
+        {t("tools.commandNotFoundAction")}
+      </Button>
+    </div>
+  );
 }
 
 /** Scoped grants apply to project-bound L2/L3 tools only (§37b). */
@@ -191,6 +215,14 @@ export function AgentActivity({
   }
 
   const groups = groupToolCalls(toolCalls, toolResults);
+  const notFoundProgram = (() => {
+    const call = toolCalls.find((candidate) => {
+      const result = resultsByCallId.get(candidate.id);
+      return candidate.toolName === "run_command" && result?.error === "command_not_found";
+    });
+    const program = call?.arguments["program"];
+    return typeof program === "string" && program.length > 0 ? program : null;
+  })();
   // §Approval resolved state: a permission request whose call was executed in
   // a later message (approved) or denied is RESOLVED — the group badge must
   // not keep the waiting appearance after the decision.
@@ -258,6 +290,7 @@ export function AgentActivity({
         </span>
       </button>
 
+      {notFoundProgram !== null && <CommandNotFoundStrip program={notFoundProgram} />}
       <ToolTimeline className="execution-timeline tool-groups">
         {groups.map((group, groupIndex) => {
           const summary = groupSummary(group);

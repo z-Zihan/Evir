@@ -80,11 +80,27 @@ export function packageManagerFor(lockfiles: readonly string[]): {
   return { program: "npm", runArgs: ["run"] };
 }
 
-export async function detectDevScript(root: string): Promise<DevScriptPlan | null> {
+/** Why detection produced no runnable plan — each needs different copy. */
+export type DetectDevScriptResult =
+  { plan: DevScriptPlan } | { reason: "inspect-failed" } | { reason: "no-script" };
+
+/**
+ * Detect the project's dev script. Failures are split (§C2/G4): an unreadable
+ * package.json / IPC error is "inspect-failed" (Evir could not look), while a
+ * parseable package.json without a matching script is "no-script" (the
+ * project genuinely has none). Both used to collapse into null and render
+ * the same misleading "no recognizable script" line.
+ */
+export async function detectDevScript(root: string): Promise<DetectDevScriptResult> {
+  let source: string;
   try {
-    const source = await readTextFile(`${root}/package.json`);
-    const plan = detectDevScriptFromPackageJson(source);
-    if (!plan) return null;
+    source = await readTextFile(`${root}/package.json`);
+  } catch {
+    return { reason: "inspect-failed" };
+  }
+  const plan = detectDevScriptFromPackageJson(source);
+  if (!plan) return { reason: "no-script" };
+  try {
     const lockfiles: string[] = [];
     for (const name of ["pnpm-lock.yaml", "yarn.lock", "package-lock.json"]) {
       try {
@@ -96,12 +112,14 @@ export async function detectDevScript(root: string): Promise<DevScriptPlan | nul
     }
     const manager = packageManagerFor(lockfiles);
     return {
-      ...plan,
-      program: manager.program,
-      args: [...manager.runArgs, plan.scriptName],
+      plan: {
+        ...plan,
+        program: manager.program,
+        args: [...manager.runArgs, plan.scriptName],
+      },
     };
   } catch {
-    return null;
+    return { reason: "inspect-failed" };
   }
 }
 

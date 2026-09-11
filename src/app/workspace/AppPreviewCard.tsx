@@ -238,6 +238,8 @@ export function AppPreviewCard({
                 script: `${controller.plan.program} ${controller.plan.args.join(" ")}`,
               })}
             </p>
+          ) : controller.detectIssue === "inspect-failed" ? (
+            <p className="app-preview-state">{t("workspace.previewApp.inspectFailed")}</p>
           ) : (
             <p className="app-preview-state">{t("workspace.previewApp.noScript")}</p>
           ))}

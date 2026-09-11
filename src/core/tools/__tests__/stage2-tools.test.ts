@@ -88,6 +88,26 @@ describe("agent mutation snapshots", () => {
     expect(readFile).toHaveBeenCalledWith("/tmp/project/input.txt", { runId: null });
   });
 
+  it("maps a spawn not-found marker to the command_not_found error code", async () => {
+    const runCommand = vi.fn();
+    runCommand.mockRejectedValue(new Error("program not found: pnpm"));
+    const runtime = {
+      target: "desktop" as const,
+      capabilities: new Set(["filesystem"]),
+      has: () => true,
+      getWorkspaceRoot: () => "/tmp/project",
+      storage: { runCommand },
+    } as unknown as EvirRuntime;
+    const run = LOCAL_FILE_TOOLS.find((tool) => tool.id === "run_command")!;
+
+    await expect(
+      run.execute({ cwd: "/tmp/project", program: "pnpm", args: ["test"] }, runtime),
+    ).resolves.toMatchObject({
+      success: false,
+      error: "command_not_found",
+    });
+  });
+
   it("preserves bounded native string errors for diagnosis", async () => {
     const readFile = vi.fn();
     readFile.mockRejectedValue("native read failed");

@@ -409,6 +409,17 @@ async function runCommand(
         : {}),
     };
   } catch (error) {
+    // A missing binary surfaces as the explicit Rust marker — map it to a
+    // distinct error code so the UI can explain it (command environment)
+    // instead of showing a raw io error string.
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.startsWith("program not found:")) {
+      return {
+        success: false,
+        output: `${message}\nThe program is not on the resolved command PATH.`,
+        error: "command_not_found",
+      };
+    }
     return toolError(error);
   }
 }

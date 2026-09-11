@@ -208,6 +208,8 @@
     },
     "approveOnce": "本次允许",
     "approveInProject": "在此项目允许此工具",
+    "commandNotFoundTitle": "Evir 找不到 {{program}}：不在已解析的命令 PATH 上。",
+    "commandNotFoundAction": "打开 Command Environment 诊断",
     "inspectStep": "查看详情",
     "denied": "已拒绝",
     "deniedMessage": "工具执行已被用户拒绝",
@@ -803,6 +805,7 @@
       "running": "运行中",
       "detected": "检测到启动脚本：{{script}}",
       "noScript": "此项目没有可识别的 Web 启动脚本。",
+      "inspectFailed": "Evir 无法读取项目信息（读取或 IPC 失败）——并非缺少脚本。",
       "confirmTitle": "允许运行本地启动脚本？",
       "confirmDescription": "Evir 将在项目目录启动开发服务器，并在面板浏览器中打开预览。",
       "status": {

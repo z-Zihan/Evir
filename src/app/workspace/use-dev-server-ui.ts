@@ -27,6 +27,8 @@ import { logger } from "../../core/logging/logger";
 
 export interface DevServerUiController {
   plan: DevScriptPlan | null;
+  /** Why detection found no plan, when it did not (§C2/G4 copy split). */
+  detectIssue: "inspect-failed" | "no-script" | null;
   server: DevServerState | null;
   starting: boolean;
   /** Ready/starting/running — a live preview is (becoming) available. */
@@ -68,6 +70,7 @@ export function useDevServerUi(): DevServerUiController {
   const currentProjectId = useProjectStore((state) => state.currentProjectId);
   const project = projects.find(({ id }) => id === currentProjectId);
   const [plan, setPlan] = useState<DevScriptPlan | null>(null);
+  const [detectIssue, setDetectIssue] = useState<"inspect-failed" | "no-script" | null>(null);
   const [server, setServer] = useState<DevServerState | null>(null);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,11 +85,19 @@ export function useDevServerUi(): DevServerUiController {
   useEffect(() => {
     if (!root) {
       setPlan(null);
+      setDetectIssue(null);
       return;
     }
     let cancelled = false;
     void detectDevScript(root).then((detected) => {
-      if (!cancelled) setPlan(detected);
+      if (cancelled) return;
+      if ("plan" in detected) {
+        setPlan(detected.plan);
+        setDetectIssue(null);
+      } else {
+        setPlan(null);
+        setDetectIssue(detected.reason);
+      }
     });
     return () => {
       cancelled = true;
@@ -195,6 +206,7 @@ export function useDevServerUi(): DevServerUiController {
 
   return {
     plan,
+    detectIssue,
     server,
     starting: starting || server?.status === "starting",
     active,

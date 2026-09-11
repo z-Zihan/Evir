@@ -207,6 +207,8 @@
     },
     "approveOnce": "Allow once",
     "approveInProject": "Allow this tool in this project",
+    "commandNotFoundTitle": "Evir can’t find “{{program}}” on the resolved command PATH.",
+    "commandNotFoundAction": "Open Command Environment diagnostics",
     "inspectStep": "Inspect details",
     "denied": "Denied",
     "deniedMessage": "Tool execution denied by user",
@@ -804,6 +806,7 @@
       "running": "Running",
       "detected": "Detected start script: {{script}}",
       "noScript": "This project has no recognizable web start script.",
+      "inspectFailed": "Evir could not inspect this project (read or IPC failure) — not a missing script.",
       "confirmTitle": "Allow the local start script?",
       "confirmDescription": "Evir will start the dev server in the project directory and open the preview in the panel browser.",
       "status": {
