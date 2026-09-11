@@ -64,14 +64,12 @@ test("captures the required responsive, theme, and language matrix", async ({ pa
   await page.locator(".sidebar-close").click();
 
   const settingsTabs = [
+    // Theme/Language folded into Personalization; extended capabilities
+    // (users/plugins/browser) moved to the nav's tail group (§54).
     "model-providers",
-    // "local-identity" became the multi-profile "users" panel; "plugins" is new.
-    "users",
     "personalization",
-    "switch-theme",
-    "language",
     "skills",
-    ...(isDesktop(testInfo) ? ["mcp", "browser", "plugins"] : []),
+    ...(isDesktop(testInfo) ? ["mcp"] : []),
     "memory",
     "knowledge",
     "keyboard-shortcuts",
@@ -79,6 +77,8 @@ test("captures the required responsive, theme, and language matrix", async ({ pa
     "data-and-privacy",
     "diagnostics",
     "about-evir",
+    "users",
+    ...(isDesktop(testInfo) ? ["plugins", "browser"] : []),
   ];
   for (const language of ["en", "zh-CN"] as const) {
     for (const theme of ["light", "dark"] as const) {

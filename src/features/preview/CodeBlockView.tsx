@@ -43,6 +43,7 @@ export const CodeBlockView = memo(function CodeBlockView({
   const normalized = normalizeFenceLanguage(language);
   const [copied, setCopied] = useState(false);
   const [wrap, setWrap] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const openResource = useWorkspacePanelStore((state) => state.openResource);
 
@@ -137,7 +138,17 @@ export const CodeBlockView = memo(function CodeBlockView({
           )}
         </div>
       </div>
-      <div className={`code-block-body${large ? " collapsed" : ""}`}>{body}</div>
+      <div className={`code-block-body${large && !expanded ? " collapsed" : ""}`}>{body}</div>
+      {large && (
+        <button
+          type="button"
+          className="code-block-expand"
+          onClick={() => setExpanded((value) => !value)}
+          aria-expanded={expanded}
+        >
+          {expanded ? t("preview.collapseCode") : t("preview.expandCode")}
+        </button>
+      )}
     </div>
   );
 });

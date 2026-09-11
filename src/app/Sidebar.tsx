@@ -78,6 +78,10 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
       : null,
   );
   const listProfiles = useProfileStore((state) => state.list);
+  // Single-profile installs are not a login product: the identity row only
+  // appears as a current-user cue when more than one profile exists (§50);
+  // otherwise the footer is just Settings.
+  const profileCount = useProfileStore((state) => state.snapshot?.profiles.length ?? 1);
   useEffect(() => {
     void listProfiles().catch(() => undefined);
   }, [listProfiles]);
@@ -274,7 +278,9 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
             placeholder={t("sidebar.searchPlaceholder")}
             aria-label={t("sidebar.searchPlaceholder")}
             onChange={(event) => setSearch(event.target.value)}
-            className="h-8 rounded-lg bg-surface pl-8 pr-7 text-[12px]"
+            className={`h-8 rounded-lg bg-surface pl-7 text-[12px] placeholder:truncate ${
+              search.length > 0 ? "pr-7" : "pr-3"
+            }`}
           />
           {search.length > 0 && (
             <Button
@@ -441,32 +447,34 @@ export function Sidebar({ onOpenSettings, onNewConversation, onClose }: SidebarP
         </div>
 
         <div className="sidebar-footer flex shrink-0 flex-col gap-1 border-t border-border pt-2">
-          <button
-            className="sidebar-identity flex w-full cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1.5 text-left transition-colors select-none hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
-            type="button"
-            onClick={() => onOpenSettings("users")}
-            aria-label={t("sidebar.editIdentity")}
-          >
-            <span
-              className={`sidebar-identity-avatar grid size-7 shrink-0 place-items-center overflow-hidden rounded-full text-[11.5px] font-semibold text-white avatar-${identity.avatarColor}`}
+          {profileCount > 1 && (
+            <button
+              className="sidebar-identity flex w-full cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1.5 text-left transition-colors select-none hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
+              type="button"
+              onClick={() => onOpenSettings("users")}
+              aria-label={t("sidebar.editIdentity")}
             >
-              {registry.avatar || identity.avatarImage ? (
-                <img
-                  src={registry.avatar || identity.avatarImage}
-                  alt=""
-                  className="size-full object-cover"
-                />
-              ) : (
-                localInitial
-              )}
-            </span>
-            <span className="sidebar-identity-copy flex min-w-0 flex-1 items-center leading-tight">
-              <strong className="truncate text-[12px] font-medium text-foreground">
-                {localName}
-              </strong>
-            </span>
-            <ChevronRight size={13} aria-hidden="true" className="shrink-0 text-muted" />
-          </button>
+              <span
+                className={`sidebar-identity-avatar grid size-7 shrink-0 place-items-center overflow-hidden rounded-full text-[11.5px] font-semibold text-white avatar-${identity.avatarColor}`}
+              >
+                {registry.avatar || identity.avatarImage ? (
+                  <img
+                    src={registry.avatar || identity.avatarImage}
+                    alt=""
+                    className="size-full object-cover"
+                  />
+                ) : (
+                  localInitial
+                )}
+              </span>
+              <span className="sidebar-identity-copy flex min-w-0 flex-1 items-center leading-tight">
+                <strong className="truncate text-[12px] font-medium text-foreground">
+                  {localName}
+                </strong>
+              </span>
+              <ChevronRight size={13} aria-hidden="true" className="shrink-0 text-muted" />
+            </button>
+          )}
           <Button
             variant="ghost"
             className="settings-button h-8 justify-start gap-2 px-1.5 text-[12px] font-normal text-muted hover:text-foreground"

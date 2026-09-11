@@ -20,6 +20,7 @@ import {
   loadPersonalizationPreferences,
   savePersonalizationPreferences,
 } from "../features/settings/personalization-settings";
+import { useThemeStore } from "../features/settings/theme-store";
 import { useConfirmationDialog } from "./useConfirmationDialog";
 
 type FormStatus = "idle" | "loading" | "saving";
@@ -44,7 +45,10 @@ const responsePreferencesFrom = ({
 });
 
 export function PersonalizationPanel() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const { theme, setTheme } = useThemeStore();
+  // i18n instance is absent in isolated component tests; default to English.
+  const language = i18n?.language?.startsWith("zh") ? "zh-CN" : "en";
   const [form, setForm] = useState<PersonalizationPreferences>({
     ...DEFAULT_PERSONALIZATION_PREFERENCES,
   });
@@ -115,6 +119,70 @@ export function PersonalizationPanel() {
         description={t("settingsDescriptions.personalization")}
       />
       <form onSubmit={handleSubmit} className="flex min-w-0 flex-col gap-6">
+        <SettingsGroup>
+          {/* Appearance: theme + interface language live here as two compact
+              rows (§14) — they were separate nav pages before, which bloated
+              the navigation for two tiny controls. */}
+          <SettingsRow
+            label={t("settings.theme")}
+            description={t("settingsDescriptions.theme")}
+            control={
+              <div
+                className="flex items-center gap-1"
+                role="group"
+                aria-label={t("settings.theme")}
+              >
+                {(
+                  [
+                    { value: "system", label: t("settings.system") },
+                    { value: "light", label: t("settings.light") },
+                    { value: "dark", label: t("settings.dark") },
+                  ] as const
+                ).map((option) => (
+                  <Button
+                    key={option.value}
+                    type="button"
+                    variant={theme === option.value ? "primary" : "secondary"}
+                    size="sm"
+                    aria-pressed={theme === option.value}
+                    onClick={() => setTheme(option.value)}
+                  >
+                    {option.label}
+                  </Button>
+                ))}
+              </div>
+            }
+          />
+          <SettingsRow
+            label={t("settings.language")}
+            description={t("settingsDescriptions.language")}
+            control={
+              <div
+                className="flex items-center gap-1"
+                role="group"
+                aria-label={t("settings.language")}
+              >
+                {(
+                  [
+                    { value: "zh-CN", label: t("personalization.chinese") },
+                    { value: "en", label: t("personalization.english") },
+                  ] as const
+                ).map((option) => (
+                  <Button
+                    key={option.value}
+                    type="button"
+                    variant={language === option.value ? "primary" : "secondary"}
+                    size="sm"
+                    aria-pressed={language === option.value}
+                    onClick={() => void i18n?.changeLanguage(option.value)}
+                  >
+                    {option.label}
+                  </Button>
+                ))}
+              </div>
+            }
+          />
+        </SettingsGroup>
         <SettingsGroup>
           <SettingsRow
             label={t("personalization.enable")}

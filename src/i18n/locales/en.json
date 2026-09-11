@@ -309,7 +309,8 @@
     "groups": {
       "account": "Basics",
       "capabilities": "Capabilities",
-      "system": "System"
+      "system": "System",
+      "extended": "Extended"
     },
     "browser": "Browser",
     "knowledge": "Knowledge"
@@ -1305,7 +1306,9 @@
     "canvasDefaultTitle": "New canvas"
   },
   "preview": {
-    "plainText": "text",
+    "plainText": "Plain text",
+    "expandCode": "Expand code",
+    "collapseCode": "Collapse code",
     "toggleWrap": "Toggle word wrap",
     "togglePreview": "Toggle preview",
     "preview": "Preview",

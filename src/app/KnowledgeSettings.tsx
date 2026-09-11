@@ -131,7 +131,9 @@ export function KnowledgeSettings() {
 
   return (
     <SettingsPage>
-      <SettingsPageIntro title={t("knowledge.title")} description={t("knowledge.intro")} />
+      {/* No in-page title: the nav label and the section heading already say
+          "Knowledge" — a third repetition added noise before any content. */}
+      <SettingsPageIntro description={t("knowledge.intro")} />
       {loading ? (
         <LoadingState label={t("common.loading")} />
       ) : (
@@ -313,7 +315,7 @@ export function KnowledgeSettings() {
                         value={sourceTitle}
                         onChange={(event) => setSourceTitle(event.target.value)}
                         placeholder={t("knowledge.sources.titlePlaceholder")}
-                        className="h-8 w-40"
+                        className="h-8 w-full max-w-56 min-w-36"
                         aria-label={t("knowledge.sources.titlePlaceholder")}
                       />
                       <Button

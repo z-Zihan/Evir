@@ -11,8 +11,6 @@ export type SettingsTab =
   | "mcp"
   | "usage"
   | "privacy"
-  | "theme"
-  | "language"
   | "memory"
   | "knowledge"
   | "diagnostics"

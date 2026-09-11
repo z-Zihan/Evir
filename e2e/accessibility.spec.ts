@@ -258,8 +258,9 @@ test("every reachable settings page has no serious axe violations", async ({ pag
   await seedFixture(page);
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const tabs = page.locator(".settings-nav-item");
-  // users replaced local-identity; plugins on desktop; knowledge added 2026-09-08.
-  const expectedCount = isDesktop(testInfo) ? 16 : 13;
+  // theme/language merged into personalization; extended group (users/
+  // plugins/browser on desktop) moved to the nav tail (2026-09-11).
+  const expectedCount = isDesktop(testInfo) ? 14 : 11;
   await expect(tabs).toHaveCount(expectedCount);
   for (let index = 0; index < expectedCount; index += 1) {
     await tabs.nth(index).click();

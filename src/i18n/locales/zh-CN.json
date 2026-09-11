@@ -308,7 +308,8 @@
     "groups": {
       "account": "基础",
       "capabilities": "能力",
-      "system": "系统"
+      "system": "系统",
+      "extended": "扩展"
     },
     "browser": "浏览器",
     "knowledge": "知识库"
@@ -1304,7 +1305,9 @@
     "canvasDefaultTitle": "新画布"
   },
   "preview": {
-    "plainText": "文本",
+    "plainText": "纯文本",
+    "expandCode": "展开代码",
+    "collapseCode": "收起代码",
     "toggleWrap": "切换自动换行",
     "togglePreview": "切换预览",
     "preview": "预览",

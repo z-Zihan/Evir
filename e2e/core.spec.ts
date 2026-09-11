@@ -569,8 +569,9 @@ test("theme selection applies immediately and persists across reload", async ({ 
   await seedFixture(page);
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const settings = page.getByRole("dialog", { name: "Settings", exact: true });
-  await settings.getByRole("button", { name: "Switch theme", exact: true }).click();
-  await settings.getByRole("button", { name: /Dark/ }).click();
+  // Theme lives as a compact row inside Personalization (§14 nav declutter).
+  await settings.getByRole("button", { name: "Personalization", exact: true }).click();
+  await settings.getByRole("button", { name: "Dark", exact: true }).click();
   await expect(page.locator("html")).toHaveClass(/dark/);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await settings.getByRole("button", { name: "Close", exact: true }).click();

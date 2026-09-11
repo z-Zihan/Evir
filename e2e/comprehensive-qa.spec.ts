@@ -20,8 +20,6 @@ test("every reachable settings page opens and key preferences persist", async ({
     ["Model providers", "Model providers"],
     ["Users", "Local profiles on this device"],
     ["Personalization", "Personalization"],
-    ["Switch theme", "Switch theme"],
-    ["Language", "Language"],
     ["Skills", "Skills"],
     ["Memory", "Memory"],
     ["Keyboard shortcuts", "Keyboard shortcuts"],
@@ -37,14 +35,14 @@ test("every reachable settings page opens and key preferences persist", async ({
     await expect(page.getByText(heading, { exact: true }).first()).toBeVisible();
   }
 
-  await page.getByRole("button", { name: "Switch theme", exact: true }).click();
+  await page.getByRole("button", { name: "Personalization", exact: true }).click();
   await page.getByRole("button", { name: "Dark", exact: true }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await page.getByRole("button", { name: "Language", exact: true }).click();
+  await page.getByRole("button", { name: "Personalization", exact: true }).click();
   await page.getByRole("button", { name: "Chinese", exact: true }).click();
   await expect(page.getByRole("heading", { name: "语言", exact: true })).toBeVisible();
   await page.reload();

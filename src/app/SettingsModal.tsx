@@ -10,7 +10,6 @@ import {
   Globe2,
   Info,
   Keyboard,
-  Palette,
   Puzzle,
   ShieldCheck,
   ServerCog,
@@ -55,12 +54,6 @@ const MemorySettings = lazy(() =>
 const KnowledgeSettings = lazy(() =>
   import("./KnowledgeSettings").then((m) => ({ default: m.KnowledgeSettings })),
 );
-const ThemeSettings = lazy(() =>
-  import("./ThemeSettings").then((m) => ({ default: m.ThemeSettings })),
-);
-const LanguageSettings = lazy(() =>
-  import("./LanguageSettings").then((m) => ({ default: m.LanguageSettings })),
-);
 const ProviderSettings = lazy(() =>
   import("./ProviderSettings").then((m) => ({ default: m.ProviderSettings })),
 );
@@ -92,14 +85,11 @@ const SETTINGS_GROUPS: Array<{ labelKey: string; items: SettingsNavItem[] }> = [
     labelKey: "settings.groups.account",
     items: [
       { tab: "providers", labelKey: "settings.providers", icon: ServerCog },
-      { tab: "users", labelKey: "settings.users", icon: UserRound },
       {
         tab: "personalization",
         labelKey: "settings.personalization",
         icon: SlidersHorizontal,
       },
-      { tab: "theme", labelKey: "settings.theme", icon: Palette },
-      { tab: "language", labelKey: "settings.language", icon: Globe2 },
     ],
   },
   {
@@ -107,8 +97,6 @@ const SETTINGS_GROUPS: Array<{ labelKey: string; items: SettingsNavItem[] }> = [
     items: [
       { tab: "skills", labelKey: "settings.skills", icon: Braces },
       { tab: "mcp", labelKey: "settings.mcp", icon: Boxes },
-      { tab: "plugins", labelKey: "settings.plugins", icon: Puzzle },
-      { tab: "browser", labelKey: "settings.browser", icon: Globe2 },
       { tab: "memory", labelKey: "memory.title", icon: Brain },
       { tab: "knowledge", labelKey: "settings.knowledge", icon: Database },
     ],
@@ -121,6 +109,18 @@ const SETTINGS_GROUPS: Array<{ labelKey: string; items: SettingsNavItem[] }> = [
       { tab: "privacy", labelKey: "settings.privacy", icon: ShieldCheck },
       { tab: "diagnostics", labelKey: "settings.diagnostics", icon: Stethoscope },
       { tab: "about", labelKey: "settings.about", icon: Info },
+    ],
+  },
+  {
+    // Information-architecture declutter, not feature freezing: multi-user,
+    // plugins, and the embedded browser are delivered capabilities — they
+    // live at the tail of the nav so first-run attention stays on the core
+    // Agent path (§54 extended surfaces).
+    labelKey: "settings.groups.extended",
+    items: [
+      { tab: "users", labelKey: "settings.users", icon: UserRound },
+      { tab: "plugins", labelKey: "settings.plugins", icon: Puzzle },
+      { tab: "browser", labelKey: "settings.browser", icon: Globe2 },
     ],
   },
 ];
@@ -341,8 +341,6 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
                   </SettingsPage>
                 )}
                 {effectiveActiveTab === "about" && <AboutSettings />}
-                {effectiveActiveTab === "theme" && <ThemeSettings />}
-                {effectiveActiveTab === "language" && <LanguageSettings />}
                 {effectiveActiveTab === "memory" && (
                   <MemorySettings
                     conversationId={currentConversationId}
