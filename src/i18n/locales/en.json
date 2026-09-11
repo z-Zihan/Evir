@@ -374,8 +374,9 @@
       "url": "Enter a complete, valid URL"
     },
     "tiers": {
-      "agent-verified": "Agent Verified: latest full-suite (20-task) real-endpoint Golden Agent Tasks passed (model-level evidence)",
-      "smoke-verified": "Smoke Verified: latest real-endpoint eval passed at 10-task smoke scale, not the full suite yet",
+      "agent-verified": "Agent Verified: latest full-suite (20-task) real-endpoint Golden Agent Tasks passed at ≥90% with zero unauthorized/out-of-scope (model-level evidence)",
+      "smoke-verified": "Smoke Verified: latest real-endpoint eval passed at 10-task smoke scale (≥90%), not the full suite yet",
+      "eval-candidate": "Eval Candidate: latest real eval qualified (≥80%, zero unauthorized/out-of-scope) but is below the ≥90% verified bar",
       "needs-revalidation": "Needs Revalidation: passed historically, but the latest real eval regressed",
       "protocol-verified": "Protocol Verified: streaming + tool-call protocol covered by automated tests",
       "preset": "Preset: configuration template, no agent-level evidence"

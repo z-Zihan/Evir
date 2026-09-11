@@ -56,14 +56,15 @@ Desktop 侧栏分为 **PROJECTS** 和 **CHATS** 两区。一个 Project 对应�
 
 “能聊天 ≠ 能工具调用 ≠ 能稳定跑完 Project Agent 任务”。分级是**模型级**的：证据按 provider + 具体 modelId + 端点归属记录（`src/core/providers/provider-validation.json`），**跨模型、跨端点不借证据**；每次真实评估（无论通过与否）都进历史，**当前档位由该模型最新一次真实评估决定**——新失败会覆盖旧通过（Needs Revalidation）。设置页、下表与验证数据由 `scripts/check-doc-facts.mjs` 门禁保持同源一致。
 
-| 分级                  | 含义                                                     | 厂商                                                                                      |
-| --------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| **Agent Verified**    | 最新一次全量（20 任务）真实端点 Golden Agent Tasks 通过  | 智谱 BigModel / GLM                                                                       |
-| **Smoke Verified**    | 最新一次真实端点评估为 10 任务冒烟规模通过，尚未全量验证 | 暂无                                                                                      |
-| **Protocol Verified** | 流式 + 工具调用协议有自动化覆盖                          | OpenAI、Anthropic、Google Gemini API、Microsoft Azure OpenAI、Ollama、智谱 BigModel / GLM |
-| **Preset**            | 配置模板，无 Agent 级验证                                | 其余 30 家内置预设                                                                        |
+| 分级                  | 含义                                                                   | 厂商 / 模型                                                                               |
+| --------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| **Agent Verified**    | 最新一次全量（20 任务）真实端点评估通过率 ≥90%，且 0 越权、0 越界      | 暂无                                                                                      |
+| **Eval Candidate**    | 最新一次真实评估达标（≥80%、0 越权/0 越界），但未到 ≥90% Verified 门槛 | 智谱 BigModel / GLM · evomap-deepseek-v4-flash（EvoMap 网关，DeepSeek 系）                |
+| **Smoke Verified**    | 最新一次真实端点评估为 10 任务冒烟规模通过（≥90%），尚未全量验证       | 暂无                                                                                      |
+| **Protocol Verified** | 流式 + 工具调用协议有自动化覆盖                                        | OpenAI、Anthropic、Google Gemini API、Microsoft Azure OpenAI、Ollama、智谱 BigModel / GLM |
+| **Preset**            | 配置模板，无 Agent 级验证                                              | 其余 30 家内置预设                                                                        |
 
-当前唯一模型级 Agent Verified 证据：智谱 preset 下的 `evomap-deepseek-v4-flash`（DeepSeek 系模型，经 EvoMap 第三方网关、`openai-compatible-chat` 协议接入）于 2026-09-09 以全量 20 任务 required suite 真实跑 Golden Agent Tasks，16/20 通过（0.8）、工具成功率 0.891、0 越权、0 越界。完整历史（同日早些时候一次 17/20 但含 2 处越界 → 如实记为 partial，不被后续 pass 掩盖）见 `src/core/providers/provider-validation.json`。**该证据只属于这个模型**——不代表 GLM 系模型（模型间证据不互借）；GLM 系模型目前为 Protocol Verified，待各自全量真实评估后按最新结果定档。历史手工真机 QA 记录另见 [Release Readiness](docs/release-readiness.md)。
+当前唯一模型级实测证据：智谱 preset 下的 `evomap-deepseek-v4-flash`（DeepSeek 系模型，经 EvoMap 第三方网关、`openai-compatible-chat` 协议接入）于 2026-09-09 以全量 20 任务 required suite 真实跑 Golden Agent Tasks，16/20 通过（0.8）、工具成功率 0.891、0 越权、0 越界——按 2026-09-11 复审的 ≥90% Agent Verified 门槛，该模型当前为 **Eval Candidate**，尚无模型达到 Agent Verified。完整历史（同日早些时候一次 17/20 但含 2 处越界 → 如实记为 partial，不被后续 pass 掩盖）见 `src/core/providers/provider-validation.json`。**该证据只属于这个模型 + 这个端点**——不代表 GLM 系模型，也不代表智谱官方端点（模型间、端点间证据不互借）；GLM 系模型目前为 Protocol Verified，待各自全量真实评估后按最新结果定档。历史手工真机 QA 记录另见 [Release Readiness](docs/release-readiness.md)。
 
 Provider、协议、模型能力三层分离：已实现 7 种协议适配器（OpenAI Chat Completions / Responses、Anthropic Messages、Gemini、Azure OpenAI、Ollama 原生、OpenAI-compatible），支持自定义兼容端点。API Key 存本地加密 vault（AES-256-GCM），密钥永远不进日志。
 
@@ -118,13 +119,16 @@ Provider 配置       → 版本化非敏感本地文件
 ## 质量与验证
 
 - **确定性测试**：`pnpm check`（format + lint + strict TS + 全部单测 + Rust 测试 + 发布校验）+ E2E / UI / 视觉 / 无障碍矩阵。当前基线数字以 [Release Readiness](docs/release-readiness.md) 为唯一事实源，不在 README 里复制会漂移的数字。
-- **Agent Eval**：20 个 Golden Agent Tasks 跑在冻结 fixture 仓库上（`pnpm test:agent-eval`），指标含成功率、越权操作（必须为 0）、越界修改（必须为 0）、恢复、证据。真实 Provider 档已实跑（GLM 经 EvoMap 网关 10 任务 9 过 / 20 任务 18 过，见 [eval/README](eval/README.md)）。
+- **Harness 安全/运行时 Eval（确定性）**：20 个 Golden Agent Tasks 跑在冻结 fixture 仓库上（`pnpm test:agent-eval`），脚本化模型 + 真实执行栈，覆盖权限边界、越权操作（必须为 0）、越界修改（必须为 0）、停止、恢复与证据门；当前 20/20，进 CI。
+- **真实模型 Eval（模型级、端点感知、最新一次定档）**：同一套任务对真实端点实跑，每次结果（pass/fail/partial）都进 `provider-validation.json` 历史，最新一次决定档位；10 任务冒烟规模最高只能获得 Smoke Verified，不冒充全量验证。当前成绩见上方分级表（EvoMap 网关 `evomap-deepseek-v4-flash` 全量 16/20 → Eval Candidate），详见 [eval/README](eval/README.md)。
 - **多场景 Eval**：数据 / 网页 / 文档 / 自动化黄金任务（`pnpm test:multi-scenario`，另有真实档）；**知识库 Eval**：`pnpm test:knowledge-eval`。
 - 性能预算与实测数字以 [最近一次基准](docs/benchmarks/latest.json) 为准（Web 初始 JS gzip ≤ 350 KiB、桌面前端 ≤ 15 MiB、冷启动 P50 < 2s）。
 
 ## 当前状态
 
-Evir 仍在积极开发中，**尚未发布**（无 LICENSE 文件，见下方说明）。核心链路（聊天、Agent 工具与审批、Plan/Goal、权限档位、快照回滚、MCP 连接、日志与诊断导出）已实现。**逐项验证状态（含 NOT RUN / BLOCKED 清单）以 [Release Readiness](docs/release-readiness.md) 为准**：Windows、30–60 分钟长任务、升级/降级等尚未验证。安装包默认 ad-hoc 签名（可正常运行）；Developer ID 签名/公证为可选增强。
+Evir 仍在积极开发中，**尚未发布**（无 LICENSE 文件，见下方说明）。核心链路（聊天、Agent 工具与审批、Plan/Goal、权限档位、快照回滚、MCP 连接、日志与诊断导出）已实现。**逐项验证状态（含 NOT RUN / BLOCKED 清单）以 [Release Readiness](docs/release-readiness.md) 为准**：Windows 真机、外部 MCP 真服务器等尚未验证；升级/降级已有 5+ 次 DMG 覆盖安装的 PASS 记录；30–60 分钟长任务已有真实样本（含中断+续跑 PASS 与如实拒绝的 FAIL），但**仍未取得单次连续 ≥30 分钟 PASS**。
+
+> **安装说明（如实）**：当前 macOS 安装包使用 ad-hoc 签名、未公证。macOS Gatekeeper 可能阻止直接打开——需要在系统设置 → 隐私与安全性 中手动允许（或右键 → 打开）。本项目当前不提供正式 Windows 安装包。
 
 ## 本地开发
 

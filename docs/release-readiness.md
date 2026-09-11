@@ -108,15 +108,16 @@
 
 ## Provider 成熟度分级（证据驱动，模型级）
 
-分级唯一来源：`src/core/providers/provider-validation.json`（由真实 Provider Golden Tasks Eval 生成）+ `effectiveModelAgentTier`/`effectiveAgentTier`。证据按 **providerId + modelId + endpointClass** 记录，跨模型/跨端点不借；**每次真实 run（pass/fail/partial）都进历史，当前档位由该模型最新一次真实 run 决定**——新失败覆盖旧通过（Needs Revalidation），suite 版本过期同样强制重验。规模上限：20 任务全量达标 = Agent Verified，10 任务达标 = Smoke Verified。README/Settings/本表由 `scripts/check-doc-facts.mjs` 门禁保持一致。
+分级唯一来源：`src/core/providers/provider-validation.json`（由真实 Provider Golden Tasks Eval 生成）+ `effectiveModelAgentTier`/`effectiveAgentTier`（自 2026-09-11 起解析时**匹配连接端点**：official/gateway/self-hosted 证据互不借用）。证据按 **providerId + modelId + endpointClass** 记录，跨模型/跨端点不借；**每次真实 run（pass/fail/partial）都进历史，当前档位由该模型最新一次真实 run 决定**——新失败覆盖旧通过（Needs Revalidation），suite 版本过期同样强制重验。**2026-09-11 档位门槛复审（E2）**：Agent Verified / Smoke Verified 要求最新一次达标且通过率 ≥90%（0 越权/0 越界）；达标（≥80%、0 越权/0 越界）但 <90% 的新档位 **Eval Candidate**（实测候选）。10 任务冒烟规模永不等于全量验证。README/Settings/本表由 `scripts/check-doc-facts.mjs` 门禁保持一致。
 
-| 档                 | 当前厂商与模型                                                                                      | 依据                                                                                            |
-| ------------------ | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Agent Verified     | 智谱 preset · `evomap-deepseek-v4-flash`（EvoMap 网关，DeepSeek 系，2026-09-09 全量 20 任务 16/20） | 20 任务 required suite 最新一次达标（0 越权/0 越界）；**不代表 GLM 系模型**（模型级证据不互借） |
-| Smoke Verified     | 暂无（同日 17/20 含 2 越界的一次已如实记 partial 进历史）                                           | 10 任务冒烟规模达标档；当前无持有者                                                             |
-| Needs Revalidation | 暂无（该档在最新真实 run 回归或 suite 升版时自动出现）                                              | 历史曾达标 + 最新回归 → 需重验                                                                  |
-| Protocol Verified  | GLM（智谱）、OpenAI、Anthropic、Google Gemini、Azure OpenAI、Ollama                                 | 协议适配器自动化覆盖；GLM 历史手工真机 QA 见 §真实 Provider 段                                  |
-| Preset             | 其余 30 家                                                                                          | 配置模板                                                                                        |
+| 档                 | 当前厂商与模型                                                                                      | 依据                                                                          |
+| ------------------ | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Agent Verified     | 暂无（16/20=0.8 未到 ≥90% 门槛）                                                                    | 20 任务全量 + ≥90% + 0 越权/0 越界；**不代表 GLM 系模型**（模型级证据不互借） |
+| Eval Candidate     | 智谱 preset · `evomap-deepseek-v4-flash`（EvoMap 网关，DeepSeek 系，2026-09-09 全量 20 任务 16/20） | 最新一次达标（0.8、0 越权/0 越界）但 <90% Verified 门槛                       |
+| Smoke Verified     | 暂无（同日 17/20 含 2 越界的一次已如实记 partial 进历史）                                           | 10 任务冒烟规模且 ≥90% 达标档；当前无持有者                                   |
+| Needs Revalidation | 暂无（该档在最新真实 run 回归或 suite 升版时自动出现）                                              | 历史曾达标 + 最新回归 → 需重验                                                |
+| Protocol Verified  | GLM（智谱）、OpenAI、Anthropic、Google Gemini、Azure OpenAI、Ollama                                 | 协议适配器自动化覆盖；GLM 历史手工真机 QA 见 §真实 Provider 段                |
+| Preset             | 其余 30 家                                                                                          | 配置模板                                                                      |
 
 ## 缺陷修复（RC Final + Full Regression，全部带回归测试）
 
@@ -162,3 +163,13 @@
 6. 外部 MCP 与 Agent 会话内 MCP Tool 调用未执行；本地 stdio 设置/Runtime 证据不能替代它们。
 7. Desktop 目录在当前自动化上下文缺 TCC 权限；不能将其他目录测试冒充该路径通过。
 8. VS Code Marketplace publisher 与 CLI npm 发布通道未配置。
+
+## 2026-09-11 Final Polish 轮（本轮追加记录）
+
+不新增评审文档（E5）；本轮事实只追加在此。
+
+- **档位门槛复审（E2）**：Agent Verified / Smoke Verified 提高到最新一次真实评估 ≥90%（0 越权/0 越界）；新增 Eval Candidate（≥80% 且 0/0、<90%）。当前唯一实测模型 `evomap-deepseek-v4-flash`（16/20）由 Agent Verified 改判 **Eval Candidate**；resolveModelTier 解析现按连接端点（official/gateway/self-hosted）过滤证据。README/Settings/本表由更新后的 `check-doc-facts.mjs` 门禁保持一致（含 A2.1 长任务措辞规则）。
+- **README 事实修正（A2/A3/A4/E1）**：删除 "GLM 经 EvoMap 网关 18/20" 误标（真实为 DeepSeek 系模型 16/20，18/20 出处为含 3 越界的未入史 run）；Harness Eval 与 Real Model Eval 分行展示；长任务措辞与 readiness 对齐（已有真实样本、仍未取得单次连续 ≥30 分钟 PASS）；升级/降级不再列为未验证（本表已有 PASS 记录）；安装说明如实（ad-hoc 未公证、Gatekeeper 手动允许、无正式 Windows 安装包）。
+- **主路径体验修复**：权限引导改为 Composer 上方横幅、X 仅推迟（B1）；项目线程默认打开 Workbench-Changes、显式关闭按项目记忆（B2，<1440px 抽屉形态除外）；工具行以 path+diffstat/命令+exit code 为主字段、L1 成功降噪（B3）；Header 不再重复模型名、运行中 Header 常显 Stop（B4）；Settings 导航降噪（Theme/Language 并入 Personalization、Extended 尾组）；单用户底栏仅 Settings。
+- **Correctness**：Ask 档支持行内 "Allow this tool in this project" 范围授权（含审计、换 profile 即失效）（C1）；GUI-PATH 回归门 + 命令未找到可操作提示 + Preview 检测失败与无脚本文案分离（C2）；dev_server IPC 超时缓解 + list 重试（G 缓解，安装版真人复验记录见下）；Knowledge serving/indexing 双轴拆分、重建期间与失败后旧索引仍可检索（F）；Plan/Goal 自然结束但工作未完时有界 continuation（含 no-progress 停止与追踪事件）（H）。
+- **既有失败如实记录**：`e2e/comprehensive-qa.spec.ts` 存在 12 个与本轮无关的预存失败（参考基线 d0c1f45 同样 12 失败/11 通过，Send disabled 模式），不在任何门禁套件内；留待后续专项排查。

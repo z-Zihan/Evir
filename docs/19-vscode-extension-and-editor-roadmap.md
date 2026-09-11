@@ -160,4 +160,4 @@ pnpm package:vscode
 - [ ] Marketplace/Open VSX 的许可证、Publisher、隐私、素材和安装升级验收。
 - [ ] VSCodium/Cursor/Windsurf 至少完成安装和 Ask；未验证前只描述为“可能兼容”。
 
-产品与 UI 专项评审见 `docs/reviews/vscode-cli-product-ui-review.md`。
+产品与 UI 专项评审见 `docs/archive/reviews/vscode-cli-product-ui-review.md`（历史快照）。

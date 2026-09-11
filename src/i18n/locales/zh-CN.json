@@ -373,8 +373,9 @@
       "url": "请输入完整有效的 URL"
     },
     "tiers": {
-      "agent-verified": "Agent Verified：最新一次全量（20 任务）真实端点 Golden Agent Tasks 通过（模型级证据）",
-      "smoke-verified": "Smoke Verified：最新一次真实端点评估为 10 任务冒烟规模通过，尚未全量验证",
+      "agent-verified": "Agent Verified：最新一次全量（20 任务）真实端点 Golden Agent Tasks 通过（≥90%、0 越权/0 越界，模型级证据）",
+      "smoke-verified": "Smoke Verified：最新一次真实端点评估为 10 任务冒烟规模通过（≥90%），尚未全量验证",
+      "eval-candidate": "Eval Candidate：最新一次真实评估达标（≥80%、0 越权/0 越界），但未到 ≥90% 的 Verified 门槛",
       "needs-revalidation": "Needs Revalidation：历史曾通过，但最新真实评估出现回归，需重新验证",
       "protocol-verified": "Protocol Verified：流式与工具调用协议有自动化覆盖",
       "preset": "Preset：配置模板，无 Agent 级验证"

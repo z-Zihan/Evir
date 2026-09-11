@@ -217,4 +217,4 @@ pnpm --dir packages/cli pack:check
 - [ ] macOS/Windows/Linux 的真实 Keyring、安装/升级/卸载验收。
 - [ ] 真实 Provider、网络异常、超时、停止和长任务验收。
 
-专项产品与 UI 评审见 `docs/reviews/vscode-cli-product-ui-review.md`。
+专项产品与 UI 评审见 `docs/archive/reviews/vscode-cli-product-ui-review.md`（历史快照）。

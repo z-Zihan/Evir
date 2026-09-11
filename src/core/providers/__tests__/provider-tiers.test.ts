@@ -14,6 +14,7 @@ import {
   entryQualifies,
   latestModelEval,
   modelValidationHistory,
+  connectionEndpointClass,
   resolveModelTier,
   verifiedModelsForProvider,
   type ProviderValidationEntry,
@@ -77,10 +78,11 @@ describe("shipped validation data integrity", () => {
   it("the shipped evidence carries the gateway endpoint and its real scale", () => {
     const models = verifiedModelsForProvider("zhipu");
     const deepseek = models.find((model) => model.modelId === "evomap-deepseek-v4-flash");
-    // 2026-09-09: the full 20-task required suite passed (16/20, all gates)
-    // — the latest run legitimately holds agent-verified, and the same-day
-    // partial stays in history (see modelValidationHistory below).
-    expect(deepseek?.tier).toBe("agent-verified");
+    // 2026-09-09: the full 20-task required suite passed 16/20 (0.8, all
+    // gates) — under the >=90% verified bar (E2 review) that latest run
+    // holds eval-candidate, not agent-verified; the same-day partial stays
+    // in history (see modelValidationHistory below).
+    expect(deepseek?.tier).toBe("eval-candidate");
     expect(deepseek?.endpointClass).toBe("gateway");
     expect(deepseek?.taskCount).toBe(20);
     const history = modelValidationHistory("zhipu", "evomap-deepseek-v4-flash");
@@ -119,7 +121,7 @@ describe("model-level evidence (no cross-model borrowing, §8)", () => {
 
   it("model match is case-insensitive but exact — no family wildcards", () => {
     expect(effectiveModelAgentTier(zhipuPreset(), "EVOMAP-DeepSeek-V4-Flash")).toBe(
-      "agent-verified",
+      "eval-candidate",
     );
     expect(effectiveModelAgentTier(zhipuPreset(), "evomap-deepseek-v4")).toBe("protocol-verified");
   });
@@ -192,7 +194,7 @@ describe("suite scale separates agent-verified from smoke (§60)", () => {
   });
 
   it("provider rollup reflects the strongest verified model", () => {
-    expect(effectiveAgentTier(zhipuPreset())).toBe("agent-verified"); // today: gateway deepseek, full 20-task suite
+    expect(effectiveAgentTier(zhipuPreset())).toBe("eval-candidate"); // today: gateway deepseek, 16/20 (0.8)
   });
 
   it("verifiedModelsForProvider lists per-model tiers from a given history", () => {
@@ -227,5 +229,46 @@ describe("history is append-only but bounded (§11 + file hygiene)", () => {
     const file2 = { version: 2 as const, entries: [untouched] };
     capModelHistory(file2, "zhipu", "glm-5.3");
     expect(file2.entries).toEqual([untouched]);
+  });
+});
+describe("verified bar and endpoint scoping (E2/A4.2)", () => {
+  it("a qualifying 0.8 run earns eval-candidate, 0.9+ earns the verified tier", () => {
+    expect(
+      resolveModelTier(zhipuPreset(), "glm-5.3", [
+        entry({ passed: 16, failed: 4, successRate: 0.8 }),
+      ]),
+    ).toBe("eval-candidate");
+    expect(
+      resolveModelTier(zhipuPreset(), "glm-5.3", [
+        entry({ passed: 18, failed: 2, successRate: 0.9 }),
+      ]),
+    ).toBe("agent-verified");
+    expect(
+      resolveModelTier(zhipuPreset(), "glm-5.3", [
+        entry({ taskCount: SMOKE_VERIFIED_MIN_TASKS, passed: 9, failed: 1, successRate: 0.9 }),
+      ]),
+    ).toBe("smoke-verified");
+  });
+
+  it("evidence never crosses endpoint classes for the same model", () => {
+    const gatewayHistory = modelValidationHistory("zhipu", "evomap-deepseek-v4-flash");
+    // The shipped gateway evidence cannot verify an OFFICIAL zhipu endpoint.
+    expect(effectiveModelAgentTier(zhipuPreset(), "evomap-deepseek-v4-flash", "official")).toBe(
+      "protocol-verified",
+    );
+    expect(effectiveModelAgentTier(zhipuPreset(), "evomap-deepseek-v4-flash", "gateway")).toBe(
+      "eval-candidate",
+    );
+    void gatewayHistory;
+  });
+
+  it("connectionEndpointClass classifies hosts honestly", () => {
+    const preset = zhipuPreset();
+    expect(connectionEndpointClass(preset, "https://open.bigmodel.cn/api/paas/v4")).toBe(
+      "official",
+    );
+    expect(connectionEndpointClass(preset, "https://api.evomap.ai/v1")).toBe("gateway");
+    expect(connectionEndpointClass(preset, "http://localhost:11434/v1")).toBe("self-hosted");
+    expect(connectionEndpointClass(preset, null)).toBe("official");
   });
 });

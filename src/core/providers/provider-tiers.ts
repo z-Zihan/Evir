@@ -63,6 +63,13 @@ export const REQUIRED_SUITE_VERSION = "agent-eval-v1";
 /** Gates an eval entry must clear to qualify at any scale (§14). */
 export const EVAL_MIN_SUCCESS_RATE = 0.8;
 export const EVAL_MIN_TOOL_CALL_SUCCESS = 0.8;
+/**
+ * The VERIFIED bar (E2 tier review): "Agent Verified" claims a model can
+ * actually run agent work — 4 failures in 20 tasks does not say that. A
+ * qualifying run in [0.8, 0.9) earns the honest middle tier
+ * "eval-candidate" (real eval passed, below the verified bar) instead.
+ */
+export const VERIFIED_MIN_SUCCESS_RATE = 0.9;
 
 /** Full required suite scale vs smoke scale (§60). */
 export const AGENT_VERIFIED_MIN_TASKS = 20;
@@ -119,6 +126,53 @@ export function isRequiredSuiteScale(entry: ProviderValidationEntry): boolean {
   return entry.taskCount >= AGENT_VERIFIED_MIN_TASKS;
 }
 
+/** A qualifying run that ALSO clears the >=90% verified bar. */
+export function entryMeetsVerifiedBar(entry: ProviderValidationEntry): boolean {
+  return entry.successRate >= VERIFIED_MIN_SUCCESS_RATE;
+}
+
+/**
+ * Endpoint class of a concrete connection (A4.2): evidence never crosses
+ * official/gateway/self-hosted. Host matching against the preset's official
+ * endpoints; loopback/private hosts are self-hosted; anything else is a
+ * third-party gateway.
+ */
+export function connectionEndpointClass(
+  preset: Pick<ProviderPreset, "endpoints">,
+  baseUrl: string | null | undefined,
+): EndpointClass {
+  if (!baseUrl) return "official";
+  let host: string;
+  try {
+    host = new URL(baseUrl).hostname.toLowerCase();
+  } catch {
+    return "official";
+  }
+  if (
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host === "::1" ||
+    host.endsWith(".local") ||
+    host.startsWith("10.") ||
+    host.startsWith("192.168.") ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(host)
+  ) {
+    return "self-hosted";
+  }
+  const officialHosts = new Set(
+    (preset.endpoints ?? [])
+      .map((endpoint) => {
+        try {
+          return new URL(endpoint.baseUrl).hostname.toLowerCase();
+        } catch {
+          return "";
+        }
+      })
+      .filter(Boolean),
+  );
+  return officialHosts.has(host) ? "official" : "gateway";
+}
+
 /** History for one provider+model (any outcome — FAILs are kept, §11). */
 export function modelValidationHistory(
   providerId: string,
@@ -146,10 +200,18 @@ export function resolveModelTier(
   preset: Pick<ProviderPreset, "id" | "agentTier">,
   modelId: string | null | undefined,
   history: readonly ProviderValidationEntry[],
+  endpointClass?: EndpointClass,
 ): ProviderAgentTier {
   if (!modelId) return preset.agentTier;
   const sorted = sortLatestFirst(
-    history.filter((entry) => entry.providerId === preset.id && sameModel(entry.modelId, modelId)),
+    history.filter(
+      (entry) =>
+        entry.providerId === preset.id &&
+        sameModel(entry.modelId, modelId) &&
+        // Evidence is endpoint-scoped (A4.2): an official-endpoint entry
+        // never verifies the same modelId through a gateway, or vice versa.
+        (endpointClass === undefined || entry.endpointClass === endpointClass),
+    ),
   );
   const latest = sorted[0];
   if (!latest) return preset.agentTier;
@@ -165,7 +227,11 @@ export function resolveModelTier(
       // Qualifying run on an outdated suite version: honest middle state.
       return everQualified ? "needs-revalidation" : preset.agentTier;
     }
-    return isRequiredSuiteScale(latest) ? "agent-verified" : "smoke-verified";
+    if (entryMeetsVerifiedBar(latest)) {
+      return isRequiredSuiteScale(latest) ? "agent-verified" : "smoke-verified";
+    }
+    // Qualifying real eval below the >=90% verified bar: honest middle tier.
+    return "eval-candidate";
   }
   // Latest required real eval regressed (fail/partial or below gates).
   if (suiteCurrent || everQualified) return "needs-revalidation";
@@ -175,13 +241,14 @@ export function resolveModelTier(
 export function effectiveModelAgentTier(
   preset: Pick<ProviderPreset, "id" | "agentTier">,
   modelId: string | null | undefined,
+  endpointClass?: EndpointClass,
 ): ProviderAgentTier {
-  return resolveModelTier(preset, modelId, entries);
+  return resolveModelTier(preset, modelId, entries, endpointClass);
 }
 
 export interface VerifiedModelSummary {
   modelId: string;
-  tier: Extract<ProviderAgentTier, "agent-verified" | "smoke-verified">;
+  tier: Extract<ProviderAgentTier, "agent-verified" | "smoke-verified" | "eval-candidate">;
   testedAt: string;
   endpointClass: EndpointClass;
   endpointHostClass?: string;
@@ -215,7 +282,11 @@ export function verifiedModelsForProvider(
     }
     summaries.push({
       modelId: latest.modelId,
-      tier: isRequiredSuiteScale(latest) ? "agent-verified" : "smoke-verified",
+      tier: entryMeetsVerifiedBar(latest)
+        ? isRequiredSuiteScale(latest)
+          ? "agent-verified"
+          : "smoke-verified"
+        : "eval-candidate",
       testedAt: latest.testedAt,
       endpointClass: latest.endpointClass,
       ...(latest.endpointHostClass ? { endpointHostClass: latest.endpointHostClass } : {}),
@@ -235,7 +306,8 @@ export function effectiveAgentTier(
 ): ProviderAgentTier {
   const verified = verifiedModelsForProvider(preset.id);
   if (verified.some((model) => model.tier === "agent-verified")) return "agent-verified";
-  if (verified.length > 0) return "smoke-verified";
+  if (verified.some((model) => model.tier === "smoke-verified")) return "smoke-verified";
+  if (verified.length > 0) return "eval-candidate";
   return preset.agentTier;
 }
 

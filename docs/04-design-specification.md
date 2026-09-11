@@ -194,7 +194,7 @@ Next: retry, fix configuration, inspect diff, or rerun
 - 宿主平台约定优先：Desktop 使用 Evir Token，VS Code 使用 Workbench Token，CLI 使用终端能力；不追求像素级同形。
 - 同一风险操作在各产品面都必须提供相同事实：做什么、在哪里、为什么、影响、是否可撤销。
 - 未实时验证的连接或能力不得显示为“已连接”“支持”；应标为“用户声明”“未验证”或“测试失败”。
-- 评审基线和当前缺口见 `docs/reviews/vscode-cli-product-ui-review.md`。
+- 评审基线和当前缺口见 `docs/archive/reviews/vscode-cli-product-ui-review.md`（历史快照）。
 
 ## 14. 设置、帮助与高级能力的复杂度控制
 

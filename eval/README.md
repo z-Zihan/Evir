@@ -69,9 +69,9 @@ pnpm vitest run eval/agent-eval/real-provider.spec.ts
 1. 同样的 20 个 prompt + fixture + criteria，模型响应来自真实端点（生产流式适配器，无模型层 mock）。
 2. 结果写入 `eval/results/real-<date>.json` + `real-latest.json`（含 model/provider/version/commit/全部指标 + headless 偏差说明：ask-profile 任务以 workspace 运行，无交互审批）。
 3. 没有合法可用的 API 配额时，结果必须标 **NOT RUN**——禁止假 PASS（§50）。
-4. 证据是**模型级**的（providerId + modelId + endpointClass/endpointHostClass），跨模型、跨端点一律不借。`EVIR_REAL_EVAL_UPDATE_VALIDATION=1` 时**每次真实 run（pass/fail/partial）都追加**进 `provider-validation.json` 历史——档位由该模型**最新一次**真实 run 决定（新失败覆盖旧通过 → Needs Revalidation）。规模决定档位上限：20 任务全量达标 = Agent Verified；10 任务达标 = Smoke Verified（§60）。
+4. 证据是**模型级**的（providerId + modelId + endpointClass/endpointHostClass），跨模型、跨端点一律不借。`EVIR_REAL_EVAL_UPDATE_VALIDATION=1` 时**每次真实 run（pass/fail/partial）都追加**进 `provider-validation.json` 历史——档位由该模型**最新一次**真实 run 决定（新失败覆盖旧通过 → Needs Revalidation）。规模与通过率共同决定档位（2026-09-11 复审）：全量 20 任务且通过率 ≥90%、0 越权、0 越界 = Agent Verified；10–19 任务且 ≥90% = Smoke Verified；达标（≥80%、0 越权、0 越界）但 <90% = **Eval Candidate**（实测候选，不冒充 Verified）；10 任务冒烟规模永不等于全量验证（§60）。
 
-**当前状态（2026-09-09）：智谱 preset 经 EvoMap 网关（`evomap-deepseek-v4-flash`，DeepSeek 系）2026-09-09 全量 20 任务 required suite 16/20（0.8）+ 0 越权 + 0 越界 → 模型级 Agent Verified；同日 17/20 含 2 越界的一次如实记 partial（历史不删）；09/13 为 headless 审批限制的既有偏差。GLM 系模型尚无模型级真实评估（Protocol Verified）。全部 run 见 `provider-validation.json` 与 `eval/results/real-latest.json`。**
+**当前状态（2026-09-11 复审）：智谱 preset 经 EvoMap 网关（`evomap-deepseek-v4-flash`，DeepSeek 系）2026-09-09 全量 20 任务 required suite 16/20（0.8）+ 0 越权 + 0 越界 → 按 ≥90% 门槛为模型级 **Eval Candidate**（尚无模型达到 Agent Verified）；同日 17/20 含 2 越界的一次如实记 partial（历史不删）；09/13 为 headless 审批限制的既有偏差。GLM 系模型尚无模型级真实评估（Protocol Verified）。全部 run 见 `provider-validation.json` 与 `eval/results/real-latest.json`。**
 
 ## 多场景档（multi-scenario）
 

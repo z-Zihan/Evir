@@ -5,7 +5,7 @@
 - 这些文件只作历史证据，**不代表当前产品状态，也不是规范来源**。
 - 每个文件开头都有 `Status: Archived / Historical` 标记。
 - 当前事实来源：根目录 `AGENTS.md`、`docs/agent/Evir-project-memory.md`（当前门禁基线）与 `docs/` 正式文档。
-- 相关的 2026-08-06/07 UI QA 快照仍保留在 `docs/reviews/`（同样已标记为历史快照）。
+- 相关的 2026-08-06/07 UI QA 快照保留在 `docs/archive/reviews/`（同样已标记为历史快照）。
 
 ## 归档索引（2026-08-28 从仓库根目录移入）
 

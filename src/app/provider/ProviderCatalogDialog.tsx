@@ -134,7 +134,9 @@ export function ProviderCatalogDialog({
                           ? "bg-success/15 text-success"
                           : tier === "needs-revalidation"
                             ? "bg-warning/15 text-warning"
-                            : "bg-primary/12 text-primary"
+                            : tier === "eval-candidate"
+                              ? "bg-primary/12 text-primary"
+                              : "bg-primary/12 text-primary"
                       }`}
                       title={
                         verifiedModels.length > 0
@@ -151,9 +153,11 @@ export function ProviderCatalogDialog({
                         ? "Agent"
                         : tier === "smoke-verified"
                           ? "Smoke"
-                          : tier === "needs-revalidation"
-                            ? "Revalidate"
-                            : "Protocol"}
+                          : tier === "eval-candidate"
+                            ? "Candidate"
+                            : tier === "needs-revalidation"
+                              ? "Revalidate"
+                              : "Protocol"}
                     </span>
                   )}
                 </strong>

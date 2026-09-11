@@ -59,7 +59,12 @@ export interface ProviderEndpointPreset {
  * provider "zhipu" + model "deepseek-x" cannot verify "glm-4.7" (§69).
  */
 export type ProviderAgentTier =
-  "agent-verified" | "smoke-verified" | "needs-revalidation" | "protocol-verified" | "preset";
+  | "agent-verified"
+  | "smoke-verified"
+  | "eval-candidate"
+  | "needs-revalidation"
+  | "protocol-verified"
+  | "preset";
 
 export interface ProviderPreset {
   id: string;
