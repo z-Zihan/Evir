@@ -1526,7 +1526,16 @@
       "remove": "移除",
       "removeConfirmTitle": "移除知识源「{{name}}」？",
       "removeConfirmBody": "仅删除索引与分块，不会删除你的原始文件。",
-      "refTypeHint": "MCP 源填已启用 server 的 id（资源需为文本型）；历史任务源填会话 id（产物文件需仍在磁盘且位于授权目录内）。"
+      "refTypeHint": "MCP 源填已启用 server 的 id（资源需为文本型）；历史任务源填会话 id（产物文件需仍在磁盘且位于授权目录内）。",
+      "state": {
+        "ready": "就绪",
+        "empty": "暂无索引",
+        "indexing": {
+          "indexing": "重建索引中",
+          "failed": "最近一次更新失败",
+          "idle": ""
+        }
+      }
     },
     "sourceAdded": "知识源已添加并索引",
     "reindexFailed": "索引失败",

@@ -1527,7 +1527,16 @@
       "remove": "Remove",
       "removeConfirmTitle": "Remove source \"{{name}}\"?",
       "removeConfirmBody": "Removes only the index and chunks — never your original files.",
-      "refTypeHint": "MCP sources take an enabled server id (text resources only); historical sources take a conversation id (output files must still exist under granted roots)."
+      "refTypeHint": "MCP sources take an enabled server id (text resources only); historical sources take a conversation id (output files must still exist under granted roots).",
+      "state": {
+        "ready": "Ready",
+        "empty": "No index",
+        "indexing": {
+          "indexing": "Reindexing",
+          "failed": "Last update failed",
+          "idle": ""
+        }
+      }
     },
     "sourceAdded": "Source added and indexed",
     "reindexFailed": "Indexing failed",
