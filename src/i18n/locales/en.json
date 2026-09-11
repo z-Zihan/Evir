@@ -206,6 +206,7 @@
       "remote-data-transfer": "Arguments and included local data are sent to the remote MCP server."
     },
     "approveOnce": "Allow once",
+    "approveInProject": "Allow this tool in this project",
     "inspectStep": "Inspect details",
     "denied": "Denied",
     "deniedMessage": "Tool execution denied by user",

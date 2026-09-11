@@ -69,6 +69,44 @@ describe("resolveExecutionPermission", () => {
     ).toMatchObject({ autoApproved: false, reason: "ask-profile" });
   });
 
+  it("a scoped tool grant auto-approves that tool's L2/L3 calls inside the roots", () => {
+    const granted = {
+      profile: "ask" as const,
+      roots: ROOTS,
+      grantedTools: new Set(["apply_patch"]),
+    };
+    expect(
+      resolveExecutionPermission(granted, "L3", "/projects/evir/a.txt", "apply_patch"),
+    ).toMatchObject({ autoApproved: true, reason: "scoped-grant" });
+    // No path to bound (e.g. run_command without an explicit cwd): granted.
+    expect(resolveExecutionPermission(granted, "L3", null, "apply_patch")).toMatchObject({
+      autoApproved: true,
+      reason: "scoped-grant",
+    });
+    // Other tools still ask.
+    expect(
+      resolveExecutionPermission(granted, "L3", "/projects/evir/a.txt", "write_file"),
+    ).toMatchObject({ autoApproved: false, reason: "ask-profile" });
+    // Outside the granted roots, the grant must not apply.
+    expect(
+      resolveExecutionPermission(granted, "L3", "/projects/other/a.txt", "apply_patch"),
+    ).toMatchObject({ autoApproved: false, reason: "ask-profile" });
+  });
+
+  it("a scoped grant never covers L4 and never bypasses workspace boundary refusals", () => {
+    const granted = { profile: "ask" as const, roots: ROOTS, grantedTools: new Set(["publish"]) };
+    expect(resolveExecutionPermission(granted, "L4", null, "publish").autoApproved).toBe(false);
+    const workspace = {
+      profile: "workspace" as const,
+      roots: ROOTS,
+      grantedTools: new Set(["write_file"]),
+    };
+    expect(resolveExecutionPermission(workspace, "L3", "/etc/hosts", "write_file")).toMatchObject({
+      autoApproved: false,
+      reason: "outside-roots",
+    });
+  });
+
   it("workspace auto-approves inside granted roots and asks outside", () => {
     expect(
       resolveExecutionPermission(

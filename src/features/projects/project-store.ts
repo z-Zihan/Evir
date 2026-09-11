@@ -5,6 +5,7 @@ import { getRuntime } from "../../runtime/use-runtime";
 import { notifyProjectRemoved } from "./project-events";
 import { logger } from "../../core/logging/logger";
 import { readProfileScoped, writeProfileScoped } from "../../core/profile/profile-scope";
+import { clearToolGrants } from "./tool-grants";
 
 // Profile-scoped (§53): each user's selected project follows their profile.
 const CURRENT_PROJECT_KEY = "evir-project-current";
@@ -246,6 +247,9 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     set((state) => ({
       projects: state.projects.map((item) => (item.id === projectId ? updated : item)),
     }));
+    // Changing the policy invalidates its scoped tool grants (§37b): the new
+    // profile's rules apply from scratch, grants are not carried over.
+    await clearToolGrants(projectId);
     logger.info("security", "project.permission-profile-changed", { projectId, profile });
   },
 

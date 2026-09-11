@@ -38,6 +38,7 @@ import { resolveWorkspacePath } from "../features/workspace/workspace-services";
 import { argumentDiffstat } from "../features/workspace/changes-model";
 import { useActiveWorkspaceRoot } from "../features/workspace/workspace-bridge";
 import { groupSummary, groupToolCalls, type ToolGroupKind } from "./agent-activity-groups";
+import type { PendingToolApproval } from "../features/chat/chat-contracts";
 
 interface AgentActivityProps {
   toolCalls: ToolCallRecord[];
@@ -45,6 +46,12 @@ interface AgentActivityProps {
   messageStatus: MessageRecord["status"];
   /** 连续相同失败重试被渲染层折叠时，附加到首条卡片的次数 */
   failedRetryCount?: number | undefined;
+}
+
+/** Scoped grants apply to project-bound L2/L3 tools only (§37b). */
+function canGrantScopedApproval(pending: PendingToolApproval | null): boolean {
+  if (!pending?.workspaceRoot) return false;
+  return pending.riskLevel === "L2" || pending.riskLevel === "L3";
 }
 
 function getArgumentSummary(call: ToolCallRecord): string {
@@ -157,6 +164,7 @@ export function AgentActivity({
       state.activeStreamConversationId === state.pendingToolApproval.conversationId,
   );
   const approveTool = useChatStore((state) => state.approveTool);
+  const approveToolInProject = useChatStore((state) => state.approveToolInProject);
   const denyTool = useChatStore((state) => state.denyTool);
   const pendingApproval = useChatStore((state) => state.pendingToolApproval);
   const openResource = useWorkspacePanelStore((state) => state.openResource);
@@ -474,6 +482,18 @@ export function AgentActivity({
             >
               {t("tools.approveOnce")}
             </ConfirmationAction>
+            {/* §37b: L2/L3 tools in a project thread offer a scoped grant —
+                "this tool, this project" — never a global always-allow. L4
+                keeps only deny/allow-once. */}
+            {canGrantScopedApproval(pendingApproval) && (
+              <ConfirmationAction
+                variant="outline"
+                disabled={isApprovalConversationStreaming}
+                onClick={() => void approveToolInProject()}
+              >
+                {t("tools.approveInProject")}
+              </ConfirmationAction>
+            )}
           </ConfirmationActions>
         </Confirmation>
       )}

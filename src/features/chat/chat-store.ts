@@ -9,7 +9,12 @@ import { streamResponse } from "./stream-response";
 import { getRuntime } from "../../runtime/use-runtime";
 import { branchConversation as doBranchConversation } from "./branch-conversation";
 import { onProjectRemoved } from "../projects/project-events";
-import { approveTool, cancelPendingToolApprovals, denyTool } from "./tool-approval";
+import {
+  approveTool,
+  approveToolInProject,
+  cancelPendingToolApprovals,
+  denyTool,
+} from "./tool-approval";
 import {
   bumpStreamEpoch,
   beginPreparation,
@@ -171,6 +176,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const pending = conversationId ? get().pendingApprovals?.[conversationId] : undefined;
     if (!pending) return;
     await approveTool(pending, set, get);
+  },
+  approveToolInProject: async () => {
+    const conversationId = get().currentConversationId;
+    const pending = conversationId ? get().pendingApprovals?.[conversationId] : undefined;
+    if (!pending) return;
+    await approveToolInProject(pending, set, get);
   },
   denyTool: async () => {
     const conversationId = get().currentConversationId;

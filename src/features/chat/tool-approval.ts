@@ -27,6 +27,7 @@ import {
   updateConversationStream,
 } from "./stream-ownership";
 import { permissionContextForRoot } from "../projects/run-permission";
+import { grantedToolsForRoot, grantToolInProject } from "../projects/tool-grants";
 import type { PermissionContext } from "../../core/security/permission-profiles";
 import {
   RISK_LEVELS,
@@ -45,6 +46,10 @@ export interface ApprovalRecord {
   nodeId: string;
   conversationId: string;
   status: "pending" | "approved" | "denied" | "cancelled";
+  /** How the approval was given: per-call, or a persisted per-project tool
+      grant (§37b) — recorded so the audit trail can explain why later calls
+      of the same tool did not prompt again. */
+  scope?: "once" | "project";
   toolCallId: string;
   toolName: string;
   args: Record<string, unknown>;
@@ -156,9 +161,11 @@ async function persistApprovalStatus(
   pending: PendingToolApproval,
   status: ApprovalRecord["status"],
   privateSession: boolean,
+  scope?: ApprovalRecord["scope"],
 ): Promise<void> {
   if (privateSession) return;
   const record = toApprovalRecord(pending, status);
+  if (scope) record.scope = scope;
   const previous = await getStructuredStorage().read<ApprovalRecord>("approvals", record.id);
   await getStructuredStorage().write("approvals", record.id, {
     ...record,
@@ -178,13 +185,21 @@ export async function cancelPendingToolApprovals(
   );
 }
 
-function approvalRuntime(baseRuntime: EvirRuntime, pending: PendingToolApproval): EvirRuntime {
+function approvalRuntime(
+  baseRuntime: EvirRuntime,
+  pending: PendingToolApproval,
+  contextOverride?: PermissionContext | null,
+): EvirRuntime {
   // Continuations keep the originating run's permission policy even when the
-  // user switched projects between the block and the approval click.
+  // user switched projects between the block and the approval click. A scoped
+  // grant (§37b) additionally arms the continuation's context so the rest of
+  // THIS run skips re-prompting for the granted tool.
   const permissionContext: PermissionContext | null | undefined =
-    pending.workspaceRoot !== undefined
-      ? permissionContextForRoot(pending.workspaceRoot)
-      : baseRuntime.permissionContext;
+    contextOverride !== undefined
+      ? contextOverride
+      : pending.workspaceRoot !== undefined
+        ? permissionContextForRoot(pending.workspaceRoot)
+        : baseRuntime.permissionContext;
   const permissionPatch = permissionContext === undefined ? {} : { permissionContext };
   if (!pending.allowedToolIds) {
     return {
@@ -284,6 +299,27 @@ export async function approveTool(
   return resolveApproval(pending, set, get, "approved");
 }
 
+/**
+ * "Allow this tool in this project" (§37b): persists the scoped grant, then
+ * proceeds like a normal approval. Later L2/L3 calls of the same tool inside
+ * the project's granted roots no longer prompt; the audit trail carries the
+ * grant record plus this approval's scope.
+ */
+export async function approveToolInProject(
+  pending: PendingToolApproval,
+  set: ChatStoreSet,
+  get: ChatStoreGet,
+): Promise<void> {
+  const projectId = await grantToolInProject(pending.workspaceRoot, pending.toolName);
+  return resolveApproval(
+    pending,
+    set,
+    get,
+    "approved",
+    projectId ? { scope: "project", projectId } : undefined,
+  );
+}
+
 export async function denyTool(
   pending: PendingToolApproval,
   set: ChatStoreSet,
@@ -304,6 +340,7 @@ async function resolveApproval(
   set: ChatStoreSet,
   get: ChatStoreGet,
   outcome: "approved" | "denied",
+  scope?: { scope: "project"; projectId: string },
 ): Promise<void> {
   const current = get().pendingApprovals?.[pending.conversationId] ?? null;
   const isCurrent =
@@ -327,7 +364,13 @@ async function resolveApproval(
     pending.toolCallId,
   );
   const { provider, runtime: baseRuntime, streamStartedAt } = ctx;
-  const runtime = approvalRuntime(baseRuntime, pending);
+  let grantContext: PermissionContext | null | undefined;
+  if (scope) {
+    const base = permissionContextForRoot(pending.workspaceRoot);
+    const grantedTools = await grantedToolsForRoot(pending.workspaceRoot);
+    grantContext = base ? { ...base, grantedTools } : base;
+  }
+  const runtime = approvalRuntime(baseRuntime, pending, grantContext);
   if (approved && !runtime.toolExecutor) {
     finishConversationStream(set, get, pending.conversationId, streamStartedAt);
     if (get().currentConversationId === pending.conversationId) {
@@ -380,7 +423,12 @@ async function resolveApproval(
     const finalTurn = loopResult.turns.at(-1);
     if (approvalContinuationStopped(task.signal, finalTurn)) {
       completeTrace(pending.conversationId, "stopped");
-      await persistApprovalStatus(pending, approved ? "cancelled" : "denied", get().privateSession);
+      await persistApprovalStatus(
+        pending,
+        approved ? "cancelled" : "denied",
+        get().privateSession,
+        scope ? scope.scope : approved ? "once" : undefined,
+      );
       await cancelCurrentRun(runtime, get().privateSession, pending.conversationId);
       return;
     }
@@ -401,7 +449,12 @@ async function resolveApproval(
           ? "stopped"
           : "failed",
     );
-    await persistApprovalStatus(pending, outcome, get().privateSession);
+    await persistApprovalStatus(
+      pending,
+      outcome,
+      get().privateSession,
+      scope ? scope.scope : approved ? "once" : undefined,
+    );
     const completed = finalTurn?.stream.status === "complete" && !loopResult.maxIterationsReached;
     await continueOrchestrationAfterApproval(
       pending,

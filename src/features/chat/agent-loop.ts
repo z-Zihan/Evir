@@ -9,7 +9,7 @@ import { getActiveWorkspaceRoot, popRunRoot, pushRunRoot } from "../../core/work
 import { TOOL_PERMISSION_REQUIRED } from "../../core/tools/tool-executor";
 import { logger } from "../../core/logging/logger";
 import type { PermissionContext } from "../../core/security/permission-profiles";
-import { permissionContextForRoot } from "../projects/run-permission";
+import { permissionContextForRunWithGrants } from "../projects/run-permission";
 import type { AgentRunContext, EvirRuntime } from "../../runtime/types";
 import type { InteractionMode } from "../../core/providers/tool-registry";
 import type { StreamResult } from "./chat-stream";
@@ -231,9 +231,9 @@ function requiresPermission(results: ToolResultRecord[]): boolean {
 export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoopResult> {
   // Bind the workspace root and permission context for the whole run: sidebar
   // project switches change the live resolver but must never affect an active
-  // run.
+  // run. Scoped tool grants (§37b) load once here.
   const runRoot = getActiveWorkspaceRoot();
-  const permissionContext = permissionContextForRoot(runRoot);
+  const permissionContext = await permissionContextForRunWithGrants(runRoot);
   pushRunRoot(runRoot, permissionContext);
   try {
     return await runAgentLoopBound(options, permissionContext);

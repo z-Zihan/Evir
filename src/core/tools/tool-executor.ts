@@ -43,6 +43,7 @@ export function validateToolForExecution(
       runtime.permissionContext,
       tool.riskLevel,
       resolveCandidatePath(args, runtime),
+      tool.name,
     );
     if (decision.autoApproved) {
       logger.info("security", "permission.auto-approved", {

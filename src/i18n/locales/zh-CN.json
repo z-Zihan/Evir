@@ -207,6 +207,7 @@
       "remote-data-transfer": "参数及其中包含的本地数据会发送到远程 MCP 服务器。"
     },
     "approveOnce": "本次允许",
+    "approveInProject": "在此项目允许此工具",
     "inspectStep": "查看详情",
     "denied": "已拒绝",
     "deniedMessage": "工具执行已被用户拒绝",

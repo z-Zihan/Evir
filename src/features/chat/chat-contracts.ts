@@ -123,6 +123,7 @@ export interface ChatState {
   setMode: (mode: InteractionMode) => void;
   togglePrivateSession: () => void;
   approveTool: () => Promise<void>;
+  approveToolInProject: () => Promise<void>;
   denyTool: () => Promise<void>;
   branchConversation: (messageId: string) => Promise<string>;
   toggleSelectedSkill: (id: string) => void;

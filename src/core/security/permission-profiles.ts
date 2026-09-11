@@ -10,6 +10,12 @@ export interface PermissionContext {
   profile: PermissionProfile;
   /** Canonical roots: project root plus additional access roots. */
   roots: string[];
+  /**
+   * Tools the user explicitly allowed for this project ("Allow this tool in
+   * this project", §37b). L2/L3 calls of a granted tool skip the per-call
+   * prompt; the grant never relaxes path boundaries and never covers L4.
+   */
+  grantedTools?: ReadonlySet<string>;
 }
 
 export type PermissionDecision = {
@@ -18,6 +24,7 @@ export type PermissionDecision = {
     | "read-only"
     | "full-access"
     | "within-workspace"
+    | "scoped-grant"
     | "outside-roots"
     | "unknown-path"
     | "ask-profile"
@@ -73,12 +80,16 @@ export function isInsideRoots(path: string, roots: readonly string[]): boolean {
  * Resolves whether an L2+ tool call may execute without an explicit approval.
  * Read-only tools always run; "ask" always requests approval; "workspace"
  * auto-approves inside the granted roots; "full" auto-approves everywhere the
- * tool layer still permits.
+ * tool layer still permits. A per-project tool grant (§37b) auto-approves
+ * L2/L3 calls of that tool under the "ask" profile, and only when the call's
+ * candidate path stays inside the granted roots — a grant relaxes the
+ * per-call prompt, never the path boundary.
  */
 export function resolveExecutionPermission(
   context: PermissionContext | null | undefined,
   riskLevel: RiskLevel,
   candidatePath: string | null,
+  toolName?: string,
 ): PermissionDecision {
   if (riskLevel === "L0" || riskLevel === "L1") {
     return { autoApproved: true, reason: "read-only" };
@@ -100,6 +111,11 @@ export function resolveExecutionPermission(
       reason: candidatePath ? "outside-roots" : "unknown-path",
     };
   }
+  const granted =
+    toolName !== undefined &&
+    context.grantedTools?.has(toolName) === true &&
+    (!candidatePath || isInsideRoots(candidatePath, context.roots));
+  if (granted) return { autoApproved: true, reason: "scoped-grant" };
   return { autoApproved: false, reason: "ask-profile" };
 }
 

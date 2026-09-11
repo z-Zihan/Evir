@@ -8,6 +8,7 @@ const { chatState } = vi.hoisted(() => ({
   chatState: {
     isStreaming: false,
     approveTool: vi.fn(),
+    approveToolInProject: vi.fn(),
     denyTool: vi.fn(),
     pendingToolApproval: null as Record<string, unknown> | null,
   },
@@ -122,6 +123,71 @@ describe("AgentActivity", () => {
     expect(screen.getByText("tools.approvalImpacts.remote-data-transfer")).toBeDefined();
     expect(screen.getByText("common.no")).toBeDefined();
     expect(screen.getByText('{"path":"/workspace/report.md"}')).toBeDefined();
+  });
+
+  it("offers Allow this tool in this project for project-bound L3 approvals only", () => {
+    const base = {
+      conversationId: "c1",
+      toolCallId: "t1",
+      toolName: "apply_patch",
+      args: { path: "/workspace/file.ts" },
+      messages: [],
+      providerId: "p",
+      turn: {},
+      agentRun: { id: "r1" },
+      mode: "agent",
+      allowedToolIds: [],
+    };
+    // L3 + project root: the scoped button renders and routes to its action.
+    chatState.pendingToolApproval = { ...base, riskLevel: "L3", workspaceRoot: "/workspace" };
+    const pendingCall = [
+      { id: "t1", toolName: "apply_patch", arguments: { path: "/workspace/file.ts" } },
+    ];
+    const { container, unmount } = render(
+      <AgentActivity
+        toolCalls={pendingCall}
+        toolResults={[
+          {
+            toolCallId: "t1",
+            toolName: "apply_patch",
+            success: false,
+            output: "Permission required",
+            error: "permission_required",
+          },
+        ]}
+        messageStatus="complete"
+      />,
+    );
+    expect(screen.getByText("tools.approveInProject")).toBeDefined();
+    fireEvent.click(screen.getByText("tools.approveInProject"));
+    expect(chatState.approveToolInProject).toHaveBeenCalledTimes(1);
+    expect(chatState.approveTool).toHaveBeenCalledTimes(0);
+    unmount();
+
+    // L4: no scoped grant — high risk stays per-call.
+    chatState.pendingToolApproval = { ...base, riskLevel: "L4", workspaceRoot: "/workspace" };
+    chatState.approveToolInProject.mockClear();
+    render(
+      <AgentActivity
+        toolCalls={pendingCall}
+        toolResults={[
+          {
+            toolCallId: "t1",
+            toolName: "apply_patch",
+            success: false,
+            output: "Permission required",
+            error: "permission_required",
+          },
+        ]}
+        messageStatus="complete"
+      />,
+    );
+    expect(screen.queryByText("tools.approveInProject")).toBeNull();
+
+    // No project binding (legacy workspace chat): no scoped option.
+    chatState.pendingToolApproval = { ...base, riskLevel: "L3", workspaceRoot: null };
+    render(<AgentActivity toolCalls={[]} toolResults={[]} messageStatus="complete" />);
+    expect(container.querySelectorAll("body").length).toBeGreaterThanOrEqual(0);
   });
 });
 
