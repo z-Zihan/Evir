@@ -1528,5 +1528,23 @@
       "attach": "绑定",
       "detach": "解绑"
     }
+  },
+  "firstRun": {
+    "title": "连接一个模型",
+    "subtitle": "三步开始第一个项目任务：连接模型、让 Evir 自动检测能力、打开文件夹。",
+    "pickProvider": "选择服务商",
+    "apiKey": "API Key",
+    "apiKeyPlaceholder": "粘贴你的 API Key",
+    "ollamaHint": "Ollama 本地运行——无需 API Key。",
+    "keyRequired": "请粘贴该服务商的 API Key。",
+    "connect": "连接",
+    "moreProviders": "更多服务商",
+    "detecting": "正在检测模型与工具调用能力…",
+    "agentReady": "Agent 就绪：",
+    "chatOnly": "仅聊天（未确认工具调用——可在设置中调整）：",
+    "openFolder": "打开文件夹，开始第一个项目",
+    "connectFailed": "连接失败——请检查 Key 后重试。",
+    "folder-missing": "无法打开该文件夹。",
+    "not-desktop": "打开文件夹需要桌面版。"
   }
 }

@@ -1,6 +1,10 @@
 import { create } from "zustand";
 import { z } from "zod";
-import { getAdapter, listModelsForProtocol } from "../../core/providers/adapter-registry";
+import {
+  createConfiguredAdapter,
+  getAdapter,
+  listModelsForProtocol,
+} from "../../core/providers/adapter-registry";
 import { logger } from "../../core/logging/logger";
 import type { ProviderError } from "../../core/providers/stream-events";
 // NOTE: Uses Dexie directly for indexed queries; StoragePort covers basic CRUD
@@ -49,6 +53,13 @@ interface ProviderState {
   switchProvider: (providerId: string) => Promise<void>;
   testConnection: (config: ProviderConfigInput) => Promise<ConnectionResult>;
   fetchModels: (config: ProviderConfigInput) => Promise<string[]>;
+  /**
+   * First-run capability check (§B5): one bounded request with a trivial
+   * no-op tool; true iff the endpoint actually emits a tool call. Honest by
+   * construction — errors/timeouts report false ("cannot confirm"), never a
+   * guessed true.
+   */
+  probeToolCalling: (config: ProviderConfigInput, modelId: string) => Promise<boolean>;
   getDefaultProvider: () => ProviderRecord | undefined;
 }
 
@@ -346,6 +357,55 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
         },
       );
       throw error;
+    }
+  },
+
+  probeToolCalling: async (input, modelId) => {
+    try {
+      const config = providerSchema
+        .pick({ protocolId: true, baseUrl: true, apiKey: true })
+        .parse(input);
+      const adapter = createConfiguredAdapter(config.protocolId, {
+        providerId: config.protocolId,
+        baseUrl: config.baseUrl,
+        apiKey: config.apiKey,
+      });
+      if (!adapter) return false;
+      let sawToolCall = false;
+      const deadline = Date.now() + 8_000;
+      for await (const event of adapter.stream({
+        modelId,
+        messages: [{ role: "user", content: "Call the get_time tool now. Do not answer in text." }],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "get_time",
+              description: "Returns the current local time.",
+              parameters: { type: "object", properties: {} },
+            },
+          },
+        ],
+      })) {
+        if (event.type === "tool-call-start") {
+          sawToolCall = true;
+          break;
+        }
+        if (event.type === "text-delta" || Date.now() > deadline) break;
+      }
+      logger.info("provider", "provider.tool-calling-probed", {
+        protocolId: config.protocolId,
+        modelId,
+        toolCalling: sawToolCall,
+      });
+      return sawToolCall;
+    } catch (error) {
+      logger.warn("provider", "provider.tool-calling-probe-failed", {
+        protocolId: input.protocolId,
+        modelId,
+        reason: error instanceof Error ? error.message : String(error),
+      });
+      return false;
     }
   },
 

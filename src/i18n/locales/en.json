@@ -1529,5 +1529,23 @@
       "attach": "Attach",
       "detach": "Detach"
     }
+  },
+  "firstRun": {
+    "title": "Connect your first model",
+    "subtitle": "Three steps to your first project task: connect a model, let Evir detect what it can do, open a folder.",
+    "pickProvider": "Pick a provider",
+    "apiKey": "API key",
+    "apiKeyPlaceholder": "Paste your API key",
+    "ollamaHint": "Ollama runs locally — no API key needed.",
+    "keyRequired": "Paste an API key for this provider.",
+    "connect": "Connect",
+    "moreProviders": "More providers",
+    "detecting": "Detecting models and tool-call capability…",
+    "agentReady": "Agent ready:",
+    "chatOnly": "Chat only (tool calling unconfirmed — adjustable in Settings):",
+    "openFolder": "Open a folder to start your first project",
+    "connectFailed": "Could not connect — check the key and try again.",
+    "folder-missing": "That folder could not be opened.",
+    "not-desktop": "Opening folders requires the desktop app."
   }
 }

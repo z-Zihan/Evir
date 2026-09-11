@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { KeyRound, Play, Settings2 } from "lucide-react";
+import { Play } from "lucide-react";
 import { Button } from "../components/ui";
 import {
   Message,
@@ -43,6 +43,7 @@ import type { SettingsTab } from "./SettingsModal";
 import { useLocalIdentity } from "./chat/use-local-identity";
 import { useConversationStatusIndex } from "./useConversationStatus";
 import { PermissionOnboardingBanner } from "./chat/PermissionOnboardingBanner";
+import { FirstRunSetupCard } from "./chat/FirstRunSetupCard";
 import { useModelSwitch } from "./chat/use-model-switch";
 import { ChatHeader } from "./chat/ChatHeader";
 import { ChatComposer } from "./chat/ChatComposer";
@@ -381,27 +382,10 @@ export function ChatView({
       <main className="workspace flex min-h-0 min-w-0 flex-1 flex-col">
         {header}
         <section className="provider-empty-state flex flex-1 flex-col items-center justify-center gap-3 px-6 py-12 text-center">
-          <div
-            className="provider-empty-icon grid size-11 place-items-center rounded-xl border border-border bg-surface text-muted"
-            aria-hidden="true"
-          >
-            <KeyRound size={20} />
-          </div>
-          <div className="provider-empty-copy flex flex-col gap-1">
-            <span className="empty-eyebrow text-[11px] font-medium tracking-wide text-muted uppercase">
-              {t("chat.readyWhenYouAre")}
-            </span>
-            <h2 className="text-[17px] font-semibold text-foreground">
-              {t("chat.noProviderTitle")}
-            </h2>
-            <p className="max-w-[380px] text-[12.5px] text-muted">
-              {t("chat.noProviderDescription")}
-            </p>
-          </div>
-          <Button variant="primary" size="default" type="button" onClick={() => onOpenSettings()}>
-            <Settings2 size={15} aria-hidden="true" />
-            {t("chat.addProviderFirst")}
-          </Button>
+          {/* §B5: a clean vault gets the three-step setup card (quick presets
+              → auto model/capability detection → open a folder), not the
+              full provider settings catalog. */}
+          <FirstRunSetupCard onOpenSettings={() => onOpenSettings()} />
         </section>
       </main>
     );
