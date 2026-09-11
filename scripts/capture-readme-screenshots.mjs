@@ -1053,10 +1053,28 @@ async function captureDesktopOverview(browser) {
     // Tool activity renders collapsed — expand it so the timeline is in the shot.
     await domClick(page, ".activity-header");
     await page.getByText("run_command", { exact: true }).first().waitFor();
-    // Open the Context Workbench on the Changes tab (§30): the seeded run
-    // record re-derives the change list when the conversation loads.
-    await domClick(page, '[aria-label="Open workspace"]');
-    await domClick(page, '[role="tab"]', "Changes");
+    // §30b: a fresh project thread opens the workbench on Changes by itself;
+    // fall back to the header toggle if a stored preference kept it closed.
+    const panelVisible = await page
+      .locator(".workspace-panel")
+      .waitFor({ timeout: 4_000 })
+      .then(
+        () => true,
+        () => false,
+      );
+    if (!panelVisible) {
+      await domClick(page, '[aria-label="Open workspace"]');
+    }
+    const changesActive = await page
+      .locator(".workspace-panel-tab.active", { hasText: "Changes" })
+      .waitFor({ timeout: 4_000 })
+      .then(
+        () => true,
+        () => false,
+      );
+    if (!changesActive) {
+      await domClick(page, '[role="tab"]', "Changes");
+    }
     await page.locator(".workspace-change-row").first().waitFor();
     // §A1.2 — the hero must be the real three-column Project Agent
     // workbench, with the post-onboarding composer, not a chat shell.
