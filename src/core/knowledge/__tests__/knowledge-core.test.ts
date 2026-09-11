@@ -215,7 +215,7 @@ describe("knowledge repository (§54-68)", () => {
     const reindexed = await repository.reindexSource(reindexed0(source), io, {
       permissionRoots: roots,
     });
-    expect(reindexed.status).toBe("ready");
+    expect(reindexed.servingState).toBe("ready");
     expect(reindexed.docCount).toBe(1);
     expect(reindexed.chunkCount).toBeGreaterThan(0);
     expect(reindexed.lastIndexedAt).toBeDefined();
@@ -243,7 +243,7 @@ describe("knowledge repository (§54-68)", () => {
       permissionRoots: roots,
     });
     const reindexed = await repository.reindexSource(source, io, { permissionRoots: roots });
-    expect(reindexed.status).toBe("ready");
+    expect(reindexed.servingState).toBe("ready");
     expect(reindexed.docCount).toBe(2); // architecture.md + testing.md
   });
 
@@ -343,7 +343,7 @@ describe("knowledge repository (§54-68)", () => {
       permissionRoots: roots,
     });
     const ready = await repository.reindexSource(source, io, { permissionRoots: roots });
-    expect(ready.status).toBe("ready");
+    expect(ready.servingState).toBe("ready");
     return { repository, sourceId: source.id, lastIndexedAt: ready.lastIndexedAt ?? 0 };
   }
 
@@ -356,8 +356,9 @@ describe("knowledge repository (§54-68)", () => {
       readTextFile: () => Promise.reject(new Error("disk error")),
     };
     const failed = await repository.reindexSource(source, brokenIo, { permissionRoots: roots });
-    expect(failed.status).toBe("failed");
-    expect(failed.error).toContain("disk error");
+    expect(failed.indexingState).toBe("failed");
+    expect(failed.servingState).toBe("ready");
+    expect(failed.lastIndexError).toContain("disk error");
     expect(failed.lastIndexedAt).toBe(lastIndexedAt); // success timestamp did not move
     expect(store.dump("knowledge_chunks").size).toBeGreaterThan(0);
     expect(store.dump("knowledge_documents").size).toBeGreaterThan(0);
@@ -372,8 +373,8 @@ describe("knowledge repository (§54-68)", () => {
       store.activate();
       const source = (await store.read("knowledge_sources", sourceId)) as KnowledgeSourceRecord;
       const failed = await repository.reindexSource(source, io, { permissionRoots: roots });
-      expect(failed.status).toBe("failed");
-      expect(failed.error).toContain("injected commit failure");
+      expect(failed.indexingState).toBe("failed");
+      expect(failed.lastIndexError).toContain("injected commit failure");
       expect(failed.lastIndexedAt).toBe(lastIndexedAt);
       expect(store.dump("knowledge_chunks").size).toBeGreaterThan(0);
       expect(store.dump("knowledge_documents").size).toBeGreaterThan(0);
@@ -388,7 +389,7 @@ describe("knowledge repository (§54-68)", () => {
     store.activate();
     const source = (await store.read("knowledge_sources", sourceId)) as KnowledgeSourceRecord;
     const failed = await repository.reindexSource(source, io, { permissionRoots: roots });
-    expect(failed.status).toBe("failed");
+    expect(failed.indexingState).toBe("failed");
     expect(failed.lastIndexedAt).toBe(lastIndexedAt);
     expect(store.dump("knowledge_chunks").size).toBeGreaterThan(0);
   });
@@ -398,9 +399,109 @@ describe("knowledge repository (§54-68)", () => {
     const { repository, sourceId } = await seedReadyIndex(store);
     const source = (await store.read("knowledge_sources", sourceId)) as KnowledgeSourceRecord;
     const ready = await repository.reindexSource(source, io, { permissionRoots: roots });
-    expect(ready.status).toBe("ready");
+    expect(ready.servingState).toBe("ready");
+    expect(ready.indexingState).toBe("idle");
     expect(store.dump("knowledge_chunks").size).toBe(ready.chunkCount ?? 0);
     expect(store.dump("knowledge_documents").size).toBe(ready.docCount ?? 0);
+  });
+
+  // --- §26-§31 F5: retrievability through reindex states (not just storage)
+
+  it("the old index stays SEARCHABLE while a reindex is in flight", async () => {
+    const store = memoryStorage();
+    const { repository, sourceId } = await seedReadyIndex(store);
+    let releaseReindex: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => {
+      releaseReindex = resolve;
+    });
+    const slowIo: KnowledgeIoPort = {
+      ...io,
+      readTextFile: (path) => gate.then(() => io.readTextFile(path)),
+    };
+    const source = (await store.read("knowledge_sources", sourceId)) as KnowledgeSourceRecord;
+    const inFlight = repository.reindexSource(source, slowIo, { permissionRoots: roots });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const marked = (await store.read("knowledge_sources", sourceId)) as KnowledgeSourceRecord;
+    expect(marked.indexingState).toBe("indexing");
+    expect(marked.servingState).toBe("ready");
+    const retriever = new KeywordKnowledgeRetriever();
+    const result = await retriever.retrieve(store, {
+      query: "alpha",
+      baseIds: [marked.baseId],
+      limit: 5,
+    });
+    expect(result.results.length).toBeGreaterThan(0);
+    releaseReindex?.();
+    await inFlight;
+  });
+
+  it("a failed reindex over an old index keeps that index searchable", async () => {
+    const store = memoryStorage();
+    const { repository, sourceId } = await seedReadyIndex(store);
+    const source = (await store.read("knowledge_sources", sourceId)) as KnowledgeSourceRecord;
+    const brokenIo: KnowledgeIoPort = {
+      ...io,
+      readTextFile: () => Promise.reject(new Error("disk error")),
+    };
+    const failed = await repository.reindexSource(source, brokenIo, { permissionRoots: roots });
+    expect(failed.indexingState).toBe("failed");
+    expect(failed.servingState).toBe("ready");
+    const retriever = new KeywordKnowledgeRetriever();
+    const result = await retriever.retrieve(store, {
+      query: "alpha",
+      baseIds: [source.baseId],
+      limit: 5,
+    });
+    expect(result.results.length).toBeGreaterThan(0);
+  });
+
+  it("a first-index failure yields no results (serving stays empty)", async () => {
+    const store = memoryStorage();
+    const repository = new KnowledgeRepository(store);
+    const base = await repository.createBase({ name: "FirstFail" });
+    const source = await repository.createSource({
+      baseId: base.id,
+      type: "local-file",
+      title: "csv",
+      ref: "/ws/data.csv",
+      permissionRoots: roots,
+    });
+    const brokenIo: KnowledgeIoPort = {
+      ...io,
+      readTextFile: () => Promise.reject(new Error("disk error")),
+    };
+    const failed = await repository.reindexSource(source, brokenIo, { permissionRoots: roots });
+    expect(failed.servingState).toBe("empty");
+    expect(failed.indexingState).toBe("failed");
+    const retriever = new KeywordKnowledgeRetriever();
+    const result = await retriever.retrieve(store, {
+      query: "alpha",
+      baseIds: [base.id],
+      limit: 5,
+    });
+    expect(result.results).toHaveLength(0);
+  });
+
+  it("legacy status records still serve through sourceIsServable", async () => {
+    const store = memoryStorage();
+    const { repository, sourceId } = await seedReadyIndex(store);
+    void repository;
+    // Downgrade to the legacy single-status shape, as persisted by older
+    // builds; retrieval must keep finding the old index.
+    const source = (await store.read("knowledge_sources", sourceId)) as KnowledgeSourceRecord;
+    await store.write("knowledge_sources", sourceId, {
+      ...source,
+      servingState: undefined,
+      indexingState: undefined,
+      status: "ready",
+    });
+    const retriever = new KeywordKnowledgeRetriever();
+    const result = await retriever.retrieve(store, {
+      query: "alpha",
+      baseIds: [source.baseId],
+      limit: 5,
+    });
+    expect(result.results.length).toBeGreaterThan(0);
   });
 
   it("mcp-resource sources ingest text resources from the server (§55)", async () => {
@@ -424,7 +525,7 @@ describe("knowledge repository (§54-68)", () => {
           : Promise.reject(new Error("binary resource")),
     };
     const reindexed = await repository.reindexSource(source, mcpIo);
-    expect(reindexed.status).toBe("ready");
+    expect(reindexed.servingState).toBe("ready");
     expect(reindexed.docCount).toBe(1);
     const documents = [...storage.dump("knowledge_documents").values()];
     expect(documents[0]).toMatchObject({ title: "Guide", location: "docs://guide" });
@@ -439,8 +540,8 @@ describe("knowledge repository (§54-68)", () => {
       ref: "server-x",
     });
     const result = await repository.reindexSource(source, io); // no MCP methods on plain io
-    expect(result.status).toBe("failed");
-    expect(result.error).toMatch(/desktop app|no readable|resources/i);
+    expect(result.indexingState).toBe("failed");
+    expect(result.lastIndexError).toMatch(/desktop app|no readable|resources/i);
   });
 
   it("historical-task sources ingest the conversation's artifact outputs (§55)", async () => {
@@ -483,7 +584,7 @@ describe("knowledge repository (§54-68)", () => {
       ref: "conv-hist",
     });
     const reindexed = await repository.reindexSource(source, histIo);
-    expect(reindexed.status).toBe("ready");
+    expect(reindexed.servingState).toBe("ready");
     expect(reindexed.docCount).toBe(1);
     const chunks = [...storage.dump("knowledge_chunks").values()];
     expect(
@@ -502,8 +603,8 @@ describe("knowledge repository (§54-68)", () => {
     });
     const broken = fakeIo({}); // nothing readable
     const result = await repository.reindexSource(source, broken, { permissionRoots: roots });
-    expect(result.status).toBe("failed");
-    expect(result.error).toMatch(/ENOENT/);
+    expect(result.indexingState).toBe("failed");
+    expect(result.lastIndexError).toMatch(/ENOENT/);
   });
 });
 
@@ -529,7 +630,8 @@ describe("knowledge retrieval (§59-61, §71)", () => {
       title: "architecture.md",
       ref: "/ws/architecture.md",
       enabled: true,
-      status: "ready",
+      servingState: "ready" as const,
+      indexingState: "idle" as const,
       docCount: 1,
       chunkCount: chunks.length,
       createdAt: 1,

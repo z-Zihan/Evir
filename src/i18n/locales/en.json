@@ -1499,6 +1499,14 @@
       "emptyHint": "Add a local folder/file or a web page; indexing starts immediately.",
       "status": {
         "pending": "Pending",
+        "state": {
+          "empty": "Not indexed",
+          "ready": "Ready",
+          "indexing": {
+            "indexing": "Indexing…",
+            "failed": "last reindex failed"
+          }
+        },
         "indexing": "Indexing",
         "ready": "Ready",
         "failed": "Failed"

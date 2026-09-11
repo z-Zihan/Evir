@@ -145,7 +145,8 @@ export class KnowledgeRepository {
       title: input.title.trim().slice(0, 200) || input.ref.slice(0, 200),
       ref: input.ref,
       enabled: true,
-      status: "pending",
+      servingState: "empty",
+      indexingState: "idle",
       docCount: 0,
       chunkCount: 0,
       createdAt: now(),
@@ -218,7 +219,10 @@ export class KnowledgeRepository {
       await this.storage.write("knowledge_sources", source.id, updated);
       return updated;
     };
-    await mark({ status: "indexing", error: undefined });
+    // Only the indexing axis moves here: a source with a previous successful
+    // generation keeps serving the OLD index while the new one builds (and
+    // keeps serving it if this reindex fails).
+    await mark({ indexingState: "indexing", lastIndexError: undefined });
     try {
       const documents = await this.collectDocuments(source, io, options.permissionRoots);
       const timestamp = now();
@@ -265,8 +269,9 @@ export class KnowledgeRepository {
         (await this.storage.read<KnowledgeSourceRecord>("knowledge_sources", source.id)) ?? source;
       const updatedSource: KnowledgeSourceRecord = {
         ...currentSource,
-        status: "ready",
-        error: undefined,
+        servingState: "ready",
+        indexingState: "idle",
+        lastIndexError: undefined,
         lastIndexedAt: timestamp,
         docCount: documentRecords.length,
         chunkCount: chunkRecords.length,
@@ -322,7 +327,13 @@ export class KnowledgeRepository {
         sourceId: source.id,
         error: message,
       });
-      return mark({ status: "failed", error: message.slice(0, 600) });
+      // A failed reindex must NOT make the previous index unsearchable:
+      // servingState is left untouched (empty stays empty — first index
+      // failed; ready stays ready — old data still serves).
+      return mark({
+        indexingState: "failed",
+        lastIndexError: message.slice(0, 600),
+      });
     }
   }
 

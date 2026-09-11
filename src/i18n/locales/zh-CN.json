@@ -1498,6 +1498,14 @@
       "emptyHint": "添加本地文件夹/文件或网页；添加后立即建立索引。",
       "status": {
         "pending": "待索引",
+        "state": {
+          "empty": "未索引",
+          "ready": "可检索",
+          "indexing": {
+            "indexing": "索引中…",
+            "failed": "上次重建索引失败"
+          }
+        },
         "indexing": "索引中",
         "ready": "就绪",
         "failed": "失败"

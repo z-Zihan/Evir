@@ -13,6 +13,7 @@ import type {
   KnowledgeSourceRecord,
   RetrievedKnowledge,
 } from "./types";
+import { sourceIsServable } from "./types";
 
 const STOP_WORDS = new Set([
   "the",
@@ -118,7 +119,9 @@ export class KeywordKnowledgeRetriever implements KnowledgeRetriever {
     for (const chunk of chunks) {
       if (!activeBaseIds.has(chunk.baseId)) continue;
       const source = sourcesById.get(chunk.sourceId);
-      if (!source?.enabled || source.status !== "ready") continue;
+      // Serving axis only (§26-§31): an in-flight or failed REINDEX must not
+      // hide the still-present previous index from search.
+      if (!source?.enabled || !sourceIsServable(source)) continue;
       const document = documentsById.get(chunk.documentId);
       if (!document) continue;
       const chunkTokens = tokenize(`${chunk.heading ?? ""} ${chunk.text}`);

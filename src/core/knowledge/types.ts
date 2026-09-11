@@ -35,7 +35,18 @@ export const knowledgeSourceSchema = z.object({
   /** Absolute path, URL, or opaque reference — never deleted by Evir. */
   ref: z.string().min(1).max(2_000),
   enabled: z.boolean(),
-  status: z.enum(["pending", "indexing", "ready", "failed"]),
+  /**
+   * Serving vs indexing are separate axes (§26-§31): a source whose previous
+   * index exists keeps serving during a reindex and after a failed reindex —
+   * `servingState` answers "can it be searched", `indexingState` answers
+   * "what is the background index doing". Legacy single-`status` records
+   * derive both via the helpers below until their next reindex rewrites them.
+   */
+  servingState: z.enum(["empty", "ready"]),
+  indexingState: z.enum(["idle", "indexing", "failed"]),
+  lastIndexError: z.string().max(600).optional(),
+  /** Legacy single-status field (pre split); tolerated on read only. */
+  status: z.enum(["pending", "indexing", "ready", "failed"]).optional(),
   error: z.string().max(600).optional(),
   lastIndexedAt: z.number().int().nonnegative().optional(),
   docCount: z.number().int().nonnegative(),
@@ -44,6 +55,32 @@ export const knowledgeSourceSchema = z.object({
   updatedAt: z.number().int().nonnegative(),
 });
 export type KnowledgeSourceRecord = z.output<typeof knowledgeSourceSchema>;
+
+/** Can this source's persisted index be searched right now? (§26-§31) */
+export function sourceIsServable(
+  source: Pick<KnowledgeSourceRecord, "enabled"> &
+    Partial<Pick<KnowledgeSourceRecord, "servingState" | "status">>,
+): boolean {
+  if (typeof source.servingState === "string") return source.servingState === "ready";
+  return source.status === "ready";
+}
+
+/** Display/policy view of both axes, deriving from legacy status when needed. */
+export function sourceDisplayState(
+  source: Partial<Pick<KnowledgeSourceRecord, "servingState" | "indexingState" | "status">>,
+): { serving: "empty" | "ready"; indexing: "idle" | "indexing" | "failed" } {
+  if (typeof source.servingState === "string") {
+    return {
+      serving: source.servingState,
+      indexing: source.indexingState ?? "idle",
+    };
+  }
+  return {
+    serving: source.status === "ready" ? "ready" : "empty",
+    indexing:
+      source.status === "indexing" ? "indexing" : source.status === "failed" ? "failed" : "idle",
+  };
+}
 
 export const knowledgeDocumentSchema = z.object({
   id: z.string().min(1),

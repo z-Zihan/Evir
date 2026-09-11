@@ -22,6 +22,7 @@ import { useKnowledgeStore } from "../features/knowledge/knowledge-store";
 import { useProjectStore } from "../features/projects/project-store";
 import { getRuntime } from "../runtime/use-runtime";
 import type { KnowledgeSourceType } from "../core/knowledge/types";
+import { sourceDisplayState } from "../core/knowledge/types";
 import { useConfirmationDialog } from "./useConfirmationDialog";
 
 const LOCAL_TYPES = new Set<KnowledgeSourceType>(["local-file", "local-folder", "project-docs"]);
@@ -116,9 +117,9 @@ export function KnowledgeSettings() {
       ref,
       ...(LOCAL_TYPES.has(sourceType) ? { permissionRoots } : {}),
     });
-    if ("status" in result) {
-      if (result.status === "failed") {
-        setAddError(result.error ?? t("knowledge.reindexFailed"));
+    if ("indexingState" in result) {
+      if (result.indexingState === "failed") {
+        setAddError(result.lastIndexError ?? t("knowledge.reindexFailed"));
       } else {
         notify.success(t("knowledge.sourceAdded"));
       }
@@ -357,17 +358,31 @@ export function KnowledgeSettings() {
                       <span className="flex items-center gap-1.5 text-[12.5px] font-medium">
                         <SourceTypeIcon type={source.type} />
                         <span className="truncate">{source.title}</span>
-                        <Badge
-                          variant={
-                            source.status === "ready"
-                              ? "success"
-                              : source.status === "failed"
-                                ? "danger"
-                                : "secondary"
-                          }
-                        >
-                          {t(`knowledge.sources.status.${source.status}`)}
-                        </Badge>
+                        {(() => {
+                          // Two axes (§26-§31): serving (searchable?) and
+                          // indexing (background state) — e.g. a failed
+                          // reindex over an old index shows "Ready · last
+                          // reindex failed", not a scary "Failed" that hides
+                          // that search still works.
+                          const view = sourceDisplayState(source);
+                          const variant =
+                            view.indexing === "failed"
+                              ? view.serving === "ready"
+                                ? "warning"
+                                : "danger"
+                              : view.indexing === "indexing"
+                                ? "secondary"
+                                : view.serving === "ready"
+                                  ? "success"
+                                  : "secondary";
+                          return (
+                            <Badge variant={variant}>
+                              {t(`knowledge.sources.state.${view.serving}`)}
+                              {view.indexing !== "idle" &&
+                                ` · ${t(`knowledge.sources.state.indexing.${view.indexing}`)}`}
+                            </Badge>
+                          );
+                        })()}
                       </span>
                       <span className="truncate text-[11px] text-muted" title={source.ref}>
                         {source.ref}
