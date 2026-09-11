@@ -1453,7 +1453,7 @@
     "onboardingWorkspace": "Workspace access",
     "onboardingRecommended": "recommended",
     "onboardingAsk": "Ask every time",
-    "onboardingDismiss": "Keep the default (ask every time) and dismiss"
+    "onboardingDismiss": "Not now — this asks again next visit"
   },
   "knowledge": {
     "title": "Knowledge",

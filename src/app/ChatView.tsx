@@ -42,7 +42,7 @@ import { useSlashActions } from "./chat/use-slash-actions";
 import type { SettingsTab } from "./SettingsModal";
 import { useLocalIdentity } from "./chat/use-local-identity";
 import { useConversationStatusIndex } from "./useConversationStatus";
-import { PermissionOnboardingCard } from "./chat/PermissionOnboardingCard";
+import { PermissionOnboardingBanner } from "./chat/PermissionOnboardingBanner";
 import { useModelSwitch } from "./chat/use-model-switch";
 import { ChatHeader } from "./chat/ChatHeader";
 import { ChatComposer } from "./chat/ChatComposer";
@@ -422,9 +422,6 @@ export function ChatView({
           />
         ) : (
           <div className="message-list mx-auto flex w-full min-w-0 max-w-[760px] flex-col gap-5">
-            {conversationProject && runtime.target === "desktop" && (
-              <PermissionOnboardingCard project={conversationProject} />
-            )}
             <MessageList
               messages={messages}
               projectScoped={projectScoped}
@@ -479,6 +476,14 @@ export function ChatView({
           </div>
         )}
       </MessageScroller>
+      {/* §37: the permission onboarding banner sits directly above the
+          composer — outside the message list — so it never competes with
+          plan confirmations, goal checklists, or approval cards. */}
+      {conversationProject && runtime.target === "desktop" && (
+        <div className="px-6 pb-0 max-[860px]:px-4">
+          <PermissionOnboardingBanner project={conversationProject} />
+        </div>
+      )}
       <ChatComposer
         input={input}
         onInputChange={onInputChange}

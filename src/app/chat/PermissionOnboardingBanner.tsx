@@ -31,11 +31,16 @@ async function markOnboarded(projectId: string, done: Set<string>): Promise<void
 
 /**
  * §37 permission onboarding: the FIRST time a project thread opens, the user
- * explicitly chooses how much Evir may do in this project — Workspace access
- * (recommended) or Ask every time. The choice is remembered per project;
- * dismissing the card keeps the safe ask default and counts as a choice.
+ * explicitly chooses how much Evir may do in this project. Rendered as a
+ * lightweight banner above the composer — never inside the message list, so
+ * it cannot compete with plan confirmations, goal checklists, approvals, or
+ * tool results for the main visual.
+ *
+ * Only an explicit choice (Workspace access / Ask every time) writes the
+ * permission profile and marks onboarding done. Dismissing with X merely
+ * postpones: nothing is written, and the banner returns on the next visit.
  */
-export function PermissionOnboardingCard({ project }: { project: ProjectRecord }) {
+export function PermissionOnboardingBanner({ project }: { project: ProjectRecord }) {
   const { t } = useTranslation();
   const setPermissionProfile = useProjectStore((state) => state.setPermissionProfile);
   const [visible, setVisible] = useState(false);
@@ -53,38 +58,28 @@ export function PermissionOnboardingCard({ project }: { project: ProjectRecord }
   if (!visible) return null;
 
   const settle = (profile: "workspace" | "ask") => {
+    setVisible(false);
     void (async () => {
       await setPermissionProfile(project.id, profile);
       await markOnboarded(project.id, await loadOnboardedProjectIds());
-      setVisible(false);
     })();
   };
 
   return (
     <section
-      className="permission-onboarding mx-auto mb-4 w-full max-w-[560px] rounded-xl border border-border bg-surface-subtle p-4"
+      className="permission-onboarding mx-auto mb-2 flex w-full min-w-0 max-w-[760px] flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border bg-surface-subtle px-3 py-2"
       aria-label={t("permission.onboardingTitle")}
     >
-      <header className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <ShieldCheck size={16} aria-hidden="true" className="text-primary" />
-          <h2 className="m-0 text-[13px] font-semibold text-foreground">
-            {t("permission.onboardingTitle")}
-          </h2>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          aria-label={t("permission.onboardingDismiss")}
-          onClick={() => settle("ask")}
-        >
-          <X size={13} />
-        </Button>
-      </header>
-      <p className="mt-1.5 text-[12px] leading-relaxed text-muted">
-        {t("permission.onboardingDescription")}
-      </p>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <ShieldCheck size={15} aria-hidden="true" className="shrink-0 text-primary" />
+      <div className="min-w-0 flex-1">
+        <h2 className="m-0 text-[12.5px] font-semibold text-foreground">
+          {t("permission.onboardingTitle")}
+        </h2>
+        <p className="m-0 truncate text-[11.5px] text-muted">
+          {t("permission.onboardingDescription")}
+        </p>
+      </div>
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
         <Button variant="primary" size="sm" onClick={() => settle("workspace")}>
           {t("permission.onboardingWorkspace")}
           <span className="ml-1 font-normal opacity-80">
@@ -93,6 +88,14 @@ export function PermissionOnboardingCard({ project }: { project: ProjectRecord }
         </Button>
         <Button variant="secondary" size="sm" onClick={() => settle("ask")}>
           {t("permission.onboardingAsk")}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label={t("permission.onboardingDismiss")}
+          onClick={() => setVisible(false)}
+        >
+          <X size={13} />
         </Button>
       </div>
     </section>
