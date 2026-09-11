@@ -8,6 +8,19 @@ import {
   readClosedWorkbenchProjects,
 } from "../../features/workspace/workbench-preference";
 import { getRuntime } from "../../runtime/use-runtime";
+import { WORKSPACE_DRAWER_QUERY } from "../shell-layout";
+
+/**
+ * The workbench-by-default presents the INLINE third column. Below the
+ * drawer breakpoint an open workspace renders as a fixed overlay with a
+ * backdrop — auto-opening that over the content would block the sidebar, so
+ * narrow viewports keep the previous closed default (the user opens the
+ * drawer on demand).
+ */
+function workbenchRendersInline(): boolean {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return true;
+  return !window.matchMedia(WORKSPACE_DRAWER_QUERY).matches;
+}
 
 /**
  * Bridges chat state into the workspace panel:
@@ -42,10 +55,12 @@ export function useWorkspaceSync(currentConversationId: string | null | undefine
         .getState()
         .conversations.find((entry) => entry.id === currentConversationId);
       const projectId = conversation?.projectId ?? null;
-      // Workbench-by-default is a desktop, project-thread behavior only.
+      // Workbench-by-default is a desktop, project-thread behavior — and
+      // only where the workbench renders as the inline third column.
       const defaultTab =
         getRuntime().target === "desktop" &&
         projectId !== null &&
+        workbenchRendersInline() &&
         !readClosedWorkbenchProjects().has(projectId)
           ? ("changes" as const)
           : undefined;
