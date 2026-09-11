@@ -537,6 +537,92 @@ describe("goal done-when verification", () => {
     expect(current?.events.filter(({ type }) => type === "goal.verification.failed")).toHaveLength(
       1,
     );
+    // §H2: the natural finish did NOT end the run silently — a bounded repair
+    // continuation was requested first, and stopped when it made no progress.
+    expect(current?.events.some(({ type }) => type === "continuation.requested")).toBe(true);
+    expect(current?.events.some(({ type }) => type === "continuation.stopped")).toBe(true);
+  });
+
+  it("continues an unmet done-when with a repair step, then completes when it lands", async () => {
+    seedOrchestration({
+      runId: "run-1",
+      conversationId: "conversation-1",
+      phase: "execution",
+      brief: doneWhenBrief,
+      plan,
+      assignments: [],
+      events: [],
+    });
+    let repaired = false;
+    vi.mocked(runAgentLoop).mockImplementation((options) => {
+      const content = String(options.messages.at(-1)?.content);
+      if (content.includes("Do not repeat completed work")) repaired = true; // repair node ran
+      return Promise.resolve({
+        turns: [
+          {
+            stream: { content, status: "complete" },
+            ...(content.includes("Verify")
+              ? {
+                  toolResults: [
+                    { toolCallId: "v", toolName: "git_status", success: true, output: "ok" },
+                  ],
+                }
+              : {}),
+          },
+        ],
+        maxIterationsReached: false,
+        messages: options.messages,
+        agentRun: options.runtime.agentRun!,
+      });
+    });
+    const runtime = runtimeWithCommand(false);
+    // The criterion fails until the repair work runs, then passes.
+    (
+      runtime.toolExecutor as unknown as { execute: ReturnType<typeof vi.fn> }
+    ).execute.mockImplementation(() =>
+      Promise.resolve({ success: repaired, output: repaired ? "" : "type errors" }),
+    );
+
+    await runOrchestratedAgent({
+      provider,
+      conversationId: "conversation-1",
+      messages: [{ role: "user", content: doneWhenBrief.objective }],
+      runtime,
+      privateSession: true,
+      onDelta: vi.fn(),
+    });
+
+    const current = useOrchestrationStore.getState().current;
+    expect(repaired).toBe(true);
+    expect(current?.events.some(({ type }) => type === "continuation.requested")).toBe(true);
+    expect(current?.plan?.status).toBe("completed");
+    expect(current?.brief.doneWhenResults?.[0]).toMatchObject({ status: "passed" });
+    expect(current?.events.some(({ type }) => type === "goal.verification.passed")).toBe(true);
+  });
+
+  it("an aborted run never requests a continuation", async () => {
+    seedOrchestration({
+      runId: "run-1",
+      conversationId: "conversation-1",
+      phase: "execution",
+      brief: doneWhenBrief,
+      plan,
+      assignments: [],
+      events: [],
+    });
+    const controller = new AbortController();
+    controller.abort();
+    await runOrchestratedAgent({
+      provider,
+      conversationId: "conversation-1",
+      messages: [{ role: "user", content: doneWhenBrief.objective }],
+      runtime: runtimeWithCommand(false),
+      privateSession: true,
+      onDelta: vi.fn(),
+      signal: controller.signal,
+    });
+    const current = useOrchestrationStore.getState().current;
+    expect(current?.events.some(({ type }) => type === "continuation.requested")).toBe(false);
   });
 });
 

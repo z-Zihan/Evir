@@ -172,7 +172,9 @@ export type RunEventType =
   | "run.cancelled"
   | "run.blocked"
   | "goal.verification.passed"
-  | "goal.verification.failed";
+  | "goal.verification.failed"
+  | "continuation.requested"
+  | "continuation.stopped";
 
 export interface RunEventV1 {
   id: string;

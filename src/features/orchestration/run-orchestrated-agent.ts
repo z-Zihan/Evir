@@ -1,7 +1,14 @@
 import { createRunEvent, OrchestrationRepository } from "../../core/orchestration/repository";
 import { GraphScheduler } from "../../core/orchestration/scheduler";
 import type { NodeExecutionResult } from "../../core/orchestration/scheduler";
-import type { PlanGraph, PlanNode } from "../../core/orchestration/types";
+import type { DoneWhenResult, PlanGraph, PlanNode } from "../../core/orchestration/types";
+import {
+  MAX_AUTO_CONTINUATIONS,
+  decideContinuation,
+  doneWhenSignature,
+  planProgressSignature,
+  repairNodeForUnmetDoneWhen,
+} from "./continuation-policy";
 import { getActiveWorkspaceRoot, popRunRoot, pushRunRoot } from "../../core/workspace/active-root";
 import { permissionContextForRoot } from "../projects/run-permission";
 import { doneWhenSatisfied, evaluateDoneWhen } from "../../core/orchestration/done-when";
@@ -112,6 +119,7 @@ async function runOrchestratedAgentBound(input: OrchestratedRunInput): Promise<A
     input.signal?.removeEventListener("abort", abortScheduler);
     activeSchedulers.delete(initial.runId);
   }
+  plan = await continueUnfinishedWork(state, io, scheduler, plan);
   plan = await enforceGoalEvidence(state, io, plan);
   return finalizeRun(state, plan);
 }
@@ -234,6 +242,108 @@ async function runWithAutoReplan(
     plan = await scheduler.run(revised);
   }
   return plan;
+}
+
+/**
+ * §H2 continuation: a natural model finish is not task completion while the
+ * plan explicitly has unfinished work. Bounded loop — MAX_AUTO_CONTINUATIONS,
+ * a progress signature that must change between attempts, the abort signal
+ * respected at every step, and every decision traced as a run event.
+ */
+async function continueUnfinishedWork(
+  state: OrchestratedRunState,
+  io: ReturnType<typeof createRunIo>,
+  scheduler: GraphScheduler,
+  plan: PlanGraph,
+): Promise<PlanGraph> {
+  const { input, initial, conversationId } = state;
+  const { appendEvent } = io;
+  let current = plan;
+  let previousSignature: string | null = null;
+  for (let attempt = 1; attempt <= MAX_AUTO_CONTINUATIONS; attempt += 1) {
+    if (input.signal?.aborted) {
+      await appendEvent(
+        createRunEvent("continuation.stopped", initial.runId, conversationId, "Aborted by user", {
+          data: { attempt, outcome: "aborted" },
+        }),
+      );
+      break;
+    }
+    const doneWhen = initial.brief.doneWhen ?? [];
+    let evaluated: readonly DoneWhenResult[] | null = null;
+    if (current.status === "completed" && doneWhen.length > 0) {
+      evaluated = await evaluateDoneWhen(
+        doneWhen,
+        input.runtime,
+        input.runtime.getWorkspaceRoot?.() ?? null,
+      );
+    }
+    const decision = decideContinuation(current, evaluated);
+    if (!decision.continue || !decision.reason) break;
+    if (decision.reason === "unmet-done-when" && evaluated) {
+      const signature = doneWhenSignature(evaluated);
+      if (signature === previousSignature) {
+        await appendEvent(
+          createRunEvent(
+            "continuation.stopped",
+            initial.runId,
+            conversationId,
+            "No progress since the previous continuation — stopping",
+            { data: { attempt, outcome: "no-progress" } },
+          ),
+        );
+        break;
+      }
+      previousSignature = signature;
+    }
+    await appendEvent(
+      createRunEvent(
+        "continuation.requested",
+        initial.runId,
+        conversationId,
+        `Auto continuation ${attempt}: ${decision.reason === "unfinished-nodes" ? "plan has unexecuted steps" : "done-when conditions unmet"}`,
+        { data: { attempt, reason: decision.reason, detail: decision.detail } },
+      ),
+    );
+    let next: PlanGraph;
+    if (decision.reason === "unfinished-nodes") {
+      next = await scheduler.run(current);
+      const signature = planProgressSignature(next);
+      if (signature === previousSignature) {
+        await appendEvent(
+          createRunEvent(
+            "continuation.stopped",
+            initial.runId,
+            conversationId,
+            "No progress since the previous continuation — stopping",
+            { data: { attempt, outcome: "no-progress" } },
+          ),
+        );
+        return next;
+      }
+      previousSignature = signature;
+    } else {
+      const repair = repairNodeForUnmetDoneWhen(decision.detail, attempt, current);
+      next = {
+        ...current,
+        revision: current.revision + 1,
+        status: "ready",
+        updatedAt: Date.now(),
+        nodes: [...current.nodes, repair],
+        edges: [...current.edges],
+      };
+      const snapshot = useOrchestrationStore.getState().snapshotFor(conversationId);
+      if (snapshot?.runId === initial.runId) {
+        useOrchestrationStore
+          .getState()
+          .setCurrent({ ...snapshot, plan: next, phase: "execution" });
+      }
+      if (!input.privateSession) await state.repository.persistPlanWithEvents(next, []);
+      next = await scheduler.run(next);
+    }
+    current = next;
+  }
+  return current;
 }
 
 /**
