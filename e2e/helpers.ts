@@ -113,7 +113,11 @@ export async function seedFixture(
     },
   );
   await page.reload();
-  await expect(page.getByText("Local Fixture", { exact: true })).toBeVisible();
+  // The provider name lives in the composer's model switcher (§68: header is
+  // title + run status only) — in its accessible name, next to the model id.
+  const modelSwitcher = page.locator(".model-switcher-button");
+  await expect(modelSwitcher).toBeVisible();
+  await expect(modelSwitcher).toHaveAccessibleName(/Local Fixture/);
   if (withConversation) {
     const conversation = page.locator(".conversation-item", { hasText: fixtureConversation.title });
     if ((await conversation.count()) === 0) {
@@ -229,9 +233,9 @@ export function agentMessages(
 }
 
 export async function collapseSidebar(page: Page): Promise<void> {
-  // The workspace toggle shares .header-icon-button; the sidebar control is
-  // the one without the workspace-toggle modifier.
-  const button = page.locator(".workspace-header .header-icon-button:not(.workspace-toggle)");
+  // The header also hosts the panel toggle and a streaming Stop; the sidebar
+  // control carries its own class.
+  const button = page.locator(".workspace-header .header-sidebar-toggle");
   await button.click();
   await expect(page.locator(".sidebar")).toHaveCount(0);
 }

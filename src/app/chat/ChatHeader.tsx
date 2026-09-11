@@ -1,14 +1,10 @@
 import { useTranslation } from "react-i18next";
-import { PanelLeft, PanelRight } from "lucide-react";
+import { PanelLeft, PanelRight, Square } from "lucide-react";
 import { Button, Tip } from "../../components/ui";
 import type { ConversationRunStatus } from "../../features/chat/run-phase";
 
 export interface ChatHeaderProps {
   title: string;
-  /** Provider actually in use (may differ from default after in-chat switch). */
-  providerName: string | undefined;
-  /** Fallback caption when no provider is configured. */
-  runtimeCaption: string;
   sidebarVisible: boolean;
   onToggleSidebar: () => void;
   panelOpen: boolean;
@@ -16,18 +12,23 @@ export interface ChatHeaderProps {
   isDesktop: boolean;
   /** Canonical run phase for this thread (§68: title + status only). */
   runStatus: ConversationRunStatus | null;
+  /**
+   * While this thread is streaming, a prominent Stop lives in the header —
+   * the top task status area — so stopping never depends on spotting the
+   * composer's morphed send button (§40 stop always visible).
+   */
+  onStop?: () => void;
 }
 
-/** Conversation header: sidebar/panel toggles, title and model switcher. */
+/** Conversation header: sidebar/panel toggles, thread title, and run status. */
 export function ChatHeader({
   title,
-  providerName,
-  runtimeCaption,
   sidebarVisible,
   onToggleSidebar,
   panelOpen,
   onTogglePanel,
   isDesktop,
+  onStop,
   runStatus,
 }: ChatHeaderProps) {
   const { t } = useTranslation();
@@ -39,7 +40,7 @@ export function ChatHeader({
             variant="ghost"
             size="icon"
             type="button"
-            className="header-icon-button"
+            className="header-icon-button header-sidebar-toggle"
             onClick={onToggleSidebar}
             aria-label={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")}
           >
@@ -48,6 +49,8 @@ export function ChatHeader({
         </Tip>
         <div className="workspace-title-block flex min-w-0 flex-col leading-tight">
           <h1 className="truncate text-[13px] font-semibold text-foreground">{title}</h1>
+          {/* §68: the header shows title + run status only — the model
+              appears once, in the composer's ModelSwitcher. */}
           <span className="workspace-context flex min-w-0 items-center gap-1.5 truncate text-[10.5px] text-muted">
             {runStatus && (
               <span
@@ -59,11 +62,24 @@ export function ChatHeader({
                 )}
               </span>
             )}
-            <span className="truncate">{providerName ?? runtimeCaption}</span>
           </span>
         </div>
       </div>
       <div className="workspace-controls flex shrink-0 items-center gap-1.5">
+        {onStop && (
+          <Tip content={t("chat.stop")} side="bottom">
+            <Button
+              variant="ghost"
+              size="icon"
+              type="button"
+              className="header-icon-button header-stop-button text-danger"
+              onClick={onStop}
+              aria-label={t("chat.stop")}
+            >
+              <Square size={15} aria-hidden="true" />
+            </Button>
+          </Tip>
+        )}
         {isDesktop && (
           <Tip content={panelOpen ? t("workspace.close") : t("workspace.open")} side="bottom">
             <Button

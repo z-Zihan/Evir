@@ -90,7 +90,9 @@ test("streaming does not yank a reader who scrolled upward", async ({ page }) =>
   }));
   await seedFixture(page, { messages });
   await send(page, "[slow] keep scroll stable");
-  await expect(page.getByRole("button", { name: "Stop", exact: true })).toBeVisible();
+  await expect(
+    page.locator(".composer-wrap").getByRole("button", { name: "Stop", exact: true }),
+  ).toBeVisible();
   const area = page.locator(".messages-area");
   await area.evaluate((element) => {
     element.scrollTop = 0;
@@ -98,7 +100,7 @@ test("streaming does not yank a reader who scrolled upward", async ({ page }) =>
   });
   await page.waitForTimeout(450);
   expect(await area.evaluate((element) => element.scrollTop)).toBeLessThan(80);
-  await page.getByRole("button", { name: "Stop", exact: true }).click();
+  await page.locator(".composer-wrap").getByRole("button", { name: "Stop", exact: true }).click();
   await expect(page.locator("textarea")).toBeEnabled();
 });
 

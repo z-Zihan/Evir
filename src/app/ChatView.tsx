@@ -359,16 +359,18 @@ export function ChatView({
   const header = (
     <ChatHeader
       title={conversationTitle}
-      providerName={effectiveProvider?.name}
-      runtimeCaption={
-        runtime.target === "desktop" ? t("runtime.desktopLocal") : t("runtime.chatOnly")
-      }
       sidebarVisible={sidebarVisible}
       onToggleSidebar={onToggleSidebar}
       panelOpen={panelOpen}
       onTogglePanel={() => togglePanel()}
       isDesktop={runtime.target === "desktop"}
       runStatus={conversationStatus}
+      {...(isCurrentConversationStreaming
+        ? {
+            onStop: () =>
+              void useChatStore.getState().stopGeneration(currentConversationId ?? undefined),
+          }
+        : {})}
     />
   );
 

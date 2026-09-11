@@ -76,7 +76,9 @@ test("trace persists across reload for its conversation", async ({ page }) => {
     .toBeGreaterThanOrEqual(2);
 
   await page.reload();
-  await expect(page.getByText("Local Fixture", { exact: true })).toBeVisible();
+  const modelSwitcher = page.locator(".model-switcher-button");
+  await expect(modelSwitcher).toBeVisible();
+  await expect(modelSwitcher).toHaveAccessibleName(/Local Fixture/);
   await page.locator(".conversation-item", { hasText: "Quality verification" }).click();
   await page.getByRole("button", { name: "Run details", exact: true }).click();
   await expect(page.getByRole("dialog").getByText("Chunks", { exact: true })).toBeVisible();

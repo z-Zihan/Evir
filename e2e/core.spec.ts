@@ -10,16 +10,16 @@ test("first run and runtime capability boundaries", async ({ page }, testInfo) =
   await configurePage(page);
   await expect(page.getByRole("heading", { name: /Connect your first model/i })).toBeVisible();
   if (isDesktop(testInfo)) {
-    await expect(page.getByText("Local desktop mode", { exact: true })).toBeVisible();
-    await expect(page.getByText("Browser chat mode", { exact: true })).toHaveCount(0);
+    // Target signal: the desktop sidebar exposes Projects.
+    await expect(page.locator('section[aria-label="Projects"]')).toBeVisible();
     // Standalone chat with no project: no mode group until a project context exists.
     await expect(page.getByText("Agent", { exact: true })).toHaveCount(0);
     await expect(page.getByText("Plan", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Add project/i })).toBeVisible();
     await expect(page.getByRole("button", { name: "New chat", exact: true })).toBeVisible();
   } else {
-    await expect(page.getByText("Browser chat mode", { exact: true })).toBeVisible();
-    await expect(page.getByText("Local desktop mode", { exact: true })).toHaveCount(0);
+    // Target signal: the web surface has no Projects section.
+    await expect(page.locator('section[aria-label="Projects"]')).toHaveCount(0);
     await expect(page.getByText("Agent", { exact: true })).toHaveCount(0);
     await expect(page.getByText("Plan", { exact: true })).toHaveCount(0);
     await expect(page.getByText(/Workspace/i)).toHaveCount(0);
@@ -140,12 +140,31 @@ test("stops an active stream and remains usable", async ({ page }) => {
   const composer = page.locator("textarea");
   await composer.fill("[slow] verify cancellation");
   await page.getByRole("button", { name: "Send", exact: true }).click();
-  const stop = page.getByRole("button", { name: "Stop", exact: true });
+  const stop = page.locator(".composer-wrap").getByRole("button", { name: "Stop", exact: true });
   await expect(stop).toBeVisible();
   await expect(page.getByText(/deliberately streamed/)).toBeVisible();
   await stop.click();
   await expect(page.getByText("stopped", { exact: true })).toBeVisible();
   await expect(composer).toBeEnabled();
+});
+
+test("shows a prominent header stop while streaming and no second model name", async ({ page }) => {
+  await configurePage(page);
+  await seedFixture(page);
+  await page.locator("textarea").fill("[slow] header stop");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  // §40: a Stop lives in the header (top task status area), not only as the
+  // composer's morphed send button.
+  const headerStop = page
+    .locator(".workspace-header")
+    .getByRole("button", { name: "Stop", exact: true });
+  await expect(headerStop).toBeVisible();
+  // §68: the header shows title + run status only — the model name appears
+  // once, in the composer's model switcher.
+  await expect(page.locator(".workspace-context")).not.toContainText("Local Fixture");
+  await headerStop.click();
+  await expect(page.getByText("stopped", { exact: true })).toBeVisible();
+  await expect(page.locator("textarea")).toBeEnabled();
 });
 
 test("keeps an active response inside its originating conversation", async ({ page }) => {
@@ -198,13 +217,13 @@ test("runs two tasks concurrently with stop isolation", async ({ page }) => {
   await expect(rowA.locator(".conversation-status-streaming")).toBeVisible();
 
   // Stop B; A must keep streaming.
-  await page.getByRole("button", { name: "Stop", exact: true }).click();
+  await page.locator(".composer-wrap").getByRole("button", { name: "Stop", exact: true }).click();
   await expect(page.getByRole("button", { name: "Stop", exact: true })).toHaveCount(0);
   await rowA.click();
   await expect(page.locator(".message-streaming")).toContainText("deliberately streamed");
 
   // Stopping A leaves the app fully usable.
-  await page.getByRole("button", { name: "Stop", exact: true }).click();
+  await page.locator(".composer-wrap").getByRole("button", { name: "Stop", exact: true }).click();
   await expect(page.locator("textarea")).toBeEnabled();
 });
 
@@ -475,7 +494,10 @@ test("provider edits persist after closing settings and refreshing", async ({ pa
   await expect(settings.getByText("Renamed Fixture", { exact: true })).toBeVisible();
   await settings.getByRole("button", { name: "Close", exact: true }).click();
   await page.reload();
-  await expect(page.getByText("Renamed Fixture", { exact: true })).toBeVisible();
+  // The renamed provider shows in the composer's model switcher (§68).
+  const renamedSwitcher = page.locator(".model-switcher-button");
+  await expect(renamedSwitcher).toBeVisible();
+  await expect(renamedSwitcher).toHaveAccessibleName(/Renamed Fixture/);
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await expect(
     page.getByRole("dialog", { name: "Settings" }).getByText("Renamed Fixture"),
