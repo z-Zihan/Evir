@@ -1,5 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import {
+  invokeIdempotentWithRetry,
+  invokeMutatingWithTimeout,
+} from "../../runtime/desktop-storage-adapter";
 import { readTextFile, statFile } from "./workspace-services";
 import { logger } from "../../core/logging/logger";
 
@@ -123,6 +127,10 @@ export async function detectDevScript(root: string): Promise<DetectDevScriptResu
   }
 }
 
+// The custom-scheme IPC stall (tauri#7662, release macOS) can hang raw
+// invokes for ~100s: start/stop get a timeout whose error says the outcome
+// will be reconciled (status events + the list poll below), and the list
+// poll — idempotent — gets the standard timeout+retry protection.
 export function devServerStart(input: {
   projectId: string;
   cwd: string;
@@ -130,15 +138,17 @@ export function devServerStart(input: {
   args: string[];
   workspaceRoot: string;
 }): Promise<DevServerState> {
-  return invoke("dev_server_start", input);
+  return invokeMutatingWithTimeout("dev_server_start", () => invoke("dev_server_start", input));
 }
 
 export function devServerStop(projectId: string): Promise<void> {
-  return invoke("dev_server_stop", { projectId });
+  return invokeMutatingWithTimeout("dev_server_stop", () =>
+    invoke("dev_server_stop", { projectId }),
+  );
 }
 
 export function devServerList(): Promise<DevServerState[]> {
-  return invoke("dev_server_list");
+  return invokeIdempotentWithRetry("dev_server_list", () => invoke("dev_server_list"));
 }
 
 export function subscribeDevServerStatus(

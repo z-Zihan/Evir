@@ -3,7 +3,11 @@ import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { logger } from "../../core/logging/logger";
-import { DesktopStructuredStorageAdapter, desktopStorage } from "../desktop-storage-adapter";
+import {
+  DesktopStructuredStorageAdapter,
+  desktopStorage,
+  invokeMutatingWithTimeout,
+} from "../desktop-storage-adapter";
 import { useIpcRetryStore } from "../ipc-retry-store";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -374,5 +378,35 @@ describe("DesktopStructuredStorageAdapter", () => {
 
     await storage.apply(mutations);
     expect(invoke).toHaveBeenCalledWith("entity_apply", { mutations });
+  });
+});
+
+describe("invokeMutatingWithTimeout", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.setItem("evir-workspace-current", "/tmp");
+  });
+
+  it("returns the invoke result when it answers in time", async () => {
+    const result = await invokeMutatingWithTimeout("dev_server_start", () =>
+      Promise.resolve({ status: "starting" }),
+    );
+    expect(result).toEqual({ status: "starting" });
+  });
+
+  it("times out a stalled invoke with a descriptive, reconciling error", async () => {
+    vi.useFakeTimers();
+    try {
+      const pending = invokeMutatingWithTimeout(
+        "dev_server_start",
+        () => new Promise(() => {}),
+        1_000,
+      );
+      const assertion = expect(pending).rejects.toThrow(/tauri#7662/);
+      await vi.advanceTimersByTimeAsync(1_100);
+      await assertion;
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

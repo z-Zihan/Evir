@@ -149,6 +149,48 @@ function ipcFields(command: string, attempt: number, durationMs: number, corr?: 
   };
 }
 
+/**
+ * Idempotent IPC reads outside the fs/git surface (e.g. dev-server list
+ * polling) get the same tauri#7662 stall protection as storage reads:
+ * timeout + bounded retry + telemetry.
+ */
+export function invokeIdempotentWithRetry<T>(label: string, run: () => Promise<T>): Promise<T> {
+  return invokeReadWithRetry(label, run);
+}
+
+/**
+ * Mutating IPC calls cannot be blindly re-issued, so they get a timeout with
+ * a descriptive error instead of a retry; callers that own a reconciliation
+ * channel (status events / polling) recover the true outcome from it.
+ */
+export async function invokeMutatingWithTimeout<T>(
+  label: string,
+  run: () => Promise<T>,
+  timeoutMs = 15_000,
+): Promise<T> {
+  const startedAt = Date.now();
+  try {
+    return await Promise.race([
+      run(),
+      new Promise<never>((_, reject) =>
+        globalThis.setTimeout(() => {
+          logger.warn("runtime", "desktop.ipc.mutating-timeout", {
+            command: label,
+            durationMs: Date.now() - startedAt,
+          });
+          reject(
+            new Error(
+              `${label} did not answer within ${timeoutMs / 1000}s (known macOS custom-scheme IPC stall, tauri#7662). If the action actually completed, status syncs from events/polling.`,
+            ),
+          );
+        }, timeoutMs),
+      ),
+    ]);
+  } finally {
+    ipcRetryStore.end(label);
+  }
+}
+
 async function invokeReadWithRetry<T>(
   label: string,
   run: () => Promise<T>,
