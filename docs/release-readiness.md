@@ -174,3 +174,14 @@
 - **Correctness**：Ask 档支持行内 "Allow this tool in this project" 范围授权（含审计、换 profile 即失效）（C1）；GUI-PATH 回归门 + 命令未找到可操作提示 + Preview 检测失败与无脚本文案分离（C2）；dev_server IPC 超时缓解 + list 重试（G 缓解，安装版真人复验记录见下）；Knowledge serving/indexing 双轴拆分、重建期间与失败后旧索引仍可检索（F）；Plan/Goal 自然结束但工作未完时有界 continuation（含 no-progress 停止与追踪事件）（H）。
 - **Product-level Golden Eval（E3）**：`eval/product-golden/` 五题套件（修真实失败测试 / 拆过大函数 / 加 API 校验 / 只许改 packages-cli 的范围纪律 / 脏工作区不覆盖用户修改），Prompt、范围与断言同源（`tasks.ts` 单一事实），真实模型 runner 与确定性自检（`tasks.spec.ts`，进 CI）齐备。2026-09-11 真实端点（EvoMap `evomap-deepseek-v4-flash`）实跑 Task 01：**PASS**（4/4 检查全绿：目标测试通过、全量 cli 测试 8/8、typecheck 绿、被植入测试未被改动；9 次工具调用、157.6s；修复恰好恢复被植入删除的一行）。结果 JSON 在 `eval/results/product-golden-2026-09-11.json`（本地）与桌面 Evidence；其余 4 题 NOT RUN（本轮要求 ≥1 真实跑，未凑数）。
 - **既有失败如实记录**：`e2e/comprehensive-qa.spec.ts` 存在 12 个与本轮无关的预存失败（参考基线 d0c1f45 同样 12 失败/11 通过，Send disabled 模式），不在任何门禁套件内；留待后续专项排查。
+
+### 2026-09-11 安装版真人旅程（L1–L5，发布 DMG 覆盖安装，SHA 与构建一致）
+
+证据目录：`~/Desktop/Evir_Desktop_Project_Agent_Final_Polish_Evidence_2026-09-11/`（截图 + 审计摘录）。
+
+- **L1 第一印象：PASS** — 新项目首次进入出现 Composer 上方权限横幅；选择"工作区访问"后横幅消失，Workbench 自动打开且默认落在"变更"；composer/header 干净。
+- **L2 真实编码任务（含 STOP+resume）：PASS** — 8-10 分钟真实任务（修 `countWidgets` 去重 + 新增 `summarizeWidgets` 及测试）：计划确认后真实执行；运行中 Header"停止任务"与 Composer 停止双入口可见（证据截图）；中途点击"停止任务"一次即停（流内出现"任务已停止"分隔，运行终止、无后续请求）；以"继续"恢复后 **vitest 5/5 全绿**（模型诚实自纠 `pnpm` 缺失改用 `node_modules/.bin/vitest`）；恢复后 git diff 与停止时完全一致（+30/−3，同两文件同内容）——**无重复副作用**；Changes 面板可审（`count.test.ts +20 −1`、`count.ts +13 −2`，含逐文件复制补丁）。
+- **L3 权限对话（允许一次 vs 在此项目允许此工具）：PASS** — 项目切换"逐次审批"后：① `write_file`(L3) 首次询问 → 三按钮卡（拒绝/本次允许/在此项目允许此工具）→ 选"本次允许" → 写入成功（`approval.granted` 08:49:58）；② 同工具再次询问 → 选"在此项目允许此工具" → 写入成功（08:54:22）；③ **后续同工具调用零询问**：审计中 4 次 `permission.auto-approved reason:"scoped-grant" profile:"ask"`（run_command，08:56:49–08:57:27）；授权按工具隔离（write_file 已授权后 run_command 仍询问）。审计摘录存证。
+- **L4 App Preview：部分通过，启动 BLOCKED（如实记录）** — 检测 PASS：面板正确识别 `pnpm run dev:web` 并展示启动按钮；确认对话框 PASS（含"会重置当前对话的执行配置"的诚实提示）。**启动未成功**：确认后无进程、无端口、无任何 devserver 日志事件，面板回到初始态。根因与本机环境一致：GUI 应用 PATH 无 `pnpm`（run_command 同因曾报 `program not found: pnpm`，但 run_command 可自纠改用 `node_modules/.bin`，Preview 启动器只支持包管理器且**失败为静默**）。两个待办：devServerStart 复用 command_env 登录探测解析；启动失败需在面板显错并记日志。Stop/Restart/Error+Retry 未达（依赖启动成功）。
+- **L5 Knowledge 重建索引回归：PASS（失败路径实机验证）** — 触发"重建索引"真实执行并**诚实失败**：`knowledge.source-reindex-failed error:"folder is outside the project's granted roots"`（来源目录属另一项目，边界判定正确）；失败后旧索引仍 `ready` 可检索（"66 文档 · 1143 分块 · 索引于 2026/9/9"保持 serving，未翻转失败）——即 F 修复的实机确认。"重试成功切换索引"路径由 knowledge-eval（11 绿）与仓库层测试覆盖，本轮未在安装版完成（来源目录按边界不可达）。小缺陷记录：来源状态徽章在中文界面显示原始 i18n 键 `knowledge.sources.state.ready`（未本地化）。
+- **旅程期间的其他如实观察**：一次 resume 轮 executor 显示 `profile: null`（项目权限上下文未随 continuation 绑定，退回 allow-once 后备；边界未破、无越权，但应随 run 传递）；一次任务在多次命令失败后最终态显示"任务失败"（文件写入本身成功，模型 `cat`/`pnpm` 环境命令失败计入）——失败态呈现诚实但与文件结果并列时略显严格。
