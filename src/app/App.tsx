@@ -112,8 +112,14 @@ export function App() {
     if (!messageInput.trim()) return;
     // Clear the draft only after the message is accepted (persisted or
     // private-accepted); on pre-acceptance failure the draft stays editable
-    // and the chat-error line explains the failure.
-    void sendMessage(messageInput, () => setMessageInput("")).catch(() => {
+    // and the chat-error line explains the failure. The acceptance callback
+    // fires after an async persistence round-trip, so it must only clear the
+    // draft when it is STILL the sent text — a fast user (or test) typing
+    // the next message in between must not have their draft wiped.
+    const sent = messageInput;
+    void sendMessage(sent, () =>
+      setMessageInput((current) => (current === sent ? "" : current)),
+    ).catch(() => {
       /* error surfaced via chat error line; draft preserved */
     });
   }, [messageInput, sendMessage]);

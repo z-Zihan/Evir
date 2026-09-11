@@ -3,11 +3,17 @@ import { configurePage, FIXED_NOW, isDesktop, seedFixture, type SeedMessage } fr
 
 async function send(page: Page, prompt: string): Promise<void> {
   // §40 queue era: a send while a run is winding down queues instead of
-  // sending — wait for the composer to be idle so each scripted message
-  // streams on its own.
+  // sending — and the composer textarea is disabled while streaming, so a
+  // fill during the wind-down never reaches React state and Send stays
+  // disabled. Wait for the composer's own Stop to vanish (run fully idle),
+  // fill, then wait for the armed Send. Current contract: Send is DISABLED
+  // while the input is empty.
+  await expect(
+    page.locator(".composer-wrap").getByRole("button", { name: "Stop", exact: true }),
+  ).toHaveCount(0);
   const sendButton = page.getByRole("button", { name: "Send", exact: true });
-  await expect(sendButton).toBeEnabled();
   await page.locator("textarea").fill(prompt);
+  await expect(sendButton).toBeEnabled();
   await sendButton.click();
 }
 
@@ -44,7 +50,10 @@ test("every reachable settings page opens and key preferences persist", async ({
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await page.getByRole("button", { name: "Personalization", exact: true }).click();
   await page.getByRole("button", { name: "Chinese", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "语言", exact: true })).toBeVisible();
+  // Language applies immediately: the open settings dialog re-titles to
+  // Chinese (the old standalone "语言" heading page no longer exists —
+  // language lives as a row inside Personalization).
+  await expect(page.getByRole("dialog", { name: "设置", exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByRole("button", { name: "设置", exact: true })).toBeVisible();
 });
