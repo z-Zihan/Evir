@@ -26,8 +26,8 @@ import {
   setPendingApproval,
   updateConversationStream,
 } from "./stream-ownership";
-import { permissionContextForRoot } from "../projects/run-permission";
-import { grantedToolsForRoot, grantToolInProject } from "../projects/tool-grants";
+import { permissionContextForRoot, projectIdForRoot } from "../projects/run-permission";
+import { grantedToolsForProject, grantToolForProject } from "../projects/tool-grants";
 import type { PermissionContext } from "../../core/security/permission-profiles";
 import {
   RISK_LEVELS,
@@ -310,14 +310,17 @@ export async function approveToolInProject(
   set: ChatStoreSet,
   get: ChatStoreGet,
 ): Promise<void> {
-  const projectId = await grantToolInProject(pending.workspaceRoot, pending.toolName);
-  return resolveApproval(
-    pending,
-    set,
-    get,
-    "approved",
-    projectId ? { scope: "project", projectId } : undefined,
-  );
+  // No project binding (legacy workspace chat): the scoped option must not
+  // degrade into a global always-allow — fall back to a plain one-time allow.
+  const projectId = projectIdForRoot(pending.workspaceRoot);
+  if (!projectId) {
+    logger.warn("security", "permission.tool-grant-unavailable", {
+      toolName: pending.toolName,
+    });
+    return resolveApproval(pending, set, get, "approved");
+  }
+  await grantToolForProject(projectId, pending.toolName);
+  return resolveApproval(pending, set, get, "approved", { scope: "project", projectId });
 }
 
 export async function denyTool(
@@ -367,8 +370,9 @@ async function resolveApproval(
   let grantContext: PermissionContext | null | undefined;
   if (scope) {
     const base = permissionContextForRoot(pending.workspaceRoot);
-    const grantedTools = await grantedToolsForRoot(pending.workspaceRoot);
-    grantContext = base ? { ...base, grantedTools } : base;
+    const projectId = projectIdForRoot(pending.workspaceRoot);
+    const grantedTools = projectId ? await grantedToolsForProject(projectId) : null;
+    grantContext = base && grantedTools ? { ...base, grantedTools } : base;
   }
   const runtime = approvalRuntime(baseRuntime, pending, grantContext);
   if (approved && !runtime.toolExecutor) {

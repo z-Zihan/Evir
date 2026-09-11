@@ -143,7 +143,7 @@ export function FirstRunSetupCard({ onOpenSettings }: { onOpenSettings: () => vo
                 className={cn(
                   "cursor-pointer rounded-full border px-2.5 py-1 text-[11.5px] transition-colors select-none",
                   entry.id === preset?.id
-                    ? "border-primary bg-primary/10 text-primary"
+                    ? "border-primary bg-surface text-foreground font-semibold"
                     : "border-border bg-surface text-muted hover:border-border-strong hover:text-foreground",
                 )}
                 aria-pressed={entry.id === preset?.id}

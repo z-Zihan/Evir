@@ -34,9 +34,38 @@ test("first run and runtime capability boundaries", async ({ page }, testInfo) =
 test("sidebar scrolls internally and keeps the settings footer visible", async ({ page }) => {
   await configurePage(page);
   await seedFixture(page, { messages: agentMessages() });
-  // Force overflow: an extremely short viewport leaves no room for even one
-  // list row, so the conversation list must scroll inside its own region while
-  // the projects header and the footer stay put.
+  // Force overflow independent of footer height (the single-profile footer
+  // got shorter in §50): seed enough standalone chats that the list must
+  // scroll inside its own region in an extremely short viewport while the
+  // projects header and the footer stay put.
+  await page.evaluate(async () => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const profile = localStorage.getItem("evir:active-profile");
+      const request = indexedDB.open(`evir:${profile && profile.length > 0 ? profile : "default"}`);
+      request.onerror = () => reject(request.error ?? new Error("Unable to open Evir test DB"));
+      request.onsuccess = () => resolve(request.result);
+    });
+    const transaction = database.transaction("conversations", "readwrite");
+    const store = transaction.objectStore("conversations");
+    for (let index = 0; index < 12; index += 1) {
+      store.put({
+        id: `overflow-chat-${index}`,
+        title: `Overflow chat ${index}`,
+        projectId: null,
+        providerId: "fixture-provider",
+        modelId: "evir-fixture-model",
+        createdAt: 1_000 + index,
+        updatedAt: 1_000 + index,
+      });
+    }
+    await new Promise<void>((resolve, reject) => {
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () =>
+        reject(transaction.error ?? new Error("Unable to seed overflow chats"));
+    });
+    database.close();
+  });
+  await page.reload();
   await page.setViewportSize({ width: 1100, height: 240 });
   await expect(page.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
   await page.locator(".conversation-list").evaluate((el) => {

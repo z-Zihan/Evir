@@ -1,6 +1,5 @@
 import { getStructuredStorage } from "../../runtime/structured-storage";
 import { logger } from "../../core/logging/logger";
-import { useProjectStore } from "./project-store";
 
 /**
  * Scoped tool approvals (§37b): "Allow this tool in this project" persists a
@@ -9,6 +8,10 @@ import { useProjectStore } from "./project-store";
  * relaxes path boundaries (outside-root paths still ask) and never covers L4.
  * Switching the project's permission profile clears its grants — changing
  * the policy means re-asking.
+ *
+ * Pure storage keyed by projectId: root-to-project resolution lives in
+ * run-permission.ts (which owns the project lookup), so this module holds no
+ * dependency on the project store (import-cycle gate, §32-38).
  */
 const GRANT_SETTING_NAME = "permission_tool_grants";
 
@@ -40,50 +43,20 @@ async function writeGrantMap(map: ToolGrantMap): Promise<void> {
     .catch(() => undefined);
 }
 
-function comparable(path: string): string {
-  return path.replace(/[\\/]+$/, "").toLowerCase();
-}
-
-/** The project a workspace root belongs to (same matching as run-permission). */
-function projectForRoot(root: string | null | undefined) {
-  if (!root) return null;
-  return (
-    useProjectStore
-      .getState()
-      .projects.find(
-        (candidate) =>
-          comparable(candidate.rootPath) === comparable(root) ||
-          comparable(candidate.canonicalRootPath) === comparable(root),
-      ) ?? null
-  );
-}
-
-export async function grantedToolsForRoot(root: string | null | undefined): Promise<Set<string>> {
-  const project = projectForRoot(root);
-  if (!project) return new Set<string>();
+export async function grantedToolsForProject(projectId: string): Promise<Set<string>> {
   const map = await readGrantMap();
-  return new Set(Object.keys(map[project.id] ?? {}));
+  return new Set(Object.keys(map[projectId] ?? {}));
 }
 
-export async function grantToolInProject(
-  root: string | null | undefined,
-  toolName: string,
-): Promise<string | null> {
-  const project = projectForRoot(root);
-  if (!project) {
-    // No project binding (legacy workspace chat): the scoped option must not
-    // degrade into a global always-allow, so nothing is persisted.
-    logger.warn("security", "permission.tool-grant-unavailable", { toolName });
-    return null;
-  }
+export async function grantToolForProject(projectId: string, toolName: string): Promise<string> {
   const map = await readGrantMap();
   const next: ToolGrantMap = {
     ...map,
-    [project.id]: { ...(map[project.id] ?? {}), [toolName]: new Date().toISOString() },
+    [projectId]: { ...(map[projectId] ?? {}), [toolName]: new Date().toISOString() },
   };
   await writeGrantMap(next);
-  logger.info("security", "permission.tool-granted", { projectId: project.id, toolName });
-  return project.id;
+  logger.info("security", "permission.tool-granted", { projectId, toolName });
+  return projectId;
 }
 
 /** Called when the project's permission profile changes: grants are void. */

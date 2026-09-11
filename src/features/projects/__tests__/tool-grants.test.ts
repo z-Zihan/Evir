@@ -9,8 +9,8 @@ vi.mock("../../../runtime/use-runtime", () => ({
 }));
 
 import { useProjectStore } from "../project-store";
-import { clearToolGrants, grantedToolsForRoot, grantToolInProject } from "../tool-grants";
-import { permissionContextForRunWithGrants } from "../run-permission";
+import { clearToolGrants, grantedToolsForProject, grantToolForProject } from "../tool-grants";
+import { permissionContextForRunWithGrants, projectIdForRoot } from "../run-permission";
 
 const PROJECT: ProjectRecord = {
   id: "p1",
@@ -37,27 +37,28 @@ beforeEach(async () => {
 
 describe("scoped tool grants", () => {
   it("persists a per-project grant and resolves it for the matching root", async () => {
-    expect(await grantedToolsForRoot("/tmp/evir")).toEqual(new Set());
-    const projectId = await grantToolInProject("/tmp/evir", "apply_patch");
+    expect(projectIdForRoot("/tmp/evir")).toBe("p1");
+    expect(await grantedToolsForProject("p1")).toEqual(new Set());
+    const projectId = await grantToolForProject("p1", "apply_patch");
     expect(projectId).toBe("p1");
-    expect(await grantedToolsForRoot("/tmp/evir")).toEqual(new Set(["apply_patch"]));
-    // A different root does not see the grant.
-    expect(await grantedToolsForRoot("/tmp/other")).toEqual(new Set());
+    expect(await grantedToolsForProject("p1")).toEqual(new Set(["apply_patch"]));
+    // A different project does not see the grant.
+    expect(await grantedToolsForProject("p2")).toEqual(new Set());
   });
 
-  it("refuses to persist without a project binding", async () => {
-    const projectId = await grantToolInProject("/tmp/unknown-root", "apply_patch");
-    expect(projectId).toBeNull();
+  it("an unbound root resolves to no project", () => {
+    expect(projectIdForRoot("/tmp/unknown-root")).toBeNull();
+    expect(projectIdForRoot(null)).toBeNull();
   });
 
   it("clears grants when the project's permission profile changes", async () => {
-    await grantToolInProject("/tmp/evir", "apply_patch");
+    await grantToolForProject("p1", "apply_patch");
     await useProjectStore.getState().setPermissionProfile("p1", "workspace");
-    expect(await grantedToolsForRoot("/tmp/evir")).toEqual(new Set());
+    expect(await grantedToolsForProject("p1")).toEqual(new Set());
   });
 
   it("arms the run permission context with the project's grants", async () => {
-    await grantToolInProject("/tmp/evir", "run_command");
+    await grantToolForProject("p1", "run_command");
     const context = await permissionContextForRunWithGrants("/tmp/evir");
     expect(context).toMatchObject({ profile: "ask" });
     expect(context?.grantedTools).toEqual(new Set(["run_command"]));

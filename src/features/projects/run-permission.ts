@@ -1,7 +1,7 @@
 import type { PermissionContext } from "../../core/security/permission-profiles";
 import { getActiveWorkspaceRoot } from "../../core/workspace/active-root";
 import { useProjectStore } from "./project-store";
-import { grantedToolsForRoot } from "./tool-grants";
+import { grantedToolsForProject } from "./tool-grants";
 
 function comparable(path: string): string {
   return path.replace(/[\\/]+$/, "").toLowerCase();
@@ -40,10 +40,24 @@ export async function permissionContextForRunWithGrants(
 ): Promise<PermissionContext | null> {
   const context = permissionContextForRoot(root);
   if (!context) return null;
-  const grantedTools = await grantedToolsForRoot(root);
+  const projectId = projectIdForRoot(root);
+  const grantedTools = projectId ? await grantedToolsForProject(projectId) : new Set<string>();
   return grantedTools.size > 0 ? { ...context, grantedTools } : context;
 }
 
 export function permissionContextForActiveRun(): PermissionContext | null {
   return permissionContextForRoot(getActiveWorkspaceRoot());
+}
+
+/** The project id a workspace root belongs to (null when unbound). */
+export function projectIdForRoot(root: string | null | undefined): string | null {
+  if (!root) return null;
+  const project = useProjectStore
+    .getState()
+    .projects.find(
+      (candidate) =>
+        comparable(candidate.rootPath) === comparable(root) ||
+        comparable(candidate.canonicalRootPath) === comparable(root),
+    );
+  return project?.id ?? null;
 }
