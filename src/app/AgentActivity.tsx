@@ -34,7 +34,7 @@ import {
 import { useChatStore } from "../features/chat/chat-store";
 import { useWorkspacePanelStore } from "../features/workspace/workspace-panel-store";
 import { useRunWorkspaceStore } from "../features/workspace/workspace-run-store";
-import { relativeToRoot, resolveWorkspacePath } from "../features/workspace/workspace-services";
+import { resolveWorkspacePath } from "../features/workspace/workspace-services";
 import { argumentDiffstat } from "../features/workspace/changes-model";
 import { useActiveWorkspaceRoot } from "../features/workspace/workspace-bridge";
 import { groupSummary, groupToolCalls, type ToolGroupKind } from "./agent-activity-groups";
@@ -91,38 +91,11 @@ function canvasPathFromRecords(
 }
 
 const MUTATING_TOOL_NAMES = new Set(["write_file", "apply_patch", "restore_snapshot"]);
+const COMMAND_ROW_TOOLS = new Set(["run_command"]);
 
-/**
- * §27-28: a successful file mutation renders a first-class change chip —
- * relative path + diffstat — that opens the actual diff with one click
- * instead of making the user hunt for it in the workspace panel.
- */
-function ToolChangeChip({ call, runId }: { call: ToolCallRecord; runId: string | null }) {
-  const { t } = useTranslation();
-  const openResource = useWorkspacePanelStore((state) => state.openResource);
-  const root = useActiveWorkspaceRoot();
-  const path = call.arguments["path"] ?? call.arguments["file_path"];
-  if (typeof path !== "string" || path.length === 0) return null;
-  const resolved = resolveWorkspacePath(path, root);
-  if (!resolved) return null;
-  const diffstat = argumentDiffstat(call);
-  return (
-    <button
-      type="button"
-      className="tool-change-chip mt-0.5 flex w-fit max-w-full cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-surface-subtle px-2 py-1 text-left text-[11.5px] transition-colors hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
-      onClick={() => openResource({ kind: "diff", path: resolved, ...(runId ? { runId } : {}) })}
-      title={t("workspace.openDiffTitle")}
-    >
-      <FilePenLine size={12} aria-hidden="true" className="shrink-0 text-primary" />
-      <span className="min-w-0 truncate font-mono">{relativeToRoot(resolved, root)}</span>
-      {diffstat && (
-        <span className="shrink-0 font-mono text-[11px]">
-          <span className="text-success">+{diffstat.additions}</span>{" "}
-          <span className="text-danger">−{diffstat.deletions}</span>
-        </span>
-      )}
-    </button>
-  );
+function callPathOf(call: ToolCallRecord): string | null {
+  const value = call.arguments["path"] ?? call.arguments["file_path"];
+  return typeof value === "string" && value.length > 0 ? value : null;
 }
 
 function OpenCanvasCard({ path }: { path: string }) {
@@ -186,6 +159,8 @@ export function AgentActivity({
   const approveTool = useChatStore((state) => state.approveTool);
   const denyTool = useChatStore((state) => state.denyTool);
   const pendingApproval = useChatStore((state) => state.pendingToolApproval);
+  const openResource = useWorkspacePanelStore((state) => state.openResource);
+  const root = useActiveWorkspaceRoot();
   const conversationMessages = useChatStore((state) => state.messages) ?? [];
   const activeRunId = useRunWorkspaceStore((state) => state.runId);
   const resultsByCallId = new Map(toolResults.map((result) => [result.toolCallId, result]));
@@ -323,27 +298,78 @@ export function AgentActivity({
                     const toolKey = `tools.${call.toolName}`;
                     const toolName = i18n.exists(toolKey) ? t(toolKey) : call.toolName;
                     const summaryText = getArgumentSummary(call);
-                    const statusLabelRow = toolStatusLabel(toolStatus, t, result);
                     const canvasPath = canvasPathFromRecords(call, result);
+                    // §27: the primary field is what the user scans for —
+                    // the file for mutations (with its diffstat), the command
+                    // text for run_command; the tool name becomes secondary.
+                    const path = callPathOf(call);
+                    const isMutating = MUTATING_TOOL_NAMES.has(call.toolName);
+                    const isCommandRow = COMMAND_ROW_TOOLS.has(call.toolName);
+                    const diffstat = isMutating ? argumentDiffstat(call) : null;
+                    const rowName =
+                      isMutating && path ? (
+                        <span className="font-mono">{path.split("/").slice(-2).join("/")}</span>
+                      ) : isCommandRow && summaryText ? (
+                        <span className="font-mono">{summaryText}</span>
+                      ) : (
+                        toolName
+                      );
+                    const rowDetail =
+                      isMutating && path
+                        ? toolName
+                        : isCommandRow && summaryText
+                          ? toolName
+                          : summaryText;
+                    const exitCode = isCommandRow ? result?.exitCode : undefined;
+                    // A successful mutation row opens its diff — the whole
+                    // row is the target, not a small chip (§27-28).
+                    const resolvedPath =
+                      isMutating && path && result?.success
+                        ? (resolveWorkspacePath(path, root) ?? null)
+                        : null;
                     return (
                       <div key={call.id} className="flex min-w-0 flex-col">
                         <ToolRow
                           status={toolStatus}
-                          name={toolName}
-                          detail={summaryText}
+                          name={rowName}
+                          detail={rowDetail}
                           detailTitle={summaryText}
+                          statusTone={toolStatus === "completed" ? "neutral" : "auto"}
+                          {...(diffstat
+                            ? {
+                                meta: (
+                                  <span className="shrink-0 font-mono text-[11px]">
+                                    <span className="text-success">+{diffstat.additions}</span>{" "}
+                                    <span className="text-danger">−{diffstat.deletions}</span>
+                                  </span>
+                                ),
+                              }
+                            : {})}
                           statusLabel={
                             <>
-                              {resolvedLabel ?? statusLabelRow}
+                              {exitCode !== undefined ? (
+                                <span className={exitCode === 0 ? undefined : "text-danger"}>
+                                  exit {exitCode}
+                                </span>
+                              ) : (
+                                (resolvedLabel ?? toolStatusLabel(toolStatus, t, result))
+                              )}
                               {result?.durationMs !== undefined &&
                                 ` · ${(result.durationMs / 1000).toFixed(1)}s`}
                             </>
                           }
+                          {...(resolvedPath
+                            ? {
+                                onClick: () =>
+                                  openResource({
+                                    kind: "diff",
+                                    path: resolvedPath,
+                                    ...(activeRunId ? { runId: activeRunId } : {}),
+                                  }),
+                              }
+                            : {})}
                         />
                         {canvasPath && <OpenCanvasCard path={canvasPath} />}
-                        {result?.success && MUTATING_TOOL_NAMES.has(call.toolName) && (
-                          <ToolChangeChip call={call} runId={activeRunId} />
-                        )}
                       </div>
                     );
                   })}

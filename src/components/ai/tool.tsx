@@ -102,30 +102,42 @@ export function ToolRow({
   detail,
   detailTitle,
   statusLabel,
+  meta,
+  statusTone,
+  onClick,
   ...props
-}: ComponentProps<"div"> & {
+}: Omit<ComponentProps<"div">, "ref"> & {
   status: ToolStatus;
   name: ReactNode;
   detail?: ReactNode;
   detailTitle?: string;
   statusLabel: ReactNode;
+  /**
+   * Extra emphasis content (e.g. a diffstat) rendered between the detail and
+   * the status — the row's secondary signal, mono-space by caller choice.
+   */
+  meta?: ReactNode;
+  /**
+   * "neutral" quiets the icon color: plain per-call successes stay muted so
+   * the timeline doesn't turn into a wall of green checks; strong color is
+   * reserved for failures, approvals, and run-level verification.
+   */
+  statusTone?: "neutral" | "auto";
+  /** When provided the whole row becomes the click target (a button). */
+  onClick?: () => void;
 }) {
   const tone =
-    status === "failed"
-      ? "text-danger"
-      : status === "waiting-approval" || status === "blocked"
-        ? "text-warning"
-        : status === "completed"
-          ? "text-success/80"
-          : "text-muted";
-  return (
-    <div
-      className={cn(
-        "execution-step flex items-center gap-2 rounded-md py-1 pr-1 text-[12px]",
-        className,
-      )}
-      {...props}
-    >
+    statusTone === "neutral"
+      ? "text-muted"
+      : status === "failed"
+        ? "text-danger"
+        : status === "waiting-approval" || status === "blocked"
+          ? "text-warning"
+          : status === "completed"
+            ? "text-success/80"
+            : "text-muted";
+  const content = (
+    <>
       <span
         className={cn("flex size-4 shrink-0 items-center justify-center", tone)}
         aria-hidden="true"
@@ -138,7 +150,37 @@ export function ToolRow({
           {detail}
         </span>
       )}
+      {meta}
       <span className="ml-auto shrink-0 text-[11px] text-muted">{statusLabel}</span>
+    </>
+  );
+  if (onClick) {
+    // Div-typed rest props (aria-*, data-*, className…) are valid on a
+    // button; only the divergent element-specific attribute types differ.
+    const buttonProps = props as unknown as ComponentProps<"button">;
+    return (
+      <button
+        type="button"
+        className={cn(
+          "execution-step flex w-full cursor-pointer items-center gap-2 rounded-md py-1 pr-1 text-left text-[12px] transition-colors select-none hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus",
+          className,
+        )}
+        onClick={onClick}
+        {...buttonProps}
+      >
+        {content}
+      </button>
+    );
+  }
+  return (
+    <div
+      className={cn(
+        "execution-step flex items-center gap-2 rounded-md py-1 pr-1 text-[12px]",
+        className,
+      )}
+      {...props}
+    >
+      {content}
     </div>
   );
 }
