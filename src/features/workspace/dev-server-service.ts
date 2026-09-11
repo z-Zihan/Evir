@@ -115,10 +115,13 @@ export async function detectDevScript(root: string): Promise<DetectDevScriptResu
     const lockfiles: string[] = [];
     for (const name of ["pnpm-lock.yaml", "yarn.lock", "package-lock.json"]) {
       try {
-        await statFile(`${root}/${name}`);
-        lockfiles.push(name);
+        const stat = await statFile(`${root}/${name}`);
+        // fs_file_stat reports a missing file as Ok({ exists: false }), not
+        // a rejection — check the flag, or EVERY project resolves to pnpm
+        // and the preview start fails on machines without a global pnpm.
+        if ((stat as { exists?: boolean } | null)?.exists === true) lockfiles.push(name);
       } catch {
-        // not present
+        // not present (runtimes that reject instead of statting)
       }
     }
     const manager = packageManagerFor(lockfiles);

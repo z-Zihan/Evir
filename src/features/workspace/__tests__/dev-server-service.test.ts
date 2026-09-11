@@ -47,12 +47,38 @@ describe("detectDevScript failure split (§C2/G4)", () => {
     vi.mocked(readTextFile).mockResolvedValue(JSON.stringify({ scripts: { dev: "vite" } }));
     vi.mocked(statFile).mockImplementation((path: string) =>
       path.endsWith("pnpm-lock.yaml")
-        ? // The service only checks whether the stat resolves; shape is unused.
-          Promise.resolve({} as unknown as Awaited<ReturnType<typeof statFile>>)
-        : Promise.reject(new Error("x")),
+        ? Promise.resolve({ exists: true } as unknown as Awaited<ReturnType<typeof statFile>>)
+        : Promise.resolve({ exists: false } as unknown as Awaited<ReturnType<typeof statFile>>),
     );
     await expect(detectDevScript("/proj")).resolves.toMatchObject({
       plan: { program: "pnpm", scriptName: "dev" },
+    });
+  });
+
+  it("missing lockfiles stat as { exists: false } and must NOT count — npm projects stay npm (§47 regression)", async () => {
+    // Real fs_file_stat behavior: Ok({ exists: false }) for absent files.
+    // The old try/catch counted every lockfile, so EVERY project resolved
+    // to pnpm and previews failed on machines without a global pnpm.
+    vi.mocked(readTextFile).mockResolvedValue(
+      JSON.stringify({ scripts: { "dev:web": "node server.js" } }),
+    );
+    vi.mocked(statFile).mockResolvedValue({
+      exists: false,
+    } as unknown as Awaited<ReturnType<typeof statFile>>);
+    await expect(detectDevScript("/proj")).resolves.toMatchObject({
+      plan: { program: "npm", args: ["run", "dev:web"] },
+    });
+  });
+
+  it("a present package-lock selects npm even when other lock stats are absent", async () => {
+    vi.mocked(readTextFile).mockResolvedValue(JSON.stringify({ scripts: { dev: "vite" } }));
+    vi.mocked(statFile).mockImplementation((path: string) =>
+      path.endsWith("package-lock.json")
+        ? Promise.resolve({ exists: true } as unknown as Awaited<ReturnType<typeof statFile>>)
+        : Promise.resolve({ exists: false } as unknown as Awaited<ReturnType<typeof statFile>>),
+    );
+    await expect(detectDevScript("/proj")).resolves.toMatchObject({
+      plan: { program: "npm", scriptName: "dev" },
     });
   });
 });
