@@ -52,6 +52,7 @@ export function ChangesTab() {
           const counts: Record<string, { additions: number; deletions: number }> = {};
           let additions = 0;
           let deletions = 0;
+          let countedFiles = 0;
           let diff = "";
           try {
             diff = root ? await gitDiffFor(root) : "";
@@ -66,6 +67,7 @@ export function ChangesTab() {
               counts[change.path] = counted;
               additions += counted.additions;
               deletions += counted.deletions;
+              countedFiles += 1;
               continue;
             }
             if (change.changeType === "added") {
@@ -76,13 +78,25 @@ export function ChangesTab() {
                 const lines = content.split("\n").filter((line) => line !== "").length;
                 counts[change.path] = { additions: lines, deletions: 0 };
                 additions += lines;
+                countedFiles += 1;
+                continue;
               } catch {
                 // file may be gone already
               }
             }
+            // Last resort: the mutation call's own arguments (§27) — the only
+            // source left when the repository diff cannot be read at all
+            // (plain webview, no git). Never invented: absent arguments stay
+            // uncounted rather than reporting a misleading +0 −0.
+            if (change.diffstat) {
+              counts[change.path] = change.diffstat;
+              additions += change.diffstat.additions;
+              deletions += change.diffstat.deletions;
+              countedFiles += 1;
+            }
           }
           if (!cancelled) {
-            setTotal({ additions, deletions });
+            setTotal(countedFiles > 0 ? { additions, deletions } : null);
             setPerFile(counts);
             setRepoDiff(diff);
           }

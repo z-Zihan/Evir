@@ -133,11 +133,16 @@ export function createRuntime(options: CreateRuntimeOptions = {}): EvirRuntime {
       );
     }
     logger.info("app", "app.session-started", { target, capabilities: [...runtime.capabilities] });
+    // Desktop storage is only real when the Tauri IPC bridge exists. A
+    // desktop-mode shell rendered in a plain webview (browser dev server,
+    // screenshots) must expose `storage: undefined` so consumers treat file
+    // probes as "unknown" instead of calling a dead adapter and reading every
+    // failure as "missing".
+    const desktopIpcAvailable = "__TAURI_INTERNALS__" in globalThis;
     return {
       ...runtime,
-      storage: desktopStorage,
-      structuredStorage:
-        "__TAURI_INTERNALS__" in globalThis ? desktopStructuredStorage : new IndexedDBAdapter(),
+      ...(desktopIpcAvailable ? { storage: desktopStorage } : {}),
+      structuredStorage: desktopIpcAvailable ? desktopStructuredStorage : new IndexedDBAdapter(),
       toolRegistry,
       toolExecutor,
       componentRuntime,

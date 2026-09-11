@@ -317,6 +317,33 @@ describe("changes derivation", () => {
     );
     expect(changes).toHaveLength(0);
   });
+
+  it("derives argument-based diffstats for the fallback row counts", () => {
+    const changes = deriveChanges(
+      [
+        call("p1", "apply_patch", {
+          path: "/p/old.ts",
+          old_content: "a\nb\nc",
+          new_content: "a\nb\nc\nd\ne",
+        }),
+        call("w1", "write_file", { path: "/p/new.ts", content: "x\ny" }),
+        call("s1", "restore_snapshot", { path: "/p/other.ts" }),
+      ],
+      [result("p1", "apply_patch"), result("w1", "write_file"), result("s1", "restore_snapshot")],
+      [snapshot("/p/old.ts", true), snapshot("/p/new.ts", false), snapshot("/p/other.ts", true)],
+      "run-1",
+    );
+    expect(changes.find((c) => c.path === "/p/old.ts")?.diffstat).toEqual({
+      additions: 5,
+      deletions: 3,
+    });
+    expect(changes.find((c) => c.path === "/p/new.ts")?.diffstat).toEqual({
+      additions: 2,
+      deletions: 0,
+    });
+    // restore_snapshot carries no content: no invented numbers.
+    expect(changes.find((c) => c.path === "/p/other.ts")?.diffstat).toBeUndefined();
+  });
 });
 
 describe("unified diff helpers", () => {

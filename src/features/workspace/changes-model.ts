@@ -16,6 +16,14 @@ export interface ChangeEntry {
   toolName: string;
   runId: string;
   createdAt: number;
+  /**
+   * Diffstat derived from the mutation call's own arguments (§27) — the
+   * replaced region for a patch, the line count for a whole-file write.
+   * Serves as the per-row fallback when the repository diff cannot be read
+   * (no git, plain webview); `undefined` when the arguments carry no
+   * content (e.g. restore_snapshot).
+   */
+  diffstat?: { additions: number; deletions: number };
 }
 
 const MUTATING_TOOLS = new Set([
@@ -55,6 +63,35 @@ export function matchingSnapshotForPath(
 }
 
 /**
+ * Diffstat for a mutating call, derived from the call's own arguments (§27):
+ * a search-and-replace patch reports the replaced region exactly (old lines
+ * → −, new lines → +); a whole-file write reports its line count. Null when
+ * the arguments carry no content to count.
+ */
+export function argumentDiffstat(
+  call: ToolCallRecord,
+): { additions: number; deletions: number } | null {
+  if (call.toolName === "apply_patch") {
+    const oldContent = call.arguments["old_content"];
+    const newContent = call.arguments["new_content"];
+    if (typeof oldContent === "string" && typeof newContent === "string") {
+      return {
+        additions: newContent === "" ? 0 : newContent.split("\n").length,
+        deletions: oldContent === "" ? 0 : oldContent.split("\n").length,
+      };
+    }
+    return null;
+  }
+  if (call.toolName === "write_file") {
+    const content = call.arguments["content"];
+    if (typeof content === "string") {
+      return { additions: content === "" ? 0 : content.split("\n").length, deletions: 0 };
+    }
+  }
+  return null;
+}
+
+/**
  * Derive a run's change list from its tool records + snapshots. Files the run
  * created and then modified collapse into one "added" entry; the newest
  * successful mutation wins.
@@ -85,12 +122,14 @@ export function deriveChanges(
     // run created stays "added" even after follow-up edits.
     const previous = byPath.get(resolvedPath);
     if (previous?.changeType === "added" && changeType === "modified") continue;
+    const diffstat = argumentDiffstat(call) ?? undefined;
     byPath.set(resolvedPath, {
       path: resolvedPath,
       changeType,
       toolName: call.toolName,
       runId,
       createdAt: result.completedAt ?? Date.now(),
+      ...(diffstat ? { diffstat } : {}),
     });
   }
   return [...byPath.values()].sort((a, b) => a.createdAt - b.createdAt);

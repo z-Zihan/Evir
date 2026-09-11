@@ -35,6 +35,7 @@ import { useChatStore } from "../features/chat/chat-store";
 import { useWorkspacePanelStore } from "../features/workspace/workspace-panel-store";
 import { useRunWorkspaceStore } from "../features/workspace/workspace-run-store";
 import { relativeToRoot, resolveWorkspacePath } from "../features/workspace/workspace-services";
+import { argumentDiffstat } from "../features/workspace/changes-model";
 import { useActiveWorkspaceRoot } from "../features/workspace/workspace-bridge";
 import { groupSummary, groupToolCalls, type ToolGroupKind } from "./agent-activity-groups";
 
@@ -92,33 +93,6 @@ function canvasPathFromRecords(
 const MUTATING_TOOL_NAMES = new Set(["write_file", "apply_patch", "restore_snapshot"]);
 
 /**
- * Diffstat for a successful mutating call, derived from the call's own
- * arguments (§27): a search-and-replace patch reports the replaced region
- * exactly (old lines → −, new lines → +); a whole-file write reports its
- * line count.
- */
-function diffstatForCall(call: ToolCallRecord): { additions: number; deletions: number } | null {
-  if (call.toolName === "apply_patch") {
-    const oldContent = call.arguments["old_content"];
-    const newContent = call.arguments["new_content"];
-    if (typeof oldContent === "string" && typeof newContent === "string") {
-      return {
-        additions: newContent === "" ? 0 : newContent.split("\n").length,
-        deletions: oldContent === "" ? 0 : oldContent.split("\n").length,
-      };
-    }
-    return null;
-  }
-  if (call.toolName === "write_file") {
-    const content = call.arguments["content"];
-    if (typeof content === "string") {
-      return { additions: content === "" ? 0 : content.split("\n").length, deletions: 0 };
-    }
-  }
-  return null;
-}
-
-/**
  * §27-28: a successful file mutation renders a first-class change chip —
  * relative path + diffstat — that opens the actual diff with one click
  * instead of making the user hunt for it in the workspace panel.
@@ -131,7 +105,7 @@ function ToolChangeChip({ call, runId }: { call: ToolCallRecord; runId: string |
   if (typeof path !== "string" || path.length === 0) return null;
   const resolved = resolveWorkspacePath(path, root);
   if (!resolved) return null;
-  const diffstat = diffstatForCall(call);
+  const diffstat = argumentDiffstat(call);
   return (
     <button
       type="button"

@@ -80,7 +80,7 @@ const projects = [
     rootPath: "/Users/demo/dev/evir",
     canonicalRootPath: "/Users/demo/dev/evir",
     pinned: NOW,
-    permissionProfile: "ask",
+    permissionProfile: "workspace",
     additionalAccessRoots: [],
     createdAt: NOW - 40 * 86400_000,
     updatedAt: NOW - 3600_000,
@@ -158,12 +158,46 @@ const conversations = [
   },
 ];
 
+/**
+ * The demo projects have completed permission onboarding (§37) and run with
+ * the recommended workspace profile — the screenshots must show the real
+ * post-onboarding product, never the first-open permission card stacked over
+ * the task flow. Same record shape PermissionOnboardingCard persists.
+ */
+const settingsRecords = [
+  {
+    name: "permission_onboarding_done",
+    value: ["project-evir", "project-chorus"],
+  },
+];
+
+/** Deterministic pseudo-code bodies so diffstats derive from real content. */
+function codeBody(lineCount, label) {
+  return Array.from({ length: lineCount }, (_, index) => `${label} line ${index + 1}`).join("\n");
+}
+
+const PATCH_OLD = codeBody(8, "// sidebar row");
+const PATCH_NEW = [codeBody(4, "// sidebar row"), codeBody(28, "// extracted item component")].join(
+  "\n",
+);
+
 function agentThreadMessages() {
   const toolCalls = [
     { id: "tool-1", toolName: "read_file", arguments: { path: "src/app/Sidebar.tsx" } },
     { id: "tool-2", toolName: "search_files", arguments: { query: "conversation-item" } },
-    { id: "tool-3", toolName: "apply_patch", arguments: { path: "src/app/Sidebar.tsx" } },
-    { id: "tool-4", toolName: "write_file", arguments: { path: "src/app/SidebarProjectItem.tsx" } },
+    {
+      id: "tool-3",
+      toolName: "apply_patch",
+      arguments: { path: "src/app/Sidebar.tsx", old_content: PATCH_OLD, new_content: PATCH_NEW },
+    },
+    {
+      id: "tool-4",
+      toolName: "write_file",
+      arguments: {
+        path: "src/app/SidebarProjectItem.tsx",
+        content: codeBody(86, "export function SidebarProjectItem"),
+      },
+    },
     { id: "tool-5", toolName: "run_command", arguments: { program: "pnpm", args: ["test"] } },
     { id: "tool-6", toolName: "git_diff", arguments: {} },
   ];
@@ -260,12 +294,26 @@ function sidebarAgentRun() {
   const toolCalls = [
     { id: "tool-1", toolName: "read_file", arguments: { path: "src/app/Sidebar.tsx" } },
     { id: "tool-2", toolName: "search_files", arguments: { query: "conversation-item" } },
-    { id: "tool-3", toolName: "apply_patch", arguments: { path: "src/app/Sidebar.tsx" } },
-    { id: "tool-4", toolName: "write_file", arguments: { path: "src/app/SidebarProjectItem.tsx" } },
+    {
+      id: "tool-3",
+      toolName: "apply_patch",
+      arguments: { path: "src/app/Sidebar.tsx", old_content: PATCH_OLD, new_content: PATCH_NEW },
+    },
+    {
+      id: "tool-4",
+      toolName: "write_file",
+      arguments: {
+        path: "src/app/SidebarProjectItem.tsx",
+        content: codeBody(86, "export function SidebarProjectItem"),
+      },
+    },
     {
       id: "tool-5",
       toolName: "write_file",
-      arguments: { path: "src/app/SidebarConversationItem.tsx" },
+      arguments: {
+        path: "src/app/SidebarConversationItem.tsx",
+        content: codeBody(71, "export function SidebarConversationItem"),
+      },
     },
     { id: "tool-6", toolName: "run_command", arguments: { program: "pnpm", args: ["test"] } },
   ];
@@ -767,6 +815,7 @@ async function seed(
         seedOrchestration,
         seedKnowledgeBases,
         seedKnowledgeSources,
+        seedSettings,
         projectId,
       } = input;
       localStorage.setItem("evir-language", "en");
@@ -824,6 +873,7 @@ async function seed(
       ];
       const transaction = database.transaction(stores, "readwrite");
       for (const store of stores) transaction.objectStore(store).clear();
+      for (const setting of seedSettings) transaction.objectStore("settings").put(setting);
       for (const provider of seedProviders) transaction.objectStore("providers").put(provider);
       if (projectId !== null) {
         for (const project of seedProjects) transaction.objectStore("projects").put(project);
@@ -875,6 +925,7 @@ async function seed(
       seedOrchestration: orchestration ?? null,
       seedKnowledgeBases: withKnowledge ? knowledgeBases : [],
       seedKnowledgeSources: withKnowledge ? knowledgeSources() : [],
+      seedSettings: withProjects ? settingsRecords : [],
       projectId: withProjects ? currentProjectId : null,
     },
   );
@@ -933,6 +984,60 @@ async function openConversation(page, title) {
   await page.locator(".conversation-item", { hasText: title }).first().click();
 }
 
+/** A1 truthfulness gates: the capture asserts the product state it claims to
+ * show. A failed assertion fails the run — screenshots are product facts. */
+async function assertVisible(page, selector, label, text) {
+  const locator = page.locator(selector, text ? { hasText: text } : undefined).first();
+  try {
+    await locator.waitFor({ state: "visible", timeout: 10_000 });
+  } catch (error) {
+    throw new Error(`capture assertion failed — ${label} not visible: ${error.message}`);
+  }
+}
+
+async function assertAbsent(page, selector, label, text) {
+  // Late renders (async hydration, badges) get a beat before absence is
+  // declared, so a passing check cannot race a real violation.
+  await page.waitForTimeout(400);
+  const locator = page.locator(selector, text ? { hasText: text } : undefined);
+  const count = await locator.count();
+  if (count > 0) throw new Error(`capture assertion failed — ${label} present (${count})`);
+}
+
+/** §A1.3: no onboarding card, no broken-project badge, no error toasts. */
+async function assertCleanProductState(page) {
+  await assertAbsent(page, "body", "PermissionOnboardingCard", "What may Evir do in this project?");
+  await assertAbsent(page, ".project-item", "Folder not found badge", "Folder not found");
+  await assertAbsent(page, "[data-sonner-toast]", "error toast");
+}
+
+/** §D1.3 gate for the hero: the search placeholder must fit in full, never
+ * clip mid-word. Measured against the rendered input box. */
+async function assertSearchPlaceholderFits(page) {
+  const fit = await page.evaluate(() => {
+    const input = document.querySelector('.sidebar-search input[type="search"]');
+    if (!input) return null;
+    const text = input.getAttribute("placeholder") ?? "";
+    const span = document.createElement("span");
+    span.textContent = text;
+    span.style.cssText =
+      "position:absolute;visibility:hidden;white-space:nowrap;font:12px system-ui";
+    document.body.appendChild(span);
+    const textWidth = span.getBoundingClientRect().width;
+    span.remove();
+    const style = getComputedStyle(input);
+    const available =
+      input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    return { text, textWidth, available };
+  });
+  if (!fit) throw new Error("capture assertion failed — sidebar search input not found");
+  if (fit.available < fit.textWidth) {
+    throw new Error(
+      `capture assertion failed — search placeholder clipped: "${fit.text}" needs ${fit.textWidth.toFixed(0)}px, ${fit.available.toFixed(0)}px available`,
+    );
+  }
+}
+
 async function captureDesktopOverview(browser) {
   const { context, page } = await bootSeeded(browser, DESKTOP_URL, {
     withProjects: true,
@@ -953,23 +1058,33 @@ async function captureDesktopOverview(browser) {
     await domClick(page, '[aria-label="Open workspace"]');
     await domClick(page, '[role="tab"]', "Changes");
     await page.locator(".workspace-change-row").first().waitFor();
-    if (process.env.EVIR_DEBUG) {
-      const state = await page.evaluate(() => ({
-        panel: !!document.querySelector('.workspace-panel, [aria-label="Workspace"]'),
-        panelRect: document
-          .querySelector('.workspace-panel, [aria-label="Workspace"]')
-          ?.getBoundingClientRect()
-          ?.toJSON(),
-        toggleLabel: document
-          .querySelector('[aria-label="Open workspace"], [aria-label="Close workspace"]')
-          ?.getAttribute("aria-label"),
-        changeRows: document.querySelectorAll(".workspace-change-row").length,
-        projectRows: [...document.querySelectorAll(".project-item")].map((row) =>
-          row.textContent.replace(/\s+/g, " ").trim().slice(0, 60),
-        ),
-      }));
-      console.log("[debug]", JSON.stringify(state, null, 2));
+    // §A1.2 — the hero must be the real three-column Project Agent
+    // workbench, with the post-onboarding composer, not a chat shell.
+    await assertVisible(page, 'section[aria-label="Projects"]', "PROJECTS sidebar");
+    await assertVisible(page, ".activity-header", "task flow (tool timeline)");
+    await assertVisible(page, ".workspace-panel", "Context Workbench");
+    await assertVisible(page, ".workspace-panel-tab.active", "Changes tab selected", "Changes");
+    await assertVisible(page, ".permission-switcher", "PermissionSwitcher in composer");
+    await assertVisible(
+      page,
+      ".permission-switcher",
+      "composer permission = Workspace access",
+      "Workspace access",
+    );
+    await assertVisible(page, ".model-switcher-button", "ModelSwitcher in composer");
+    // §A1.2 — no Agent/Plan/Goal mode pills in the composer (modes are
+    // slash-driven; slash command text elsewhere is not a pill).
+    for (const mode of ["Agent", "Plan", "Goal"]) {
+      const pills = await page
+        .locator(".composer-wrap")
+        .getByRole("button", { name: mode, exact: true })
+        .count();
+      if (pills > 0) {
+        throw new Error(`capture assertion failed — mode pill "${mode}" present in composer`);
+      }
     }
+    await assertCleanProductState(page);
+    await assertSearchPlaceholderFits(page);
     await page.waitForTimeout(600);
     await page.screenshot({
       path: path.join(OUT_DIR, "desktop-overview.png"),
@@ -993,6 +1108,20 @@ async function capturePlanConfirm(browser) {
     await openConversation(page, "Plan: split the sidebar module");
     await page.getByRole("button", { name: "Confirm and start" }).waitFor();
     await page.getByText("Extract SidebarProjectItem").waitFor();
+    if (process.env.EVIR_DEBUG) {
+      await page.waitForTimeout(2500);
+      console.log(
+        "[debug:plan]",
+        JSON.stringify(
+          await page.evaluate(() => ({
+            onboarding: !!document.querySelector(".permission-onboarding"),
+            permission: document.querySelector(".permission-switcher")?.textContent?.trim(),
+            folderBadges: document.body.innerText.includes("Folder not found"),
+          })),
+        ),
+      );
+    }
+    await assertCleanProductState(page);
     await page.waitForTimeout(400);
     await page.screenshot({
       path: path.join(OUT_DIR, "plan-confirm.png"),
@@ -1017,6 +1146,7 @@ async function captureGoalProgress(browser) {
     await page.getByText("Stabilize the v0.3 release of Evir").waitFor();
     await page.getByText("CHANGELOG updated and confirmed").waitFor();
     await page.getByText("Draft the CHANGELOG").first().waitFor();
+    await assertCleanProductState(page);
     await page.waitForTimeout(400);
     await page.screenshot({
       path: path.join(OUT_DIR, "goal-progress.png"),
