@@ -10,6 +10,7 @@ import { TOOL_PERMISSION_REQUIRED } from "../../core/tools/tool-executor";
 import { logger } from "../../core/logging/logger";
 import type { PermissionContext } from "../../core/security/permission-profiles";
 import { permissionContextForRunWithGrants } from "../projects/run-permission";
+import { logRunContext, runBindingForConversation } from "./run-context";
 import type { AgentRunContext, EvirRuntime } from "../../runtime/types";
 import type { InteractionMode } from "../../core/providers/tool-registry";
 import type { StreamResult } from "./chat-stream";
@@ -229,13 +230,25 @@ function requiresPermission(results: ToolResultRecord[]): boolean {
 }
 
 export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoopResult> {
-  // Bind the workspace root and permission context for the whole run: sidebar
-  // project switches change the live resolver but must never affect an active
-  // run. Scoped tool grants (§37b) load once here.
-  const runRoot = getActiveWorkspaceRoot();
-  const permissionContext = await permissionContextForRunWithGrants(runRoot);
+  // Bind the workspace root and permission context for the whole run.
+  // §17/§18 continuation contract: the binding comes from the CONVERSATION's
+  // persisted projectId first — resume rounds, approval continuations, and
+  // post-restart runs inherit the original project's profile, roots, and
+  // scoped grants (§37b) even if the user switched projects or profiles in
+  // between. The live UI resolver is only the legacy fallback for
+  // unbound (standalone) conversations.
+  const binding = await runBindingForConversation(options.conversationId);
+  const runRoot = binding.root ?? getActiveWorkspaceRoot();
+  const permissionContext =
+    binding.permissionContext ?? (await permissionContextForRunWithGrants(runRoot));
   pushRunRoot(runRoot, permissionContext);
   try {
+    await logRunContext({
+      conversationId: options.conversationId,
+      runId: options.runtime.agentRun?.id ?? "pending",
+      binding,
+      source: binding.permissionContext ? "conversation-project" : "legacy-fallback",
+    });
     return await runAgentLoopBound(options, permissionContext);
   } finally {
     popRunRoot();

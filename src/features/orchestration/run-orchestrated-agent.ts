@@ -10,7 +10,8 @@ import {
   repairNodeForUnmetDoneWhen,
 } from "./continuation-policy";
 import { getActiveWorkspaceRoot, popRunRoot, pushRunRoot } from "../../core/workspace/active-root";
-import { permissionContextForRoot } from "../projects/run-permission";
+import { permissionContextForRunWithGrants } from "../projects/run-permission";
+import { logRunContext, runBindingForConversation } from "../chat/run-context";
 import { doneWhenSatisfied, evaluateDoneWhen } from "../../core/orchestration/done-when";
 import { runAgentLoop, type AgentLoopResult } from "../chat/agent-loop";
 import { useOrchestrationStore } from "./orchestration-store";
@@ -60,10 +61,21 @@ function collapseIntermediateTurns(turns: AgentLoopResult["turns"]): AgentLoopRe
 export async function runOrchestratedAgent(input: OrchestratedRunInput): Promise<AgentLoopResult> {
   // Bind the workspace root for the whole orchestrated run so node loops all
   // execute in the originating project even if the user switches projects
-  // mid-run in the sidebar.
-  const runRoot = getActiveWorkspaceRoot();
-  pushRunRoot(runRoot, permissionContextForRoot(runRoot));
+  // mid-run in the sidebar. §17/§18: the binding comes from the
+  // conversation's persisted projectId (with scoped grants, §37b) — a
+  // Goal/Plan continuation must not lose the original permission context.
+  const binding = await runBindingForConversation(input.conversationId);
+  const runRoot = binding.root ?? getActiveWorkspaceRoot();
+  const permissionContext =
+    binding.permissionContext ?? (await permissionContextForRunWithGrants(runRoot));
+  pushRunRoot(runRoot, permissionContext);
   try {
+    await logRunContext({
+      conversationId: input.conversationId,
+      runId: input.runtime.agentRun?.id ?? "pending",
+      binding,
+      source: binding.permissionContext ? "conversation-project" : "legacy-fallback",
+    });
     return await runOrchestratedAgentBound(input);
   } finally {
     popRunRoot();

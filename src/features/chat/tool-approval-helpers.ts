@@ -10,7 +10,7 @@ import type { EvirRuntime } from "../../runtime/types";
 import { getRuntime } from "../../runtime/use-runtime";
 import { TOOL_DENIED } from "../../core/tools/tool-executor";
 import { popRunRoot, pushRunRoot } from "../../core/workspace/active-root";
-import { permissionContextForRoot } from "../projects/run-permission";
+import { permissionContextForRunWithGrants } from "../projects/run-permission";
 import { useProviderStore } from "../provider/provider-store";
 import {
   type AgentLoopTurn,
@@ -131,8 +131,13 @@ export async function executeApproved(
 ): Promise<{ messages: AgentMessage[]; msg: MessageRecord; resolvedTurn: AgentLoopTurn }> {
   // Rebind the originating run's workspace root so approving later — possibly
   // after the user switched projects — still executes in the original project.
+  // §19: the context includes the project's scoped grants, so an approval
+  // continuation does not silently demote back to per-call prompts.
   if (pending.workspaceRoot !== undefined) {
-    pushRunRoot(pending.workspaceRoot, permissionContextForRoot(pending.workspaceRoot));
+    pushRunRoot(
+      pending.workspaceRoot,
+      await permissionContextForRunWithGrants(pending.workspaceRoot),
+    );
   }
   try {
     return await executeApprovedBound(pending, runtime, persist, signal);

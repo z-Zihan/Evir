@@ -367,8 +367,13 @@ async function resolveApproval(
     pending.toolCallId,
   );
   const { provider, runtime: baseRuntime, streamStartedAt } = ctx;
+  // §19 continuation inheritance: the post-approval context carries the
+  // project's CURRENT scoped grants — for a scoped approval that includes
+  // the just-persisted grant; for allow-once/deny it keeps grants the
+  // project already had, so a continuation never demotes mid-run back to
+  // per-call prompts for previously granted tools.
   let grantContext: PermissionContext | null | undefined;
-  if (scope) {
+  if (pending.workspaceRoot !== undefined) {
     const base = permissionContextForRoot(pending.workspaceRoot);
     const projectId = projectIdForRoot(pending.workspaceRoot);
     const grantedTools = projectId ? await grantedToolsForProject(projectId) : null;
