@@ -49,6 +49,8 @@ pub(crate) use entities::{
     __tauri_command_name_entity_put, __tauri_command_name_entity_put_many, db_init, db_query,
     db_update, entity_apply, entity_clear, entity_delete, entity_delete_many, entity_get,
     entity_list, entity_put, entity_put_many,
+    __cmd__knowledge_fts_search, __tauri_command_name_knowledge_fts_search,
+    knowledge_fts_search,
 };
 
 // Secrets and shared Provider profiles.

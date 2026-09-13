@@ -122,6 +122,7 @@ pub(crate) fn entity_put(
              ON CONFLICT(entity, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at",
             rusqlite::params![entity, id, encoded, system_time_now_ms()],
         )?;
+        crate::knowledge_fts::on_entity_put(&conn, &entity, &id, &data).map_err(|error| rusqlite::Error::ToSqlConversionFailure(error.into()))?;
         Ok(())
     })
 }
@@ -147,6 +148,9 @@ pub(crate) fn entity_put_many(
                  ON CONFLICT(entity, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at",
                 rusqlite::params![entity, id, encoded, system_time_now_ms()],
             )?;
+            if entity == "knowledge_chunks" {
+                crate::knowledge_fts::on_entity_put(&transaction, &entity, id, &record).map_err(|error| rusqlite::Error::ToSqlConversionFailure(error.into()))?;
+            }
         }
         transaction.commit()
     })
@@ -160,6 +164,7 @@ pub(crate) fn entity_delete(app: AppHandle, entity: String, id: String) -> Resul
             "DELETE FROM app_entities WHERE entity = ?1 AND id = ?2",
             rusqlite::params![entity, id],
         )?;
+        crate::knowledge_fts::on_entity_delete(&conn, &entity, &id).map_err(|error| rusqlite::Error::ToSqlConversionFailure(error.into()))?;
         Ok(())
     })
 }
@@ -178,6 +183,9 @@ pub(crate) fn entity_delete_many(
                 "DELETE FROM app_entities WHERE entity = ?1 AND id = ?2",
                 rusqlite::params![entity, id],
             )?;
+            if entity == "knowledge_chunks" {
+                crate::knowledge_fts::on_entity_delete(&transaction, &entity, &id).map_err(|error| rusqlite::Error::ToSqlConversionFailure(error.into()))?;
+            }
         }
         transaction.commit()
     })
@@ -191,6 +199,7 @@ pub(crate) fn entity_clear(app: AppHandle, entity: String) -> Result<(), String>
             "DELETE FROM app_entities WHERE entity = ?1",
             rusqlite::params![entity],
         )?;
+        crate::knowledge_fts::on_entity_clear(&conn, &entity).map_err(|error| rusqlite::Error::ToSqlConversionFailure(error.into()))?;
         Ok(())
     })
 }
@@ -218,18 +227,27 @@ pub(crate) fn entity_apply(app: AppHandle, mutations: Vec<EntityMutation>) -> Re
                          ON CONFLICT(entity, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at",
                         rusqlite::params![entity, id, encoded, system_time_now_ms()],
                     )?;
+                    if entity == "knowledge_chunks" {
+                        crate::knowledge_fts::on_entity_put(&transaction, &entity, &id, &data).map_err(|error| rusqlite::Error::ToSqlConversionFailure(error.into()))?;
+                    }
                 }
                 EntityMutation::Delete { entity, id } => {
                     transaction.execute(
                         "DELETE FROM app_entities WHERE entity = ?1 AND id = ?2",
                         rusqlite::params![entity, id],
                     )?;
+                    if entity == "knowledge_chunks" {
+                        crate::knowledge_fts::on_entity_delete(&transaction, &entity, &id).map_err(|error| rusqlite::Error::ToSqlConversionFailure(error.into()))?;
+                    }
                 }
                 EntityMutation::Clear { entity } => {
                     transaction.execute(
                         "DELETE FROM app_entities WHERE entity = ?1",
                         rusqlite::params![entity],
                     )?;
+                    if entity == "knowledge_chunks" {
+                        crate::knowledge_fts::on_entity_clear(&transaction, &entity).map_err(|error| rusqlite::Error::ToSqlConversionFailure(error.into()))?;
+                    }
                 }
             }
         }
@@ -423,4 +441,22 @@ mod tests {
         // Identifiers that merely contain a scary substring must not be rejected.
         assert!(validate_update_sql("UPDATE tickets SET drop_reason = ?1 WHERE id = ?2").is_ok());
     }
+}
+
+
+/// KNOW-2: DB-side FTS5 candidate prefilter for knowledge search. Returns the
+/// matching chunk ids (bm25-ranked, capped); the JS scorer applies the v1
+/// overlap scoring and no-result honesty on this smaller set.
+#[tauri::command(async)]
+pub(crate) fn knowledge_fts_search(
+    app: AppHandle,
+    tokens: Vec<String>,
+    base_ids: Vec<String>,
+) -> Result<Vec<String>, String> {
+    with_connection(&app, |conn| {
+        let candidates =
+            crate::knowledge_fts::search_candidates(conn, &tokens, &base_ids)
+                .map_err(|error| rusqlite::Error::ToSqlConversionFailure(error.into()))?;
+        Ok(candidates.into_iter().map(|candidate| candidate.chunk_id).collect())
+    })
 }

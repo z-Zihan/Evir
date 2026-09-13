@@ -6,6 +6,7 @@ mod browser_workbench;
 mod browser_workbench_tests;
 mod cdp;
 mod command_env;
+pub mod knowledge_fts;
 mod commands;
 mod dev_server;
 mod diagnostics;
@@ -118,6 +119,7 @@ pub fn run() {
             commands::entity_get,
             commands::entity_list,
             commands::entity_put,
+            commands::knowledge_fts_search,
             commands::entity_put_many,
             commands::entity_delete,
             commands::entity_delete_many,

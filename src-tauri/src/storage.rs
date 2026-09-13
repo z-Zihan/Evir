@@ -91,6 +91,10 @@ pub fn init_db_at(db_path: &Path) -> Result<Connection> {
           VALUES (3, unixepoch() * 1000);
         "#,
     )?;
+    // KNOW-2: FTS5 index over knowledge chunks (idempotent; backfills from
+    // app_entities on first run).
+    crate::knowledge_fts::init(&conn)
+        .map_err(|error| rusqlite::Error::ToSqlConversionFailure(error.into()))?;
     Ok(conn)
 }
 
