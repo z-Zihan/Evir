@@ -39,7 +39,7 @@ export type SharedProviderDocument = z.infer<typeof sharedProviderDocumentSchema
 export type ParsedCommand =
   | { command: "help" }
   | { command: "version" }
-  | { command: "doctor" }
+  | { command: "doctor"; json?: boolean }
   | { command: "config-path" }
   | {
       command: "configure";
@@ -51,4 +51,4 @@ export type ParsedCommand =
       };
     }
   | { command: "ask"; prompt?: string }
-  | { command: "agent"; prompt?: string; workspace: string };
+  | { command: "agent"; prompt?: string; workspace: string; json?: boolean; lang?: string };

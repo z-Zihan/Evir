@@ -8,7 +8,10 @@ export function parseArguments(argv: string[]): ParsedCommand {
   if (command === "--version" || command === "-v" || command === "version") {
     return { command: "version" };
   }
-  if (command === "doctor") return { command: "doctor" };
+  if (command === "doctor") {
+    const flags = parseFlags(rest);
+    return { command: "doctor", ...(flags.has("json") ? { json: true } : {}) };
+  }
   if (command === "config-path") return { command: "config-path" };
   if (command === "configure") {
     const flags = parseFlags(rest);
@@ -32,10 +35,13 @@ export function parseArguments(argv: string[]): ParsedCommand {
   }
   if (command === "agent") {
     const flags = parseFlags(rest);
+    const lang = stringFlag(flags, "lang");
     return {
       command: "agent",
       ...(positional(rest).join(" ") ? { prompt: positional(rest).join(" ") } : {}),
       workspace: stringFlag(flags, "workspace") ?? process.cwd(),
+      ...(flags.has("json") ? { json: true } : {}),
+      ...(lang !== undefined ? { lang } : {}),
     };
   }
   throw new Error(`Unknown command: ${command}`);

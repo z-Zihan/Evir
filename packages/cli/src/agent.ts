@@ -14,6 +14,20 @@ interface AgentMessage {
   name?: string;
 }
 
+/**
+ * CLI-2 agent JSONL event contract: with `onEvent`, every lifecycle
+ * transition emits one machine-readable line (run-start | step |
+ * approval | tool-result | completed | failed) while stdout keeps only the
+ * final answer text.
+ */
+export type AgentEvent =
+  | { type: "run-start"; promptChars: number; workspace: string }
+  | { type: "step"; step: number }
+  | { type: "approval"; tool: string; approved: boolean }
+  | { type: "tool-result"; tool: string; ok: boolean }
+  | { type: "completed"; steps: number }
+  | { type: "failed"; error: string };
+
 export async function runAgent(options: {
   config: CliConfig;
   apiKey: string;
@@ -22,7 +36,13 @@ export async function runAgent(options: {
   signal: AbortSignal;
   onDelta: (text: string) => void;
   approve: (message: string) => Promise<boolean>;
+  onEvent?: (event: AgentEvent) => void;
 }): Promise<{ content: string; error?: string }> {
+  options.onEvent?.({
+    type: "run-start",
+    promptChars: options.prompt.length,
+    workspace: options.workspace,
+  });
   const tools = createWorkspaceTools(options.workspace);
   const definitions = tools.map((tool) => ({
     type: "function",
@@ -50,6 +70,7 @@ export async function runAgent(options: {
   let fullContent = "";
 
   for (let step = 0; step < 10; step += 1) {
+    options.onEvent?.({ type: "step", step });
     const turn = await streamProvider({
       config: options.config,
       apiKey: options.apiKey,
@@ -62,7 +83,10 @@ export async function runAgent(options: {
       },
     });
     if (turn.error) return { content: fullContent, error: turn.error };
-    if (turn.toolCalls.length === 0) return { content: fullContent };
+    if (turn.toolCalls.length === 0) {
+      options.onEvent?.({ type: "completed", steps: step + 1 });
+      return { content: fullContent };
+    }
     messages.push({
       role: "assistant",
       content: turn.content,
@@ -86,7 +110,14 @@ export async function runAgent(options: {
       });
     }
   }
-  return { content: fullContent, error: "Agent reached the 10-step safety limit" };
+  return {
+    content: fullContent,
+    error: (() => {
+      const message = "Agent reached the 10-step safety limit";
+      options.onEvent?.({ type: "failed", error: message });
+      return message;
+    })(),
+  };
 }
 
 async function executeTool(
@@ -96,6 +127,7 @@ async function executeTool(
   options: {
     signal: AbortSignal;
     approve: (message: string) => Promise<boolean>;
+    onEvent?: (event: AgentEvent) => void;
   },
 ): Promise<string> {
   const tool = tools.find((candidate) => candidate.name === name);
@@ -111,13 +143,18 @@ async function executeTool(
     try {
       approved = await options.approve(tool.preview(args));
     } catch (error) {
+      options.onEvent?.({ type: "approval", tool: name, approved: false });
       return error instanceof Error ? error.message : "Approval failed";
     }
+    options.onEvent?.({ type: "approval", tool: name, approved });
     if (!approved) return "User denied this tool call";
   }
   try {
-    return await tool.execute(args, options.signal);
+    const output = await tool.execute(args, options.signal);
+    options.onEvent?.({ type: "tool-result", tool: name, ok: true });
+    return output;
   } catch (error) {
+    options.onEvent?.({ type: "tool-result", tool: name, ok: false });
     return error instanceof Error ? error.message : "Tool execution failed";
   }
 }

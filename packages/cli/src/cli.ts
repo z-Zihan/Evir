@@ -1,4 +1,5 @@
 import { realpathSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { stdin, stdout, stderr } from "node:process";
 import { fileURLToPath } from "node:url";
 import { parseArguments } from "./arguments";
@@ -9,14 +10,16 @@ import { getProviderCredential, setProviderCredential } from "./credential-store
 import { streamProvider, testProvider } from "./provider-client";
 import { cliConfigSchema } from "./types";
 import { resolveWorkspace } from "./workspace-boundary";
+import { cliStrings, fill } from "./messages";
 
 const VERSION = "0.1.0";
 
 export async function main(argv = process.argv.slice(2)): Promise<number> {
   try {
     const command = parseArguments(argv);
+    const strings = cliStrings(command.command === "agent" ? command.lang : undefined);
     if (command.command === "help") {
-      stdout.write(help());
+      stdout.write(fill(strings.help, { version: VERSION }));
       return 0;
     }
     if (command.command === "version") {
@@ -65,13 +68,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     const config = await readConfig();
     const apiKey = await resolveApiKey(config.id, config.protocolId);
     if (command.command === "doctor") {
-      stdout.write(
-        `Configuration: ${defaultConfigPath()}\nProvider: ${config.name}\nProtocol: ${config.protocolId}\nModel: ${config.modelId}\nAPI key: ${apiKey ? "available" : "missing"}\n`,
-      );
-      if (!apiKey) return 2;
-      const result = await testProvider(config, apiKey);
-      stdout.write(`Provider: ${result.ok ? "ok" : `failed: ${result.error}`}\n`);
-      return result.ok ? 0 : 1;
+      return runDoctor(config, apiKey, command.json === true);
     }
     if (!apiKey) throw new Error("EVIR_API_KEY is not set");
     const prompt = command.prompt ?? (await readStdinPrompt());
@@ -96,7 +93,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
         throw new Error("Agent requires toolCalling: true. Re-run configure with --tool-calling");
       const workspace = await resolveWorkspace(command.workspace);
       stderr.write(
-        `Agent workspace: ${workspace}\nRelevant workspace content may be sent to ${new URL(config.baseUrl).host}.\n`,
+        `${fill(strings.agentWorkspace, { workspace })}\n${fill(strings.agentDisclosure, { host: new URL(config.baseUrl).host })}\n`,
       );
       const result = await runAgent({
         config,
@@ -105,7 +102,15 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
         workspace,
         signal: controller.signal,
         onDelta: (text) => stdout.write(text),
-        approve: (message) => requestApproval(message),
+        approve: (message) => requestApproval(message, undefined, undefined, strings),
+        // CLI-2: JSONL events go to stderr; stdout stays the final answer.
+        ...(command.json
+          ? {
+              onEvent: (event: import("./agent").AgentEvent) => {
+                stderr.write(`${JSON.stringify(event)}\n`);
+              },
+            }
+          : {}),
       });
       stdout.write("\n");
       if (result.error && !controller.signal.aborted) throw new Error(result.error);
@@ -117,6 +122,97 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     stderr.write(`evir: ${error instanceof Error ? error.message : "Unknown error"}\n`);
     return 1;
   }
+}
+
+interface DoctorCheck {
+  name: string;
+  status: "ok" | "fail";
+  detail: string;
+}
+
+/**
+ * CLI-1 doctor: key decryption, provider probe, workspace boundary, and node
+ * availability in PATH. Exit codes are stable for scripting: 0 healthy,
+ * 1 provider/environment failure, 2 configuration incomplete. `--json`
+ * emits the machine view (with version); human output stays plain.
+ */
+async function runDoctor(
+  config: Awaited<ReturnType<typeof readConfig>>,
+  apiKey: string | undefined,
+  json: boolean,
+): Promise<number> {
+  const checks: DoctorCheck[] = [
+    {
+      name: "configuration",
+      status: "ok",
+      detail: defaultConfigPath(),
+    },
+    {
+      name: "provider",
+      status: "ok",
+      detail: `${config.name} · ${config.protocolId} · ${config.modelId}`,
+    },
+    {
+      name: "api-key",
+      status: apiKey ? "ok" : "fail",
+      detail: apiKey
+        ? "available (decrypted from the OS credential store)"
+        : "missing — run `evir configure` or set EVIR_API_KEY",
+    },
+  ];
+
+  const nodeProbe = spawnSync("node", ["--version"], { encoding: "utf8" });
+  checks.push({
+    name: "node-in-path",
+    status: nodeProbe.status === 0 ? "ok" : "fail",
+    detail:
+      nodeProbe.status === 0
+        ? `node ${(nodeProbe.stdout ?? "").trim()}`
+        : "node not found in PATH — agent tooling needs it",
+  });
+
+  try {
+    const workspace = await resolveWorkspace(process.cwd());
+    checks.push({
+      name: "workspace-boundary",
+      status: "ok",
+      detail: `${workspace} (agent writes stay inside it)`,
+    });
+  } catch (error) {
+    checks.push({
+      name: "workspace-boundary",
+      status: "fail",
+      detail: error instanceof Error ? error.message : "workspace unavailable",
+    });
+  }
+
+  if (apiKey) {
+    const result = await testProvider(config, apiKey);
+    checks.push({
+      name: "provider-connection",
+      status: result.ok ? "ok" : "fail",
+      detail: result.ok ? "connection succeeded" : (result.error ?? "connection failed"),
+    });
+  } else {
+    checks.push({
+      name: "provider-connection",
+      status: "fail",
+      detail: "skipped — no API key",
+    });
+  }
+
+  if (json) {
+    stdout.write(
+      `${JSON.stringify({ version: VERSION, checks, healthy: checks.every((check) => check.status === "ok") }, null, 2)}\n`,
+    );
+  } else {
+    for (const check of checks) {
+      stdout.write(`${check.status === "ok" ? "✔" : "✖"} ${check.name}: ${check.detail}\n`);
+    }
+  }
+  const failed = checks.filter((check) => check.status === "fail");
+  if (failed.some((check) => check.name === "api-key")) return 2;
+  return failed.length > 0 ? 1 : 0;
 }
 
 async function resolveApiKey(providerId: string, protocol: string): Promise<string | undefined> {
@@ -156,10 +252,6 @@ async function readStdinPrompt(): Promise<string> {
   let result = "";
   for await (const chunk of stdin) result += String(chunk);
   return result;
-}
-
-function help(): string {
-  return `Evir CLI ${VERSION}\n\nUsage:\n  evir configure --protocol <id> --base-url <url> --model <id> [--tool-calling]\n  evir doctor\n  evir ask [prompt]\n  evir agent [task] [--workspace <path>]\n  evir config-path\n\nSecrets:\n  EVIR_API_KEY       Temporary Provider API key override (never written to config)\n  EVIR_CONFIG_DIR    Optional configuration root override\n\nConfigure stores credentials in the operating system credential store shared with Evir Desktop. Ask has no autonomous workspace access. Agent requires a tool-capable model and explicit approval for every write and command.\n`;
 }
 
 try {
