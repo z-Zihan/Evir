@@ -14,6 +14,15 @@ export interface AgentResult {
   error?: string;
 }
 
+/** VS-1 activity timeline events (tool / risk / approval / verification). */
+export type AgentActivityEvent =
+  | { kind: "tool-started"; tool: string; risk: ToolRisk }
+  | { kind: "approval-waiting"; tool: string; risk: Extract<ToolRisk, "write" | "execute"> }
+  | { kind: "approval-resolved"; tool: string; approved: boolean }
+  | { kind: "tool-failed"; tool: string; reason: string }
+  | { kind: "tool-completed"; tool: string }
+  | { kind: "verification"; summary: string };
+
 interface ModelMessage {
   role: "system" | "user" | "assistant" | "tool";
   content: string;
@@ -40,6 +49,7 @@ export class AgentRunner {
     signal: AbortSignal;
     onDelta: (content: string) => void;
     requestApproval: (request: ApprovalRequest) => Promise<boolean>;
+    onEvent?: (event: AgentActivityEvent) => void;
   }): Promise<AgentResult> {
     const tools = this.workspaceTools.list();
     const definitions = tools.map(toProviderTool);
@@ -78,6 +88,7 @@ export class AgentRunner {
           options.signal,
         );
         const completed = joinVisible(visible, verification);
+        if (verification) options.onEvent?.({ kind: "verification", summary: verification });
         options.onDelta(completed);
         return { content: completed, stopped: false };
       }
@@ -103,12 +114,19 @@ export class AgentRunner {
             error: `Loop detected: ${call.name} was requested repeatedly with identical arguments.`,
           };
         }
+        const tool = tools.find((candidate) => candidate.name === call.name);
+        options.onEvent?.({
+          kind: "tool-started",
+          tool: call.name,
+          risk: tool?.risk ?? "read",
+        });
         const result = await this.executeTool(
           tools,
           call.name,
           call.arguments,
           options.signal,
           options.requestApproval,
+          options.onEvent,
         );
         if (result.changed) changedWorkspace = true;
         if (result.commandSucceeded) successfulCommands += 1;
@@ -133,32 +151,42 @@ export class AgentRunner {
     rawArguments: string,
     signal: AbortSignal,
     requestApproval: (request: ApprovalRequest) => Promise<boolean>,
+    onEvent?: (event: AgentActivityEvent) => void,
   ): Promise<{ content: string; changed: boolean; commandSucceeded: boolean }> {
     const tool = tools.find((candidate) => candidate.name === name);
-    if (!tool) return result(`Unknown tool: ${name}`);
+    if (!tool) {
+      onEvent?.({ kind: "tool-failed", tool: name, reason: "unknown tool" });
+      return result(`Unknown tool: ${name}`);
+    }
     let args: unknown;
     try {
       args = JSON.parse(rawArguments) as unknown;
     } catch {
+      onEvent?.({ kind: "tool-failed", tool: name, reason: "invalid JSON arguments" });
       return result("Tool arguments must be valid JSON.");
     }
     if (tool.risk !== "read") {
+      onEvent?.({ kind: "approval-waiting", tool: tool.name, risk: tool.risk });
       const approved = await requestApproval({
         title: tool.name,
         detail: approvalDetail(tool, args),
         risk: tool.risk,
       });
+      onEvent?.({ kind: "approval-resolved", tool: tool.name, approved });
       if (!approved) return result("User denied this tool call.");
     }
     try {
       const content = await tool.execute(args, signal);
+      onEvent?.({ kind: "tool-completed", tool: tool.name });
       return {
         content,
         changed: tool.risk === "write",
         commandSucceeded: tool.risk === "execute",
       };
     } catch (error) {
-      return result(error instanceof Error ? error.message : "Tool execution failed.");
+      const reason = error instanceof Error ? error.message : "Tool execution failed.";
+      onEvent?.({ kind: "tool-failed", tool: tool.name, reason });
+      return result(reason);
     }
   }
 

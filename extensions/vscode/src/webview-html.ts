@@ -70,6 +70,13 @@ export function webviewHtml(webview: vscode.Webview, text: Strings): string {
     .composer-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px; }
     .status { min-height: 18px; color: var(--vscode-descriptionForeground); font-size: 12px; overflow-wrap: anywhere; }
     .status.error { color: var(--vscode-errorForeground); }
+    .activity { display: grid; gap: 2px; margin: 0 0 8px; padding: 6px 8px; border: 1px solid var(--vscode-widget-border); background: var(--vscode-editor-inactiveSelectionBackground, transparent); font-size: 12px; }
+    .activity-row { display: flex; gap: 6px; align-items: baseline; color: var(--vscode-descriptionForeground); }
+    .activity-row .name { color: var(--vscode-foreground); font-weight: 600; }
+    .activity-row .risk { border: 1px solid var(--vscode-charts-yellow, #c4a000); padding: 0 4px; font-size: 10px; }
+    .activity-row .state-ok { color: var(--vscode-testing-iconPassed, #73c991); }
+    .activity-row .state-warn { color: var(--vscode-charts-yellow, #c4a000); }
+    .activity-row .state-bad { color: var(--vscode-errorForeground); }
     .approval { margin: 0 0 8px; padding: 10px; border: 1px solid var(--vscode-inputValidation-warningBorder); background: var(--vscode-inputValidation-warningBackground); }
     .approval strong { display: block; margin-bottom: 4px; }
     .approval p { margin: 0 0 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -109,6 +116,7 @@ export function webviewHtml(webview: vscode.Webview, text: Strings): string {
       <section id="messages" class="messages" aria-live="polite"></section>
     </main>
     <footer class="composer-wrap">
+      <section id="activity" class="activity" hidden aria-label="Agent activity"></section>
       <div id="approval-root"></div>
       <p id="mode-warning" class="mode-warning"></p>
       <div class="composer">
@@ -163,7 +171,7 @@ export function webviewHtml(webview: vscode.Webview, text: Strings): string {
       byId("empty").hidden = state.messages.length > 0;
       for (const message of state.messages) {
         const article = document.createElement("article"); article.className = "message " + message.role; article.dataset.id = message.id;
-        const role = document.createElement("div"); role.className = "role"; role.textContent = message.role === "user" ? "You" : message.role === "tool" ? (message.name || "Tool") : "Evir";
+        const role = document.createElement("div"); role.className = "role"; role.textContent = message.role === "user" ? labels.roleYou : message.role === "tool" ? (message.name || labels.roleTool) : labels.roleEvir;
         const content = document.createElement("pre"); content.textContent = message.content;
         article.append(role, content); root.append(article);
       }
@@ -204,11 +212,32 @@ export function webviewHtml(webview: vscode.Webview, text: Strings): string {
     for (const button of document.querySelectorAll(".example")) button.addEventListener("click", () => { prompt.value = button.textContent || ""; prompt.focus(); });
     window.addEventListener("message", ({ data }) => {
       if (data.type === "state") { Object.assign(state, data); renderState(); }
-      if (data.type === "stream-start") { state.running = true; state.messages.push({ id: data.messageId, role: "assistant", content: "", createdAt: Date.now() }); renderState(); }
+      if (data.type === "stream-start") { state.running = true; state.messages.push({ id: data.messageId, role: "assistant", content: "", createdAt: Date.now() }); byId("activity").replaceChildren(); byId("activity").hidden = true; renderState(); }
       if (data.type === "stream-delta") { const message = state.messages.find((item) => item.id === data.messageId); if (message) message.content = data.content; renderMessages(); }
       if (data.type === "stream-end") { state.running = false; renderState(); }
       if (data.type === "notice") { setStatus(data.message, data.level); if (data.level !== "error" && dialog.open && data.message === labels.configured) dialog.close(); }
       if (data.type === "open-config") openConfig();
+      if (data.type === "activity") {
+        const root = byId("activity");
+        let row = root.querySelector('.activity-row[data-tool="' + (data.tool || "verification") + '"][data-seq="' + data.seq + '"]');
+        if (!row) {
+          row = document.createElement("div"); row.className = "activity-row"; row.dataset.tool = data.tool || "verification"; row.dataset.seq = data.seq;
+          const name = document.createElement("span"); name.className = "name";
+          name.textContent = data.tool || labels.verificationDone;
+          row.append(name);
+          if (data.risk) { const risk = document.createElement("span"); risk.className = "risk"; risk.textContent = labels["risk" + (data.risk === "read" ? "Read" : data.risk === "write" ? "Write" : "Execute")]; row.append(risk); }
+          const state = document.createElement("span"); state.className = "state"; row.append(state);
+          root.append(row);
+        }
+        const state = row.querySelector(".state");
+        const map = { "tool-started": "…", "approval-waiting": labels.toolWaitingApproval, "approval-resolved": data.approved ? labels.toolApproved : labels.toolDenied, "tool-completed": labels.toolDone, "tool-failed": labels.toolFailed, "verification": labels.verificationDone };
+        if (state) {
+          state.textContent = map[data.event] ?? "";
+          state.className = "state " + (data.event === "tool-failed" || (data.event === "approval-resolved" && !data.approved) ? "state-bad" : data.event === "approval-waiting" ? "state-warn" : data.event === "tool-started" ? "" : "state-ok");
+        }
+        if (data.reason && state) state.textContent += ": " + data.reason;
+        root.hidden = false;
+      }
       if (data.type === "approval") {
         const root = byId("approval-root"); const box = document.createElement("section"); box.className = "approval";
         const title = document.createElement("strong"); title.textContent = labels.approval + ": " + data.title;

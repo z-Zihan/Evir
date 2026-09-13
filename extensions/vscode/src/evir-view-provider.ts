@@ -163,6 +163,7 @@ export class EvirViewProvider implements vscode.WebviewViewProvider, vscode.Disp
     await vscode.commands.executeCommand("setContext", "evir.isRunning", true);
     await this.post({ type: "stream-start", messageId: assistantId });
     const history = this.conversationStore.list().map(({ role, content }) => ({ role, content }));
+    let activitySeq = 0;
     const onDelta = (content: string) =>
       void this.post({ type: "stream-delta", messageId: assistantId, content });
     try {
@@ -178,6 +179,38 @@ export class EvirViewProvider implements vscode.WebviewViewProvider, vscode.Disp
               signal: controller.signal,
               onDelta,
               requestApproval: (request) => this.requestApproval(request, controller.signal),
+              onEvent: (event) => {
+                const seq = (activitySeq += 1);
+                if (event.kind === "approval-waiting") {
+                  void this.post({
+                    type: "activity",
+                    event: event.kind,
+                    seq,
+                    tool: event.tool,
+                    risk: event.risk,
+                  });
+                } else if (event.kind === "approval-resolved") {
+                  void this.post({
+                    type: "activity",
+                    event: event.kind,
+                    seq,
+                    tool: event.tool,
+                    approved: event.approved,
+                  });
+                } else if (event.kind === "tool-failed") {
+                  void this.post({
+                    type: "activity",
+                    event: event.kind,
+                    seq,
+                    tool: event.tool,
+                    reason: event.reason,
+                  });
+                } else if (event.kind === "tool-started" || event.kind === "tool-completed") {
+                  void this.post({ type: "activity", event: event.kind, seq, tool: event.tool });
+                } else {
+                  void this.post({ type: "activity", event: event.kind, seq });
+                }
+              },
             })
           : await this.providerClient.stream(
               credentials.config,

@@ -69,6 +69,22 @@ export type HostMessage =
   | { type: "stream-start"; messageId: string }
   | { type: "stream-delta"; messageId: string; content: string }
   | { type: "stream-end"; messageId: string; status: "complete" | "stopped" | "error" }
+  | {
+      /** VS-1 activity timeline row (tool / risk / approval / verification). */
+      type: "activity";
+      event:
+        | "tool-started"
+        | "approval-waiting"
+        | "approval-resolved"
+        | "tool-completed"
+        | "tool-failed"
+        | "verification";
+      seq: number;
+      tool?: string;
+      risk?: "read" | "write" | "execute";
+      approved?: boolean;
+      reason?: string;
+    }
   | { type: "notice"; level: "info" | "warning" | "error"; message: string }
   | { type: "open-config" }
   | {

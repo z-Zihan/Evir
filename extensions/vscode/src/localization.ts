@@ -37,6 +37,19 @@ const en = {
   missingProvider: "Configure a provider before sending a message.",
   invalidMessage: "The extension rejected an invalid UI message.",
   unexpectedError: "Evir encountered an unexpected error.",
+  roleYou: "You",
+  roleEvir: "Evir",
+  roleTool: "Tool",
+  activityLabel: "Agent activity",
+  riskRead: "read",
+  riskWrite: "write",
+  riskExecute: "execute",
+  toolWaitingApproval: "waiting for approval",
+  toolApproved: "approved",
+  toolDenied: "denied",
+  toolFailed: "failed",
+  toolDone: "done",
+  verificationDone: "verification",
 };
 
 const zh: typeof en = {
@@ -76,6 +89,19 @@ const zh: typeof en = {
   missingProvider: "发送消息前请先配置模型服务。",
   invalidMessage: "扩展拒绝了一条无效的界面消息。",
   unexpectedError: "Evir 遇到意外错误。",
+  roleYou: "你",
+  roleEvir: "Evir",
+  roleTool: "工具",
+  activityLabel: "Agent 活动",
+  riskRead: "只读",
+  riskWrite: "写入",
+  riskExecute: "执行",
+  toolWaitingApproval: "等待审批",
+  toolApproved: "已允许",
+  toolDenied: "已拒绝",
+  toolFailed: "失败",
+  toolDone: "完成",
+  verificationDone: "验证",
 };
 
 export type Strings = typeof en;
