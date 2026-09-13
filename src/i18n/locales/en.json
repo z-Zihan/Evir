@@ -1473,7 +1473,10 @@
       "done": "Done"
     },
     "undo": "Undo",
-    "redo": "Redo"
+    "redo": "Redo",
+    "nodeCount": "{{count}} nodes",
+    "copy": "Copy canvas document",
+    "copied": "Canvas document copied to clipboard"
   },
   "permission": {
     "onboardingTitle": "What may Evir do in this project?",

@@ -16,11 +16,12 @@ import {
   type NodeChange,
   type NodeTypes,
 } from "@xyflow/react";
-import { Download, LoaderCircle, Maximize2, Redo2, Undo2 } from "lucide-react";
+import { Copy, Download, LoaderCircle, Maximize2, Redo2, Undo2 } from "lucide-react";
 import "@xyflow/react/dist/style.css";
 import "../../styles/features/canvas/canvas.css";
 import { Button, Tip } from "../../components/ui";
 import { downloadBlob } from "../chat/conversation-export";
+import { copyTextWithFeedback } from "../../components/feedback";
 import { desktopStorage } from "../../runtime/desktop-storage-adapter";
 import { resolveWorkspacePath } from "../workspace/workspace-services";
 import { subscribeWorkspaceToolEvents } from "../workspace/workspace-events";
@@ -291,6 +292,14 @@ function CanvasViewInner({ path }: { path: string; title?: string | undefined })
     logger.info("workspace", "canvas.export", { path: resolvedPath });
   }, [resolvedPath]);
 
+  /** CAN-3: copy the current document JSON with a quiet success toast. */
+  const copyJson = useCallback(() => {
+    if (!documentRef.current) return;
+    void copyTextWithFeedback(serializeCanvasDocument(documentRef.current), {
+      successKey: "canvas.copied",
+    });
+  }, []);
+
   if (loadState === "loading") {
     return (
       <div className="canvas-view canvas-view-loading">
@@ -358,6 +367,11 @@ function CanvasViewInner({ path }: { path: string; title?: string | undefined })
               onClick={() => void fitView({ padding: 0.15, duration: 200 })}
             >
               <Maximize2 size={14} aria-hidden="true" />
+            </Button>
+          </Tip>
+          <Tip content={t("canvas.copy")} side="bottom">
+            <Button variant="ghost" size="icon-sm" aria-label={t("canvas.copy")} onClick={copyJson}>
+              <Copy size={14} aria-hidden="true" />
             </Button>
           </Tip>
           <Tip content={t("canvas.export")} side="bottom">

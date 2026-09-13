@@ -121,3 +121,23 @@ describe("canvas document model", () => {
     expect(() => applyCanvasOperations(docFixture(), ops)).toThrow(/too many operations/i);
   });
 });
+
+describe("canvas limit errors are human-readable (CAN-3)", () => {
+  it("reports the node limit instead of a Zod dump", async () => {
+    const { CANVAS_MAX_NODES, parseCanvasDocument, serializeCanvasDocument } =
+      await import("../canvas-document");
+    const base = createCanvasDocument({ title: "Big" });
+    const huge = {
+      ...base,
+      nodes: Array.from({ length: CANVAS_MAX_NODES + 1 }, (_, index) => ({
+        id: `n${index}`,
+        type: "note" as const,
+        title: `N${index}`,
+        position: { x: index, y: 0 },
+      })),
+    };
+    expect(() => parseCanvasDocument(serializeCanvasDocument(huge))).toThrow(
+      /canvas exceeds the \d+-node limit/,
+    );
+  });
+});

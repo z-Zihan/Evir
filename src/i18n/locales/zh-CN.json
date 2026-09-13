@@ -1472,7 +1472,10 @@
       "done": "已完成"
     },
     "undo": "撤销",
-    "redo": "重做"
+    "redo": "重做",
+    "nodeCount": "{{count}} 个节点",
+    "copy": "复制画布文档",
+    "copied": "画布文档已复制到剪贴板"
   },
   "permission": {
     "onboardingTitle": "Evir 可以在这个项目做什么？",

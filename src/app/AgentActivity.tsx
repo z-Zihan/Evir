@@ -106,16 +106,26 @@ function getArgumentSummary(call: ToolCallRecord): string {
   return "";
 }
 
-/** §77: canvas tools surface an "Open Canvas" card — never an inline canvas. */
-function canvasPathFromRecords(
+interface CanvasSummary {
+  path: string;
+  nodes: number | null;
+}
+
+/** §77: canvas tools surface an "Open Canvas" card — never an inline canvas.
+ * CAN-3: the card's primary fields are the file name and node count. */
+function canvasSummaryFromRecords(
   call: ToolCallRecord,
   result: ToolResultRecord | undefined,
-): string | null {
+): CanvasSummary | null {
   if (call.toolName !== "create_canvas" && call.toolName !== "update_canvas") return null;
   if (!result?.success) return null;
   try {
-    const payload = JSON.parse(result.output || "{}") as { path?: unknown };
-    return typeof payload.path === "string" && payload.path.length > 0 ? payload.path : null;
+    const payload = JSON.parse(result.output || "{}") as { path?: unknown; nodes?: unknown };
+    if (typeof payload.path !== "string" || payload.path.length === 0) return null;
+    return {
+      path: payload.path,
+      nodes: typeof payload.nodes === "number" ? payload.nodes : null,
+    };
   } catch {
     return null;
   }
@@ -129,18 +139,30 @@ function callPathOf(call: ToolCallRecord): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
-function OpenCanvasCard({ path }: { path: string }) {
+function OpenCanvasCard({ summary }: { summary: CanvasSummary }) {
   const { t } = useTranslation();
-  const openResource = useWorkspacePanelStore((state) => state.openResource);
+  // A deliberate click always focuses the canvas tab (the §29 lock rules
+  // apply to agent-driven writes, not to the user's own actions).
+  const openCanvas = () => {
+    useWorkspacePanelStore.setState({ canvasPath: summary.path });
+    useWorkspacePanelStore.getState().openPanel("canvas");
+  };
   return (
     <button
       type="button"
       className="open-canvas-card mt-0.5 flex w-fit cursor-pointer items-center gap-1.5 rounded-lg border border-primary/35 bg-primary/[0.05] px-2 py-1 text-[11.5px] font-medium text-primary transition-colors hover:bg-primary/[0.09] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
-      onClick={() => openResource({ kind: "canvas", path })}
+      onClick={openCanvas}
     >
       <Workflow size={13} aria-hidden="true" />
       {t("canvas.openCard")}
-      <span className="max-w-44 truncate font-normal opacity-75">{path.split("/").pop()}</span>
+      <span className="max-w-44 truncate font-normal opacity-75">
+        {summary.path.split("/").pop()}
+      </span>
+      {summary.nodes !== null && (
+        <span className="font-normal opacity-75">
+          · {t("canvas.nodeCount", { count: summary.nodes })}
+        </span>
+      )}
     </button>
   );
 }
@@ -339,7 +361,7 @@ export function AgentActivity({
                     const toolKey = `tools.${call.toolName}`;
                     const toolName = i18n.exists(toolKey) ? t(toolKey) : call.toolName;
                     const summaryText = getArgumentSummary(call);
-                    const canvasPath = canvasPathFromRecords(call, result);
+                    const canvasSummary = canvasSummaryFromRecords(call, result);
                     // §27: the primary field is what the user scans for —
                     // the file for mutations (with its diffstat), the command
                     // text for run_command; the tool name becomes secondary.
@@ -410,7 +432,7 @@ export function AgentActivity({
                               }
                             : {})}
                         />
-                        {canvasPath && <OpenCanvasCard path={canvasPath} />}
+                        {canvasSummary && <OpenCanvasCard summary={canvasSummary} />}
                       </div>
                     );
                   })}

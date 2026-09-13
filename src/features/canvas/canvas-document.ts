@@ -116,7 +116,16 @@ export function parseCanvasDocument(raw: string): EvirCanvasDocument {
   }
   const result = canvasDocumentSchema.safeParse(parsedJson);
   if (!result.success) {
-    throw new Error(`canvas document invalid: ${result.error.issues[0]?.message ?? "schema"}`);
+    // Limits get a human message instead of a raw Zod "too many items" dump
+    // (CAN-3) — the UI surfaces parse errors verbatim.
+    const issue = result.error.issues[0];
+    if (issue?.code === "too_big" && issue.path.includes("nodes")) {
+      throw new Error(`canvas exceeds the ${CANVAS_MAX_NODES}-node limit`);
+    }
+    if (issue?.code === "too_big" && issue.path.includes("edges")) {
+      throw new Error(`canvas exceeds the ${CANVAS_MAX_EDGES}-edge limit`);
+    }
+    throw new Error(`canvas document invalid: ${issue?.message ?? "schema"}`);
   }
   return result.data;
 }
