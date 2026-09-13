@@ -11,6 +11,7 @@ import {
   pluginRecordSchema,
   type PluginManifest,
   type PluginRecord,
+  type PluginSettingValue,
 } from "./plugin-types";
 import { usePluginContributionStore } from "./plugin-contributions";
 
@@ -31,8 +32,12 @@ interface PluginState {
   install: (manifest: PluginManifest, sourcePath: string) => Promise<PluginRecord>;
   uninstall: (pluginId: string) => Promise<void>;
   setEnabled: (pluginId: string, enabled: boolean) => Promise<void>;
-  getSetting: (pluginId: string, key: string, fallback: boolean) => Promise<boolean>;
-  setSetting: (pluginId: string, key: string, value: boolean) => Promise<void>;
+  getSetting: (
+    pluginId: string,
+    key: string,
+    fallback: PluginSettingValue,
+  ) => Promise<PluginSettingValue>;
+  setSetting: (pluginId: string, key: string, value: PluginSettingValue) => Promise<void>;
 }
 
 function settingKey(pluginId: string): string {
@@ -185,16 +190,30 @@ export const usePluginStore = create<PluginState>((set, get) => ({
   getSetting: async (pluginId, key, fallback) => {
     const record = await getStructuredStorage().read<{
       name: string;
-      value: Record<string, boolean>;
+      value: Record<string, PluginSettingValue>;
     }>("settings", settingKey(pluginId));
-    const value = record?.value?.[key];
-    return typeof value === "boolean" ? value : fallback;
+    const value: PluginSettingValue | undefined = record?.value?.[key];
+    // Type-aware read: a stored value whose type no longer matches the
+    // manifest's declared type (plugin updated the schema) falls back to the
+    // declared default instead of leaking a stale value into a new control.
+    return value !== undefined && typeof value === typeof fallback ? value : fallback;
   },
 
   setSetting: async (pluginId, key, value) => {
+    // Reject values that bypass the settings contract (PLUG-1: Zod-validated
+    // manifest types are the only accepted shapes).
+    if (typeof value !== "boolean" && typeof value !== "string" && typeof value !== "number") {
+      throw new Error("plugin setting value must be boolean, string, or number");
+    }
+    if (typeof value === "number" && !Number.isFinite(value)) {
+      throw new Error("plugin setting number must be finite");
+    }
+    if (typeof value === "string" && value.length > 2_000) {
+      throw new Error("plugin setting string exceeds length bound");
+    }
     const record = await getStructuredStorage().read<{
       name: string;
-      value: Record<string, boolean>;
+      value: Record<string, PluginSettingValue>;
     }>("settings", settingKey(pluginId));
     const next = { ...(record?.value ?? {}), [key]: value };
     await getStructuredStorage().write("settings", settingKey(pluginId), {

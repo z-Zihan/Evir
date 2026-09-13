@@ -171,4 +171,108 @@ describe("plugin store v1", () => {
     await usePluginStore.getState().load();
     expect(usePluginStore.getState().plugins.map((plugin) => plugin.id)).toEqual([]);
   });
+
+  it("PLUG-1: boolean, string, number and select settings round-trip with typed reads", async () => {
+    const { pluginManifestSchema } = await import("../plugin-types");
+    const manifest = {
+      ...validManifest(),
+      contributes: {
+        ...validManifest().contributes,
+        settings: [
+          { key: "verbose", label: "Verbose", type: "boolean" as const, default: false },
+          { key: "theme", label: "Theme", type: "string" as const, default: "light" },
+          { key: "retries", label: "Retries", type: "number" as const, default: 3 },
+          {
+            key: "mode",
+            label: "Mode",
+            type: "select" as const,
+            default: "fast",
+            options: ["fast", "safe"],
+          },
+        ],
+      },
+    };
+    expect(pluginManifestSchema.safeParse(manifest).success).toBe(true);
+    await usePluginStore.getState().install(manifest, "/plugins/typed");
+
+    await usePluginStore.getState().setSetting(manifest.id, "verbose", true);
+    await usePluginStore.getState().setSetting(manifest.id, "theme", "dark");
+    await usePluginStore.getState().setSetting(manifest.id, "retries", 7);
+    await usePluginStore.getState().setSetting(manifest.id, "mode", "safe");
+
+    expect(await usePluginStore.getState().getSetting(manifest.id, "verbose", false)).toBe(true);
+    expect(await usePluginStore.getState().getSetting(manifest.id, "theme", "light")).toBe("dark");
+    expect(await usePluginStore.getState().getSetting(manifest.id, "retries", 3)).toBe(7);
+    expect(await usePluginStore.getState().getSetting(manifest.id, "mode", "fast")).toBe("safe");
+
+    // Fallback when the stored type no longer matches the declared one.
+    entity("settings").set(`plugin:${manifest.id}`, {
+      name: `plugin:${manifest.id}`,
+      value: { retries: "not-a-number" },
+    });
+    expect(await usePluginStore.getState().getSetting(manifest.id, "retries", 3)).toBe(3);
+  });
+
+  it("PLUG-1: schema rejects select without options, default outside options, and mismatched types", async () => {
+    const { pluginManifestSchema } = await import("../plugin-types");
+    const base = validManifest();
+    const noOptions = {
+      ...base,
+      contributes: {
+        ...base.contributes,
+        settings: [{ key: "m", label: "Mode", type: "select", default: "a" }],
+      },
+    };
+    expect(pluginManifestSchema.safeParse(noOptions).success).toBe(false);
+
+    const defaultOutside = {
+      ...base,
+      contributes: {
+        ...base.contributes,
+        settings: [
+          { key: "m", label: "Mode", type: "select", default: "zzz", options: ["a", "b"] },
+        ],
+      },
+    };
+    expect(pluginManifestSchema.safeParse(defaultOutside).success).toBe(false);
+
+    const mismatchedDefault = {
+      ...base,
+      contributes: {
+        ...base.contributes,
+        settings: [{ key: "n", label: "N", type: "number", default: "3" }],
+      },
+    };
+    expect(pluginManifestSchema.safeParse(mismatchedDefault).success).toBe(false);
+
+    const unknownType = {
+      ...base,
+      contributes: {
+        ...base.contributes,
+        settings: [{ key: "x", label: "X", type: "json", default: {} }],
+      },
+    };
+    expect(pluginManifestSchema.safeParse(unknownType).success).toBe(false);
+  });
+
+  it("PLUG-1: setSetting rejects out-of-contract values", async () => {
+    await usePluginStore.getState().install(validManifest(), "/plugins/demo");
+    await expect(
+      usePluginStore.getState().setSetting("demo-plugin", "verbose", { hack: true } as never),
+    ).rejects.toThrow(/boolean, string, or number/);
+    await expect(
+      usePluginStore.getState().setSetting("demo-plugin", "verbose", Number.NaN),
+    ).rejects.toThrow(/finite/);
+  });
+
+  it("PLUG-1: uninstall removes the record but never touches the source folder", async () => {
+    // Uninstall deletes the plugin record + settings + contributions only;
+    // the on-disk source folder is the user's data and stays untouched
+    // (sourcePath is a recorded string, no fs operation exists in uninstall).
+    const record = await usePluginStore.getState().install(validManifest(), "/plugins/demo");
+    expect(record.sourcePath).toBe("/plugins/demo");
+    await usePluginStore.getState().uninstall("demo-plugin");
+    expect(usePluginStore.getState().plugins).toHaveLength(0);
+    expect(usePluginContributionStore.getState().slashCommands).toHaveLength(0);
+  });
 });

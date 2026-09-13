@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FolderOpen, Puzzle, ShieldAlert, Trash2 } from "lucide-react";
-import { Badge, Button, Tip } from "../components/ui";
+import { Badge, Button, Input, Tip } from "../components/ui";
 import { DangerConfirmDialog, FormDialog, InlineError, notify } from "../components/feedback";
 import {
   SettingsDescription,
@@ -19,6 +19,7 @@ import {
   permissionDiff,
   type PluginManifest,
   type PluginRecord,
+  type PluginSettingValue,
 } from "../features/plugins/plugin-types";
 
 /**
@@ -223,15 +224,19 @@ function PluginCard({
   plugin: PluginRecord;
   onToggle: (enabled: boolean) => void;
   onDelete: () => void;
-  getSetting: (pluginId: string, key: string, fallback: boolean) => Promise<boolean>;
-  setSetting: (pluginId: string, key: string, value: boolean) => Promise<void>;
+  getSetting: (
+    pluginId: string,
+    key: string,
+    fallback: PluginSettingValue,
+  ) => Promise<PluginSettingValue>;
+  setSetting: (pluginId: string, key: string, value: PluginSettingValue) => Promise<void>;
 }) {
   const { t } = useTranslation();
   const slashCommands = usePluginContributionStore((state) =>
     state.slashCommands.filter((command) => command.pluginId === plugin.id),
   );
   const settingsSchema = plugin.manifest.contributes?.settings ?? [];
-  const [values, setValues] = useState<Record<string, boolean>>({});
+  const [values, setValues] = useState<Record<string, PluginSettingValue>>({});
 
   useEffect(() => {
     let mounted = true;
@@ -248,6 +253,11 @@ function PluginCard({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plugin.id]);
+
+  const commit = (key: string, value: PluginSettingValue) => {
+    setValues((current) => ({ ...current, [key]: value }));
+    void setSetting(plugin.id, key, value);
+  };
 
   return (
     <div className="flex flex-col gap-2.5 rounded-xl border border-border bg-surface px-3 py-2.5">
@@ -301,14 +311,63 @@ function PluginCard({
           {settingsSchema.map((setting) => (
             <div key={setting.key} className="flex items-center justify-between gap-3">
               <span className="text-[11.5px] text-foreground">{setting.label}</span>
-              <Switch
-                checked={values[setting.key] ?? setting.default}
-                onCheckedChange={(checked) => {
-                  setValues((current) => ({ ...current, [setting.key]: checked }));
-                  void setSetting(plugin.id, setting.key, checked);
-                }}
-                aria-label={setting.label}
-              />
+              {setting.type === "boolean" ? (
+                <Switch
+                  checked={
+                    typeof values[setting.key] === "boolean"
+                      ? (values[setting.key] as boolean)
+                      : setting.default
+                  }
+                  onCheckedChange={(checked) => commit(setting.key, checked)}
+                  aria-label={setting.label}
+                />
+              ) : setting.type === "string" ? (
+                <Input
+                  type="text"
+                  className="h-7 w-48 text-[12px]"
+                  value={
+                    typeof values[setting.key] === "string"
+                      ? (values[setting.key] as string)
+                      : setting.default
+                  }
+                  onChange={(event) => commit(setting.key, event.target.value)}
+                  aria-label={setting.label}
+                />
+              ) : setting.type === "number" ? (
+                <Input
+                  type="number"
+                  className="h-7 w-28 text-[12px]"
+                  value={
+                    typeof values[setting.key] === "number"
+                      ? String(values[setting.key])
+                      : String(setting.default)
+                  }
+                  onChange={(event) => {
+                    const parsed = Number(event.target.value);
+                    if (event.target.value !== "" && Number.isFinite(parsed)) {
+                      commit(setting.key, parsed);
+                    }
+                  }}
+                  aria-label={setting.label}
+                />
+              ) : (
+                <select
+                  className="form-select h-7 w-48 rounded-lg border border-border bg-surface px-2 text-[12px]"
+                  value={
+                    typeof values[setting.key] === "string"
+                      ? (values[setting.key] as string)
+                      : setting.default
+                  }
+                  onChange={(event) => commit(setting.key, event.target.value)}
+                  aria-label={setting.label}
+                >
+                  {setting.options.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           ))}
         </div>

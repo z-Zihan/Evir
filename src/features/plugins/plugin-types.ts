@@ -20,6 +20,56 @@ export function effectivePermissions(manifest: PluginManifest): PluginPermission
   return used;
 }
 
+/** Values a plugin setting can hold (PLUG-1: typed settings, not just toggles). */
+export type PluginSettingValue = boolean | string | number;
+
+const settingKeyPattern = /^[a-z0-9-]{1,40}$/;
+const settingLabel = z.string().min(1).max(80);
+
+const booleanSettingSchema = z.object({
+  key: z.string().regex(settingKeyPattern),
+  label: settingLabel,
+  type: z.literal("boolean"),
+  default: z.boolean(),
+});
+
+const stringSettingSchema = z.object({
+  key: z.string().regex(settingKeyPattern),
+  label: settingLabel,
+  type: z.literal("string"),
+  /** Stored values are user input into a settings field — bounded, not free disk. */
+  default: z.string().max(2_000),
+});
+
+const numberSettingSchema = z.object({
+  key: z.string().regex(settingKeyPattern),
+  label: settingLabel,
+  type: z.literal("number"),
+  default: z.number().finite(),
+});
+
+const selectSettingSchema = z
+  .object({
+    key: z.string().regex(settingKeyPattern),
+    label: settingLabel,
+    type: z.literal("select"),
+    default: z.string().max(80),
+    /** A select without options renders nothing usable — reject at parse time. */
+    options: z.array(z.string().min(1).max(80)).min(1).max(20),
+  })
+  .refine((setting) => setting.options.includes(setting.default), {
+    message: "select default must be one of options",
+  });
+
+export const pluginSettingSchema = z.discriminatedUnion("type", [
+  booleanSettingSchema,
+  stringSettingSchema,
+  numberSettingSchema,
+  selectSettingSchema,
+]);
+
+export type PluginSetting = z.infer<typeof pluginSettingSchema>;
+
 const pluginIdPattern = /^[a-z0-9][a-z0-9-]{1,63}$/;
 const semverishPattern = /^\d+\.\d+\.\d+[-+.\w]*$/;
 
@@ -58,17 +108,7 @@ export const pluginManifestSchema = z.object({
         )
         .max(20)
         .optional(),
-      settings: z
-        .array(
-          z.object({
-            key: z.string().regex(/^[a-z0-9-]{1,40}$/),
-            label: z.string().min(1).max(80),
-            type: z.literal("boolean"),
-            default: z.boolean(),
-          }),
-        )
-        .max(10)
-        .optional(),
+      settings: z.array(pluginSettingSchema).max(10).optional(),
     })
     .optional(),
 });
