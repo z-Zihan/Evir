@@ -1467,7 +1467,9 @@
       "todo": "To do",
       "doing": "In progress",
       "done": "Done"
-    }
+    },
+    "undo": "Undo",
+    "redo": "Redo"
   },
   "permission": {
     "onboardingTitle": "What may Evir do in this project?",

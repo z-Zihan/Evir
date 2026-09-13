@@ -1466,7 +1466,9 @@
       "todo": "待办",
       "doing": "进行中",
       "done": "已完成"
-    }
+    },
+    "undo": "撤销",
+    "redo": "重做"
   },
   "permission": {
     "onboardingTitle": "Evir 可以在这个项目做什么？",

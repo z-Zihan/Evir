@@ -16,21 +16,24 @@ import {
   type NodeChange,
   type NodeTypes,
 } from "@xyflow/react";
-import { Download, LoaderCircle, Maximize2 } from "lucide-react";
+import { Download, LoaderCircle, Maximize2, Redo2, Undo2 } from "lucide-react";
 import "@xyflow/react/dist/style.css";
 import "../../styles/features/canvas/canvas.css";
 import { Button, Tip } from "../../components/ui";
 import { downloadBlob } from "../chat/conversation-export";
 import { desktopStorage } from "../../runtime/desktop-storage-adapter";
 import { resolveWorkspacePath } from "../workspace/workspace-services";
+import { subscribeWorkspaceToolEvents } from "../workspace/workspace-events";
 import { useActiveWorkspaceRoot } from "../workspace/workspace-bridge";
 import { logger } from "../../core/logging/logger";
 import {
+  CANVAS_EXTENSION,
   parseCanvasDocument,
   serializeCanvasDocument,
   userEditCanvasDocument,
   type EvirCanvasDocument,
 } from "./canvas-document";
+import { createCanvasHistory } from "./canvas-history";
 import { CanvasNodeCard, CANVAS_EDGE, type DocumentNode } from "./canvas-node-card";
 
 /**
@@ -40,7 +43,9 @@ import { CanvasNodeCard, CANVAS_EDGE, type DocumentNode } from "./canvas-node-ca
  *
  * User edits (drag, connect, delete) autosave back to the document file with
  * `updatedBy: "user"`; agent tools rewrite the file through update_canvas,
- * whose merge keeps positions not explicitly moved.
+ * whose merge keeps positions not explicitly moved. CAN-1: user edits push
+ * an undo stack (⌘Z/⌘⇧Z + toolbar); agent rewrites detected through the
+ * workspace tool-event bus reload the file as undo checkpoints.
  */
 
 const nodeTypes: NodeTypes = {
@@ -98,6 +103,22 @@ function flowToDocument(
   });
 }
 
+/** Match an agent canvas tool call against the open document path. */
+function canvasToolTargetsPath(
+  toolName: string,
+  args: Record<string, unknown>,
+  resolvedPath: string,
+  root: string | null,
+): boolean {
+  if (toolName !== "update_canvas" && toolName !== "create_canvas") return false;
+  const raw = args.path;
+  if (typeof raw !== "string") return false;
+  const withExtension = raw.toLowerCase().endsWith(CANVAS_EXTENSION)
+    ? raw
+    : `${raw}${CANVAS_EXTENSION}`;
+  return resolveWorkspacePath(withExtension, root) === resolvedPath;
+}
+
 type SaveState = "idle" | "saving" | "saved" | "error";
 
 function CanvasViewInner({ path }: { path: string; title?: string | undefined }) {
@@ -110,11 +131,22 @@ function CanvasViewInner({ path }: { path: string; title?: string | undefined })
   const [nodes, setNodes] = useState<DocumentNode[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [saveState, setSaveState] = useState<SaveState>("idle");
+  // Bumped after every history mutation so undo/redo buttons re-render.
+  const [, bumpHistory] = useState(0);
   const documentRef = useRef<EvirCanvasDocument | null>(null);
+  const historyRef = useRef<ReturnType<typeof createCanvasHistory> | null>(null);
   const saveTimer = useRef<number | null>(null);
   const nodesRef = useRef<DocumentNode[]>([]);
   const edgesRef = useRef<Edge[]>([]);
   const resolvedPath = useMemo(() => resolveWorkspacePath(path, root) ?? path, [path, root]);
+
+  const applyDocument = useCallback((next: EvirCanvasDocument) => {
+    documentRef.current = next;
+    setDocument(next);
+    setNodes(toFlowNodes(next));
+    setEdges(toFlowEdges(next));
+    bumpHistory((version) => version + 1);
+  }, []);
 
   useEffect(() => {
     nodesRef.current = nodes;
@@ -131,10 +163,8 @@ function CanvasViewInner({ path }: { path: string; title?: string | undefined })
       .then((raw) => {
         if (cancelled) return;
         const parsed = parseCanvasDocument(raw);
-        documentRef.current = parsed;
-        setDocument(parsed);
-        setNodes(toFlowNodes(parsed));
-        setEdges(toFlowEdges(parsed));
+        historyRef.current = createCanvasHistory(parsed);
+        applyDocument(parsed);
         setLoadState("ready");
       })
       .catch((error: unknown) => {
@@ -145,14 +175,16 @@ function CanvasViewInner({ path }: { path: string; title?: string | undefined })
     return () => {
       cancelled = true;
     };
-  }, [resolvedPath]);
+  }, [resolvedPath, applyDocument]);
 
   const persist = useCallback(() => {
     const source = documentRef.current;
     if (!source) return;
     const next = flowToDocument(source, nodesRef.current, edgesRef.current);
     documentRef.current = next;
+    historyRef.current?.pushUserState(next);
     setDocument(next);
+    bumpHistory((version) => version + 1);
     setSaveState("saving");
     desktopStorage
       .writeFile(resolvedPath, serializeCanvasDocument(next))
@@ -175,6 +207,66 @@ function CanvasViewInner({ path }: { path: string; title?: string | undefined })
     },
     [],
   );
+
+  // Agent rewrites: reload the file as an undo checkpoint whenever a
+  // successful create_canvas/update_canvas targeted this document (the agent
+  // writes through the tool layer, not through this view's state).
+  useEffect(() => {
+    if (loadState !== "ready") return;
+    return subscribeWorkspaceToolEvents((event) => {
+      if (!event.result.success) return;
+      if (
+        !canvasToolTargetsPath(
+          event.toolCall.toolName,
+          event.toolCall.arguments,
+          resolvedPath,
+          root,
+        )
+      ) {
+        return;
+      }
+      void desktopStorage
+        .readFile(resolvedPath)
+        .then((raw) => {
+          const parsed = parseCanvasDocument(raw);
+          historyRef.current?.agentCheckpoint(parsed);
+          applyDocument(parsed);
+          logger.info("workspace", "canvas.agent-reload", { path: resolvedPath });
+        })
+        .catch(() => undefined);
+    });
+  }, [loadState, resolvedPath, root, applyDocument]);
+
+  /** Undo/redo write the restored snapshot back through the same save path. */
+  const restore = useCallback(
+    (candidate: EvirCanvasDocument | null) => {
+      if (!candidate) return;
+      applyDocument(candidate);
+      setSaveState("saving");
+      desktopStorage
+        .writeFile(resolvedPath, serializeCanvasDocument(candidate))
+        .then(() => setSaveState("saved"))
+        .catch(() => setSaveState("error"));
+    },
+    [applyDocument, resolvedPath],
+  );
+
+  const undo = useCallback(() => restore(historyRef.current?.undo() ?? null), [restore]);
+  const redo = useCallback(() => restore(historyRef.current?.redo() ?? null), [restore]);
+
+  // ⌘Z / ⌘⇧Z while the canvas is mounted (the palette and modals consume
+  // their own keys first; canvas is a full-panel surface).
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
+      if (event.key.toLowerCase() !== "z") return;
+      event.preventDefault();
+      if (event.shiftKey) redo();
+      else undo();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [undo, redo]);
 
   /** Defer one tick so the refs reflect the committed state. */
   const deferPersist = useCallback(() => window.setTimeout(schedulePersist, 0), [schedulePersist]);
@@ -261,6 +353,28 @@ function CanvasViewInner({ path }: { path: string; title?: string | undefined })
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
+          <Tip content={t("canvas.undo")} side="bottom">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t("canvas.undo")}
+              disabled={!historyRef.current?.canUndo()}
+              onClick={undo}
+            >
+              <Undo2 size={14} aria-hidden="true" />
+            </Button>
+          </Tip>
+          <Tip content={t("canvas.redo")} side="bottom">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t("canvas.redo")}
+              disabled={!historyRef.current?.canRedo()}
+              onClick={redo}
+            >
+              <Redo2 size={14} aria-hidden="true" />
+            </Button>
+          </Tip>
           <Tip content={t("canvas.fit")} side="bottom">
             <Button
               variant="ghost"
