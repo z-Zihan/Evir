@@ -16,6 +16,7 @@ export default tseslint.config(
       "gui-test-screenshots",
       "**/.vscode-test",
       "src-tauri/target",
+      "**/__tests__/fixture-*.mjs",
       "scripts",
       "extensions/vscode/scripts",
       "packages/cli/scripts",
