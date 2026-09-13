@@ -12,6 +12,8 @@ import { create } from "zustand";
 /** A slash command contributed by a plugin. Appears as `/id` in the palette. */
 export interface PluginSlashCommand {
   pluginId: string;
+  /** Display name of the contributing plugin — shown as the palette source. */
+  pluginName: string;
   /** Command id without the leading slash, e.g. "translate". */
   id: string;
   description: string;

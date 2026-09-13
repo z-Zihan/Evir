@@ -79,6 +79,7 @@ async function publishContributions(plugins: PluginRecord[]): Promise<void> {
     enabled.flatMap((plugin) =>
       (plugin.manifest.contributes?.slashCommands ?? []).map((command) => ({
         pluginId: plugin.id,
+        pluginName: plugin.name,
         id: command.id,
         description: command.description ?? `${plugin.name} command`,
         run: () => {

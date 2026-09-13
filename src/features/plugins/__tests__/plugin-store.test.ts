@@ -340,7 +340,7 @@ describe("plugin store v1", () => {
     });
     // Missing metadata falls back to the directory id and a generated description.
     expect(skills[1]).toMatchObject({ name: "plain" });
-    expect(skills[1].description).toContain("Hello Evir");
+    expect(skills[1]?.description).toContain("Hello Evir");
 
     // The expanded manifest installs like any other: skills enter the catalog.
     const record = await usePluginStore.getState().install(expanded, "/plugins/hello");

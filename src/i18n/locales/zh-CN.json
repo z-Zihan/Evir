@@ -1320,7 +1320,8 @@
     "actionOpenTrace": "查看运行详情",
     "actionNewCanvas": "创建画布",
     "actionSwitchUser": "切换用户（用户设置）",
-    "canvasDefaultTitle": "新画布"
+    "canvasDefaultTitle": "新画布",
+    "pluginSource": "来源插件：{{name}}"
   },
   "preview": {
     "plainText": "纯文本",

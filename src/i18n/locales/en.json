@@ -1321,7 +1321,8 @@
     "actionOpenTrace": "View run details",
     "actionNewCanvas": "Create canvas",
     "actionSwitchUser": "Switch user (Users settings)",
-    "canvasDefaultTitle": "New canvas"
+    "canvasDefaultTitle": "New canvas",
+    "pluginSource": "From plugin: {{name}}"
   },
   "preview": {
     "plainText": "Plain text",

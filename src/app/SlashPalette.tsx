@@ -117,6 +117,8 @@ interface SlashPluginItem {
   kind: "plugin";
   label: string;
   description: string;
+  /** Contributing plugin name — the palette shows it as the source (PLUG-3). */
+  sourcePlugin: string;
   keywords: string[];
   run?: () => void | Promise<void>;
 }
@@ -440,7 +442,8 @@ export const SlashPalette = forwardRef<SlashPaletteHandle, SlashPaletteProps>(fu
     kind: "plugin" as const,
     label: `/${command.id}`,
     description: command.description,
-    keywords: [command.id, command.pluginId],
+    sourcePlugin: command.pluginName,
+    keywords: [command.id, command.pluginId, command.pluginName],
     run: command.run,
   }));
 
@@ -547,6 +550,12 @@ export const SlashPalette = forwardRef<SlashPaletteHandle, SlashPaletteProps>(fu
                   <span className="shrink-0 font-medium">{item.label}</span>
                   <span className="min-w-0 flex-1 truncate text-[11px] text-muted">
                     {item.description}
+                  </span>
+                  <span
+                    className="shrink-0 rounded-md border border-border bg-surface px-1.5 py-px text-[10px] text-muted"
+                    aria-label={t("slash.pluginSource", { name: item.sourcePlugin })}
+                  >
+                    {item.sourcePlugin}
                   </span>
                 </CommandItem>
               ))}

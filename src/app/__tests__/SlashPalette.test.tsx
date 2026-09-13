@@ -171,14 +171,43 @@ describe("SlashPalette action center (shadcn Command)", () => {
     expect(groupHeadings).toContain("slash.skillsGroup");
     expect(groupHeadings).not.toContain("slash.pluginsGroup");
 
-    usePluginContributionStore
-      .getState()
-      .replaceSlashCommands([
-        { pluginId: "demo", id: "deploy", description: "Deploy the site", run: vi.fn() },
-      ]);
+    usePluginContributionStore.getState().replaceSlashCommands([
+      {
+        pluginId: "demo",
+        pluginName: "Demo Plugin",
+        id: "deploy",
+        description: "Deploy the site",
+        run: vi.fn(),
+      },
+    ]);
     const second = mountPalette();
     expect(second.baseElement).toBeTruthy();
     expect(headings()).toContain("slash.pluginsGroup");
+  });
+
+  it("PLUG-3: plugin commands show their source plugin, and disabling removes them", () => {
+    usePluginContributionStore.getState().replaceSlashCommands([
+      {
+        pluginId: "hello-evir",
+        pluginName: "Hello Evir",
+        id: "hello",
+        description: "Insert a friendly greeting task",
+        run: vi.fn(),
+      },
+    ]);
+    mountPalette();
+    expect(itemLabels()).toContain("/hello");
+    // The source plugin is visible next to the command (runtime provenance).
+    expect(document.body.textContent).toContain("Hello Evir");
+
+    // Disabling the plugin recomputes contributions to the empty set — the
+    // command (and its promptTemplate insertion path) is gone without restart.
+    usePluginContributionStore.getState().replaceSlashCommands([]);
+    cleanup();
+    document.querySelectorAll(".slash-palette").forEach((node) => node.remove());
+    mountPalette();
+    expect(itemLabels()).not.toContain("/hello");
+    expect(headings()).not.toContain("slash.pluginsGroup");
   });
 
   it("hides gated actions when capabilities are off (§5 availability model)", () => {
