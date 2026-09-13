@@ -45,6 +45,9 @@ export function BrowserSettings() {
   const [startFailed, setStartFailed] = useState(false);
   const [provider, setProvider] = useState<AgentBrowserProviderId>("evir");
   const [egoStatus, setEgoStatus] = useState<EgoStatus | null>(null);
+  // EGO-1: the ego lite integration is a macOS app; elsewhere the option
+  // stays visible but disabled with the honest reason.
+  const isMacos = navigator.platform.toLowerCase().includes("mac");
   const [egoProbing, setEgoProbing] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -252,9 +255,16 @@ export function BrowserSettings() {
                   : "border-transparent hover:bg-surface-subtle/60",
               )}
               onClick={() => selectProvider(option.id)}
+              disabled={option.id === "ego-lite" && !isMacos}
+              aria-disabled={option.id === "ego-lite" && !isMacos}
             >
               <span className="flex items-center gap-2 text-[12.5px] font-medium text-foreground">
                 {option.label}
+                {option.id === "ego-lite" && !isMacos && (
+                  <span className="rounded-full border border-border px-1.5 py-px text-[10px] font-medium text-muted">
+                    {t("browser.provider.nonMacos")}
+                  </span>
+                )}
                 {option.id === "ego-lite" && provider === option.id && (
                   <span className="rounded-full border border-border px-1.5 py-px text-[10px] font-medium text-muted">
                     {t("browser.provider.experimental")}
@@ -306,6 +316,9 @@ export function BrowserSettings() {
             )}
             <SettingsDescription className="px-4">
               {t("browser.provider.setupHint")}
+            </SettingsDescription>
+            <SettingsDescription className="px-4">
+              {t("browser.provider.probeCommandHint")}
             </SettingsDescription>
             <div className="flex items-center gap-2 px-4 py-3.5">
               <Button

@@ -44,6 +44,9 @@ const EGO_OP_BY_COMMAND: Record<string, string> = {
 /** Commands with no ego equivalent in v1 (explicit, never silently faked). */
 export const EGO_UNSUPPORTED_COMMANDS = new Set<string>(["browser_select"]);
 
+/** Tool names the ego-lite provider must not advertise (EGO-2). */
+export const EGO_TOOL_DENY_LIST: ReadonlySet<string> = EGO_UNSUPPORTED_COMMANDS;
+
 export function readAgentBrowserProvider(): AgentBrowserProviderId {
   try {
     return readProfileScoped(PROVIDER_KEY) === "ego-lite" ? "ego-lite" : "evir";

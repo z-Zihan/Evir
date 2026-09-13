@@ -2,9 +2,10 @@ import { z } from "zod";
 import type { ComponentDefinition } from "../../core/components/types";
 import type { Capability } from "../types";
 import { LOCAL_FILE_TOOLS } from "../../core/tools/builtin/local-file-tools";
-import { BROWSER_TOOLS } from "../../core/tools/builtin/browser-tools";
+import { browserToolsForProvider } from "../../core/tools/builtin/browser-tools";
 import { CANVAS_TOOLS } from "../../core/tools/builtin/canvas-tools";
 import { KNOWLEDGE_TOOLS } from "../../core/tools/builtin/knowledge-tools";
+import { readAgentBrowserProvider } from "../../features/browser/browser-provider";
 
 const emptyConfigSchema = z.object({}).strict().optional();
 
@@ -25,7 +26,10 @@ function createBrowserToolComponent() {
       return null;
     },
     activate(context) {
-      for (const tool of BROWSER_TOOLS) context.registerTool(tool);
+      // EGO-2: advertise only the tools the active provider can execute.
+      for (const tool of browserToolsForProvider(readAgentBrowserProvider())) {
+        context.registerTool(tool);
+      }
     },
   };
   return definition;

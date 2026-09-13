@@ -1439,7 +1439,9 @@
       "setupHint": "Setup: 1) install ego lite from lite.ego.app; 2) open it and finish onboarding (this registers the ego-browser command); 3) come back and press “Check connection”. After switching, agent browser tools run through ego lite; approvals, audit and traces stay unchanged.",
       "check": "Check connection",
       "checking": "Checking…",
-      "stopSession": "End Ego session"
+      "stopSession": "End Ego session",
+      "probeCommandHint": "Terminal self-check: `command -v ego-browser && ego-browser --help`; when missing, Evir reports provider=ego-lite honestly — never a silent fallback to bundled evir.",
+      "nonMacos": "macOS only: the ego lite integration depends on the macOS app; unavailable on this platform."
     }
   },
   "toast": {

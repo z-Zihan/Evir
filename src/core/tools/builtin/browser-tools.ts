@@ -4,6 +4,7 @@ import type { EvirRuntime } from "../../../runtime/types";
 import { TOOL_NOT_AVAILABLE } from "../tool-executor";
 import { redactLogValue } from "../../logging/redaction";
 import { logger } from "../../logging/logger";
+import { EGO_TOOL_DENY_LIST } from "../../../features/browser/browser-provider";
 
 /**
  * Browser agent tools backed by the Rust CDP runtime (desktop only).
@@ -161,6 +162,19 @@ export function isLoopbackUrl(url: string): boolean {
 
 const navigationRisk = (args: Record<string, unknown>): "L1" | "L3" =>
   typeof args.url === "string" && isLoopbackUrl(args.url) ? "L1" : "L3";
+
+/**
+ * Provider-aware tool list (EGO-2): when the active browser provider is
+ * ego-lite, commands without an ego mapping are not advertised at all — the
+ * model never sees a tool that would only throw at call time. The default
+ * bundled "evir" runtime exposes every tool.
+ */
+export function browserToolsForProvider(
+  provider: "evir" | "ego-lite" = "evir",
+): readonly ToolDefinition[] {
+  if (provider === "evir") return BROWSER_TOOLS;
+  return BROWSER_TOOLS.filter((tool) => !EGO_TOOL_DENY_LIST.has(tool.name));
+}
 
 export const BROWSER_TOOLS: readonly ToolDefinition[] = [
   {

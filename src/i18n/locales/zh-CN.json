@@ -1438,7 +1438,9 @@
       "setupHint": "安装步骤：1) 从 lite.ego.app 下载并安装 ego lite；2) 打开应用完成初始化（会注册 ego-browser 命令）；3) 回到这里点击“检测连接”。切换提供方后 Agent 的浏览器工具将改走 ego lite；权限审批、审计与 Trace 保持不变。",
       "check": "检测连接",
       "checking": "检测中…",
-      "stopSession": "结束 Ego 会话"
+      "stopSession": "结束 Ego 会话",
+      "probeCommandHint": "终端自检命令：`command -v ego-browser && ego-browser --help`；未找到时 Evir 如实报错（provider=ego-lite missing），不会静默回退到内置 evir。",
+      "nonMacos": "仅 macOS：ego lite 集成依赖 macOS 应用，当前平台不可用。"
     }
   },
   "toast": {

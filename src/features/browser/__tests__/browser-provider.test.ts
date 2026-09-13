@@ -112,3 +112,17 @@ describe("agent browser provider", () => {
     expect(readAgentBrowserProvider()).toBe("evir");
   });
 });
+
+describe("EGO-2: provider-aware tool advertisement", () => {
+  it("ego-lite never advertises unsupported tools; evir advertises all", async () => {
+    const { browserToolsForProvider } = await import("../../../core/tools/builtin/browser-tools");
+    const evirNames = browserToolsForProvider("evir").map((tool) => tool.name);
+    const egoNames = browserToolsForProvider("ego-lite").map((tool) => tool.name);
+    expect(egoNames.length).toBeGreaterThan(0);
+    expect(egoNames.length).toBeLessThan(evirNames.length);
+    for (const denied of ["browser_select"]) {
+      expect(egoNames).not.toContain(denied);
+      expect(evirNames).toContain(denied);
+    }
+  });
+});
