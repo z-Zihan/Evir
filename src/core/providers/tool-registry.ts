@@ -40,6 +40,14 @@ export interface ToolDefinition {
   description: string;
   source: ToolSource;
   riskLevel: RiskLevel;
+  /**
+   * Per-call risk override (BRW-2): when present, the executor resolves the
+   * effective level from the call's arguments BEFORE the approval gate (e.g.
+   * browser navigation to loopback = L1, to the open internet = L3). Only
+   * consulted while the call is NOT yet approved — approved retries skip the
+   * gate entirely, so this can never deadlock an approval loop.
+   */
+  resolveRiskLevel?: (args: Record<string, unknown>) => RiskLevel;
   requiredCapability?: Capability;
   approval?: ToolApprovalDetails;
   schema: Record<string, unknown>;

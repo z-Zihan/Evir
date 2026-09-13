@@ -32,16 +32,20 @@ export function validateToolForExecution(
   approved: boolean,
   args: Record<string, unknown> = {},
 ): string | null {
-  if (riskLevelExceeds(tool.riskLevel, MODE_TOOL_RISK_LIMITS[mode])) {
+  // BRW-2: per-call risk (e.g. loopback vs external navigation) is resolved
+  // before every gate — but only for calls that still need the approval
+  // decision; approved retries must run, not re-gate.
+  const risk = approved ? tool.riskLevel : (tool.resolveRiskLevel?.(args) ?? tool.riskLevel);
+  if (riskLevelExceeds(risk, MODE_TOOL_RISK_LIMITS[mode])) {
     return TOOL_NOT_ALLOWED;
   }
   if (tool.requiredCapability && !runtime.has(tool.requiredCapability)) {
     return TOOL_CAPABILITY_MISSING;
   }
-  if (riskLevelExceeds(tool.riskLevel, "L1") && !approved) {
+  if (riskLevelExceeds(risk, "L1") && !approved) {
     const decision = resolveExecutionPermission(
       runtime.permissionContext,
-      tool.riskLevel,
+      risk,
       resolveCandidatePath(args, runtime),
       tool.name,
     );

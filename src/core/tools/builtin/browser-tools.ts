@@ -136,6 +136,32 @@ function refJsonSchema(description: string): Record<string, unknown> {
   };
 }
 
+/**
+ * BRW-2 navigation policy: loopback targets (the project's own dev preview)
+ * stay L1 — the agent may open them freely; anything else is the open
+ * internet and needs the L3 approval conversation (per-call in Ask, scoped
+ * "allow this tool in this project" available for the workspace profile).
+ */
+export function isLoopbackUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    return (
+      parsed.protocol === "file:" ||
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host === "[::1]" ||
+      host === "0.0.0.0" ||
+      host.endsWith(".localhost")
+    );
+  } catch {
+    return false;
+  }
+}
+
+const navigationRisk = (args: Record<string, unknown>): "L1" | "L3" =>
+  typeof args.url === "string" && isLoopbackUrl(args.url) ? "L1" : "L3";
+
 export const BROWSER_TOOLS: readonly ToolDefinition[] = [
   {
     id: "browser_open",
@@ -144,6 +170,7 @@ export const BROWSER_TOOLS: readonly ToolDefinition[] = [
       "Open a URL in a new tab of the agent browser and wait for it to load. Use for visiting documentation, web apps and localhost dev servers.",
     source: "evir-local",
     riskLevel: "L1",
+    resolveRiskLevel: navigationRisk,
     requiredCapability: "browserAutomation",
     schema: urlJsonSchema("Absolute URL to open (http/https)"),
     execute: (args, runtime, signal) => executeWith(urlArgs, args, "browser_open", runtime, signal),
@@ -154,6 +181,7 @@ export const BROWSER_TOOLS: readonly ToolDefinition[] = [
     description: "Navigate the current agent browser tab to a URL and wait for the page to load.",
     source: "evir-local",
     riskLevel: "L1",
+    resolveRiskLevel: navigationRisk,
     requiredCapability: "browserAutomation",
     schema: urlJsonSchema("Absolute URL to load in the current tab"),
     execute: (args, runtime, signal) =>
@@ -232,7 +260,7 @@ export const BROWSER_TOOLS: readonly ToolDefinition[] = [
     description:
       "Set the value of a text input/select referenced by its @eN ref. Never use it to read or echo secrets.",
     source: "evir-local",
-    riskLevel: "L2",
+    riskLevel: "L3",
     requiredCapability: "browserAutomation",
     schema: {
       ...refJsonSchema("Element ref of the input field"),

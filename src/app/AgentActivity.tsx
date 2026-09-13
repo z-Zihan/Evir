@@ -33,6 +33,11 @@ import {
 } from "../core/tools/tool-executor";
 import { useChatStore } from "../features/chat/chat-store";
 import { useWorkspacePanelStore } from "../features/workspace/workspace-panel-store";
+import {
+  panelTabList,
+  panelTabNavigate,
+  panelTabNew,
+} from "../features/workspace/browser-panel-service";
 import { useRunWorkspaceStore } from "../features/workspace/workspace-run-store";
 import { resolveWorkspacePath } from "../features/workspace/workspace-services";
 import { argumentDiffstat } from "../features/workspace/changes-model";
@@ -390,6 +395,29 @@ export function AgentActivity({
                       isMutating && path && result?.success
                         ? (resolveWorkspacePath(path, root) ?? null)
                         : null;
+                    // BRW-3: a browser row whose primary field is a URL opens
+                    // (or focuses) that URL in the workspace Browser tab.
+                    const browserUrl =
+                      result?.success &&
+                      typeof call.arguments["url"] === "string" &&
+                      call.arguments["url"].length > 0
+                        ? call.arguments["url"]
+                        : null;
+                    const openInBrowserTab = browserUrl
+                      ? () => {
+                          void (async () => {
+                            const tabs = await panelTabList();
+                            const existing = tabs.find((tab) => tab.url === browserUrl);
+                            if (existing && !existing.active) {
+                              await panelTabNavigate(existing.id, browserUrl);
+                            } else if (!existing) {
+                              await panelTabNew(browserUrl);
+                            }
+                            useWorkspacePanelStore.getState().setTab("browser");
+                            useWorkspacePanelStore.getState().openPanel("browser");
+                          })();
+                        }
+                      : undefined;
                     return (
                       <div key={call.id} className="flex min-w-0 flex-col">
                         <ToolRow
@@ -430,7 +458,9 @@ export function AgentActivity({
                                     ...(activeRunId ? { runId: activeRunId } : {}),
                                   }),
                               }
-                            : {})}
+                            : openInBrowserTab
+                              ? { onClick: openInBrowserTab }
+                              : {})}
                         />
                         {canvasSummary && <OpenCanvasCard summary={canvasSummary} />}
                       </div>
