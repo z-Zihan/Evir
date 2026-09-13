@@ -117,9 +117,9 @@ describe("AgentRunner activity events (VS-1)", () => {
         description: "Write",
         parameters: { type: "object" },
         risk: "write",
-        execute: async () => {
-          if (options?.fail) throw new Error("disk full");
-          return "Wrote file";
+        execute: () => {
+          if (options?.fail) return Promise.reject(new Error("disk full"));
+          return Promise.resolve("Wrote file");
         },
       },
       {
@@ -142,12 +142,10 @@ describe("AgentRunner activity events (VS-1)", () => {
       }),
       turn({ content: "Done" }),
     ];
-    const stream: ProviderClient["stream"] = vi.fn(
-      (...args: Parameters<ProviderClient["stream"]>) => {
-        const next = turns.shift() ?? turn({ content: "Done" });
-        return Promise.resolve(next);
-      },
-    );
+    const stream: ProviderClient["stream"] = vi.fn(() => {
+      const next = turns.shift() ?? turn({ content: "Done" });
+      return Promise.resolve(next);
+    });
     const runner = new AgentRunner({ stream }, { list: () => tools });
     return {
       events,
@@ -158,7 +156,7 @@ describe("AgentRunner activity events (VS-1)", () => {
         workspaceNames: ["w"],
         signal: new AbortController().signal,
         onDelta: () => undefined,
-        requestApproval: async () => options?.approve ?? true,
+        requestApproval: () => Promise.resolve(options?.approve ?? true),
         onEvent: (event) => events.push(event),
       }),
     };

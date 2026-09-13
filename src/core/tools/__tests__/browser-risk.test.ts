@@ -56,12 +56,12 @@ describe("browser navigation risk resolves per call (BRW-2)", () => {
   it("external navigation resolves to L3 — permission required in both profiles", () => {
     const args = { url: "https://example.com/docs" };
     for (const tool of [open!, navigate!]) {
-      expect(
-        validateToolForExecution(tool, "agent", runtimeWith("ask"), false, args),
-      ).toBe("permission_required");
-      expect(
-        validateToolForExecution(tool, "agent", runtimeWith("workspace"), false, args),
-      ).toBe("permission_required");
+      expect(validateToolForExecution(tool, "agent", runtimeWith("ask"), false, args)).toBe(
+        "permission_required",
+      );
+      expect(validateToolForExecution(tool, "agent", runtimeWith("workspace"), false, args)).toBe(
+        "permission_required",
+      );
     }
   });
 

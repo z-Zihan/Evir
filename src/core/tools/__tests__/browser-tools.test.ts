@@ -63,12 +63,17 @@ describe("browser tool surface", () => {
     expect(BROWSER_TOOLS.some((tool) => /eval|execute_script/.test(tool.id))).toBe(false);
   });
 
-  it("assigns L1 to reads and L2+ to interactions", () => {
+  it("assigns L1 to reads, L2 to plain interactions, L3 to fills (BRW-2)", () => {
+    // open/navigate stay L1 statically; their per-call risk resolves
+    // loopback=L1 / external=L3 at the executor (browser-risk tests).
     expect(TOOL_BY_ID.get("browser_open")?.riskLevel).toBe("L1");
+    expect(TOOL_BY_ID.get("browser_navigate")?.riskLevel).toBe("L1");
     expect(TOOL_BY_ID.get("browser_snapshot")?.riskLevel).toBe("L1");
     expect(TOOL_BY_ID.get("browser_screenshot")?.riskLevel).toBe("L1");
     expect(TOOL_BY_ID.get("browser_click")?.riskLevel).toBe("L2");
-    expect(TOOL_BY_ID.get("browser_fill")?.riskLevel).toBe("L2");
+    // Password-class inputs are only knowable at execution time — fills
+    // approve uniformly (BRW-2).
+    expect(TOOL_BY_ID.get("browser_fill")?.riskLevel).toBe("L3");
     expect(TOOL_BY_ID.get("browser_press")?.riskLevel).toBe("L2");
   });
 
