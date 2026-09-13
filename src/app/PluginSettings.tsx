@@ -32,6 +32,10 @@ interface PendingInstall {
   manifest: PluginManifest;
   sourcePath: string;
   newPermissions: string[];
+  /** PLUG-2: skills/ bodies cut at the 60k bound, surfaced in the dialog. */
+  truncatedSkills: string[];
+  /** PLUG-2: newly added high-risk skills on reinstall need re-confirmation. */
+  newHighRiskSkills: string[];
 }
 
 export function PluginSettingsPanel() {
@@ -40,6 +44,7 @@ export function PluginSettingsPanel() {
   const plugins = usePluginStore((state) => state.plugins);
   const load = usePluginStore((state) => state.load);
   const readManifestFromFolder = usePluginStore((state) => state.readManifestFromFolder);
+  const expandSkillsFromFolder = usePluginStore((state) => state.expandSkillsFromFolder);
   const install = usePluginStore((state) => state.install);
   const uninstall = usePluginStore((state) => state.uninstall);
   const setEnabled = usePluginStore((state) => state.setEnabled);
@@ -58,12 +63,28 @@ export function PluginSettingsPanel() {
     setBusy(true);
     setError(null);
     try {
-      const { sourcePath, ...manifest } = await readManifestFromFolder();
+      const { sourcePath, ...raw } = await readManifestFromFolder();
+      // PLUG-2: folder-declared skills are expanded (and copied into the
+      // record) BEFORE the confirm dialog, so the user confirms exactly what
+      // will be installed — truncations and new high-risk skills included.
+      const { manifest, truncatedSkills } = await expandSkillsFromFolder(raw, sourcePath);
       const existing = plugins.find((plugin) => plugin.id === manifest.id);
       const diff = existing
         ? permissionDiff(existing.permissions, effectivePermissions(manifest))
         : effectivePermissions(manifest);
-      setPending({ manifest, sourcePath, newPermissions: diff });
+      const knownSkills = new Map(
+        (existing?.manifest.contributes?.skills ?? []).map((skill) => [skill.id, skill]),
+      );
+      const newHighRiskSkills = (manifest.contributes?.skills ?? [])
+        .filter((skill) => skill.riskLevel === "high" && !knownSkills.has(skill.id))
+        .map((skill) => skill.id);
+      setPending({
+        manifest,
+        sourcePath,
+        newPermissions: diff,
+        truncatedSkills,
+        newHighRiskSkills,
+      });
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause);
       if (message !== "plugins.cancelled") setError(message);
@@ -177,6 +198,18 @@ export function PluginSettingsPanel() {
             </ul>
             {pending && pending.newPermissions.length === 0 && (
               <p className="text-[11px] text-muted">{t("plugins.noNewPermissions")}</p>
+            )}
+            {pending && pending.newHighRiskSkills.length > 0 && (
+              <p className="text-[11px] text-warning">
+                {t("plugins.newHighRiskSkills", {
+                  ids: pending.newHighRiskSkills.join(", "),
+                })}
+              </p>
+            )}
+            {pending && pending.truncatedSkills.length > 0 && (
+              <p className="text-[11px] text-muted">
+                {t("plugins.skillsTruncated", { ids: pending.truncatedSkills.join(", ") })}
+              </p>
             )}
             <p className="text-[11px] text-muted">{t("plugins.permissionsFootnote")}</p>
           </div>

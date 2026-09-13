@@ -54,9 +54,12 @@ pub(crate) use entities::{
 // Secrets and shared Provider profiles.
 // Functions plus the hidden `#[tauri::command]` helper macros, so
 // `generate_handler!` keeps resolving them under `commands::*`.
-// Plugins: safe install-time manifest read (no other host file access).
+// Plugins: safe install-time manifest + skills-folder reads (no other host
+// file access).
 pub(crate) use plugin_cmds::{
-    __cmd__plugin_read_manifest, __tauri_command_name_plugin_read_manifest, plugin_read_manifest,
+    __cmd__plugin_read_manifest, __cmd__plugin_read_skills,
+    __tauri_command_name_plugin_read_manifest, __tauri_command_name_plugin_read_skills,
+    plugin_read_manifest, plugin_read_skills,
 };
 
 // User profiles (registry + per-profile DB/vault/logs paths).

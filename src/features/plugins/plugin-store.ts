@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { z } from "zod";
 import { tauriInvoke } from "../../runtime/tauri-ipc";
 import { getRuntime } from "../../runtime/use-runtime";
 import { getStructuredStorage } from "../../runtime/structured-storage";
@@ -23,12 +24,35 @@ import { usePluginContributionStore } from "./plugin-contributions";
  * skills enter/leave the skill catalog without a restart.
  */
 
+/** Per-skill metadata file (skills/<id>/manifest.json) — metadata only. */
+const skillMetaSchema = z.object({
+  name: z.string().min(1).max(60).optional(),
+  description: z.string().max(300).optional(),
+  riskLevel: z.enum(["low", "medium", "high"]).optional(),
+});
+
+/** What plugin_read_skills returns per direct subdirectory of skills/. */
+const skillFileSchema = z.object({
+  id: z.string().min(1).max(64),
+  skillMd: z.string(),
+  manifestJson: z.string().nullable(),
+  truncated: z.boolean(),
+});
+
 interface PluginState {
   plugins: PluginRecord[];
   loaded: boolean;
   load: () => Promise<void>;
   /** Desktop: pick a folder, validate its manifest, return it for confirmation. */
   readManifestFromFolder: () => Promise<PluginManifest & { sourcePath: string }>;
+  /** PLUG-2: expand `contributes.skillsFrom` into inline skills via the
+   * Rust path-bounded read; bodies are copied into the manifest so nothing
+   * is read from the source folder after install. Returns the expanded
+   * manifest plus per-file truncation flags for the confirm UI. */
+  expandSkillsFromFolder: (
+    manifest: PluginManifest,
+    sourcePath: string,
+  ) => Promise<{ manifest: PluginManifest; truncatedSkills: string[] }>;
   install: (manifest: PluginManifest, sourcePath: string) => Promise<PluginRecord>;
   uninstall: (pluginId: string) => Promise<void>;
   setEnabled: (pluginId: string, enabled: boolean) => Promise<void>;
@@ -126,6 +150,47 @@ export const usePluginStore = create<PluginState>((set, get) => ({
     const raw = await tauriInvoke<string>("plugin_read_manifest", { folder });
     const manifest = pluginManifestSchema.parse(JSON.parse(raw));
     return { ...manifest, sourcePath: folder };
+  },
+
+  expandSkillsFromFolder: async (manifest, sourcePath) => {
+    if (manifest.contributes?.skillsFrom !== "skills/") {
+      return { manifest, truncatedSkills: [] };
+    }
+    if (!("__TAURI_INTERNALS__" in globalThis)) throw new Error("plugins.desktopOnly");
+    const files = skillFileSchema
+      .array()
+      .parse(await tauriInvoke<unknown[]>("plugin_read_skills", { folder: sourcePath }));
+    const truncatedSkills = files.filter((file) => file.truncated).map((file) => file.id);
+    const expanded = files.map((file) => {
+      let meta: z.infer<typeof skillMetaSchema> = {};
+      if (file.manifestJson !== null) {
+        meta = skillMetaSchema.parse(JSON.parse(file.manifestJson));
+      }
+      return {
+        id: file.id,
+        name: meta.name ?? file.id,
+        description: meta.description ?? `Skill from plugin ${manifest.name}`,
+        content: file.skillMd,
+        ...(meta.riskLevel !== undefined ? { riskLevel: meta.riskLevel } : {}),
+      };
+    });
+    // Inline skills win the id namespace: a collision between declared and
+    // folder skills is a manifest bug, reject instead of silently dropping.
+    const inline = manifest.contributes?.skills ?? [];
+    const ids = new Set(expanded.map((skill) => skill.id));
+    if (inline.some((skill) => ids.has(skill.id))) {
+      throw new Error("plugins.skillIdCollision");
+    }
+    const merged = [...inline, ...expanded];
+    if (merged.length > 20) throw new Error("plugins.tooManySkills");
+    const next: PluginManifest = {
+      ...manifest,
+      contributes: { ...manifest.contributes, skills: merged },
+    };
+    // Re-validate the expanded manifest through the same schema the record
+    // persists with — folder content must satisfy the inline-skill contract.
+    pluginManifestSchema.parse(next);
+    return { manifest: next, truncatedSkills };
   },
 
   install: async (manifest, sourcePath) => {

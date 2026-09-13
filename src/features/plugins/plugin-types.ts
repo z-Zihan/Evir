@@ -84,6 +84,10 @@ export const pluginManifestSchema = z.object({
   permissions: z.array(z.enum(PLUGIN_PERMISSIONS)).max(8).optional(),
   contributes: z
     .object({
+      /** PLUG-2: read `<plugin>/skills/<id>/SKILL.md` at install time (via the
+       * Rust path-bounded command) and copy bodies into the record — the
+       * literal is fixed so a manifest cannot point at arbitrary folders. */
+      skillsFrom: z.literal("skills/").optional(),
       slashCommands: z
         .array(
           z.object({

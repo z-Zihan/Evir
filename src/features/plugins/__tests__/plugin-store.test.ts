@@ -6,11 +6,27 @@ const entityStore = new Map<string, Map<string, unknown>>();
 function entity(name: string): Map<string, unknown> {
   let table = entityStore.get(name);
   if (!table) {
-    table = new Map();
+    table = new Map<string, unknown>();
     entityStore.set(name, table);
   }
   return table;
 }
+
+// PLUG-2: desktop skill-folder read double (normally the Rust command).
+const skillFiles = new Map<
+  string,
+  Array<{ id: string; skillMd: string; manifestJson: string | null; truncated: boolean }>
+>();
+vi.mock("../../../runtime/tauri-ipc", () => ({
+  tauriInvoke: (command: string, args: { folder?: string }) => {
+    if (command === "plugin_read_skills") {
+      const files = skillFiles.get(args.folder ?? "");
+      if (!files) return Promise.reject(new Error("plugin folder does not exist"));
+      return Promise.resolve(files);
+    }
+    return Promise.reject(new Error(`unexpected command: ${command}`));
+  },
+}));
 
 vi.mock("../../../runtime/structured-storage", () => ({
   getStructuredStorage: () => ({
@@ -67,12 +83,14 @@ function validManifest() {
 
 beforeEach(() => {
   entityStore.clear();
+  skillFiles.clear();
   usePluginStore.setState({ plugins: [], loaded: false });
   usePluginContributionStore.getState().replaceSlashCommands([]);
 });
 
 afterEach(() => {
   vi.clearAllMocks();
+  delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
 });
 
 describe("plugin store v1", () => {
@@ -274,5 +292,97 @@ describe("plugin store v1", () => {
     await usePluginStore.getState().uninstall("demo-plugin");
     expect(usePluginStore.getState().plugins).toHaveLength(0);
     expect(usePluginContributionStore.getState().slashCommands).toHaveLength(0);
+  });
+
+  it("PLUG-2: skillsFrom expands folder skills into inline contributions at install time", async () => {
+    (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+    skillFiles.set("/plugins/hello", [
+      {
+        id: "greet",
+        skillMd: "# Greet\nKeep it short.",
+        manifestJson: JSON.stringify({
+          name: "Greeting Style",
+          description: "House style for greetings.",
+          riskLevel: "low",
+        }),
+        truncated: false,
+      },
+      {
+        id: "plain",
+        skillMd: "No metadata file.",
+        manifestJson: null,
+        truncated: true,
+      },
+    ]);
+    const manifest = {
+      schemaVersion: 1 as const,
+      id: "hello-evir",
+      name: "Hello Evir",
+      version: "1.0.0",
+      contributes: {
+        skillsFrom: "skills/" as const,
+        settings: [
+          { key: "enthusiastic", label: "Enthusiastic", type: "boolean" as const, default: true },
+        ],
+      },
+    };
+    const { manifest: expanded, truncatedSkills } = await usePluginStore
+      .getState()
+      .expandSkillsFromFolder(manifest, "/plugins/hello");
+    expect(truncatedSkills).toEqual(["plain"]);
+    const skills = expanded.contributes?.skills ?? [];
+    expect(skills.map((skill) => skill.id)).toEqual(["greet", "plain"]);
+    expect(skills[0]).toMatchObject({
+      name: "Greeting Style",
+      description: "House style for greetings.",
+      riskLevel: "low",
+      content: "# Greet\nKeep it short.",
+    });
+    // Missing metadata falls back to the directory id and a generated description.
+    expect(skills[1]).toMatchObject({ name: "plain" });
+    expect(skills[1].description).toContain("Hello Evir");
+
+    // The expanded manifest installs like any other: skills enter the catalog.
+    const record = await usePluginStore.getState().install(expanded, "/plugins/hello");
+    expect(record.manifest.contributes?.skills).toHaveLength(2);
+    expect(
+      useSkillStore.getState().skills.some((skill) => skill.manifest.id === "hello-evir--greet"),
+    ).toBe(true);
+  });
+
+  it("PLUG-2: inline skill id colliding with a folder skill is rejected", async () => {
+    (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+    skillFiles.set("/plugins/collide", [
+      { id: "same", skillMd: "folder body", manifestJson: null, truncated: false },
+    ]);
+    const manifest = {
+      schemaVersion: 1 as const,
+      id: "collide-plugin",
+      name: "Collide",
+      version: "1.0.0",
+      contributes: {
+        skillsFrom: "skills/" as const,
+        skills: [
+          {
+            id: "same",
+            name: "Inline Same",
+            description: "inline",
+            content: "inline body",
+          },
+        ],
+      },
+    };
+    await expect(
+      usePluginStore.getState().expandSkillsFromFolder(manifest, "/plugins/collide"),
+    ).rejects.toThrow("plugins.skillIdCollision");
+  });
+
+  it("PLUG-2: manifests without skillsFrom pass through untouched", async () => {
+    const manifest = validManifest();
+    const { manifest: same, truncatedSkills } = await usePluginStore
+      .getState()
+      .expandSkillsFromFolder(manifest, "/plugins/demo");
+    expect(truncatedSkills).toEqual([]);
+    expect(same).toEqual(manifest);
   });
 });

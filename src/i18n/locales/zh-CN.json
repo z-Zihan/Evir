@@ -1212,7 +1212,11 @@
     "desktopOnlyError": "安装插件需要桌面版。",
     "errors": {
       "manifest": "该文件夹不包含合法的 manifest.json。"
-    }
+    },
+    "newHighRiskSkills": "新增高风险 Skill（需重新确认）：{{ids}}",
+    "skillsTruncated": "以下 Skill 内容超过 60000 字节上限，已截断：{{ids}}",
+    "skillIdCollision": "Skill id 与清单内声明冲突",
+    "tooManySkills": "Skill 数量超过 20 上限"
   },
   "trace": {
     "details": "运行详情",

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "hello-evir",
+  "name": "Hello Evir",
+  "version": "1.0.0",
+  "description": "Example plugin: one slash command, one folder skill, one boolean setting. No JS runtime.",
+  "author": "Evir",
+  "contributes": {
+    "slashCommands": [
+      {
+        "id": "hello",
+        "description": "Insert a friendly greeting task",
+        "promptTemplate": "Greet the user warmly and offer three things you can help with in this project."
+      }
+    ],
+    "skillsFrom": "skills/",
+    "settings": [
+      {
+        "key": "enthusiastic",
+        "label": "Enthusiastic greetings",
+        "type": "boolean",
+        "default": true
+      }
+    ]
+  }
+}

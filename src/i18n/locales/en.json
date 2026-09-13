@@ -1213,7 +1213,11 @@
     "desktopOnlyError": "Installing plugins requires the desktop app.",
     "errors": {
       "manifest": "The folder does not contain a valid manifest.json."
-    }
+    },
+    "newHighRiskSkills": "New high-risk skills (need re-confirmation): {{ids}}",
+    "skillsTruncated": "Skills over the 60,000-byte bound were truncated: {{ids}}",
+    "skillIdCollision": "Skill id collides with an inline declaration",
+    "tooManySkills": "More than 20 skills declared"
   },
   "trace": {
     "details": "Run details",
