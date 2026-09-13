@@ -27,12 +27,12 @@ import { subscribeWorkspaceToolEvents } from "../workspace/workspace-events";
 import { useActiveWorkspaceRoot } from "../workspace/workspace-bridge";
 import { logger } from "../../core/logging/logger";
 import {
-  CANVAS_EXTENSION,
   parseCanvasDocument,
   serializeCanvasDocument,
   userEditCanvasDocument,
   type EvirCanvasDocument,
 } from "./canvas-document";
+import { isCanvasToolName, resolveCanvasToolPath } from "./canvas-path";
 import { createCanvasHistory } from "./canvas-history";
 import { CanvasNodeCard, CANVAS_EDGE, type DocumentNode } from "./canvas-node-card";
 
@@ -101,22 +101,6 @@ function flowToDocument(
       ...(typeof edge.label === "string" ? { label: edge.label } : {}),
     }));
   });
-}
-
-/** Match an agent canvas tool call against the open document path. */
-function canvasToolTargetsPath(
-  toolName: string,
-  args: Record<string, unknown>,
-  resolvedPath: string,
-  root: string | null,
-): boolean {
-  if (toolName !== "update_canvas" && toolName !== "create_canvas") return false;
-  const raw = args.path;
-  if (typeof raw !== "string") return false;
-  const withExtension = raw.toLowerCase().endsWith(CANVAS_EXTENSION)
-    ? raw
-    : `${raw}${CANVAS_EXTENSION}`;
-  return resolveWorkspacePath(withExtension, root) === resolvedPath;
 }
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -214,17 +198,8 @@ function CanvasViewInner({ path }: { path: string; title?: string | undefined })
   useEffect(() => {
     if (loadState !== "ready") return;
     return subscribeWorkspaceToolEvents((event) => {
-      if (!event.result.success) return;
-      if (
-        !canvasToolTargetsPath(
-          event.toolCall.toolName,
-          event.toolCall.arguments,
-          resolvedPath,
-          root,
-        )
-      ) {
-        return;
-      }
+      if (!event.result.success || !isCanvasToolName(event.toolCall.toolName)) return;
+      if (resolveCanvasToolPath(event.toolCall.arguments, root) !== resolvedPath) return;
       void desktopStorage
         .readFile(resolvedPath)
         .then((raw) => {

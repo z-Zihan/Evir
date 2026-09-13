@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { Button, Tabs, TabsListUnderline, TabsTabUnderline, Tip } from "../../components/ui";
@@ -9,11 +9,15 @@ import {
 import { useRunWorkspaceStore } from "../../features/workspace/workspace-run-store";
 import { useChatStore } from "../../features/chat/chat-store";
 import { useActiveWorkspaceRoot } from "../../features/workspace/workspace-bridge";
+import { subscribeWorkspaceToolEvents } from "../../features/workspace/workspace-events";
+import { desktopStorage } from "../../runtime/desktop-storage-adapter";
+import { isCanvasToolName, resolveCanvasToolPath } from "../../features/canvas/canvas-path";
 import { ChangesTab } from "./ChangesTab";
 import { OutputsTab } from "./OutputsTab";
 import { FilesTab } from "./FilesTab";
 import { PreviewTab } from "./PreviewTab";
 import { BrowserTab } from "./BrowserTab";
+import { CanvasTab } from "./CanvasTab";
 import { getRuntime } from "../../runtime/use-runtime";
 
 /**
@@ -33,6 +37,42 @@ function useChangesAutoFocus() {
   }, [changesCount]);
 }
 
+/**
+ * CAN-2: the canvas tab exists when the project has a `.evir-canvas`
+ * document (detected once per root) or the agent just wrote one; a
+ * successful agent canvas write focuses the tab under §29 rules.
+ */
+function useCanvasTabPresence(root: string | null) {
+  const canvasPath = useWorkspacePanelStore((state) => state.canvasPath);
+  const [projectHasCanvas, setProjectHasCanvas] = useState(false);
+
+  useEffect(() => {
+    setProjectHasCanvas(false);
+    if (!root) return;
+    let cancelled = false;
+    void desktopStorage
+      .searchFiles(root, ".evir-canvas")
+      .then((paths) => {
+        if (cancelled) return;
+        setProjectHasCanvas(paths.some((path) => path.toLowerCase().endsWith(".evir-canvas")));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [root]);
+
+  useEffect(() => {
+    return subscribeWorkspaceToolEvents((event) => {
+      if (!event.result.success || !isCanvasToolName(event.toolCall.toolName)) return;
+      const resolved = resolveCanvasToolPath(event.toolCall.arguments, root);
+      if (resolved) useWorkspacePanelStore.getState().noteCanvasWrite(resolved);
+    });
+  }, [root]);
+
+  return canvasPath !== null || projectHasCanvas;
+}
+
 interface TabDefinition {
   id: WorkspaceTab;
   label: string;
@@ -43,6 +83,8 @@ interface TabDefinition {
   badgeLabelKey?: string | undefined;
   /** True when unseen changes accrued while another tab held the focus. */
   attention?: boolean | undefined;
+  /** Default true; the canvas tab appears only when a canvas exists. */
+  visible?: boolean | undefined;
 }
 
 /**
@@ -64,6 +106,7 @@ export function WorkspacePanel() {
   const root = useActiveWorkspaceRoot();
   const hasProject = root !== null;
   useChangesAutoFocus();
+  const hasCanvas = useCanvasTabPresence(root);
 
   if (getRuntime().target !== "desktop" || !open) return null;
 
@@ -86,6 +129,13 @@ export function WorkspacePanel() {
     },
     { id: "files", label: t("workspace.files"), requiresProject: true },
     {
+      id: "canvas",
+      label: t("workspace.canvasTab"),
+      requiresProject: true,
+      /** Hidden until a canvas exists in the project (CAN-2). */
+      visible: hasCanvas,
+    },
+    {
       id: "preview",
       label: t("workspace.preview"),
       requiresProject: false,
@@ -99,7 +149,10 @@ export function WorkspacePanel() {
     },
   ];
   const effectiveTab =
-    activeTab === "changes" || activeTab === "files" || activeTab === "outputs"
+    activeTab === "changes" ||
+    activeTab === "files" ||
+    activeTab === "outputs" ||
+    activeTab === "canvas"
       ? hasProject
         ? activeTab
         : "preview"
@@ -158,6 +211,7 @@ export function WorkspacePanel() {
         {effectiveTab === "changes" && <ChangesTab />}
         {effectiveTab === "files" && <FilesTab />}
         {effectiveTab === "preview" && <PreviewTab />}
+        {effectiveTab === "canvas" && <CanvasTab />}
         {effectiveTab === "browser" && <BrowserTab />}
       </div>
     </aside>

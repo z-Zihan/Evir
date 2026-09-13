@@ -847,7 +847,11 @@
     "openDiffTitle": "查看此文件的 Diff",
     "copyPatch": "复制此文件的补丁",
     "patchCopied": "补丁已复制到剪贴板",
-    "noPatchAvailable": "没有可复制的补丁（文件可能无变更或已移除）"
+    "noPatchAvailable": "没有可复制的补丁（文件可能无变更或已移除）",
+    "canvasTab": "画布",
+    "canvasEmptyTitle": "还没有画布",
+    "canvasEmptyHint": "在任务里让 Agent 建一张画布（如“画一张这个方案的结构图”），它会出现在这里。",
+    "canvasSwitcher": "画布"
   },
   "startup": {
     "failed": "本地数据初始化失败",

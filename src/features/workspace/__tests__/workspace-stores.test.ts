@@ -159,6 +159,46 @@ describe("workspace panel store", () => {
   });
 });
 
+describe("canvas tab focus rules (CAN-2)", () => {
+  beforeEach(() => {
+    useWorkspacePanelStore.setState({
+      open: true,
+      activeTab: "outputs",
+      canvasPath: null,
+      changesBadge: 0,
+    });
+  });
+
+  it("an agent canvas write takes over outputs/files and lands the path", () => {
+    useWorkspacePanelStore.getState().noteCanvasWrite("/proj/plan.evir-canvas");
+    const state = useWorkspacePanelStore.getState();
+    expect(state.activeTab).toBe("canvas");
+    expect(state.canvasPath).toBe("/proj/plan.evir-canvas");
+  });
+
+  it("changes focus also yields to a fresh canvas write", () => {
+    useWorkspacePanelStore.setState({ activeTab: "changes" });
+    useWorkspacePanelStore.getState().noteCanvasWrite("/proj/plan.evir-canvas");
+    expect(useWorkspacePanelStore.getState().activeTab).toBe("canvas");
+  });
+
+  it("a user-locked preview/browser tab keeps focus; the path still updates", () => {
+    useWorkspacePanelStore.setState({ activeTab: "browser" });
+    useWorkspacePanelStore.getState().noteCanvasWrite("/proj/plan.evir-canvas");
+    const state = useWorkspacePanelStore.getState();
+    expect(state.activeTab).toBe("browser");
+    expect(state.canvasPath).toBe("/proj/plan.evir-canvas");
+  });
+
+  it("a closed panel never pops open; the canvas is remembered for the tab", () => {
+    useWorkspacePanelStore.setState({ open: false, activeTab: "outputs" });
+    useWorkspacePanelStore.getState().noteCanvasWrite("/proj/plan.evir-canvas");
+    const state = useWorkspacePanelStore.getState();
+    expect(state.open).toBe(false);
+    expect(state.canvasPath).toBe("/proj/plan.evir-canvas");
+  });
+});
+
 describe("workspace tool events", () => {
   it("delivers events to subscribers and isolates their crashes", () => {
     const good = vi.fn();

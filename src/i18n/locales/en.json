@@ -848,7 +848,11 @@
     "openDiffTitle": "Open the diff for this file",
     "copyPatch": "Copy patch for this file",
     "patchCopied": "Patch copied to clipboard",
-    "noPatchAvailable": "No patch available (file unchanged or removed)"
+    "noPatchAvailable": "No patch available (file unchanged or removed)",
+    "canvasTab": "Canvas",
+    "canvasEmptyTitle": "No canvas yet",
+    "canvasEmptyHint": "Ask the agent to build one in a task (e.g. \"diagram this plan\") and it will appear here.",
+    "canvasSwitcher": "Canvas"
   },
   "startup": {
     "failed": "Local data could not be initialized",

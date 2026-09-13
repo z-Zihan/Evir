@@ -7,7 +7,7 @@ import { logger } from "../../core/logging/logger";
  * state: panel layout or the pinned resource must never leak into run records.
  */
 
-export type WorkspaceTab = "outputs" | "changes" | "files" | "preview" | "browser";
+export type WorkspaceTab = "outputs" | "changes" | "files" | "preview" | "browser" | "canvas";
 
 /**
  * Column width constants (min/default/viewport caps) moved to
@@ -18,6 +18,8 @@ export type WorkspaceTab = "outputs" | "changes" | "files" | "preview" | "browse
 interface ConversationPanelSnapshot {
   open: boolean;
   activeTab: WorkspaceTab;
+  /** Canvas document the canvas tab last showed (CAN-2). */
+  canvasPath: string | null;
   activeResource: WorkspaceResource | null;
   viewMode: "code" | "preview";
   pinnedKey: string | null;
@@ -29,6 +31,8 @@ interface ConversationPanelSnapshot {
 interface WorkspacePanelState {
   open: boolean;
   activeTab: WorkspaceTab;
+  /** Canvas document shown on the canvas tab (CAN-2); null = none yet. */
+  canvasPath: string | null;
   viewMode: "code" | "preview";
   activeResource: WorkspaceResource | null;
   history: WorkspaceResource[];
@@ -69,6 +73,12 @@ interface WorkspacePanelState {
   setBrowserContextUrl: (url: string | null) => void;
   /** New run changes landed (total count); applies §29 auto-switch rules. */
   noteRunChanges: (count: number) => void;
+  /**
+   * Agent wrote a canvas document (CAN-2): remember it as the canvas tab's
+   * document and apply the §29 focus rules — outputs/files hand the focus
+   * over, a user-locked preview/browser keeps it (the path still updates).
+   */
+  noteCanvasWrite: (path: string) => void;
   saveConversationState: (conversationId: string) => void;
   /**
    * Restore the per-thread panel state. `options.defaultTab` marks a fresh
@@ -87,6 +97,7 @@ function currentStateSnapshot(state: WorkspacePanelState): ConversationPanelSnap
   return {
     open: state.open,
     activeTab: state.activeTab,
+    canvasPath: state.canvasPath,
     activeResource: state.activeResource,
     viewMode: state.viewMode,
     pinnedKey: state.pinnedKey,
@@ -99,6 +110,7 @@ function currentStateSnapshot(state: WorkspacePanelState): ConversationPanelSnap
 export const useWorkspacePanelStore = create<WorkspacePanelState>((set, get) => ({
   open: false,
   activeTab: "outputs",
+  canvasPath: null,
   viewMode: "preview",
   activeResource: null,
   history: [],
@@ -205,6 +217,20 @@ export const useWorkspacePanelStore = create<WorkspacePanelState>((set, get) => 
       // accrue a badge instead.
       return { changesBadge: count };
     }),
+  noteCanvasWrite: (canvasPath) => {
+    set((state) => {
+      if (!state.open) return { canvasPath };
+      if (
+        state.activeTab === "outputs" ||
+        state.activeTab === "files" ||
+        state.activeTab === "changes"
+      ) {
+        return { canvasPath, activeTab: "canvas", changesBadge: state.changesBadge };
+      }
+      return { canvasPath };
+    });
+    logger.info("workspace", "panel.canvas-write", {});
+  },
   saveConversationState: (conversationId) =>
     set((state) => ({
       conversationSnapshots: {
@@ -222,6 +248,7 @@ export const useWorkspacePanelStore = create<WorkspacePanelState>((set, get) => 
       set({
         open: defaultTab !== undefined,
         ...(defaultTab !== undefined ? { activeTab: defaultTab } : {}),
+        canvasPath: null,
         activeResource: null,
         history: [],
         historyIndex: -1,
