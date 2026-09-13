@@ -6,6 +6,7 @@
   "description": "Use when creating, adapting, evaluating, or improving an Agent Skill and its trigger description.",
   "entry": "SKILL.md",
   "source": "builtin",
+  "tier": "general",
   "capabilities": [],
   "optionalCapabilities": ["filesystem.read", "filesystem.write"],
   "optionalMcpServers": [],

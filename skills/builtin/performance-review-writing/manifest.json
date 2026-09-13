@@ -6,6 +6,7 @@
   "description": "Structure evidence-based performance reviews, self-reviews, and feedback without inventing achievements or ratings.",
   "entry": "SKILL.md",
   "source": "builtin",
+  "tier": "general",
   "capabilities": [],
   "optionalCapabilities": ["filesystem.read"],
   "optionalMcpServers": [],

@@ -6,6 +6,7 @@
   "description": "Use when creating or restructuring tutorials, how-to guides, reference documentation, or conceptual explanations.",
   "entry": "SKILL.md",
   "source": "builtin",
+  "tier": "general",
   "capabilities": [],
   "optionalCapabilities": ["filesystem.read", "filesystem.write"],
   "optionalMcpServers": [],

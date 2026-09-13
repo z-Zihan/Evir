@@ -102,13 +102,22 @@ export const useSkillStore = create<SkillState>((set, get) => ({
 
         const record = settings.find(({ name }) => name === SKILL_ENABLED_SETTING);
         const raw = record?.value;
-        const enabledIds =
-          Array.isArray(raw) && raw.every((v): v is string => typeof v === "string") ? raw : [];
+        const savedSelection =
+          Array.isArray(raw) && raw.every((v): v is string => typeof v === "string");
 
         const enabledSet = new Set<string>();
         for (const skill of skills) {
-          if (enabledIds.includes(skill.manifest.id)) {
-            enabledSet.add(skill.manifest.id);
+          if (savedSelection) {
+            // The user has explicitly chosen; honor it verbatim.
+            if (raw.includes(skill.manifest.id)) {
+              enabledSet.add(skill.manifest.id);
+            }
+          } else {
+            // SKL-1 defaults: the 15 core coding skills are ON; office and
+            // auxiliary packs default OFF (discoverable in Settings).
+            if (skill.manifest.tier === "core") {
+              enabledSet.add(skill.manifest.id);
+            }
           }
         }
 

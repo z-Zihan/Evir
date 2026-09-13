@@ -6,6 +6,7 @@
   "description": "Plan and review local system command sequences with explicit scope, prerequisites, rollback, verification, and approval boundaries.",
   "entry": "SKILL.md",
   "source": "builtin",
+  "tier": "general",
   "capabilities": ["filesystem.read"],
   "optionalCapabilities": ["terminal.run"],
   "optionalMcpServers": [],

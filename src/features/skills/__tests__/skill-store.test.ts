@@ -17,6 +17,7 @@ vi.mock("../../../core/skills/skill-registry", () => {
         optionalCapabilities: [],
         optionalMcpServers: [],
         riskLevel: "low" as const,
+        tier: "core" as const,
       },
       rootPath: "/skills/builtin/bug-fix",
       builtIn: true,
@@ -34,6 +35,7 @@ vi.mock("../../../core/skills/skill-registry", () => {
         optionalCapabilities: [],
         optionalMcpServers: [],
         riskLevel: "medium" as const,
+        tier: "general" as const,
       },
       rootPath: "/skills/builtin/code-review",
       builtIn: true,
@@ -92,25 +94,39 @@ describe("skill-store", () => {
     expect(skills[1]?.manifest.id).toBe("code-review");
   });
 
-  it("starts with all skills disabled", () => {
+  it("SKL-1: defaults to the core tier on, optional packs off", () => {
     const { enabledSkillIds } = useSkillStore.getState();
-    expect(enabledSkillIds.size).toBe(0);
+    expect(enabledSkillIds.has("bug-fix")).toBe(true);
+    expect(enabledSkillIds.has("code-review")).toBe(false);
   });
 
-  it("toggleSkill enables a skill", async () => {
-    await useSkillStore.getState().toggleSkill("bug-fix");
+  it("SKL-1: an explicit saved selection is honored verbatim (general on)", async () => {
+    const { db } = await import("../../../core/storage/db");
+    await db.settings.put({
+      name: "skillEnabledIds",
+      value: ["code-review"],
+    });
+    useSkillStore.setState({ skills: [], enabledSkillIds: new Set() });
+    await useSkillStore.getState().loadSkills();
+    const { enabledSkillIds } = useSkillStore.getState();
+    expect(enabledSkillIds.has("code-review")).toBe(true);
+    expect(enabledSkillIds.has("bug-fix")).toBe(false);
+  });
+
+  it("toggleSkill enables an optional skill", async () => {
+    await useSkillStore.getState().toggleSkill("code-review");
     const { enabledSkillIds, isEnabled } = useSkillStore.getState();
-    expect(enabledSkillIds.has("bug-fix")).toBe(true);
-    expect(isEnabled("bug-fix")).toBe(true);
+    expect(enabledSkillIds.has("code-review")).toBe(true);
+    expect(isEnabled("code-review")).toBe(true);
     expect(logger.getEntries().at(-1)).toMatchObject({
       channel: "skill",
       event: "skill.enabled-changed",
-      data: { skillId: "bug-fix", enabled: true },
+      data: { skillId: "code-review", enabled: true },
     });
   });
 
   it("toggleSkill disables an enabled skill", async () => {
-    await useSkillStore.getState().toggleSkill("bug-fix");
+    // bug-fix is core (on by default): toggling turns it off.
     await useSkillStore.getState().toggleSkill("bug-fix");
     const { enabledSkillIds, isEnabled } = useSkillStore.getState();
     expect(enabledSkillIds.has("bug-fix")).toBe(false);
@@ -118,12 +134,13 @@ describe("skill-store", () => {
   });
 
   it("getEnabledContent returns empty when no skills enabled", async () => {
+    useSkillStore.setState({ enabledSkillIds: new Set() });
     const content = await useSkillStore.getState().getEnabledContent();
     expect(content).toBe("");
   });
 
   it("getEnabledContent returns content for enabled skills", async () => {
-    await useSkillStore.getState().toggleSkill("bug-fix");
+    useSkillStore.setState({ enabledSkillIds: new Set(["bug-fix"]) });
     const content = await useSkillStore.getState().getEnabledContent();
     expect(content).toContain("Bug Fix");
     expect(content).toContain("Content for bug fix");
@@ -141,6 +158,7 @@ describe("skill-store", () => {
   });
 
   it("loads explicitly selected content even when the Skill is globally disabled", async () => {
+    useSkillStore.setState({ enabledSkillIds: new Set() });
     const content = await useSkillStore.getState().getSkillContent(new Set(["code-review"]));
 
     expect(useSkillStore.getState().enabledSkillIds.size).toBe(0);
@@ -247,8 +265,10 @@ describe("skill-store", () => {
 
   it("getEnabledContent includes custom skill content from DB alongside builtin content", async () => {
     await useSkillStore.getState().installSkill(customManifest, "custom skill body");
-    await useSkillStore.getState().toggleSkill(customManifest.id);
-    await useSkillStore.getState().toggleSkill("bug-fix");
+    // Custom skills join the enabled set directly (bug-fix is core-on).
+    useSkillStore.setState({
+      enabledSkillIds: new Set(["bug-fix", customManifest.id]),
+    });
 
     const content = await useSkillStore.getState().getEnabledContent();
     expect(content).toContain("Bug Fix");

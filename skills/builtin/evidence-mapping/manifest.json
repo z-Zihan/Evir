@@ -6,6 +6,7 @@
   "description": "Map claims to local sources, confidence, contradictions, and missing evidence before drafting a report or decision.",
   "entry": "SKILL.md",
   "source": "builtin",
+  "tier": "general",
   "capabilities": ["filesystem.read"],
   "optionalCapabilities": ["filesystem.write"],
   "optionalMcpServers": [],

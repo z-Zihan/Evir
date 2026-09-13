@@ -6,6 +6,7 @@
   "description": "Use on Desktop when mapping an unfamiliar local repository, explaining its architecture, or preparing evidence-backed onboarding notes.",
   "entry": "SKILL.md",
   "source": "builtin",
+  "tier": "general",
   "capabilities": ["filesystem.read"],
   "optionalCapabilities": ["terminal.run", "git"],
   "optionalMcpServers": [],

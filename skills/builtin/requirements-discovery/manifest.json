@@ -6,6 +6,7 @@
   "description": "Use when a feature, workflow, or behavior change is underspecified and multiple materially different solutions are plausible.",
   "entry": "SKILL.md",
   "source": "builtin",
+  "tier": "general",
   "capabilities": [],
   "optionalCapabilities": ["filesystem.read"],
   "optionalMcpServers": [],

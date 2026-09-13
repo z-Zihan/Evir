@@ -6,6 +6,7 @@
   "description": "Design clear local architecture, process, sequence, and relationship diagrams from verified entities and connections.",
   "entry": "SKILL.md",
   "source": "builtin",
+  "tier": "general",
   "capabilities": [],
   "optionalCapabilities": ["filesystem.read", "filesystem.write"],
   "optionalMcpServers": [],

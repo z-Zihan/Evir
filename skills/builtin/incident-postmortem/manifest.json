@@ -6,6 +6,7 @@
   "description": "Build a blameless, evidence-backed incident timeline, impact analysis, root causes, detection gaps, and owned corrective actions.",
   "entry": "SKILL.md",
   "source": "builtin",
+  "tier": "general",
   "capabilities": ["filesystem.read"],
   "optionalCapabilities": ["filesystem.write"],
   "optionalMcpServers": [],

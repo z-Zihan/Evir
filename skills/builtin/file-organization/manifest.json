@@ -6,6 +6,7 @@
   "description": "Use on Desktop when safely classifying, renaming, moving, deduplicating, or organizing files inside an authorized workspace.",
   "entry": "SKILL.md",
   "source": "builtin",
+  "tier": "general",
   "capabilities": ["filesystem.read"],
   "optionalCapabilities": ["filesystem.write"],
   "optionalMcpServers": [],

@@ -6,6 +6,7 @@
   "description": "Use on Desktop when profiling, cleaning, comparing, or analyzing local CSV, TSV, JSON, or spreadsheet-like data with reproducible evidence.",
   "entry": "SKILL.md",
   "source": "builtin",
+  "tier": "general",
   "capabilities": ["filesystem.read"],
   "optionalCapabilities": ["filesystem.write", "terminal.run"],
   "optionalMcpServers": [],

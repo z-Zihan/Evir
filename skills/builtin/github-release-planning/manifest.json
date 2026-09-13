@@ -6,6 +6,7 @@
   "description": "Prepare a local release plan covering versioning, artifacts, notes, checksums, signing evidence, rollback, and publication approval.",
   "entry": "SKILL.md",
   "source": "builtin",
+  "tier": "general",
   "capabilities": ["filesystem.read", "git"],
   "optionalCapabilities": ["filesystem.write", "terminal.run"],
   "optionalMcpServers": [],

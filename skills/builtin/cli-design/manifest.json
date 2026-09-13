@@ -6,6 +6,7 @@
   "description": "Design or review command-line interfaces for predictable arguments, output streams, errors, automation, and safe defaults.",
   "entry": "SKILL.md",
   "source": "builtin",
+  "tier": "general",
   "capabilities": ["filesystem.read"],
   "optionalCapabilities": ["filesystem.write", "terminal.run"],
   "optionalMcpServers": [],

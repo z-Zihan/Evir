@@ -6,6 +6,7 @@
   "description": "Create an evidence-backed walkthrough of a local code path, feature, or architecture for a new contributor.",
   "entry": "SKILL.md",
   "source": "builtin",
+  "tier": "general",
   "capabilities": ["filesystem.read"],
   "optionalCapabilities": ["git"],
   "optionalMcpServers": [],

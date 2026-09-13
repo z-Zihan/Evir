@@ -6,6 +6,7 @@
   "description": "Map local product data flows and identify GDPR-style privacy questions, evidence gaps, and remediation work without giving legal advice.",
   "entry": "SKILL.md",
   "source": "builtin",
+  "tier": "general",
   "capabilities": ["filesystem.read"],
   "optionalCapabilities": ["filesystem.write"],
   "optionalMcpServers": [],

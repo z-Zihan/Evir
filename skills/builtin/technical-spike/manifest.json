@@ -6,6 +6,7 @@
   "description": "Plan and execute a bounded local technical investigation that reduces a specific engineering uncertainty with reproducible evidence.",
   "entry": "SKILL.md",
   "source": "builtin",
+  "tier": "general",
   "capabilities": ["filesystem.read"],
   "optionalCapabilities": ["filesystem.write", "terminal.run", "git"],
   "optionalMcpServers": [],
