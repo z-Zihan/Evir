@@ -19,6 +19,25 @@ import {
 
 const WEB_REGISTRY_KEY = "evir:profile-registry";
 
+/** Host-side layout for the active profile (desktop; PROF-3). */
+export interface ProfilePaths {
+  profileId: string;
+  dataRoot: string;
+  logsDir: string;
+  profilesDir: string;
+}
+
+export async function fetchProfilePaths(): Promise<ProfilePaths | null> {
+  if (!isDesktop()) return null;
+  const paths = await tauriInvoke<{
+    profileId: string;
+    dataRoot: string;
+    logsDir: string;
+    profilesDir: string;
+  }>("profile_paths");
+  return paths ?? null;
+}
+
 function isDesktop(): boolean {
   return "__TAURI_INTERNALS__" in globalThis;
 }

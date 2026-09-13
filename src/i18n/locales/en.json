@@ -1181,7 +1181,11 @@
     "isolationTitle": "Data stays with each user",
     "isolationDescription": "Conversations, provider credentials, memory and logs live in per-user storage namespaces. Nothing carries over when you switch.",
     "loadError": "Failed to load users",
-    "saveError": "Failed to save the user"
+    "saveError": "Failed to save the user",
+    "copyDataRoot": "Copy data root path",
+    "dataRootCopied": "Data root path copied",
+    "switchingVeil": "Switching profile…",
+    "switchingVeilHint": "Stopping this profile's active work and loading the target."
   },
   "plugins": {
     "eyebrow": "Local capability packages",

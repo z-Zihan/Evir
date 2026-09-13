@@ -1180,7 +1180,11 @@
     "isolationTitle": "数据随用户隔离",
     "isolationDescription": "对话、供应商凭据、记忆与日志保存在按用户划分的存储命名空间中，切换用户不会带过去。",
     "loadError": "用户列表加载失败",
-    "saveError": "保存用户失败"
+    "saveError": "保存用户失败",
+    "copyDataRoot": "复制数据根路径",
+    "dataRootCopied": "数据根路径已复制",
+    "switchingVeil": "正在切换档案…",
+    "switchingVeilHint": "正在停止当前档案的活动任务并载入目标档案。"
   },
   "plugins": {
     "eyebrow": "本地能力包",

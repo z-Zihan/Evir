@@ -116,9 +116,12 @@ pub(crate) fn plugin_read_skills(folder: String) -> Result<Vec<PluginSkillFile>,
             continue;
         };
         let id = id_os.to_string_lossy().into_owned();
-        let canonical_dir = dir.canonicalize().map_err(|error| format!("resolve skills/{id}: {error}"))?;
+        let canonical_dir = dir
+            .canonicalize()
+            .map_err(|error| format!("resolve skills/{id}: {error}"))?;
         let skill_path = file_directly_in(&canonical_dir, "SKILL.md")?;
-        let bytes = std::fs::read(&skill_path).map_err(|error| format!("read skills/{id}/SKILL.md: {error}"))?;
+        let bytes = std::fs::read(&skill_path)
+            .map_err(|error| format!("read skills/{id}/SKILL.md: {error}"))?;
         let (skill_md, truncated) = if bytes.len() > SKILL_MD_MAX_BYTES {
             let mut cut = bytes[..SKILL_MD_MAX_BYTES].to_vec();
             // Land on a char boundary before appending the marker.
@@ -133,8 +136,8 @@ pub(crate) fn plugin_read_skills(folder: String) -> Result<Vec<PluginSkillFile>,
         };
         let manifest_json = match file_directly_in(&canonical_dir, "manifest.json") {
             Ok(path) => {
-                let metadata =
-                    std::fs::metadata(&path).map_err(|error| format!("read skills/{id}/manifest.json: {error}"))?;
+                let metadata = std::fs::metadata(&path)
+                    .map_err(|error| format!("read skills/{id}/manifest.json: {error}"))?;
                 if metadata.len() > MANIFEST_MAX_BYTES {
                     return Err(format!("skills/{id}/manifest.json exceeds 128 KiB"));
                 }
@@ -176,13 +179,15 @@ mod tests {
         std::fs::create_dir_all(&plain).expect("mkdir");
         write(&plain.join("SKILL.md"), "Plain body");
 
-        let skills =
-            plugin_read_skills(root.to_string_lossy().into_owned()).expect("read skills");
+        let skills = plugin_read_skills(root.to_string_lossy().into_owned()).expect("read skills");
         // Sorted deterministically.
         assert_eq!(skills.len(), 2);
         assert_eq!(skills[0].id, "greet");
         assert_eq!(skills[0].skill_md, "# Greet\nSay hi politely.");
-        assert_eq!(skills[0].manifest_json.as_deref(), Some(r#"{"name":"Greet"}"#));
+        assert_eq!(
+            skills[0].manifest_json.as_deref(),
+            Some(r#"{"name":"Greet"}"#)
+        );
         assert!(!skills[0].truncated);
         assert_eq!(skills[1].id, "plain");
         assert_eq!(skills[1].manifest_json, None);
@@ -214,7 +219,9 @@ mod tests {
         let skills = plugin_read_skills(root.to_string_lossy().into_owned()).expect("read");
         assert_eq!(skills.len(), 1);
         assert!(skills[0].truncated);
-        assert!(skills[0].skill_md.ends_with("[truncated at 60000 bytes by Evir]"));
+        assert!(skills[0]
+            .skill_md
+            .ends_with("[truncated at 60000 bytes by Evir]"));
         assert!(skills[0].skill_md.len() < 60_040);
 
         let _ = std::fs::remove_dir_all(&root);
@@ -225,7 +232,8 @@ mod tests {
         // Only meaningful with symlink support; keep it robust when unavailable.
         let root = std::env::temp_dir().join(format!("evir-plug2-sym-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
-        let secret = std::env::temp_dir().join(format!("evir-plug2-secret-{}.md", std::process::id()));
+        let secret =
+            std::env::temp_dir().join(format!("evir-plug2-secret-{}.md", std::process::id()));
         write(&secret, "host secret");
         let evil = root.join("skills").join("evil");
         std::fs::create_dir_all(&evil).expect("mkdir");

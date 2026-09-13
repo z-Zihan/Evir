@@ -7,7 +7,8 @@ use std::path::PathBuf;
 
 use crate::profiles::{
     active_profile, create_profile, delete_profile, ensure_registry, load_registry,
-    profile_db_path, profile_vault_path, update_profile, valid_profile_id, DEFAULT_PROFILE_ID,
+    profile_db_path, profile_logs_dir, profile_root, profile_vault_path, update_profile,
+    valid_profile_id, DEFAULT_PROFILE_ID,
 };
 
 fn temp_dir(tag: &str) -> PathBuf {
@@ -83,7 +84,7 @@ fn delete_protects_last_profile_and_cannot_target_active() {
     // Active default remains active; the other profile deletes cleanly.
     assert!(delete_profile(&dir, &mut registry, &second.id).is_ok());
     assert_eq!(registry.profiles.len(), 1);
-    assert!(!crate::profiles::profile_root(&dir, &second.id).exists());
+    assert!(!profile_root(&dir, &second.id).exists());
     let persisted = load_registry(&dir).unwrap();
     assert_eq!(persisted.profiles.len(), 1);
 }
@@ -124,4 +125,38 @@ fn generated_profile_ids_are_directory_safe() {
     assert!(!valid_profile_id("UPPER"));
     assert!(!valid_profile_id(""));
     assert!(!valid_profile_id("-leading"));
+}
+
+#[test]
+fn profile_storage_namespaces_never_overlap_across_profiles() {
+    // PROF-2: vault entries, conversations (db) and logs of profile A are
+    // unreachable from profile B by construction — separate directory roots.
+    let base = temp_dir("isolation");
+    let a_root = profile_root(&base, "alice");
+    let b_root = profile_root(&base, "bob");
+
+    assert_ne!(a_root, b_root);
+    for a_path in [
+        profile_db_path(&base, "alice"),
+        profile_vault_path(&base, "alice"),
+        profile_logs_dir(&base, "alice"),
+    ] {
+        assert!(
+            a_path.starts_with(&a_root) && !a_path.starts_with(&b_root),
+            "{} must stay inside alice's root only",
+            a_path.display()
+        );
+    }
+    for b_path in [
+        profile_db_path(&base, "bob"),
+        profile_vault_path(&base, "bob"),
+        profile_logs_dir(&base, "bob"),
+    ] {
+        assert!(
+            b_path.starts_with(&b_root) && !b_path.starts_with(&a_root),
+            "{} must stay inside bob's root only",
+            b_path.display()
+        );
+    }
+    let _ = fs::remove_dir_all(&base);
 }

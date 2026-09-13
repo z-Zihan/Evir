@@ -135,9 +135,13 @@ pub(crate) fn profile_paths(app: AppHandle) -> Result<ProfilePaths, String> {
         .ok_or_else(|| "no active profile".to_string())?;
     Ok(ProfilePaths {
         profile_id: profile.id.clone(),
+        data_root: profiles::profile_root(&dir, &profile.id)
+            .to_string_lossy()
+            .into_owned(),
         logs_dir: profiles::profile_logs_dir(&dir, &profile.id)
             .to_string_lossy()
             .into_owned(),
+        profiles_dir: dir.join("profiles").to_string_lossy().into_owned(),
     })
 }
 
@@ -145,5 +149,9 @@ pub(crate) fn profile_paths(app: AppHandle) -> Result<ProfilePaths, String> {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ProfilePaths {
     pub profile_id: String,
+    /// Active profile's storage root (db/vault/logs all live under it).
+    pub data_root: String,
     pub logs_dir: String,
+    /// Registry root — `<profiles_dir>/<id>` is any profile's data root.
+    pub profiles_dir: String,
 }

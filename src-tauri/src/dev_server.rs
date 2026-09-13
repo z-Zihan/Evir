@@ -101,9 +101,7 @@ fn probe_port(port: u16) -> bool {
     .is_ok()
 }
 
-fn environment_source_str(
-    source: &crate::command_env::CommandEnvSource,
-) -> &'static str {
+fn environment_source_str(source: &crate::command_env::CommandEnvSource) -> &'static str {
     match source {
         crate::command_env::CommandEnvSource::LoginShell => "login_shell",
         crate::command_env::CommandEnvSource::Inherited => "inherited",

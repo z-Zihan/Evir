@@ -158,9 +158,7 @@ fn run_command_blocking(
                 }
                 std::thread::sleep(std::time::Duration::from_millis(50));
             }
-            Err(error) => {
-                return Err(CommandExecutionError::spawn_failed(&program, &cwd, &error))
-            }
+            Err(error) => return Err(CommandExecutionError::spawn_failed(&program, &cwd, &error)),
         }
     }
 }

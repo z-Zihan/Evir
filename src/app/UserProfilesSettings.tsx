@@ -1,8 +1,24 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Camera, Check, Pencil, Plus, ShieldCheck, Trash2, UserRound } from "lucide-react";
+import {
+  Camera,
+  Check,
+  Copy,
+  LoaderCircle,
+  Pencil,
+  Plus,
+  ShieldCheck,
+  Trash2,
+  UserRound,
+} from "lucide-react";
 import { Button, Input, Tip } from "../components/ui";
-import { DangerConfirmDialog, FormDialog, InlineError, notify } from "../components/feedback";
+import {
+  copyTextWithFeedback,
+  DangerConfirmDialog,
+  FormDialog,
+  InlineError,
+  notify,
+} from "../components/feedback";
 import {
   SettingsControl,
   SettingsDescription,
@@ -11,7 +27,7 @@ import {
   SettingsPageIntro,
 } from "../components/settings";
 import { useChatStore } from "../features/chat/chat-store";
-import { useProfileStore } from "../features/profiles/profile-service";
+import { fetchProfilePaths, useProfileStore } from "../features/profiles/profile-service";
 import type { UserProfile } from "../features/profiles/profile-types";
 import { AvatarCropDialog } from "./AvatarCropDialog";
 import { validateAvatarFile } from "./avatar-image";
@@ -27,6 +43,28 @@ import { useConfirmationDialog } from "./useConfirmationDialog";
 
 function profileInitial(profile: UserProfile): string {
   return Array.from(profile.displayName.trim())[0]?.toLocaleUpperCase() ?? "•";
+}
+
+/** PROF-3: the profile's storage root on disk, shown per row (copyable). */
+function ProfileDataRoot({ profileId, profilesDir }: { profileId: string; profilesDir: string }) {
+  const { t } = useTranslation();
+  const root = `${profilesDir.replace(/[/]+$/, "")}/${profileId}`;
+  return (
+    <span className="flex min-w-0 items-center gap-1 text-[10.5px] text-muted">
+      <code className="truncate" title={root}>
+        {root}
+      </code>
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        className="size-5 shrink-0"
+        aria-label={t("users.copyDataRoot")}
+        onClick={() => void copyTextWithFeedback(root, { successKey: "users.dataRootCopied" })}
+      >
+        <Copy size={11} aria-hidden="true" />
+      </Button>
+    </span>
+  );
 }
 
 export function UserProfilesPanel() {
@@ -54,6 +92,16 @@ export function UserProfilesPanel() {
   useEffect(() => {
     void listProfiles().catch(() => setError("users.loadError"));
   }, [listProfiles]);
+
+  // PROF-3: show each profile's on-disk data root (copyable) for debugging.
+  const [paths, setPaths] = useState<{ profilesDir: string } | null>(null);
+  useEffect(() => {
+    void fetchProfilePaths()
+      .then((value) => {
+        if (value) setPaths({ profilesDir: value.profilesDir });
+      })
+      .catch(() => undefined);
+  }, []);
 
   useEffect(
     () => () => {
@@ -196,6 +244,17 @@ export function UserProfilesPanel() {
 
   return (
     <SettingsPage>
+      {switching && (
+        <div
+          className="fixed inset-0 z-[200] flex flex-col items-center justify-center gap-3 bg-background/95"
+          role="alert"
+          aria-live="assertive"
+        >
+          <LoaderCircle size={22} className="spin" aria-hidden="true" />
+          <p className="text-[13px] font-medium text-foreground">{t("users.switchingVeil")}</p>
+          <p className="text-[11.5px] text-muted">{t("users.switchingVeilHint")}</p>
+        </div>
+      )}
       <SettingsPageIntro eyebrow={t("users.eyebrow")} description={t("users.pageDescription")} />
 
       <SettingsGroup>
@@ -250,6 +309,9 @@ export function UserProfilesPanel() {
               <strong className="truncate text-[13.5px] font-semibold text-foreground">
                 {active?.displayName ?? "—"}
               </strong>
+              {active && paths && (
+                <ProfileDataRoot profileId={active.id} profilesDir={paths.profilesDir} />
+              )}
               <span className="rounded-md border border-success/40 bg-success/15 px-1.5 py-px text-[10px] font-semibold text-[#0f6642] dark:text-success">
                 {t("users.currentUser")}
               </span>
@@ -297,8 +359,13 @@ export function UserProfilesPanel() {
                     profileInitial(profile)
                   )}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-foreground">
-                  {profile.displayName}
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="truncate text-[12.5px] font-medium text-foreground">
+                    {profile.displayName}
+                  </span>
+                  {paths && (
+                    <ProfileDataRoot profileId={profile.id} profilesDir={paths.profilesDir} />
+                  )}
                 </span>
                 <Tip content={t("users.rename")}>
                   <Button
