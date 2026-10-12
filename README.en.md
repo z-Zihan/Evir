@@ -4,13 +4,22 @@
 
 **Your model. Your computer. Your agent.**
 
+![Local-first](https://img.shields.io/badge/local--first-no%20cloud%20required-2ea44f?style=flat-square) ![BYOM](https://img.shields.io/badge/BYOM-any%20tool--calling%20model-8b5cf6?style=flat-square) ![Tauri 2](https://img.shields.io/badge/Tauri-2-24C8DB?style=flat-square&logo=tauri&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white) ![macOS | Windows](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-informational?style=flat-square) ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)
+
 A clean, local-first, bring-your-own-model **Desktop Project Agent**: open a project, tell Evir what to get done, and it safely reads, edits, runs, and verifies — while showing you exactly what it did, what it changed, where it failed, and whether it truly finished.
 
 **Connect one tool-capable model and start working** — no accounts, no credits, no cloud backend.
 
-[简体中文](README.md) · [Product Spec](docs/01-product-requirements.md) · [Development Guide](docs/03-development-guide.md)
+[简体中文](README.md) · [Getting started](#local-development) · [Product Spec](docs/01-product-requirements.md) · [Development Guide](docs/03-development-guide.md)
 
 </div>
+
+**Highlights:**
+
+- **Desktop project agent**: hand it a project — read, edit, run, verify; every step logged, approvable, rollback-able.
+- **Local-first · bring your own model**: no accounts, credits, or required cloud backend; 7 protocol adapters and multi-vendor presets; start with any tool-calling model.
+- **Honest engineering**: a Golden Agent Eval gate plus model-level real-eval tiers — failures and unverified items are labeled as such, no hype.
+- **Extensible**: 13 built-in tools plus MCP, project knowledge retrieval, and the skill system.
 
 ---
 
@@ -142,6 +151,10 @@ Builds and releases (macOS arm64/x64 DMG, Windows x64 MSI, VSIX, CLI tarball) ar
 - Product and architecture: [Product Spec](docs/01-product-requirements.md) · [Technical Architecture](docs/02-technical-architecture.md)
 - Specs: [Design](docs/04-design-specification.md) · [Engineering](docs/05-engineering-standards.md) · [Agent Security & Quality](docs/07-agent-security-and-quality.md)
 - Topics: [Skills & MCP](docs/08-skill-and-mcp.md) · [Provider matrix](docs/13-provider-and-protocol-matrix.md) · [Agent Eval](eval/README.md)
+
+## Feedback & contributing
+
+Issues and suggestions are welcome via [GitHub Issues](https://github.com/z-Zihan/Evir/issues); read the [development guide](docs/03-development-guide.md) before sending code. If Evir helps you, a ⭐ star is appreciated — it supports continued development.
 
 ## License
 

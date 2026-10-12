@@ -12,13 +12,22 @@
 
 **你的模型，你的电脑，你的 Agent。**
 
+![Local-first](https://img.shields.io/badge/local--first-no%20cloud%20required-2ea44f?style=flat-square) ![BYOM](https://img.shields.io/badge/BYOM-any%20tool--calling%20model-8b5cf6?style=flat-square) ![Tauri 2](https://img.shields.io/badge/Tauri-2-24C8DB?style=flat-square&logo=tauri&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white) ![macOS | Windows](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-informational?style=flat-square) ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)
+
 一个纯净、本地优先、用户自带模型的 **Desktop Project Agent**：打开一个项目，告诉 Evir 要完成什么，它安全地读、改、运行、验证，并让你清楚看到它做了什么、改了什么、哪里失败、是否真的完成。
 
 **接入一个支持工具调用的大模型即可开工**——无账号、无积分、无云端后端。
 
-[English](README.en.md) · [产品需求](docs/01-product-requirements.md) · [开发指南](docs/03-development-guide.md)
+[English](README.en.md) · [本地开发](#本地开发) · [产品需求](docs/01-product-requirements.md) · [开发指南](docs/03-development-guide.md)
 
 </div>
+
+**亮点速览：**
+
+- **桌面项目 Agent**：把项目交给它——读、改、运行、验证，每一步有记录、可审批、能回滚。
+- **本地优先 · 自带模型**：无账号、无积分、无必需云端后端；7 种协议适配、多厂商预设，任意支持工具调用的模型即可开工。
+- **诚实工程**：Golden Agent Eval 门禁 + 模型级实测分级，失败与未验证项照样如实标注，不吹不藏。
+- **可扩展**：13 个内置工具 + MCP、项目知识库检索、Skill 体系。
 
 ---
 
@@ -150,6 +159,10 @@ pnpm benchmark      # 产物体积门禁
 - 产品与架构：[产品需求](docs/01-product-requirements.md) · [技术架构](docs/02-technical-architecture.md)
 - 规范：[设计](docs/04-design-specification.md) · [工程](docs/05-engineering-standards.md) · [Agent 安全与质量](docs/07-agent-security-and-quality.md)
 - 专项：[Skill 与 MCP](docs/08-skill-and-mcp.md) · [Provider 矩阵](docs/13-provider-and-protocol-matrix.md) · [Agent Eval](eval/README.md)
+
+## 反馈与贡献
+
+欢迎通过 [Issue](https://github.com/z-Zihan/Evir/issues) 反馈问题、提出建议；提交代码前请先阅读[开发指南](docs/03-development-guide.md)。如果 Evir 对你有帮助，欢迎点一个 ⭐ Star 支持项目继续开发。
 
 ## License
 
