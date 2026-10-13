@@ -573,6 +573,11 @@ mod tests {
     /// (/usr/bin:/bin) while the user's shell knows a dev-tool bin dir
     /// (nvm/volta/cargo…). Resolution must union the probe outputs so a
     /// program the user's terminal can find, the synthesized PATH finds too.
+    ///
+    /// Unix-only: the fixture uses colon-separated unix PATHs and the login
+    /// shell probe (`$SHELL -l` + `printenv`); `SAFE_BASE_PATH_UNIX` entries
+    /// like `/usr/local/bin` have no Windows analogue.
+    #[cfg(unix)]
     #[test]
     fn gui_like_path_finds_pnpm_via_login_and_interactive_probes() {
         // A real executable named `pnpm` in a fake user bin dir.
@@ -749,6 +754,9 @@ mod tests {
         let _ = std::fs::remove_dir_all(&without_tools);
     }
 
+    /// Unix-only: hard-codes unix PATH dirs (`/usr/bin`, `/bin`) and the
+    /// absolute program `/bin/sh`; `lookup_on_path` itself is cross-platform.
+    #[cfg(unix)]
     #[test]
     fn lookup_finds_program_on_path() {
         let sh = lookup_on_path("sh", &dirs(&["/usr/bin", "/bin"])).expect("sh exists on unix");
@@ -769,9 +777,15 @@ mod tests {
         std::fs::create_dir_all(&bin).expect("create fixture bin");
         let env = subprocess_env_for_cwd(&workspace);
         let path = env.get("PATH").expect("PATH set");
-        let first = split_path(path).into_iter().next().expect("non-empty PATH");
-        assert!(first.ends_with("node_modules/.bin"));
-        assert!(path.contains("/usr/bin"));
+        let entries = split_path(path);
+        let first = entries.first().expect("non-empty PATH");
+        assert!(
+            std::path::Path::new(first).ends_with(std::path::Path::new("node_modules").join(".bin")),
+            "project-local bin must be prepended: {first}"
+        );
+        // The resolved base PATH follows the project-local bin rather than
+        // replacing it, so globally-installed tools still resolve.
+        assert!(entries.len() > 1, "base PATH must still be present: {path}");
         let _ = std::fs::remove_dir_all(workspace);
     }
 
@@ -792,7 +806,10 @@ mod tests {
         let path = env.get("PATH").expect("PATH set");
         let first = split_path(path).into_iter().next().expect("non-empty PATH");
         assert!(first.contains("项目 名字"), "unicode cwd kept: {first}");
-        assert!(first.ends_with("node_modules/.bin"));
+        assert!(
+            std::path::Path::new(&first).ends_with(std::path::Path::new("node_modules").join(".bin")),
+            "project-local bin must be prepended: {first}"
+        );
         let _ = std::fs::remove_dir_all(workspace);
     }
 
