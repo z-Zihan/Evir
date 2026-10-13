@@ -10,7 +10,7 @@ import { getProviderCredential, setProviderCredential } from "./credential-store
 import { streamProvider, testProvider } from "./provider-client";
 import { cliConfigSchema } from "./types";
 import { resolveWorkspace } from "./workspace-boundary";
-import { cliStrings, fill } from "./messages";
+import { cliStrings, fill, type CliStrings } from "./messages";
 
 const VERSION = "0.1.0";
 
@@ -68,7 +68,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     const config = await readConfig();
     const apiKey = await resolveApiKey(config.id, config.protocolId);
     if (command.command === "doctor") {
-      return runDoctor(config, apiKey, command.json === true);
+      return runDoctor(config, apiKey, command.json === true, strings);
     }
     if (!apiKey) throw new Error("EVIR_API_KEY is not set");
     const prompt = command.prompt ?? (await readStdinPrompt());
@@ -136,10 +136,20 @@ interface DoctorCheck {
  * 1 provider/environment failure, 2 configuration incomplete. `--json`
  * emits the machine view (with version); human output stays plain.
  */
+const DOCTOR_LABELS: Record<string, (strings: CliStrings) => string> = {
+  configuration: (strings) => strings.doctorLabelConfiguration,
+  provider: (strings) => strings.doctorLabelProvider,
+  "api-key": (strings) => strings.doctorLabelApiKey,
+  "node-in-path": (strings) => strings.doctorLabelNodeInPath,
+  "workspace-boundary": (strings) => strings.doctorLabelWorkspaceBoundary,
+  "provider-connection": (strings) => strings.doctorLabelProviderConnection,
+};
+
 async function runDoctor(
   config: Awaited<ReturnType<typeof readConfig>>,
   apiKey: string | undefined,
   json: boolean,
+  strings: CliStrings,
 ): Promise<number> {
   const checks: DoctorCheck[] = [
     {
@@ -155,9 +165,7 @@ async function runDoctor(
     {
       name: "api-key",
       status: apiKey ? "ok" : "fail",
-      detail: apiKey
-        ? "available (decrypted from the OS credential store)"
-        : "missing — run `evir configure` or set EVIR_API_KEY",
+      detail: apiKey ? strings.doctorApiKeyAvailable : strings.doctorApiKeyMissing,
     },
   ];
 
@@ -167,8 +175,8 @@ async function runDoctor(
     status: nodeProbe.status === 0 ? "ok" : "fail",
     detail:
       nodeProbe.status === 0
-        ? `node ${(nodeProbe.stdout ?? "").trim()}`
-        : "node not found in PATH — agent tooling needs it",
+        ? fill(strings.doctorNodeAvailable, { version: (nodeProbe.stdout ?? "").trim() })
+        : strings.doctorNodeMissing,
   });
 
   try {
@@ -176,13 +184,15 @@ async function runDoctor(
     checks.push({
       name: "workspace-boundary",
       status: "ok",
-      detail: `${workspace} (agent writes stay inside it)`,
+      detail: fill(strings.doctorBoundaryOk, { workspace }),
     });
   } catch (error) {
     checks.push({
       name: "workspace-boundary",
       status: "fail",
-      detail: error instanceof Error ? error.message : "workspace unavailable",
+      detail: fill(strings.doctorBoundaryFail, {
+        error: error instanceof Error ? error.message : "workspace unavailable",
+      }),
     });
   }
 
@@ -191,13 +201,15 @@ async function runDoctor(
     checks.push({
       name: "provider-connection",
       status: result.ok ? "ok" : "fail",
-      detail: result.ok ? "connection succeeded" : (result.error ?? "connection failed"),
+      detail: result.ok
+        ? strings.doctorConnectionOk
+        : fill(strings.doctorConnectionFailed, { error: result.error ? `: ${result.error}` : "" }),
     });
   } else {
     checks.push({
       name: "provider-connection",
       status: "fail",
-      detail: "skipped — no API key",
+      detail: strings.doctorConnectionSkipped,
     });
   }
 
@@ -207,7 +219,8 @@ async function runDoctor(
     );
   } else {
     for (const check of checks) {
-      stdout.write(`${check.status === "ok" ? "✔" : "✖"} ${check.name}: ${check.detail}\n`);
+      const label = DOCTOR_LABELS[check.name]?.(strings) ?? check.name;
+      stdout.write(`${check.status === "ok" ? "✔" : "✖"} ${label}: ${check.detail}\n`);
     }
   }
   const failed = checks.filter((check) => check.status === "fail");
