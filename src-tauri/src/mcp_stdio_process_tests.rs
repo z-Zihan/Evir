@@ -58,7 +58,7 @@ fn one_process_serves_multiple_requests_and_notifications() {
 #[test]
 fn stopping_a_server_terminates_its_process_group() {
     let process = shell(
-        r#"sleep 30 & child=$!; while IFS= read -r line; do printf '{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"childPid\":%s}}\n' "$child"; done"#,
+        r#"sleep 30 & child=$!; while IFS= read -r line; do printf "%s\n" "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"childPid\":$child}}"; done"#,
         Arc::new(|_| {}),
     );
     let response = process

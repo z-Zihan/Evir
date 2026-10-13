@@ -117,14 +117,23 @@ fn emit_status(app: &AppHandle, record: &DevServerRecord) {
     let _ = app.emit("dev-server-status", record);
 }
 
-fn kill_process_group(managed: &ManagedProcess) {
+fn kill_process_group(managed: &mut ManagedProcess) {
     #[cfg(unix)]
     unsafe {
         // Negative pid signals the whole process group: `npm run dev` spawns
         // node/vite children that a bare child.kill() would orphan.
         libc::kill(-managed.pgid, libc::SIGTERM);
     }
-    #[cfg(not(unix))]
+    #[cfg(windows)]
+    {
+        // Windows has no process groups to signal: `npm run dev` spawns
+        // node/vite children that a bare child.kill() would orphan. taskkill
+        // /T /F terminates the whole tree; the child handle is reaped later.
+        let _ = Command::new("taskkill")
+            .args(["/PID", &managed.child.id().to_string(), "/T", "/F"])
+            .status();
+    }
+    #[cfg(not(any(unix, windows)))]
     {
         let _ = managed.child.kill();
     }
@@ -454,8 +463,8 @@ fn stop_server(
             "preview.stop-requested",
             serde_json::json!({ "projectId": project_id }),
         );
-        let guard = process.lock().expect("dev server lock");
-        kill_process_group(&guard);
+        let mut guard = process.lock().expect("dev server lock");
+        kill_process_group(&mut guard);
     }
     let mut servers = state.servers.lock().expect("dev server lock");
     if let Some(record) = servers.get_mut(project_id) {

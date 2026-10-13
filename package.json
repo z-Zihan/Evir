@@ -38,7 +38,7 @@
     "test:agent-eval": "vitest run eval/agent-eval/eval.spec.ts",
     "test:knowledge-eval": "vitest run eval/knowledge-eval/knowledge-eval.spec.ts",
     "test:multi-scenario": "vitest run eval/multi-scenario/multi-scenario.spec.ts",
-    "benchmark:knowledge": "vitest run eval/knowledge-retrieval-bench/bench.spec.ts"
+    "benchmark:knowledge": "vitest run --config vitest.bench.config.ts"
   },
   "dependencies": {
     "@base-ui-components/react": "1.0.0-rc.0",

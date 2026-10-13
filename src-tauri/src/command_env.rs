@@ -573,6 +573,11 @@ mod tests {
     /// (/usr/bin:/bin) while the user's shell knows a dev-tool bin dir
     /// (nvm/volta/cargo…). Resolution must union the probe outputs so a
     /// program the user's terminal can find, the synthesized PATH finds too.
+    ///
+    /// Unix-only: the fixture uses colon-separated unix PATHs and the login
+    /// shell probe (`$SHELL -l` + `printenv`); `SAFE_BASE_PATH_UNIX` entries
+    /// like `/usr/local/bin` have no Windows analogue.
+    #[cfg(unix)]
     #[test]
     fn gui_like_path_finds_pnpm_via_login_and_interactive_probes() {
         // A real executable named `pnpm` in a fake user bin dir.
@@ -647,8 +652,16 @@ mod tests {
 
     /// §12: a PATH only skips the login-shell probe when the REQUIRED
     /// executables actually resolve on it — not when the directory list
-    /// "looks complete". /usr/local/bin + /usr/bin with no node/npm/git in
-    /// them must still probe (the nvm/volta case).
+    /// "looks complete". A standard-looking bin list with no node/npm/git in
+    /// it must still probe (the nvm/volta case).
+    ///
+    /// The directories are rooted under a guaranteed-nonexistent prefix so the
+    /// required tools provably do NOT resolve on ANY host: on a dev machine the
+    /// real /usr/local/bin etc. may lack node (nvm in $HOME), but on a CI runner
+    /// node/npm/git are installed into those real dirs — which would wrongly let
+    /// resolve_env_from skip the probe and break this regression's premise. The
+    /// nonexistent prefix keeps a plausible multi-dir list while making tool
+    /// resolution deterministic (empty → false) regardless of the filesystem.
     #[test]
     fn directory_names_alone_do_not_skip_the_probe() {
         let calls = std::cell::Cell::new(0u32);
@@ -658,7 +671,7 @@ mod tests {
         };
         let env = resolve_env_from(
             "/bin/zsh",
-            "/usr/local/bin:/usr/bin:/bin",
+            "/nonexistent-evir-test/usr/local/bin:/nonexistent-evir-test/usr/bin:/nonexistent-evir-test/bin",
             None,
             None,
             &probe,
@@ -741,6 +754,9 @@ mod tests {
         let _ = std::fs::remove_dir_all(&without_tools);
     }
 
+    /// Unix-only: hard-codes unix PATH dirs (`/usr/bin`, `/bin`) and the
+    /// absolute program `/bin/sh`; `lookup_on_path` itself is cross-platform.
+    #[cfg(unix)]
     #[test]
     fn lookup_finds_program_on_path() {
         let sh = lookup_on_path("sh", &dirs(&["/usr/bin", "/bin"])).expect("sh exists on unix");
@@ -761,9 +777,15 @@ mod tests {
         std::fs::create_dir_all(&bin).expect("create fixture bin");
         let env = subprocess_env_for_cwd(&workspace);
         let path = env.get("PATH").expect("PATH set");
-        let first = split_path(path).into_iter().next().expect("non-empty PATH");
-        assert!(first.ends_with("node_modules/.bin"));
-        assert!(path.contains("/usr/bin"));
+        let entries = split_path(path);
+        let first = entries.first().expect("non-empty PATH");
+        assert!(
+            std::path::Path::new(first).ends_with(std::path::Path::new("node_modules").join(".bin")),
+            "project-local bin must be prepended: {first}"
+        );
+        // The resolved base PATH follows the project-local bin rather than
+        // replacing it, so globally-installed tools still resolve.
+        assert!(entries.len() > 1, "base PATH must still be present: {path}");
         let _ = std::fs::remove_dir_all(workspace);
     }
 
@@ -784,7 +806,10 @@ mod tests {
         let path = env.get("PATH").expect("PATH set");
         let first = split_path(path).into_iter().next().expect("non-empty PATH");
         assert!(first.contains("项目 名字"), "unicode cwd kept: {first}");
-        assert!(first.ends_with("node_modules/.bin"));
+        assert!(
+            std::path::Path::new(&first).ends_with(std::path::Path::new("node_modules").join(".bin")),
+            "project-local bin must be prepended: {first}"
+        );
         let _ = std::fs::remove_dir_all(workspace);
     }
 

@@ -177,9 +177,9 @@ pub(crate) fn fs_restore_snapshot(
 /// Resolve a metadata-recorded snapshot payload path and enforce that it stays
 /// inside the app's snapshots store. Symlinks are resolved by canonicalize.
 fn confine_snapshot_payload(data_dir: &Path, recorded: &str) -> Result<PathBuf, String> {
-    let store_root = std::fs::canonicalize(data_dir.join("snapshots"))
+    let store_root = dunce::canonicalize(data_dir.join("snapshots"))
         .map_err(|error| format!("snapshot store is not accessible: {error}"))?;
-    let payload = std::fs::canonicalize(recorded)
+    let payload = dunce::canonicalize(recorded)
         .map_err(|error| format!("snapshot payload is not accessible: {error}"))?;
     if !payload.starts_with(&store_root) {
         return Err("snapshot payload is outside the snapshot store".to_owned());
@@ -251,7 +251,7 @@ mod tests {
             .expect("inside payload should be accepted");
         assert_eq!(
             confined,
-            std::fs::canonicalize(&payload).expect("canonical")
+            dunce::canonicalize(&payload).expect("canonical")
         );
         assert!(
             confine_snapshot_payload(&base, outside.to_str().expect("valid utf8 path")).is_err(),
