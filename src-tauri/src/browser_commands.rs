@@ -677,11 +677,9 @@ pub async fn browser_screenshot_read(
         .expect("screenshot dir lock")
         .clone()
         .unwrap_or_else(std::env::temp_dir);
-    let canonical_dir = dir.canonicalize().unwrap_or(dir);
+    let canonical_dir = dunce::canonicalize(&dir).unwrap_or(dir);
     let requested = std::path::PathBuf::from(&path);
-    let canonical = requested
-        .canonicalize()
-        .map_err(|_| "screenshot not found")?;
+    let canonical = dunce::canonicalize(&requested).map_err(|_| "screenshot not found")?;
     if !canonical.starts_with(&canonical_dir) {
         return Err("path outside screenshots directory".into());
     }

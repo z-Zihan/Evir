@@ -37,8 +37,7 @@ fn valid_absolute_folder(folder: &str) -> Result<PathBuf, String> {
 /// (symlink defense shared by manifest and skill reads).
 fn file_directly_in(base: &Path, file_name: &str) -> Result<PathBuf, String> {
     let path = base.join(file_name);
-    let canonical = path
-        .canonicalize()
+    let canonical = dunce::canonicalize(&path)
         .map_err(|error| format!("resolve {file_name}: {error}"))?;
     if canonical.parent() != Some(base) {
         return Err(format!("{file_name} must live directly in its folder"));
@@ -54,8 +53,7 @@ pub(crate) fn plugin_read_manifest(folder: String) -> Result<String, String> {
     }
     // Canonicalize the folder, then read exactly <folder>/manifest.json and
     // verify the resolved file really lives in that folder (symlink defense).
-    let canonical_base = base
-        .canonicalize()
+    let canonical_base = dunce::canonicalize(&base)
         .map_err(|error| format!("resolve plugin folder: {error}"))?;
     let canonical_manifest = file_directly_in(&canonical_base, "manifest.json")?;
     let metadata = std::fs::metadata(&canonical_manifest)
@@ -93,8 +91,7 @@ pub(crate) fn plugin_read_skills(folder: String) -> Result<Vec<PluginSkillFile>,
     if !base.is_dir() {
         return Err("plugin folder does not exist".to_string());
     }
-    let canonical_base = base
-        .canonicalize()
+    let canonical_base = dunce::canonicalize(&base)
         .map_err(|error| format!("resolve plugin folder: {error}"))?;
     let skills_dir = canonical_base.join("skills");
     if !skills_dir.is_dir() {
@@ -116,8 +113,7 @@ pub(crate) fn plugin_read_skills(folder: String) -> Result<Vec<PluginSkillFile>,
             continue;
         };
         let id = id_os.to_string_lossy().into_owned();
-        let canonical_dir = dir
-            .canonicalize()
+        let canonical_dir = dunce::canonicalize(&dir)
             .map_err(|error| format!("resolve skills/{id}: {error}"))?;
         let skill_path = file_directly_in(&canonical_dir, "SKILL.md")?;
         let bytes = std::fs::read(&skill_path)

@@ -187,8 +187,12 @@ pub(crate) fn validate_path(path: &str) -> Result<PathBuf, String> {
             .parent()
             .ok_or_else(|| "path has no accessible ancestor".to_owned())?;
     }
-    let canonical_ancestor = existing_ancestor
-        .canonicalize()
+    // `dunce::canonicalize` strips Windows' `\\?\` extended-length prefix (while
+    // preserving genuine `\\?\UNC\` network paths), so the result is comparable
+    // against the plain blocked prefixes below and safe to hand to external CLIs
+    // (e.g. `git worktree add`, which rejects `\\?\`). On non-Windows it is a
+    // transparent passthrough to `std::fs::canonicalize`.
+    let canonical_ancestor = dunce::canonicalize(existing_ancestor)
         .map_err(|error| format!("path is not accessible: {error}"))?;
     let suffix = path_buf
         .strip_prefix(existing_ancestor)
@@ -378,7 +382,8 @@ mod tests {
 
     #[test]
     fn validate_path_blocks_sensitive_home_locations() {
-        let home = std::env::var("HOME").expect("HOME should be set for tests");
+        let home = std::env::var(if cfg!(windows) { "USERPROFILE" } else { "HOME" })
+            .expect("home env var should be set for tests");
         for sensitive in [
             ".ssh/id_rsa",
             ".gnupg/private.key",

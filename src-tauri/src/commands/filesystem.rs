@@ -104,7 +104,9 @@ pub(crate) fn fs_file_info(path: String, workspace_root: String) -> Result<FileI
 #[tauri::command(async)]
 pub(crate) fn fs_real_path(path: String) -> Result<String, String> {
     let validated = validate_path(&path)?;
-    std::fs::canonicalize(&validated)
+    // dunce keeps the returned path free of the `\\?\` prefix so frontend
+    // duplicate-detection compares against clean paths on Windows.
+    dunce::canonicalize(&validated)
         .map(|canonical| canonical.to_string_lossy().into_owned())
         .map_err(|error| error.to_string())
 }
