@@ -211,16 +211,30 @@ function runProcess(
     };
     child.stdout.on("data", append);
     child.stderr.on("data", append);
-    const stop = () => child.kill("SIGTERM");
+    // A program can trap or ignore SIGTERM and keep running after the tool call
+    // has already failed. Mirror the desktop app's dev-server kill ladder
+    // (SIGTERM -> grace period -> SIGKILL); spawn() here is a single process
+    // with shell: false, so a direct kill (no process group) is enough.
+    let killTimer: ReturnType<typeof setTimeout> | undefined;
+    const stop = () => {
+      child.kill("SIGTERM");
+      killTimer = setTimeout(() => child.kill("SIGKILL"), 3000);
+      killTimer.unref();
+    };
+    const clearKillTimer = () => {
+      if (killTimer) clearTimeout(killTimer);
+    };
     signal.addEventListener("abort", stop, { once: true });
     const timer = setTimeout(stop, timeoutMs);
     child.once("error", (error) => {
       clearTimeout(timer);
+      clearKillTimer();
       signal.removeEventListener("abort", stop);
       reject(error);
     });
     child.once("close", (code) => {
       clearTimeout(timer);
+      clearKillTimer();
       signal.removeEventListener("abort", stop);
       if (signal.aborted) reject(new Error("Command stopped"));
       else if (code === 0) resolve(output || "Command completed with no output.");
