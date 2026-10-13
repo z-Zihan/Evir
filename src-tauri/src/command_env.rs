@@ -647,8 +647,16 @@ mod tests {
 
     /// §12: a PATH only skips the login-shell probe when the REQUIRED
     /// executables actually resolve on it — not when the directory list
-    /// "looks complete". /usr/local/bin + /usr/bin with no node/npm/git in
-    /// them must still probe (the nvm/volta case).
+    /// "looks complete". A standard-looking bin list with no node/npm/git in
+    /// it must still probe (the nvm/volta case).
+    ///
+    /// The directories are rooted under a guaranteed-nonexistent prefix so the
+    /// required tools provably do NOT resolve on ANY host: on a dev machine the
+    /// real /usr/local/bin etc. may lack node (nvm in $HOME), but on a CI runner
+    /// node/npm/git are installed into those real dirs — which would wrongly let
+    /// resolve_env_from skip the probe and break this regression's premise. The
+    /// nonexistent prefix keeps a plausible multi-dir list while making tool
+    /// resolution deterministic (empty → false) regardless of the filesystem.
     #[test]
     fn directory_names_alone_do_not_skip_the_probe() {
         let calls = std::cell::Cell::new(0u32);
@@ -658,7 +666,7 @@ mod tests {
         };
         let env = resolve_env_from(
             "/bin/zsh",
-            "/usr/local/bin:/usr/bin:/bin",
+            "/nonexistent-evir-test/usr/local/bin:/nonexistent-evir-test/usr/bin:/nonexistent-evir-test/bin",
             None,
             None,
             &probe,
