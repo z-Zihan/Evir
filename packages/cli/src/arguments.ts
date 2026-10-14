@@ -10,7 +10,12 @@ export function parseArguments(argv: string[]): ParsedCommand {
   }
   if (command === "doctor") {
     const flags = parseFlags(rest);
-    return { command: "doctor", ...(flags.has("json") ? { json: true } : {}) };
+    const lang = stringFlag(flags, "lang");
+    return {
+      command: "doctor",
+      ...(flags.has("json") ? { json: true } : {}),
+      ...(lang !== undefined ? { lang } : {}),
+    };
   }
   if (command === "config-path") return { command: "config-path" };
   if (command === "configure") {
