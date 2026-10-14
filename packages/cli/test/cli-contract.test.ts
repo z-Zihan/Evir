@@ -43,6 +43,14 @@ describe("CLI localization (CLI-2)", () => {
       expect(help).toContain("--lang zh|en");
     }
   });
+
+  it("doctor labels and details are localized but the configure command stays in English", () => {
+    const en = cliStrings("en");
+    const zh = cliStrings("zh");
+    expect(en.doctorApiKeyMissing).toContain("evir configure");
+    expect(zh.doctorApiKeyMissing).toContain("evir configure");
+    expect(zh.doctorLabelApiKey).not.toBe(en.doctorLabelApiKey);
+  });
 });
 
 describe("non-interactive refusal (CLI-2)", () => {

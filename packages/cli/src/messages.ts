@@ -27,6 +27,21 @@ Configure stores credentials in the operating system credential store shared wit
   agentCompleted: "Agent completed.",
   agentFailed: "Agent failed: {error}",
   nonInteractiveRefusal: "Refusing a write or command without an interactive terminal approval",
+  doctorLabelConfiguration: "configuration",
+  doctorLabelProvider: "provider",
+  doctorLabelApiKey: "api-key",
+  doctorLabelNodeInPath: "node-in-path",
+  doctorLabelWorkspaceBoundary: "workspace-boundary",
+  doctorLabelProviderConnection: "provider-connection",
+  doctorApiKeyAvailable: "available (decrypted from the OS credential store)",
+  doctorApiKeyMissing: "missing — run `evir configure` or set EVIR_API_KEY",
+  doctorNodeAvailable: "node {version}",
+  doctorNodeMissing: "node not found in PATH — agent tooling needs it",
+  doctorBoundaryOk: "{workspace} (agent writes stay inside it)",
+  doctorBoundaryFail: "{error}",
+  doctorConnectionOk: "connection succeeded",
+  doctorConnectionFailed: "connection failed{error}",
+  doctorConnectionSkipped: "skipped — no API key",
 };
 
 const zh: typeof en = {
@@ -52,6 +67,21 @@ configure 将凭据保存在与 Evir Desktop 共用的操作系统凭据库。As
   agentCompleted: "Agent 已完成。",
   agentFailed: "Agent 失败：{error}",
   nonInteractiveRefusal: "无交互终端时拒绝执行写入或命令",
+  doctorLabelConfiguration: "配置",
+  doctorLabelProvider: "Provider",
+  doctorLabelApiKey: "API Key",
+  doctorLabelNodeInPath: "PATH 中的 Node",
+  doctorLabelWorkspaceBoundary: "工作区边界",
+  doctorLabelProviderConnection: "Provider 连接",
+  doctorApiKeyAvailable: "可用（已从操作系统凭据库解密）",
+  doctorApiKeyMissing: "缺失 — 请运行 `evir configure` 或设置 EVIR_API_KEY",
+  doctorNodeAvailable: "node {version}",
+  doctorNodeMissing: "在 PATH 中未找到 node — Agent 工具需要它",
+  doctorBoundaryOk: "{workspace}（Agent 写入保持在此范围内）",
+  doctorBoundaryFail: "{error}",
+  doctorConnectionOk: "连接成功",
+  doctorConnectionFailed: "连接失败{error}",
+  doctorConnectionSkipped: "已跳过 — 无 API Key",
 };
 
 export type CliStrings = typeof en;
