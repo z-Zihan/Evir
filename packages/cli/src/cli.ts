@@ -17,7 +17,9 @@ const VERSION = "0.1.0";
 export async function main(argv = process.argv.slice(2)): Promise<number> {
   try {
     const command = parseArguments(argv);
-    const strings = cliStrings(command.command === "agent" ? command.lang : undefined);
+    const strings = cliStrings(
+      command.command === "agent" || command.command === "doctor" ? command.lang : undefined,
+    );
     if (command.command === "help") {
       stdout.write(fill(strings.help, { version: VERSION }));
       return 0;

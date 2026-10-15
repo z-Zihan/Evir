@@ -16,6 +16,11 @@ describe("CLI argument surface", () => {
   it("parses doctor --json and agent --json --lang", () => {
     expect(parseArguments(["doctor", "--json"])).toEqual({ command: "doctor", json: true });
     expect(parseArguments(["doctor"])).toEqual({ command: "doctor" });
+    expect(parseArguments(["doctor", "--json", "--lang", "zh"])).toEqual({
+      command: "doctor",
+      json: true,
+      lang: "zh",
+    });
     const agent = parseArguments(["agent", "fix the bug", "--json", "--lang", "zh"]);
     expect(agent).toMatchObject({
       command: "agent",
@@ -39,8 +44,7 @@ describe("CLI localization (CLI-2)", () => {
   it("help mentions doctor --json and --lang in both languages", () => {
     for (const strings of [cliStrings("en"), cliStrings("zh")]) {
       const help = fill(strings.help, { version: "0.1.0" });
-      expect(help).toContain("doctor [--json]");
-      expect(help).toContain("--lang zh|en");
+      expect(help).toContain("doctor [--json] [--lang zh|en]");
     }
   });
 

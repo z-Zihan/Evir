@@ -9,7 +9,7 @@ const en = {
 
 Usage:
   evir configure --protocol <id> --base-url <url> --model <id> [--tool-calling]
-  evir doctor [--json]
+  evir doctor [--json] [--lang zh|en]
   evir ask [prompt]
   evir agent [task] [--workspace <path>] [--json] [--lang zh|en]
   evir config-path
@@ -49,7 +49,7 @@ const zh: typeof en = {
 
 用法:
   evir configure --protocol <id> --base-url <url> --model <id> [--tool-calling]
-  evir doctor [--json]
+  evir doctor [--json] [--lang zh|en]
   evir ask [提示词]
   evir agent [任务] [--workspace <路径>] [--json] [--lang zh|en]
   evir config-path
