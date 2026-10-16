@@ -151,6 +151,29 @@ try {
   if (!noKeyText.includes("EVIR_API_KEY"))
     throw new Error(`doctor without an API key did not mention missing key guidance: ${noKeyText}`);
   process.stdout.write("CLI doctor missing-api-key smoke passed\n");
+
+  const corruptConfigDirectory = path.join(temporary, "config-corrupt");
+  await mkdir(path.join(corruptConfigDirectory, "evir"), { recursive: true });
+  await writeFile(
+    path.join(corruptConfigDirectory, "evir", "providers.json"),
+    `${JSON.stringify({ version: 1, providers: [{ id: 123 }] })}\n`,
+  );
+  const corruptEnv = { ...baseEnv, EVIR_CONFIG_DIR: corruptConfigDirectory };
+  const doctorCorruptResult = await runCli(["doctor"], corruptEnv);
+  if (doctorCorruptResult.code !== 1)
+    throw new Error(
+      `doctor with a corrupt config exited with ${doctorCorruptResult.code}, expected 1: ${doctorCorruptResult.errorOutput}`,
+    );
+  const corruptText = `${doctorCorruptResult.output}${doctorCorruptResult.errorOutput}`;
+  if (!corruptText.includes("Invalid provider configuration"))
+    throw new Error(`doctor with a corrupt config did not mention the diagnostic: ${corruptText}`);
+  if (!corruptText.includes("providers[0].id"))
+    throw new Error(
+      `doctor with a corrupt config did not mention the offending path: ${corruptText}`,
+    );
+  if (corruptText.includes('"expected"'))
+    throw new Error(`doctor with a corrupt config leaked raw Zod issues JSON: ${corruptText}`);
+  process.stdout.write("CLI corrupt-config diagnostics smoke passed\n");
 } finally {
   await new Promise((resolve) => server.close(resolve));
   await rm(temporary, { recursive: true, force: true });
