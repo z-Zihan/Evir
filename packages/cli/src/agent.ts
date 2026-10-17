@@ -28,6 +28,23 @@ export type AgentEvent =
   | { type: "completed"; steps: number }
   | { type: "failed"; error: string };
 
+/**
+ * docs/20 §6.1: every emitted JSON event carries schemaVersion, type,
+ * timestamp, and command alongside its payload. The bare `AgentEvent` union
+ * above stays unversioned for internal callers; `envelopeEvent` wraps it for
+ * anything written to stderr with `--json`.
+ */
+export interface AgentEventEnvelope {
+  schemaVersion: 1;
+  timestamp: string;
+  command: "agent";
+  event: AgentEvent;
+}
+
+export function envelopeEvent(event: AgentEvent, command: "agent" = "agent"): AgentEventEnvelope {
+  return { schemaVersion: 1, timestamp: new Date().toISOString(), command, event };
+}
+
 export async function runAgent(options: {
   config: CliConfig;
   apiKey: string;

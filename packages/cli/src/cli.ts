@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { parseArguments } from "./arguments";
 import { requestApproval } from "./approval";
-import { runAgent } from "./agent";
+import { envelopeEvent, runAgent } from "./agent";
 import { formatConfigError } from "./config-errors";
 import { defaultConfigPath, readConfig, writeConfig } from "./config-store";
 import { getProviderCredential, setProviderCredential } from "./credential-store";
@@ -117,10 +117,11 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
         onDelta: (text) => stdout.write(text),
         approve: (message) => requestApproval(message, undefined, undefined, strings),
         // CLI-2: JSONL events go to stderr; stdout stays the final answer.
+        // docs/20 §6.1: wrap each event in a versioned envelope.
         ...(command.json
           ? {
               onEvent: (event: import("./agent").AgentEvent) => {
-                stderr.write(`${JSON.stringify(event)}\n`);
+                stderr.write(`${JSON.stringify(envelopeEvent(event))}\n`);
               },
             }
           : {}),
