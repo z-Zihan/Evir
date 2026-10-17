@@ -42,6 +42,8 @@ Configure stores credentials in the operating system credential store shared wit
   doctorConnectionOk: "connection succeeded",
   doctorConnectionFailed: "connection failed{error}",
   doctorConnectionSkipped: "skipped — no API key",
+  configInvalid: "Invalid provider configuration in {path}: {issues}",
+  configureInvalid: "Invalid configure values: {issues}",
 };
 
 const zh: typeof en = {
@@ -82,6 +84,8 @@ configure 将凭据保存在与 Evir Desktop 共用的操作系统凭据库。As
   doctorConnectionOk: "连接成功",
   doctorConnectionFailed: "连接失败{error}",
   doctorConnectionSkipped: "已跳过 — 无 API Key",
+  configInvalid: "{path} 中的 Provider 配置无效：{issues}",
+  configureInvalid: "configure 参数无效：{issues}",
 };
 
 export type CliStrings = typeof en;

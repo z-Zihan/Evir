@@ -2,9 +2,11 @@ import { realpathSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { stdin, stdout, stderr } from "node:process";
 import { fileURLToPath } from "node:url";
+import { z } from "zod";
 import { parseArguments } from "./arguments";
 import { requestApproval } from "./approval";
 import { runAgent } from "./agent";
+import { formatConfigError } from "./config-errors";
 import { defaultConfigPath, readConfig, writeConfig } from "./config-store";
 import { getProviderCredential, setProviderCredential } from "./credential-store";
 import { streamProvider, testProvider } from "./provider-client";
@@ -15,9 +17,10 @@ import { cliStrings, fill, type CliStrings } from "./messages";
 const VERSION = "0.1.0";
 
 export async function main(argv = process.argv.slice(2)): Promise<number> {
+  let strings: CliStrings = cliStrings();
   try {
     const command = parseArguments(argv);
-    const strings = cliStrings(
+    strings = cliStrings(
       command.command === "agent" || command.command === "doctor" ? command.lang : undefined,
     );
     if (command.command === "help") {
@@ -40,19 +43,27 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
         throw error;
       });
       const now = Date.now();
-      const config = cliConfigSchema.parse({
-        ...previous,
-        ...command.values,
-        id:
-          previous?.id === "legacy-cli-default"
-            ? crypto.randomUUID()
-            : (previous?.id ?? crypto.randomUUID()),
-        name: previous?.name ?? "Evir CLI",
-        enabled: true,
-        isDefault: true,
-        createdAt: previous?.createdAt || now,
-        updatedAt: now,
-      });
+      let config;
+      try {
+        config = cliConfigSchema.parse({
+          ...previous,
+          ...command.values,
+          id:
+            previous?.id === "legacy-cli-default"
+              ? crypto.randomUUID()
+              : (previous?.id ?? crypto.randomUUID()),
+          name: previous?.name ?? "Evir CLI",
+          enabled: true,
+          isDefault: true,
+          createdAt: previous?.createdAt || now,
+          updatedAt: now,
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          throw new Error(fill(strings.configureInvalid, { issues: formatConfigError(error) }));
+        }
+        throw error;
+      }
       const apiKey =
         config.protocolId === "ollama-native"
           ? ""
@@ -121,7 +132,16 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
       process.removeListener("SIGINT", stop);
     }
   } catch (error) {
-    stderr.write(`evir: ${error instanceof Error ? error.message : "Unknown error"}\n`);
+    const message =
+      error instanceof z.ZodError
+        ? fill(strings.configInvalid, {
+            path: defaultConfigPath(),
+            issues: formatConfigError(error),
+          })
+        : error instanceof Error
+          ? error.message
+          : "Unknown error";
+    stderr.write(`evir: ${message}\n`);
     return 1;
   }
 }

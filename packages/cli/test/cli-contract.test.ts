@@ -55,6 +55,18 @@ describe("CLI localization (CLI-2)", () => {
     expect(zh.doctorApiKeyMissing).toContain("evir configure");
     expect(zh.doctorLabelApiKey).not.toBe(en.doctorLabelApiKey);
   });
+
+  it("en and zh both carry configInvalid and configureInvalid copy", () => {
+    const en = cliStrings("en");
+    const zh = cliStrings("zh");
+    expect(en.configInvalid).toBeTruthy();
+    expect(zh.configInvalid).toBeTruthy();
+    expect(en.configureInvalid).toBeTruthy();
+    expect(zh.configureInvalid).toBeTruthy();
+    const filled = fill(en.configInvalid, { path: "/x", issues: "bad" });
+    expect(filled).toContain("/x");
+    expect(filled).toContain("bad");
+  });
 });
 
 describe("non-interactive refusal (CLI-2)", () => {
