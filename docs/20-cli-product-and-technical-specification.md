@@ -100,6 +100,7 @@ evir agent [task] [--workspace <path>]
 - stderr：配置过程、目标 Provider/Workspace、进度、审批、警告和错误。
 - 非 TTY、`NO_COLOR` 或 `TERM=dumb`：无 ANSI 颜色、Spinner 或覆盖行。
 - JSON 事件包含 `schemaVersion`、`type`、`timestamp`、`command` 和类型相关字段；不得包含密钥、完整环境或默认文件正文。
+- 已实现：`agent --json` 的每一行都是 `{ schemaVersion: 1, timestamp, command: "agent", event }` 的换行分隔信封，`event` 即原始的 CLI-2 载荷。
 
 ### 6.2 目标退出码
 

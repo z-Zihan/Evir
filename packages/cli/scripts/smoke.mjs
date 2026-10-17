@@ -57,7 +57,7 @@ try {
   await mkdir(path.join(configDirectory, "evir"), { recursive: true });
   await writeFile(
     path.join(configDirectory, "evir", "providers.json"),
-    `${JSON.stringify({ version: 1, providers: [{ id: "fixture", name: "Fixture", protocolId: "openai-compatible-chat", baseUrl: `http://127.0.0.1:${address.port}/v1`, modelId: "fixture", toolCalling: false, enabled: true, isDefault: true, createdAt: 1, updatedAt: 1 }] })}\n`,
+    `${JSON.stringify({ version: 1, providers: [{ id: "fixture", name: "Fixture", protocolId: "openai-compatible-chat", baseUrl: `http://127.0.0.1:${address.port}/v1`, modelId: "fixture", toolCalling: true, enabled: true, isDefault: true, createdAt: 1, updatedAt: 1 }] })}\n`,
   );
   const noKeyConfigDirectory = path.join(temporary, "config-nokey");
   await mkdir(path.join(noKeyConfigDirectory, "evir"), { recursive: true });
@@ -174,6 +174,58 @@ try {
   if (corruptText.includes('"expected"'))
     throw new Error(`doctor with a corrupt config leaked raw Zod issues JSON: ${corruptText}`);
   process.stdout.write("CLI corrupt-config diagnostics smoke passed\n");
+
+  // docs/20 §6.1: agent --json events are versioned envelopes on stderr.
+  // The main fixture provider has toolCalling:true, and the fixture SSE
+  // response streams content with no tool calls, so the agent completes in
+  // a single step: run-start, step, completed. Assert the full lifecycle
+  // is emitted as well-formed envelopes and that the key never leaks.
+  const jsonlResult = await runCli(["agent", "hello", "--json"], baseEnv);
+  if (jsonlResult.code !== 0)
+    throw new Error(
+      `agent --json exited with ${jsonlResult.code}, expected 0: ${jsonlResult.errorOutput}`,
+    );
+  if (jsonlResult.output.trim() !== "Evir CLI works")
+    throw new Error(`agent --json produced unexpected stdout: ${jsonlResult.output}`);
+  const jsonlLines = jsonlResult.errorOutput.split("\n").filter((line) => line.trim() !== "");
+  const KNOWN_EVENT_TYPES = ["run-start", "step", "approval", "tool-result", "completed", "failed"];
+  const envelopes = [];
+  for (const line of jsonlLines) {
+    try {
+      envelopes.push(JSON.parse(line));
+    } catch {
+      // Plain-text diagnostics (e.g. the workspace/disclosure banner) are not JSON.
+    }
+  }
+  if (envelopes.length < 3)
+    throw new Error(`agent --json produced fewer than 3 envelopes: ${JSON.stringify(envelopes)}`);
+  if (envelopes[0]?.event?.type !== "run-start")
+    throw new Error(
+      `agent --json first envelope was not run-start: ${JSON.stringify(envelopes[0])}`,
+    );
+  if (envelopes[envelopes.length - 1]?.event?.type !== "completed")
+    throw new Error(
+      `agent --json last envelope was not completed: ${JSON.stringify(envelopes[envelopes.length - 1])}`,
+    );
+  for (const envelope of envelopes) {
+    if (envelope.schemaVersion !== 1)
+      throw new Error(
+        `agent --json envelope had unexpected schemaVersion: ${JSON.stringify(envelope)}`,
+      );
+    if (envelope.command !== "agent")
+      throw new Error(`agent --json envelope had unexpected command: ${JSON.stringify(envelope)}`);
+    if (typeof envelope.timestamp !== "string" || Number.isNaN(Date.parse(envelope.timestamp)))
+      throw new Error(
+        `agent --json envelope had an invalid timestamp: ${JSON.stringify(envelope)}`,
+      );
+    if (!KNOWN_EVENT_TYPES.includes(envelope.event?.type))
+      throw new Error(
+        `agent --json envelope had an unknown event type: ${JSON.stringify(envelope)}`,
+      );
+  }
+  if (jsonlResult.errorOutput.includes(baseEnv.EVIR_API_KEY))
+    throw new Error("agent --json leaked the API key into stderr");
+  process.stdout.write("CLI agent --jsonl envelope smoke passed\n");
 } finally {
   await new Promise((resolve) => server.close(resolve));
   await rm(temporary, { recursive: true, force: true });

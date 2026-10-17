@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { parseArguments } from "../src/arguments";
 import { cliStrings, fill } from "../src/messages";
 import { requestApproval } from "../src/approval";
-import { runAgent, type AgentEvent } from "../src/agent";
+import { envelopeEvent, runAgent, type AgentEvent } from "../src/agent";
 import { streamProvider } from "../src/provider-client";
 
 /**
@@ -83,7 +83,8 @@ describe("non-interactive refusal (CLI-2)", () => {
 
 describe("agent JSONL events (CLI-2)", () => {
   it("emits run-start → step → approval → tool-result → completed", async () => {
-    const events: AgentEvent[] = [];
+    const bareEvents: AgentEvent[] = [];
+    const envelopes: ReturnType<typeof envelopeEvent>[] = [];
     const config = {
       id: "p1",
       name: "P",
@@ -115,14 +116,27 @@ describe("agent JSONL events (CLI-2)", () => {
       signal: new AbortController().signal,
       onDelta: () => undefined,
       approve: () => Promise.resolve(true),
-      onEvent: (event) => events.push(event),
+      onEvent: (event) => {
+        bareEvents.push(event);
+        envelopes.push(envelopeEvent(event));
+      },
     });
     // Override tools requires touching createWorkspaceTools; assert the
     // contract on the events that DID flow (run-start/step/completed) plus
     // approval+tool-result from the real workspace tool path.
     expect(result.error).toBeUndefined();
-    expect(events[0]).toMatchObject({ type: "run-start", workspace: "/tmp/w" });
-    expect(events.some((event) => event.type === "step")).toBe(true);
-    expect(events.at(-1)).toMatchObject({ type: "completed" });
+    expect(bareEvents[0]).toMatchObject({ type: "run-start", workspace: "/tmp/w" });
+    expect(bareEvents.some((event) => event.type === "step")).toBe(true);
+    expect(bareEvents.at(-1)).toMatchObject({ type: "completed" });
+
+    // docs/20 §6.1: every envelope carries schemaVersion/command/timestamp
+    // and wraps the exact bare payload — never a lossy transformation.
+    for (const [index, envelope] of envelopes.entries()) {
+      expect(envelope.schemaVersion).toBe(1);
+      expect(envelope.command).toBe("agent");
+      expect(Number.isNaN(new Date(envelope.timestamp).getTime())).toBe(false);
+      expect(envelope.event).toEqual(bareEvents[index]);
+    }
+    expect(envelopes.map((envelope) => envelope.event)).toEqual(bareEvents);
   });
 });
