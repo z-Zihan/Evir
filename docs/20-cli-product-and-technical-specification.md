@@ -73,7 +73,7 @@ evir agent [task] [--workspace <path>]
 5. 非 TTY 环境拒绝写入和命令；只读工具仍受步骤/输出/循环限制。
 6. 完成前运行合适验证，输出变更、验证、错误和未完成项。
 
-当前实现已完成工作区边界、逐次审批、10 步上限和重复调用检测；尚未提供结构化步骤/验证/完成摘要 Presenter。
+当前实现已完成工作区边界、逐次审批、10 步上限、重复调用检测和基础完成摘要（步骤/工具调用/写入成败/验证标志/耗时）；长输出 Artifact 仍未实现。
 
 ## 5. 状态与失败恢复
 
@@ -85,11 +85,11 @@ evir agent [task] [--workspace <path>]
 | Doctor testing    | 配置、协议、模型、密钥状态        | 等待/取消                   | 已实现                    |
 | Provider 失败     | 分类、简短原因、修复命令          | 重试/改配置                 | 分类与指引不完整          |
 | Ask streaming     | stdout 文本 delta                 | Ctrl+C                      | 已实现                    |
-| Agent running     | step/tool/elapsed                 | Ctrl+C                      | **结构化状态未实现**      |
+| Agent running     | step/tool/elapsed                 | Ctrl+C                      | 已实现基础结构化事件      |
 | Approval          | 工具、风险、作用域、影响、默认 No | y/N                         | 已实现基础预览            |
 | Non-TTY write     | 明确拒绝                          | 改用 TTY 或只读             | 已实现                    |
-| Verification      | 命令、退出码、摘要                | 修复或重试                  | **Presenter 未实现**      |
-| Completed/partial | 结果、变更、验证、遗留            | 检查 Diff/继续              | **统一摘要未实现**        |
+| Verification      | 命令、退出码、摘要                | 修复或重试                  | 已实现基础验证标志        |
+| Completed/partial | 结果、变更、验证、遗留            | 检查 Diff/继续              | 已实现基础摘要            |
 | Cancelled         | stopped + 已完成影响              | 安全重跑                    | 退出码 130 已实现         |
 
 ## 6. stdout、stderr 与退出码
@@ -101,6 +101,7 @@ evir agent [task] [--workspace <path>]
 - 非 TTY、`NO_COLOR` 或 `TERM=dumb`：无 ANSI 颜色、Spinner 或覆盖行。
 - JSON 事件包含 `schemaVersion`、`type`、`timestamp`、`command` 和类型相关字段；不得包含密钥、完整环境或默认文件正文。
 - 已实现：`agent --json` 的每一行都是 `{ schemaVersion: 1, timestamp, command: "agent", event }` 的换行分隔信封，`event` 即原始的 CLI-2 载荷。
+- 已实现：`completed` 事件附加统计字段 `toolCalls`（按工具名次数）、`writes`（写类工具 ok/failed 计数）、`verified`（`run_command`/`git_status`/`git_diff` 全部成功才为 true）和 `elapsedMs`（运行墙钟耗时）；Agent 运行结束时还会在 stderr 输出一行本地化人类摘要（zh/en）。
 
 ### 6.2 目标退出码
 
@@ -214,7 +215,7 @@ pnpm --dir packages/cli pack:check
 - [ ] 友好配置向导和错误分类，不输出原始 Zod JSON。
 - [ ] 中英文人类输出与完整消息目录。
 - [ ] 版本化 JSON/JSONL 运行事件、稳定 stdout/stderr 和退出码表。
-- [ ] Agent step/tool/verification/completion 摘要和长输出 Artifact。
+- [x] Agent step/tool/verification/completion 摘要和长输出 Artifact（本次范围：完成摘要 + 事件统计字段；长输出 Artifact 仍未实现）。
 - [ ] macOS/Windows/Linux 的真实 Keyring、安装/升级/卸载验收。
 - [ ] 真实 Provider、网络异常、超时、停止和长任务验收。
 

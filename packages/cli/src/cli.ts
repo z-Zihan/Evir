@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { parseArguments } from "./arguments";
 import { requestApproval } from "./approval";
-import { envelopeEvent, runAgent } from "./agent";
+import { envelopeEvent, runAgent, type AgentEvent } from "./agent";
 import { formatConfigError } from "./config-errors";
 import { defaultConfigPath, readConfig, writeConfig } from "./config-store";
 import { getProviderCredential, setProviderCredential } from "./credential-store";
@@ -108,6 +108,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
       stderr.write(
         `${fill(strings.agentWorkspace, { workspace })}\n${fill(strings.agentDisclosure, { host: new URL(config.baseUrl).host })}\n`,
       );
+      let completedEvent: Extract<AgentEvent, { type: "completed" }> | undefined;
       const result = await runAgent({
         config,
         apiKey,
@@ -118,16 +119,29 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
         approve: (message) => requestApproval(message, undefined, undefined, strings),
         // CLI-2: JSONL events go to stderr; stdout stays the final answer.
         // docs/20 §6.1: wrap each event in a versioned envelope.
-        ...(command.json
-          ? {
-              onEvent: (event: import("./agent").AgentEvent) => {
-                stderr.write(`${JSON.stringify(envelopeEvent(event))}\n`);
-              },
-            }
-          : {}),
+        onEvent: (event: AgentEvent) => {
+          if (event.type === "completed") completedEvent = event;
+          if (command.json) stderr.write(`${JSON.stringify(envelopeEvent(event))}\n`);
+        },
       });
       stdout.write("\n");
       if (result.error && !controller.signal.aborted) throw new Error(result.error);
+      if (!controller.signal.aborted && !result.error && completedEvent) {
+        const toolCallsTotal = Object.values(completedEvent.toolCalls).reduce(
+          (sum, count) => sum + count,
+          0,
+        );
+        stderr.write(
+          `${fill(strings.agentSummary, {
+            steps: String(completedEvent.steps),
+            toolCalls: String(toolCallsTotal),
+            writesOk: String(completedEvent.writes.ok),
+            writesFailed: String(completedEvent.writes.failed),
+            verified: completedEvent.verified ? strings.agentVerified : strings.agentUnverified,
+            elapsed: (completedEvent.elapsedMs / 1000).toFixed(1),
+          })}\n`,
+        );
+      }
       return controller.signal.aborted ? 130 : 0;
     } finally {
       process.removeListener("SIGINT", stop);
