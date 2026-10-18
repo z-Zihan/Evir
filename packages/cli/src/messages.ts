@@ -26,6 +26,10 @@ Configure stores credentials in the operating system credential store shared wit
   agentStopped: "Agent stopped.",
   agentCompleted: "Agent completed.",
   agentFailed: "Agent failed: {error}",
+  agentSummary:
+    "Agent completed: {steps} steps · {toolCalls} tool calls · writes {writesOk} ok, {writesFailed} failed · {verified} · {elapsed}s",
+  agentVerified: "verified",
+  agentUnverified: "unverified",
   nonInteractiveRefusal: "Refusing a write or command without an interactive terminal approval",
   doctorLabelConfiguration: "configuration",
   doctorLabelProvider: "provider",
@@ -68,6 +72,10 @@ configure 将凭据保存在与 Evir Desktop 共用的操作系统凭据库。As
   agentStopped: "Agent 已停止。",
   agentCompleted: "Agent 已完成。",
   agentFailed: "Agent 失败：{error}",
+  agentSummary:
+    "Agent 已完成：{steps} 步 · {toolCalls} 次工具调用 · 写入 {writesOk} 成功 {writesFailed} 失败 · {verified} · {elapsed}s",
+  agentVerified: "验证通过",
+  agentUnverified: "未验证",
   nonInteractiveRefusal: "无交互终端时拒绝执行写入或命令",
   doctorLabelConfiguration: "配置",
   doctorLabelProvider: "Provider",

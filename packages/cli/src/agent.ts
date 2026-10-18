@@ -25,8 +25,18 @@ export type AgentEvent =
   | { type: "step"; step: number }
   | { type: "approval"; tool: string; approved: boolean }
   | { type: "tool-result"; tool: string; ok: boolean }
-  | { type: "completed"; steps: number }
+  | {
+      type: "completed";
+      steps: number;
+      toolCalls: Record<string, number>;
+      writes: { ok: number; failed: number };
+      verified: boolean;
+      elapsedMs: number;
+    }
   | { type: "failed"; error: string };
+
+/** Tools whose combined success gates the `completed` event's `verified` flag. */
+const VERIFICATION_TOOLS = ["run_command", "git_status", "git_diff"] as const;
 
 /**
  * docs/20 §6.1: every emitted JSON event carries schemaVersion, type,
@@ -55,12 +65,14 @@ export async function runAgent(options: {
   approve: (message: string) => Promise<boolean>;
   onEvent?: (event: AgentEvent) => void;
 }): Promise<{ content: string; error?: string }> {
+  const startedAt = Date.now();
   options.onEvent?.({
     type: "run-start",
     promptChars: options.prompt.length,
     workspace: options.workspace,
   });
   const tools = createWorkspaceTools(options.workspace);
+  const riskByTool = new Map(tools.map((tool) => [tool.name, tool.risk]));
   const definitions = tools.map((tool) => ({
     type: "function",
     function: {
@@ -69,6 +81,23 @@ export async function runAgent(options: {
       parameters: tool.parameters,
     },
   }));
+  const toolCallCounts: Record<string, number> = {};
+  const writes = { ok: 0, failed: 0 };
+  const verificationRan: Record<string, boolean> = {};
+  const verificationFailed: Record<string, boolean> = {};
+  const onEvent = (event: AgentEvent) => {
+    if (event.type === "tool-result") {
+      if (VERIFICATION_TOOLS.includes(event.tool as (typeof VERIFICATION_TOOLS)[number])) {
+        verificationRan[event.tool] = true;
+        if (!event.ok) verificationFailed[event.tool] = true;
+      }
+      if (riskByTool.get(event.tool) !== "read") {
+        if (event.ok) writes.ok += 1;
+        else writes.failed += 1;
+      }
+    }
+    options.onEvent?.(event);
+  };
   const messages: AgentMessage[] = [
     {
       role: "system",
@@ -87,7 +116,7 @@ export async function runAgent(options: {
   let fullContent = "";
 
   for (let step = 0; step < 10; step += 1) {
-    options.onEvent?.({ type: "step", step });
+    onEvent({ type: "step", step });
     const turn = await streamProvider({
       config: options.config,
       apiKey: options.apiKey,
@@ -101,7 +130,17 @@ export async function runAgent(options: {
     });
     if (turn.error) return { content: fullContent, error: turn.error };
     if (turn.toolCalls.length === 0) {
-      options.onEvent?.({ type: "completed", steps: step + 1 });
+      const verified = VERIFICATION_TOOLS.every(
+        (name) => verificationRan[name] && !verificationFailed[name],
+      );
+      onEvent({
+        type: "completed",
+        steps: step + 1,
+        toolCalls: toolCallCounts,
+        writes,
+        verified,
+        elapsedMs: Date.now() - startedAt,
+      });
       return { content: fullContent };
     }
     messages.push({
@@ -114,11 +153,16 @@ export async function runAgent(options: {
       })),
     });
     for (const call of turn.toolCalls) {
+      toolCallCounts[call.name] = (toolCallCounts[call.name] ?? 0) + 1;
       const key = `${call.name}:${call.arguments}`;
       const count = (repeats.get(key) ?? 0) + 1;
       repeats.set(key, count);
       if (count > 3) return { content: fullContent, error: `Loop detected for ${call.name}` };
-      const result = await executeTool(tools, call.name, call.arguments, options);
+      const result = await executeTool(tools, call.name, call.arguments, {
+        signal: options.signal,
+        approve: options.approve,
+        onEvent,
+      });
       messages.push({
         role: "tool",
         content: result,
@@ -131,7 +175,7 @@ export async function runAgent(options: {
     content: fullContent,
     error: (() => {
       const message = "Agent reached the 10-step safety limit";
-      options.onEvent?.({ type: "failed", error: message });
+      onEvent({ type: "failed", error: message });
       return message;
     })(),
   };

@@ -1,9 +1,14 @@
-import { describe, expect, it, vi } from "vitest";
+import { spawnSync } from "node:child_process";
+import { mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseArguments } from "../src/arguments";
 import { cliStrings, fill } from "../src/messages";
 import { requestApproval } from "../src/approval";
 import { envelopeEvent, runAgent, type AgentEvent } from "../src/agent";
 import { streamProvider } from "../src/provider-client";
+import { resolveWorkspace } from "../src/workspace-boundary";
 
 /**
  * CLI-1/2 contract: doctor flags, zh/en copy, JSONL agent events, and the
@@ -138,5 +143,148 @@ describe("agent JSONL events (CLI-2)", () => {
       expect(envelope.event).toEqual(bareEvents[index]);
     }
     expect(envelopes.map((envelope) => envelope.event)).toEqual(bareEvents);
+  });
+});
+
+describe("agent completion summary (docs/20 §5/§6.1)", () => {
+  const config = {
+    id: "p1",
+    name: "P",
+    protocolId: "openai-compatible-chat" as const,
+    baseUrl: "https://example.com/v1",
+    modelId: "m",
+    toolCalling: true,
+    enabled: true,
+    isDefault: true,
+    createdAt: 1,
+    updatedAt: 1,
+  };
+
+  const temporaryDirectories: string[] = [];
+  afterEach(async () => {
+    await Promise.all(
+      temporaryDirectories.splice(0).map((directory) => rm(directory, { recursive: true })),
+    );
+  });
+
+  async function makeGitWorkspace(): Promise<string> {
+    const created = await mkdtemp(path.join(os.tmpdir(), "evir-cli-agent-summary-"));
+    temporaryDirectories.push(created);
+    const root = await resolveWorkspace(created);
+    spawnSync("git", ["init", "-q"], { cwd: root });
+    return root;
+  }
+
+  function findCompleted(events: AgentEvent[]): Extract<AgentEvent, { type: "completed" }> {
+    const completed = events.find(
+      (event): event is Extract<AgentEvent, { type: "completed" }> => event.type === "completed",
+    );
+    if (!completed) throw new Error("No completed event was emitted");
+    return completed;
+  }
+
+  it("reports verified=true with real toolCalls/writes/elapsedMs when every verification tool succeeds", async () => {
+    const workspace = await makeGitWorkspace();
+    vi.mocked(streamProvider).mockImplementationOnce(() =>
+      Promise.resolve({
+        content: "",
+        stopped: false,
+        toolCalls: [
+          {
+            id: "c1",
+            name: "write_file",
+            arguments: JSON.stringify({ path: "note.txt", content: "hello" }),
+          },
+          {
+            id: "c2",
+            name: "run_command",
+            arguments: JSON.stringify({
+              program: process.execPath,
+              args: ["-e", "process.stdout.write('ok')"],
+              timeoutMs: 5000,
+            }),
+          },
+          { id: "c3", name: "git_status", arguments: "{}" },
+          { id: "c4", name: "git_diff", arguments: "{}" },
+        ],
+      }),
+    );
+    vi.mocked(streamProvider).mockImplementationOnce(() =>
+      Promise.resolve({ content: "done", stopped: false, toolCalls: [] }),
+    );
+
+    const events: AgentEvent[] = [];
+    const result = await runAgent({
+      config,
+      apiKey: "k",
+      prompt: "do it",
+      workspace,
+      signal: new AbortController().signal,
+      onDelta: () => undefined,
+      approve: () => Promise.resolve(true),
+      onEvent: (event) => events.push(event),
+    });
+
+    expect(result.error).toBeUndefined();
+    const completed = findCompleted(events);
+    expect(completed.steps).toBe(2);
+    expect(completed.toolCalls).toEqual({
+      write_file: 1,
+      run_command: 1,
+      git_status: 1,
+      git_diff: 1,
+    });
+    expect(completed.writes).toEqual({ ok: 2, failed: 0 });
+    expect(completed.verified).toBe(true);
+    expect(typeof completed.elapsedMs).toBe("number");
+    expect(completed.elapsedMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it("reports verified=false and writes.failed>0 when run_command fails", async () => {
+    const workspace = await makeGitWorkspace();
+    vi.mocked(streamProvider).mockImplementationOnce(() =>
+      Promise.resolve({
+        content: "",
+        stopped: false,
+        toolCalls: [
+          {
+            id: "c1",
+            name: "write_file",
+            arguments: JSON.stringify({ path: "note.txt", content: "hello" }),
+          },
+          {
+            id: "c2",
+            name: "run_command",
+            arguments: JSON.stringify({
+              program: process.execPath,
+              args: ["-e", "process.exit(1)"],
+              timeoutMs: 5000,
+            }),
+          },
+        ],
+      }),
+    );
+    vi.mocked(streamProvider).mockImplementationOnce(() =>
+      Promise.resolve({ content: "done", stopped: false, toolCalls: [] }),
+    );
+
+    const events: AgentEvent[] = [];
+    const result = await runAgent({
+      config,
+      apiKey: "k",
+      prompt: "do it",
+      workspace,
+      signal: new AbortController().signal,
+      onDelta: () => undefined,
+      approve: () => Promise.resolve(true),
+      onEvent: (event) => events.push(event),
+    });
+
+    expect(result.error).toBeUndefined();
+    const completed = findCompleted(events);
+    expect(completed.toolCalls).toEqual({ write_file: 1, run_command: 1 });
+    expect(completed.writes.ok).toBe(1);
+    expect(completed.writes.failed).toBe(1);
+    expect(completed.verified).toBe(false);
   });
 });
