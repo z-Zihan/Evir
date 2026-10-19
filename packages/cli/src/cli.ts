@@ -7,7 +7,7 @@ import { parseArguments } from "./arguments";
 import { requestApproval } from "./approval";
 import { envelopeEvent, runAgent, type AgentEvent } from "./agent";
 import { formatConfigError } from "./config-errors";
-import { defaultConfigPath, readConfig, writeConfig } from "./config-store";
+import { defaultConfigPath, NotConfiguredError, readConfig, writeConfig } from "./config-store";
 import { getProviderCredential, setProviderCredential } from "./credential-store";
 import { streamProvider, testProvider } from "./provider-client";
 import { cliConfigSchema } from "./types";
@@ -37,9 +37,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     }
     if (command.command === "configure") {
       const previous = await readConfig().catch((error: unknown) => {
-        if (error instanceof Error && error.message.startsWith("Evir is not configured.")) {
-          return undefined;
-        }
+        if (error instanceof NotConfiguredError) return undefined;
         throw error;
       });
       const now = Date.now();
@@ -67,15 +65,11 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
       const apiKey =
         config.protocolId === "ollama-native"
           ? ""
-          : (process.env.EVIR_API_KEY ?? (stdin.isTTY ? await readHiddenApiKey() : ""));
+          : (process.env.EVIR_API_KEY ?? (stdin.isTTY ? await readHiddenApiKey(strings) : ""));
       if (apiKey) await setProviderCredential(config.id, apiKey);
       await writeConfig(config);
-      stdout.write(`Saved non-secret configuration to ${defaultConfigPath()}\n`);
-      stdout.write(
-        apiKey
-          ? "Saved the API key in the operating system credential store.\n"
-          : "Kept the existing credential. Set EVIR_API_KEY to replace it non-interactively.\n",
-      );
+      stdout.write(`${fill(strings.configureSavedTo, { path: defaultConfigPath() })}\n`);
+      stdout.write(`${apiKey ? strings.configureKeySaved : strings.configureKeyKept}\n`);
       return 0;
     }
     const config = await readConfig();
@@ -83,9 +77,9 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     if (command.command === "doctor") {
       return runDoctor(config, apiKey, command.json === true, strings);
     }
-    if (!apiKey) throw new Error("EVIR_API_KEY is not set");
+    if (!apiKey) throw new Error(strings.apiKeyNotSet);
     const prompt = command.prompt ?? (await readStdinPrompt());
-    if (!prompt.trim()) throw new Error("A prompt is required");
+    if (!prompt.trim()) throw new Error(strings.promptRequired);
     const controller = new AbortController();
     const stop = () => controller.abort();
     process.once("SIGINT", stop);
@@ -102,8 +96,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
         if (result.error && !result.stopped) throw new Error(result.error);
         return result.stopped ? 130 : 0;
       }
-      if (!config.toolCalling)
-        throw new Error("Agent requires toolCalling: true. Re-run configure with --tool-calling");
+      if (!config.toolCalling) throw new Error(strings.agentRequiresToolCalling);
       const workspace = await resolveWorkspace(command.workspace);
       stderr.write(
         `${fill(strings.agentWorkspace, { workspace })}\n${fill(strings.agentDisclosure, { host: new URL(config.baseUrl).host })}\n`,
@@ -153,9 +146,11 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
             path: defaultConfigPath(),
             issues: formatConfigError(error),
           })
-        : error instanceof Error
-          ? error.message
-          : "Unknown error";
+        : error instanceof NotConfiguredError
+          ? strings.notConfigured
+          : error instanceof Error
+            ? error.message
+            : "Unknown error";
     stderr.write(`evir: ${message}\n`);
     return 1;
   }
@@ -270,9 +265,9 @@ async function resolveApiKey(providerId: string, protocol: string): Promise<stri
   return process.env.EVIR_API_KEY ?? (await getProviderCredential(providerId));
 }
 
-async function readHiddenApiKey(): Promise<string> {
+async function readHiddenApiKey(strings: CliStrings): Promise<string> {
   if (!stdin.isTTY || typeof stdin.setRawMode !== "function") return "";
-  stderr.write("API key (hidden; leave blank to keep the existing credential): ");
+  stderr.write(strings.hiddenApiKeyPrompt);
   stdin.setRawMode(true);
   stdin.resume();
   let value = "";
@@ -284,7 +279,7 @@ async function readHiddenApiKey(): Promise<string> {
           stderr.write("\n");
           return value;
         }
-        if (character === "\u0003") throw new Error("Configuration cancelled");
+        if (character === "\u0003") throw new Error(strings.configureCancelled);
         if (character === "\u007f" || character === "\b") value = value.slice(0, -1);
         else value += character;
       }
