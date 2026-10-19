@@ -72,6 +72,36 @@ describe("CLI localization (CLI-2)", () => {
     expect(filled).toContain("/x");
     expect(filled).toContain("bad");
   });
+
+  it("en and zh both carry configure-output, error, prompt, and cancellation copy", () => {
+    const en = cliStrings("en");
+    const zh = cliStrings("zh");
+    for (const key of [
+      "configureSavedTo",
+      "configureKeySaved",
+      "configureKeyKept",
+      "apiKeyNotSet",
+      "promptRequired",
+      "agentRequiresToolCalling",
+      "hiddenApiKeyPrompt",
+      "configureCancelled",
+      "notConfigured",
+    ] as const) {
+      expect(en[key]).toBeTruthy();
+      expect(zh[key]).toBeTruthy();
+      expect(zh[key]).not.toBe(en[key]);
+    }
+    expect(fill(en.configureSavedTo, { path: "/tmp/providers.json" })).toContain(
+      "/tmp/providers.json",
+    );
+    expect(fill(zh.configureSavedTo, { path: "/tmp/providers.json" })).toContain(
+      "/tmp/providers.json",
+    );
+    expect(en.apiKeyNotSet).toContain("EVIR_API_KEY");
+    expect(zh.apiKeyNotSet).toContain("EVIR_API_KEY");
+    expect(en.notConfigured).toContain("evir configure");
+    expect(zh.notConfigured).toContain("evir configure");
+  });
 });
 
 describe("non-interactive refusal (CLI-2)", () => {

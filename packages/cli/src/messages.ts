@@ -48,6 +48,18 @@ Configure stores credentials in the operating system credential store shared wit
   doctorConnectionSkipped: "skipped — no API key",
   configInvalid: "Invalid provider configuration in {path}: {issues}",
   configureInvalid: "Invalid configure values: {issues}",
+  configureSavedTo: "Saved non-secret configuration to {path}",
+  configureKeySaved: "Saved the API key in the operating system credential store.",
+  configureKeyKept:
+    "Kept the existing credential. Set EVIR_API_KEY to replace it non-interactively.",
+  apiKeyNotSet: "EVIR_API_KEY is not set",
+  promptRequired: "A prompt is required",
+  agentRequiresToolCalling:
+    "Agent requires toolCalling: true. Re-run configure with --tool-calling",
+  hiddenApiKeyPrompt: "API key (hidden; leave blank to keep the existing credential): ",
+  configureCancelled: "Configuration cancelled",
+  notConfigured:
+    "Evir is not configured. Run: evir configure --protocol ... --base-url ... --model ...",
 };
 
 const zh: typeof en = {
@@ -94,6 +106,16 @@ configure 将凭据保存在与 Evir Desktop 共用的操作系统凭据库。As
   doctorConnectionSkipped: "已跳过 — 无 API Key",
   configInvalid: "{path} 中的 Provider 配置无效：{issues}",
   configureInvalid: "configure 参数无效：{issues}",
+  configureSavedTo: "已将非密钥配置保存到 {path}",
+  configureKeySaved: "已将 API Key 保存到操作系统凭据库。",
+  configureKeyKept: "已保留现有凭据。设置 EVIR_API_KEY 可非交互式替换。",
+  apiKeyNotSet: "未设置 EVIR_API_KEY",
+  promptRequired: "需要提示词",
+  agentRequiresToolCalling:
+    "Agent 需要 toolCalling: true。请使用 --tool-calling 重新运行 configure",
+  hiddenApiKeyPrompt: "API Key（隐藏输入；留空以保留现有凭据）： ",
+  configureCancelled: "配置已取消",
+  notConfigured: "Evir 尚未配置。请运行：evir configure --protocol ... --base-url ... --model ...",
 };
 
 export type CliStrings = typeof en;

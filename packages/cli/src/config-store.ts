@@ -10,6 +10,16 @@ import {
 
 const EMPTY_DOCUMENT: SharedProviderDocument = { version: 1, providers: [] };
 
+/** Thrown by {@link readConfig} when no provider is configured yet; cli.ts maps this to the localized `notConfigured` message. */
+export class NotConfiguredError extends Error {
+  constructor(
+    message = "Evir is not configured. Run: evir configure --protocol ... --base-url ... --model ...",
+  ) {
+    super(message);
+    this.name = "NotConfiguredError";
+  }
+}
+
 function defaultConfigRoot(environment: NodeJS.ProcessEnv = process.env): string {
   if (environment.EVIR_CONFIG_DIR) return path.join(environment.EVIR_CONFIG_DIR, "evir");
   if (process.platform === "win32") {
@@ -38,9 +48,7 @@ export async function readConfig(configPath = defaultConfigPath()): Promise<CliC
     raw = await readFile(legacyPath, "utf8");
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      throw new Error(
-        `Evir is not configured. Run: evir configure --protocol ... --base-url ... --model ...`,
-      );
+      throw new NotConfiguredError();
     }
     throw error;
   }
