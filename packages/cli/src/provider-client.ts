@@ -13,6 +13,7 @@ export interface ProviderTurn {
   toolCalls: ToolCall[];
   stopped: boolean;
   error?: string;
+  errorKind?: "config" | "provider";
 }
 
 export async function streamProvider(options: {
@@ -34,6 +35,7 @@ export async function streamProvider(options: {
       toolCalls: [],
       stopped: false,
       error: `Unsupported protocol: ${options.config.protocolId}`,
+      errorKind: "config",
     };
   }
   let content = "";
@@ -55,7 +57,7 @@ export async function streamProvider(options: {
     content,
     toolCalls: [...calls.values()],
     stopped: options.signal.aborted,
-    ...(error ? { error } : {}),
+    ...(error ? { error, errorKind: "provider" as const } : {}),
   };
 }
 
