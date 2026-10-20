@@ -1,5 +1,3 @@
-import * as vscode from "vscode";
-
 const en = {
   configure: "Configure provider",
   settings: "Provider settings",
@@ -105,7 +103,15 @@ const zh: typeof en = {
 };
 
 export type Strings = typeof en;
+export type Language = "en" | "zh";
 
-export function strings(): Strings {
-  return vscode.env.language.toLowerCase().startsWith("zh") ? zh : en;
+const catalogs: Record<Language, Strings> = { en, zh };
+
+/**
+ * English is the default catalog. The editor display language
+ * (`vscode.env.language`) is intentionally not used as a signal; Chinese is
+ * only selected when a caller passes an explicit `language`.
+ */
+export function strings(language?: Language): Strings {
+  return catalogs[language ?? "en"];
 }

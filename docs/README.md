@@ -6,7 +6,7 @@
 
 | 要找什么                                      | 去哪里                                                                               |
 | --------------------------------------------- | ------------------------------------------------------------------------------------ |
-| 项目是什么、安装使用                          | 根目录 `README.md` / `README.en.md`                                                  |
+| 项目是什么、安装使用                          | 根目录 `README.md` / `README.zh-CN.md`                                               |
 | 当前高密度事实索引（产品模型/架构/能力/约束） | [`agent/Evir-project-memory.md`](agent/Evir-project-memory.md)（索引，不创建新事实） |
 | 当前逐项验证状态（PASS/NOT RUN/BLOCKED）      | [`release-readiness.md`](release-readiness.md)                                       |
 | Coding Agent 规范                             | 根目录 `AGENTS.md`                                                                   |
