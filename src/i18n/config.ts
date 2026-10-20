@@ -3,14 +3,16 @@ import { initReactI18next } from "react-i18next";
 import en from "./locales/en.json";
 import zhCN from "./locales/zh-CN.json";
 
+/**
+ * English is the product default. The browser/system language is not used as a
+ * signal; only an explicit user choice persisted under `evir-language` wins.
+ */
 function initialLanguage(): string {
   const stored =
     typeof globalThis.localStorage === "undefined"
       ? null
       : globalThis.localStorage.getItem("evir-language");
-  const browserLanguage =
-    typeof globalThis.navigator === "undefined" ? "en" : globalThis.navigator.language;
-  return stored ?? browserLanguage;
+  return stored ?? "en";
 }
 
 void i18n.use(initReactI18next).init({

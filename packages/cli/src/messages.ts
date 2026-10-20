@@ -1,7 +1,7 @@
 /**
  * CLI-2 localization: help / doctor / approval copy in zh + en. Language is
- * `--lang` when given (zh|en), else the CLI process env (LANG startsWith zh),
- * else English. Keys stay stable; tests assert both locales.
+ * `--lang` when given (zh|en), else English. The process locale (LANG/LC_ALL)
+ * is intentionally not consulted. Keys stay stable; tests assert both locales.
  */
 
 const en = {
@@ -121,8 +121,7 @@ configure 将凭据保存在与 Evir Desktop 共用的操作系统凭据库。As
 export type CliStrings = typeof en;
 
 export function cliStrings(lang?: string): CliStrings {
-  const choice = lang ?? process.env.LANG ?? process.env.LC_ALL ?? "";
-  return choice.toLowerCase().startsWith("zh") ? zh : en;
+  return (lang ?? "").toLowerCase().startsWith("zh") ? zh : en;
 }
 
 /** Fill `{name}` placeholders in a message. */

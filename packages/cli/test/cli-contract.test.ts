@@ -37,6 +37,22 @@ describe("CLI argument surface", () => {
 });
 
 describe("CLI localization (CLI-2)", () => {
+  it("defaults to English regardless of the process locale; --lang zh selects zh", () => {
+    const previous = { LANG: process.env.LANG, LC_ALL: process.env.LC_ALL };
+    process.env.LANG = "zh_CN.UTF-8";
+    process.env.LC_ALL = "zh_CN.UTF-8";
+    try {
+      expect(cliStrings().approvalTitle).toBe("Approval required");
+      expect(cliStrings("en").approvalTitle).toBe("Approval required");
+      expect(cliStrings("zh").approvalTitle).toBe("需要审批");
+    } finally {
+      if (previous.LANG === undefined) delete process.env.LANG;
+      else process.env.LANG = previous.LANG;
+      if (previous.LC_ALL === undefined) delete process.env.LC_ALL;
+      else process.env.LC_ALL = previous.LC_ALL;
+    }
+  });
+
   it("zh and en cover the same keys with real copy", () => {
     const en = cliStrings("en");
     const zh = cliStrings("zh");
