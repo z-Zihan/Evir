@@ -1,3 +1,4 @@
+import { CliExitError } from "./exit-codes";
 import type { ParsedCommand } from "./types";
 
 export function parseArguments(argv: string[]): ParsedCommand {
@@ -49,7 +50,7 @@ export function parseArguments(argv: string[]): ParsedCommand {
       ...(lang !== undefined ? { lang } : {}),
     };
   }
-  throw new Error(`Unknown command: ${command}`);
+  throw new CliExitError(2, `Unknown command: ${command}`);
 }
 
 function parseFlags(values: string[]): Map<string, string | true> {

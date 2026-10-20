@@ -64,7 +64,7 @@ export async function runAgent(options: {
   onDelta: (text: string) => void;
   approve: (message: string) => Promise<boolean>;
   onEvent?: (event: AgentEvent) => void;
-}): Promise<{ content: string; error?: string }> {
+}): Promise<{ content: string; error?: string; errorKind?: "config" | "provider" | "runtime" }> {
   const startedAt = Date.now();
   options.onEvent?.({
     type: "run-start",
@@ -128,7 +128,13 @@ export async function runAgent(options: {
         options.onDelta(text);
       },
     });
-    if (turn.error) return { content: fullContent, error: turn.error };
+    if (turn.error) {
+      return {
+        content: fullContent,
+        error: turn.error,
+        ...(turn.errorKind ? { errorKind: turn.errorKind } : {}),
+      };
+    }
     if (turn.toolCalls.length === 0) {
       const verified = VERIFICATION_TOOLS.every(
         (name) => verificationRan[name] && !verificationFailed[name],
@@ -157,7 +163,13 @@ export async function runAgent(options: {
       const key = `${call.name}:${call.arguments}`;
       const count = (repeats.get(key) ?? 0) + 1;
       repeats.set(key, count);
-      if (count > 3) return { content: fullContent, error: `Loop detected for ${call.name}` };
+      if (count > 3) {
+        return {
+          content: fullContent,
+          error: `Loop detected for ${call.name}`,
+          errorKind: "runtime",
+        };
+      }
       const result = await executeTool(tools, call.name, call.arguments, {
         signal: options.signal,
         approve: options.approve,
@@ -178,6 +190,7 @@ export async function runAgent(options: {
       onEvent({ type: "failed", error: message });
       return message;
     })(),
+    errorKind: "runtime",
   };
 }
 

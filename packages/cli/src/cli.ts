@@ -9,6 +9,7 @@ import { envelopeEvent, runAgent, type AgentEvent } from "./agent";
 import { formatConfigError } from "./config-errors";
 import { defaultConfigPath, NotConfiguredError, readConfig, writeConfig } from "./config-store";
 import { getProviderCredential, setProviderCredential } from "./credential-store";
+import { CliExitError, toExitCode } from "./exit-codes";
 import { streamProvider, testProvider } from "./provider-client";
 import { cliConfigSchema } from "./types";
 import { resolveWorkspace } from "./workspace-boundary";
@@ -58,7 +59,10 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
-          throw new Error(fill(strings.configureInvalid, { issues: formatConfigError(error) }));
+          throw new CliExitError(
+            2,
+            fill(strings.configureInvalid, { issues: formatConfigError(error) }),
+          );
         }
         throw error;
       }
@@ -77,9 +81,9 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     if (command.command === "doctor") {
       return runDoctor(config, apiKey, command.json === true, strings);
     }
-    if (!apiKey) throw new Error(strings.apiKeyNotSet);
+    if (!apiKey) throw new CliExitError(3, strings.apiKeyNotSet);
     const prompt = command.prompt ?? (await readStdinPrompt());
-    if (!prompt.trim()) throw new Error(strings.promptRequired);
+    if (!prompt.trim()) throw new CliExitError(2, strings.promptRequired);
     const controller = new AbortController();
     const stop = () => controller.abort();
     process.once("SIGINT", stop);
@@ -93,11 +97,18 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
           onDelta: (text) => stdout.write(text),
         });
         stdout.write("\n");
-        if (result.error && !result.stopped) throw new Error(result.error);
+        if (result.error && !result.stopped) {
+          throw new CliExitError(result.errorKind === "config" ? 2 : 4, result.error);
+        }
         return result.stopped ? 130 : 0;
       }
-      if (!config.toolCalling) throw new Error(strings.agentRequiresToolCalling);
-      const workspace = await resolveWorkspace(command.workspace);
+      if (!config.toolCalling) throw new CliExitError(2, strings.agentRequiresToolCalling);
+      let workspace: string;
+      try {
+        workspace = await resolveWorkspace(command.workspace);
+      } catch (error) {
+        throw new CliExitError(5, error instanceof Error ? error.message : String(error));
+      }
       stderr.write(
         `${fill(strings.agentWorkspace, { workspace })}\n${fill(strings.agentDisclosure, { host: new URL(config.baseUrl).host })}\n`,
       );
@@ -118,7 +129,10 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
         },
       });
       stdout.write("\n");
-      if (result.error && !controller.signal.aborted) throw new Error(result.error);
+      if (result.error && !controller.signal.aborted) {
+        const code = result.errorKind === "runtime" ? 7 : result.errorKind === "config" ? 2 : 4;
+        throw new CliExitError(code, result.error);
+      }
       if (!controller.signal.aborted && !result.error && completedEvent) {
         const toolCallsTotal = Object.values(completedEvent.toolCalls).reduce(
           (sum, count) => sum + count,
@@ -141,18 +155,20 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     }
   } catch (error) {
     const message =
-      error instanceof z.ZodError
-        ? fill(strings.configInvalid, {
-            path: defaultConfigPath(),
-            issues: formatConfigError(error),
-          })
-        : error instanceof NotConfiguredError
-          ? strings.notConfigured
-          : error instanceof Error
-            ? error.message
-            : "Unknown error";
+      error instanceof CliExitError
+        ? error.message
+        : error instanceof z.ZodError
+          ? fill(strings.configInvalid, {
+              path: defaultConfigPath(),
+              issues: formatConfigError(error),
+            })
+          : error instanceof NotConfiguredError
+            ? strings.notConfigured
+            : error instanceof Error
+              ? error.message
+              : "Unknown error";
     stderr.write(`evir: ${message}\n`);
-    return 1;
+    return toExitCode(error);
   }
 }
 

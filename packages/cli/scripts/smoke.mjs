@@ -152,6 +152,19 @@ try {
     throw new Error(`doctor without an API key did not mention missing key guidance: ${noKeyText}`);
   process.stdout.write("CLI doctor missing-api-key smoke passed\n");
 
+  // docs/20 §6.2: a missing credential outside doctor maps to exit code 3
+  // (credential/auth error), distinct from doctor's own 0/1/2 scheme.
+  const askNoKeyResult = await runCli(["ask", "hello"], noKeyEnv);
+  if (askNoKeyResult.code !== 3)
+    throw new Error(
+      `ask without an API key exited with ${askNoKeyResult.code}, expected 3: ${askNoKeyResult.errorOutput}`,
+    );
+  if (!askNoKeyResult.errorOutput.includes("EVIR_API_KEY"))
+    throw new Error(
+      `ask without an API key did not mention missing key guidance: ${askNoKeyResult.errorOutput}`,
+    );
+  process.stdout.write("CLI ask missing-api-key exit-code smoke passed\n");
+
   const corruptConfigDirectory = path.join(temporary, "config-corrupt");
   await mkdir(path.join(corruptConfigDirectory, "evir"), { recursive: true });
   await writeFile(
@@ -160,9 +173,9 @@ try {
   );
   const corruptEnv = { ...baseEnv, EVIR_CONFIG_DIR: corruptConfigDirectory };
   const doctorCorruptResult = await runCli(["doctor"], corruptEnv);
-  if (doctorCorruptResult.code !== 1)
+  if (doctorCorruptResult.code !== 2)
     throw new Error(
-      `doctor with a corrupt config exited with ${doctorCorruptResult.code}, expected 1: ${doctorCorruptResult.errorOutput}`,
+      `doctor with a corrupt config exited with ${doctorCorruptResult.code}, expected 2: ${doctorCorruptResult.errorOutput}`,
     );
   const corruptText = `${doctorCorruptResult.output}${doctorCorruptResult.errorOutput}`;
   if (!corruptText.includes("Invalid provider configuration"))
