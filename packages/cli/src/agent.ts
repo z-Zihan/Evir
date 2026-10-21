@@ -1,3 +1,4 @@
+import type { ProviderErrorType } from "../../../src/core/providers/stream-events";
 import type { CliConfig } from "./types";
 import { streamProvider } from "./provider-client";
 import { createWorkspaceTools, type CliTool } from "./workspace-tools";
@@ -33,7 +34,13 @@ export type AgentEvent =
       verified: boolean;
       elapsedMs: number;
     }
-  | { type: "failed"; error: string };
+  | {
+      type: "failed";
+      error: string;
+      errorKind?: "config" | "provider" | "runtime";
+      errorType?: ProviderErrorType;
+      retryable?: boolean;
+    };
 
 /** Tools whose combined success gates the `completed` event's `verified` flag. */
 const VERIFICATION_TOOLS = ["run_command", "git_status", "git_diff"] as const;
@@ -64,7 +71,13 @@ export async function runAgent(options: {
   onDelta: (text: string) => void;
   approve: (message: string) => Promise<boolean>;
   onEvent?: (event: AgentEvent) => void;
-}): Promise<{ content: string; error?: string; errorKind?: "config" | "provider" | "runtime" }> {
+}): Promise<{
+  content: string;
+  error?: string;
+  errorKind?: "config" | "provider" | "runtime";
+  errorType?: ProviderErrorType;
+  retryable?: boolean;
+}> {
   const startedAt = Date.now();
   options.onEvent?.({
     type: "run-start",
@@ -133,6 +146,8 @@ export async function runAgent(options: {
         content: fullContent,
         error: turn.error,
         ...(turn.errorKind ? { errorKind: turn.errorKind } : {}),
+        ...(turn.errorType ? { errorType: turn.errorType } : {}),
+        ...(turn.retryable !== undefined ? { retryable: turn.retryable } : {}),
       };
     }
     if (turn.toolCalls.length === 0) {
@@ -187,7 +202,7 @@ export async function runAgent(options: {
     content: fullContent,
     error: (() => {
       const message = "Agent reached the 10-step safety limit";
-      onEvent({ type: "failed", error: message });
+      onEvent({ type: "failed", error: message, errorKind: "runtime" });
       return message;
     })(),
     errorKind: "runtime",

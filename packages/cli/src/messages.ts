@@ -60,6 +60,11 @@ Configure stores credentials in the operating system credential store shared wit
   configureCancelled: "Configuration cancelled",
   notConfigured:
     "Evir is not configured. Run: evir configure --protocol ... --base-url ... --model ...",
+  providerErrorHintAuth:
+    "Credential or authentication failed: check EVIR_API_KEY or re-run evir configure.",
+  providerErrorHintGeneric:
+    "Provider request failed: check the network and provider service status.",
+  providerErrorHintRetryable: "It may succeed if you retry later.",
 };
 
 const zh: typeof en = {
@@ -116,6 +121,9 @@ configure 将凭据保存在与 Evir Desktop 共用的操作系统凭据库。As
   hiddenApiKeyPrompt: "API Key（隐藏输入；留空以保留现有凭据）： ",
   configureCancelled: "配置已取消",
   notConfigured: "Evir 尚未配置。请运行：evir configure --protocol ... --base-url ... --model ...",
+  providerErrorHintAuth: "凭据或认证失败：请检查 EVIR_API_KEY 或重新运行 evir configure。",
+  providerErrorHintGeneric: "Provider 请求失败：请检查网络与 Provider 服务状态。",
+  providerErrorHintRetryable: "可稍后重试。",
 };
 
 export type CliStrings = typeof en;
