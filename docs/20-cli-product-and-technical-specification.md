@@ -77,20 +77,20 @@ evir agent [task] [--workspace <path>]
 
 ## 5. 状态与失败恢复
 
-| 状态              | 人类输出                          | 下一步                      | 当前状态                                                                                                       |
-| ----------------- | --------------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| 未配置            | 简短原因 + 完整 configure 示例    | 运行 configure              | 已实现基础文本                                                                                                 |
-| 配置缺参数        | 缺失字段 + 示例/TTY 向导          | 补充或交互输入              | **当前输出原始 Zod JSON**                                                                                      |
-| 凭据缺失          | Provider ID + 设置方式            | configure 或 `EVIR_API_KEY` | 已实现基础文本                                                                                                 |
-| Doctor testing    | 配置、协议、模型、密钥状态        | 等待/取消                   | 已实现                                                                                                         |
-| Provider 失败     | 分类、简短原因、修复命令          | 重试/改配置                 | 退出码 3/4 按认证/余额/CORS 族与其余 Provider 错误分类已实现；本地化修复指引已实现（简短提示，非完整配置向导） |
-| Ask streaming     | stdout 文本 delta                 | Ctrl+C                      | 已实现                                                                                                         |
-| Agent running     | step/tool/elapsed                 | Ctrl+C                      | 已实现基础结构化事件                                                                                           |
-| Approval          | 工具、风险、作用域、影响、默认 No | y/N                         | 已实现基础预览                                                                                                 |
-| Non-TTY write     | 明确拒绝                          | 改用 TTY 或只读             | 已实现                                                                                                         |
-| Verification      | 命令、退出码、摘要                | 修复或重试                  | 已实现基础验证标志                                                                                             |
-| Completed/partial | 结果、变更、验证、遗留            | 检查 Diff/继续              | 已实现基础摘要                                                                                                 |
-| Cancelled         | stopped + 已完成影响              | 安全重跑                    | 退出码 130 已实现                                                                                              |
+| 状态              | 人类输出                          | 下一步                      | 当前状态                                                                                                                   |
+| ----------------- | --------------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| 未配置            | 简短原因 + 完整 configure 示例    | 运行 configure              | 已实现基础文本                                                                                                             |
+| 配置缺参数        | 缺失字段 + 示例/TTY 向导          | 补充或交互输入              | **当前输出原始 Zod JSON**                                                                                                  |
+| 凭据缺失          | Provider ID + 设置方式            | configure 或 `EVIR_API_KEY` | 已实现基础文本                                                                                                             |
+| Doctor testing    | 配置、协议、模型、密钥状态        | 等待/取消                   | 已实现                                                                                                                     |
+| Provider 失败     | 分类、简短原因、修复命令          | 重试/改配置                 | 退出码 3/4 按凭据/余额族与其余 Provider 错误分类已实现（连接失败类归 4）；本地化修复指引已实现（简短提示，非完整配置向导） |
+| Ask streaming     | stdout 文本 delta                 | Ctrl+C                      | 已实现                                                                                                                     |
+| Agent running     | step/tool/elapsed                 | Ctrl+C                      | 已实现基础结构化事件                                                                                                       |
+| Approval          | 工具、风险、作用域、影响、默认 No | y/N                         | 已实现基础预览                                                                                                             |
+| Non-TTY write     | 明确拒绝                          | 改用 TTY 或只读             | 已实现                                                                                                                     |
+| Verification      | 命令、退出码、摘要                | 修复或重试                  | 已实现基础验证标志                                                                                                         |
+| Completed/partial | 结果、变更、验证、遗留            | 检查 Diff/继续              | 已实现基础摘要                                                                                                             |
+| Cancelled         | stopped + 已完成影响              | 安全重跑                    | 退出码 130 已实现                                                                                                          |
 
 ## 6. stdout、stderr 与退出码
 
@@ -118,7 +118,7 @@ evir agent [task] [--workspace <path>]
 | 7    | 工具或验证失败             |
 | 130  | SIGINT 取消                |
 
-当前实现：上表已落地并有单元/集成测试覆盖。说明 6（审批拒绝/非交互审批不可用）当前无产生路径——非 TTY 下拒绝写入/命令是工具级拒绝（工具结果里返回失败文案，交给模型续写），不会终止 Agent 运行或改变进程退出码；该码位保留给未来需要终止运行的审批场景。Provider 运行错误已细分：共享层 `ProviderErrorType`（`src/core/providers/stream-events.ts`）里 `AUTH_FAILED`、`INSUFFICIENT_BALANCE`、`CORS_BLOCKED`（CORS 本质是浏览器侧凭据/来源策略失败，Node `fetch` 在预连接阶段抛出的 `TypeError` 与之不可区分，归入同一凭据/认证族）归码 3；其余（`RATE_LIMITED`、`NETWORK_ERROR`、`MODEL_NOT_FOUND`、`CONTEXT_OVERFLOW`、`TOOL_CALL_UNSUPPORTED`、`VISION_UNSUPPORTED`、`PROTOCOL_INCOMPATIBLE`、`PROVIDER_ERROR`、`CANCELLED`）归码 4；分类函数为 `packages/cli/src/exit-codes.ts` 的 `mapProviderErrorTypeToExitCode`，有全枚举单元测试与 `ask`/`agent` 集成测试覆盖。真实跨平台网络异常/超时下各子类的实机验收仍属第 10 项 NOT RUN。Agent 循环检测与 10 步安全上限统一归 7（工具或验证失败）。
+当前实现：上表已落地并有单元/集成测试覆盖。说明 6（审批拒绝/非交互审批不可用）当前无产生路径——非 TTY 下拒绝写入/命令是工具级拒绝（工具结果里返回失败文案，交给模型续写），不会终止 Agent 运行或改变进程退出码；该码位保留给未来需要终止运行的审批场景。Provider 运行错误已细分：共享层 `ProviderErrorType`（`src/core/providers/stream-events.ts`）里 `AUTH_FAILED`、`INSUFFICIENT_BALANCE` 归码 3；其余（`RATE_LIMITED`、`NETWORK_ERROR`、`MODEL_NOT_FOUND`、`CONTEXT_OVERFLOW`、`TOOL_CALL_UNSUPPORTED`、`VISION_UNSUPPORTED`、`PROTOCOL_INCOMPATIBLE`、`PROVIDER_ERROR`、`CANCELLED`、`CORS_BLOCKED`）归码 4——CLI 运行在 Node 里没有浏览器 CORS 策略，`CORS_BLOCKED` 只能来自共享层 `mapThrownError`（`openai-chat-utils.ts`）的 `streamStarted === false` 分支：它把 Node `fetch` 在流开始前抛出的 `TypeError`（拒连、DNS 失败等，与浏览器 CORS 拒绝在 fetch 层不可区分）归类为该类型，在 CLI 语境下这是网络族失败而非凭据失败，因此归 4；分类函数为 `packages/cli/src/exit-codes.ts` 的 `mapProviderErrorTypeToExitCode`，有全枚举单元测试与 `ask`/`agent` 集成测试覆盖。真实跨平台网络异常/超时下各子类的实机验收仍属第 10 项 NOT RUN。Agent 循环检测与 10 步安全上限统一归 7（工具或验证失败）。
 
 ## 7. 技术架构
 

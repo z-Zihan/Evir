@@ -26,16 +26,20 @@ export function toExitCode(error: unknown): number {
 
 /**
  * docs/20 §6.2: splits Provider errors into the credential/auth exit family
- * (3) and everything else (4). CORS_BLOCKED is browser-side credential/origin
- * policy rather than a transport failure (see openai-chat-utils.ts
- * `mapThrownError`, which also uses it for a pre-stream connection failure in
- * Node's fetch), so it is grouped with AUTH_FAILED/INSUFFICIENT_BALANCE here.
+ * (3) and everything else (4). The CLI runs in Node, which has no browser
+ * CORS policy, so CORS_BLOCKED can only reach here via the shared
+ * `mapThrownError` (openai-chat-utils.ts) `streamStarted === false` branch:
+ * it classifies Node fetch's pre-stream TypeError (connection refused, DNS
+ * failure, etc.) as CORS_BLOCKED because that TypeError is indistinguishable
+ * from a browser CORS rejection at the fetch layer. In the CLI that is a
+ * network-family failure, not a credential one, so it maps to 4 here.
+ * AUTH_FAILED/INSUFFICIENT_BALANCE are genuine credential/auth failures and
+ * stay at 3.
  */
 export function mapProviderErrorTypeToExitCode(type: ProviderErrorType): number {
   switch (type) {
     case ProviderErrorType.AUTH_FAILED:
     case ProviderErrorType.INSUFFICIENT_BALANCE:
-    case ProviderErrorType.CORS_BLOCKED:
       return 3;
     case ProviderErrorType.RATE_LIMITED:
     case ProviderErrorType.NETWORK_ERROR:
@@ -45,6 +49,7 @@ export function mapProviderErrorTypeToExitCode(type: ProviderErrorType): number 
     case ProviderErrorType.VISION_UNSUPPORTED:
     case ProviderErrorType.PROTOCOL_INCOMPATIBLE:
     case ProviderErrorType.PROVIDER_ERROR:
+    case ProviderErrorType.CORS_BLOCKED:
       return 4;
     case ProviderErrorType.CANCELLED:
       // Callers short-circuit on signal.aborted (130) before reaching this

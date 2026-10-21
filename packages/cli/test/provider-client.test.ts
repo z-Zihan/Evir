@@ -2,6 +2,7 @@ import { type AddressInfo, createServer } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
 import { streamProvider, testProvider } from "../src/provider-client";
 import { ProviderErrorType } from "../../../src/core/providers/stream-events";
+import { mapProviderErrorTypeToExitCode } from "../src/exit-codes";
 
 const servers: ReturnType<typeof createServer>[] = [];
 
@@ -90,9 +91,15 @@ describe("CLI provider streaming", () => {
     // `mapThrownError` (openai-chat-utils.ts) cannot distinguish them before
     // any response data arrives, so this classifies as CORS_BLOCKED rather
     // than NETWORK_ERROR. Verified empirically against a closed port before
-    // writing this assertion.
+    // writing this assertion. In the CLI, CORS_BLOCKED therefore means a
+    // pre-stream connection failure, which mapProviderErrorTypeToExitCode
+    // correctly routes to exit code 4 (network family), not 3
+    // (credential/auth family).
     const result = await testProvider(fixtureConfig("http://127.0.0.1:1/v1"), "fixture-key");
     expect(result.ok).toBe(false);
     expect(result.errorType).toBe(ProviderErrorType.CORS_BLOCKED);
+    expect(mapProviderErrorTypeToExitCode(result.errorType ?? ProviderErrorType.CORS_BLOCKED)).toBe(
+      4,
+    );
   });
 });

@@ -76,10 +76,9 @@ describe("toExitCode", () => {
 });
 
 describe("mapProviderErrorTypeToExitCode (docs/20 §6.2)", () => {
-  it("maps the credential/auth family (AUTH_FAILED, INSUFFICIENT_BALANCE, CORS_BLOCKED) to 3", () => {
+  it("maps the credential/auth family (AUTH_FAILED, INSUFFICIENT_BALANCE) to 3", () => {
     expect(mapProviderErrorTypeToExitCode(ProviderErrorType.AUTH_FAILED)).toBe(3);
     expect(mapProviderErrorTypeToExitCode(ProviderErrorType.INSUFFICIENT_BALANCE)).toBe(3);
-    expect(mapProviderErrorTypeToExitCode(ProviderErrorType.CORS_BLOCKED)).toBe(3);
   });
 
   it("maps every other Provider error type to 4", () => {
@@ -91,6 +90,7 @@ describe("mapProviderErrorTypeToExitCode (docs/20 §6.2)", () => {
     expect(mapProviderErrorTypeToExitCode(ProviderErrorType.VISION_UNSUPPORTED)).toBe(4);
     expect(mapProviderErrorTypeToExitCode(ProviderErrorType.PROTOCOL_INCOMPATIBLE)).toBe(4);
     expect(mapProviderErrorTypeToExitCode(ProviderErrorType.PROVIDER_ERROR)).toBe(4);
+    expect(mapProviderErrorTypeToExitCode(ProviderErrorType.CORS_BLOCKED)).toBe(4);
   });
 
   it("maps CANCELLED to 4 as a safety-net default (callers short-circuit on abort before this)", () => {
