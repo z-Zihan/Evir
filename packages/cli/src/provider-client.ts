@@ -1,5 +1,8 @@
 import { createConfiguredAdapter } from "../../../src/core/providers/adapter-registry";
-import type { ProviderStreamEvent } from "../../../src/core/providers/stream-events";
+import type {
+  ProviderErrorType,
+  ProviderStreamEvent,
+} from "../../../src/core/providers/stream-events";
 import type { CliConfig } from "./types";
 
 export interface ToolCall {
@@ -14,6 +17,9 @@ export interface ProviderTurn {
   stopped: boolean;
   error?: string;
   errorKind?: "config" | "provider";
+  /** Shared-layer classification of `error`, carried through for exit-code mapping and stderr hints. */
+  errorType?: ProviderErrorType;
+  retryable?: boolean;
 }
 
 export async function streamProvider(options: {
@@ -40,6 +46,8 @@ export async function streamProvider(options: {
   }
   let content = "";
   let error: string | undefined;
+  let errorType: ProviderErrorType | undefined;
+  let retryable: boolean | undefined;
   const calls = new Map<string, ToolCall>();
   for await (const event of adapter.stream({
     modelId: options.config.modelId,
@@ -51,17 +59,31 @@ export async function streamProvider(options: {
       content += text;
       options.onDelta(text);
     });
-    if (event.type === "error") error = event.error.message;
+    if (event.type === "error") {
+      error = event.error.message;
+      errorType = event.error.type;
+      retryable = event.error.retryable;
+    }
   }
   return {
     content,
     toolCalls: [...calls.values()],
     stopped: options.signal.aborted,
-    ...(error ? { error, errorKind: "provider" as const } : {}),
+    ...(error
+      ? {
+          error,
+          errorKind: "provider" as const,
+          ...(errorType ? { errorType } : {}),
+          ...(retryable !== undefined ? { retryable } : {}),
+        }
+      : {}),
   };
 }
 
-export async function testProvider(config: CliConfig, apiKey: string) {
+export async function testProvider(
+  config: CliConfig,
+  apiKey: string,
+): Promise<{ ok: boolean; error?: string; errorType?: ProviderErrorType }> {
   const adapter = createConfiguredAdapter(config.protocolId, {
     providerId: "evir-cli",
     baseUrl: config.baseUrl,
@@ -73,7 +95,13 @@ export async function testProvider(config: CliConfig, apiKey: string) {
     modelId: config.modelId,
     authConfig: { baseUrl: config.baseUrl, apiKey },
   });
-  return result.ok ? { ok: true } : { ok: false, error: result.error?.message ?? "Unknown error" };
+  return result.ok
+    ? { ok: true }
+    : {
+        ok: false,
+        error: result.error?.message ?? "Unknown error",
+        ...(result.error?.type ? { errorType: result.error.type } : {}),
+      };
 }
 
 function consume(

@@ -9,13 +9,45 @@ import { envelopeEvent, runAgent, type AgentEvent } from "./agent";
 import { formatConfigError } from "./config-errors";
 import { defaultConfigPath, NotConfiguredError, readConfig, writeConfig } from "./config-store";
 import { getProviderCredential, setProviderCredential } from "./credential-store";
-import { CliExitError, toExitCode } from "./exit-codes";
+import { CliExitError, mapProviderErrorTypeToExitCode, toExitCode } from "./exit-codes";
 import { streamProvider, testProvider } from "./provider-client";
+import { ProviderErrorType } from "../../../src/core/providers/stream-events";
 import { cliConfigSchema } from "./types";
 import { resolveWorkspace } from "./workspace-boundary";
 import { cliStrings, fill, type CliStrings } from "./messages";
 
 const VERSION = "0.1.0";
+
+/** docs/20 §6.2: exit code 3 (credential/auth) is the auth-family split point for the stderr hint. */
+const AUTH_EXIT_CODE = 3;
+
+/** Short, un-localized machine tags for `doctor`'s provider-connection detail line. */
+const PROVIDER_ERROR_TAGS: Record<ProviderErrorType, string> = {
+  [ProviderErrorType.AUTH_FAILED]: "auth",
+  [ProviderErrorType.CORS_BLOCKED]: "cors",
+  [ProviderErrorType.RATE_LIMITED]: "rate-limit",
+  [ProviderErrorType.INSUFFICIENT_BALANCE]: "balance",
+  [ProviderErrorType.MODEL_NOT_FOUND]: "model",
+  [ProviderErrorType.CONTEXT_OVERFLOW]: "context",
+  [ProviderErrorType.TOOL_CALL_UNSUPPORTED]: "tool-calling",
+  [ProviderErrorType.VISION_UNSUPPORTED]: "vision",
+  [ProviderErrorType.PROTOCOL_INCOMPATIBLE]: "protocol",
+  [ProviderErrorType.NETWORK_ERROR]: "network",
+  [ProviderErrorType.PROVIDER_ERROR]: "provider",
+  [ProviderErrorType.CANCELLED]: "cancelled",
+};
+
+/** stderr-only fix-it line appended after a Provider error's unmodified message. */
+function providerErrorHint(
+  exitCode: number,
+  retryable: boolean | undefined,
+  strings: CliStrings,
+): string {
+  if (exitCode === AUTH_EXIT_CODE) return strings.providerErrorHintAuth;
+  return retryable
+    ? `${strings.providerErrorHintGeneric} ${strings.providerErrorHintRetryable}`
+    : strings.providerErrorHintGeneric;
+}
 
 export async function main(argv = process.argv.slice(2)): Promise<number> {
   let strings: CliStrings = cliStrings();
@@ -98,7 +130,10 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
         });
         stdout.write("\n");
         if (result.error && !result.stopped) {
-          throw new CliExitError(result.errorKind === "config" ? 2 : 4, result.error);
+          if (result.errorKind === "config") throw new CliExitError(2, result.error);
+          const code = result.errorType ? mapProviderErrorTypeToExitCode(result.errorType) : 4;
+          const hint = providerErrorHint(code, result.retryable, strings);
+          throw new CliExitError(code, `${result.error}\n${hint}`);
         }
         return result.stopped ? 130 : 0;
       }
@@ -130,8 +165,19 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
       });
       stdout.write("\n");
       if (result.error && !controller.signal.aborted) {
-        const code = result.errorKind === "runtime" ? 7 : result.errorKind === "config" ? 2 : 4;
-        throw new CliExitError(code, result.error);
+        const code =
+          result.errorKind === "runtime"
+            ? 7
+            : result.errorKind === "config"
+              ? 2
+              : result.errorType
+                ? mapProviderErrorTypeToExitCode(result.errorType)
+                : 4;
+        const message =
+          result.errorKind === "provider"
+            ? `${result.error}\n${providerErrorHint(code, result.retryable, strings)}`
+            : result.error;
+        throw new CliExitError(code, message);
       }
       if (!controller.signal.aborted && !result.error && completedEvent) {
         const toolCallsTotal = Object.values(completedEvent.toolCalls).reduce(
@@ -246,12 +292,15 @@ async function runDoctor(
 
   if (apiKey) {
     const result = await testProvider(config, apiKey);
+    const tag = result.errorType ? ` [${PROVIDER_ERROR_TAGS[result.errorType]}]` : "";
     checks.push({
       name: "provider-connection",
       status: result.ok ? "ok" : "fail",
       detail: result.ok
         ? strings.doctorConnectionOk
-        : fill(strings.doctorConnectionFailed, { error: result.error ? `: ${result.error}` : "" }),
+        : fill(strings.doctorConnectionFailed, {
+            error: result.error ? `: ${result.error}${tag}` : tag,
+          }),
     });
   } else {
     checks.push({
