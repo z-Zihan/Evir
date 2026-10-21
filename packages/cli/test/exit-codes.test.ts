@@ -1,12 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { CliExitError, toExitCode } from "../src/exit-codes";
+import { CliExitError, mapProviderErrorTypeToExitCode, toExitCode } from "../src/exit-codes";
 import { NotConfiguredError, readConfig } from "../src/config-store";
 import { getProviderCredential } from "../src/credential-store";
 import { streamProvider } from "../src/provider-client";
 import { resolveWorkspace } from "../src/workspace-boundary";
 import { runAgent } from "../src/agent";
 import { main } from "../src/cli";
+import { ProviderErrorType } from "../../../src/core/providers/stream-events";
 
 /**
  * docs/20 §6.2 target exit-code table: CliExitError/toExitCode unit
@@ -74,6 +75,29 @@ describe("toExitCode", () => {
   });
 });
 
+describe("mapProviderErrorTypeToExitCode (docs/20 §6.2)", () => {
+  it("maps the credential/auth family (AUTH_FAILED, INSUFFICIENT_BALANCE, CORS_BLOCKED) to 3", () => {
+    expect(mapProviderErrorTypeToExitCode(ProviderErrorType.AUTH_FAILED)).toBe(3);
+    expect(mapProviderErrorTypeToExitCode(ProviderErrorType.INSUFFICIENT_BALANCE)).toBe(3);
+    expect(mapProviderErrorTypeToExitCode(ProviderErrorType.CORS_BLOCKED)).toBe(3);
+  });
+
+  it("maps every other Provider error type to 4", () => {
+    expect(mapProviderErrorTypeToExitCode(ProviderErrorType.RATE_LIMITED)).toBe(4);
+    expect(mapProviderErrorTypeToExitCode(ProviderErrorType.NETWORK_ERROR)).toBe(4);
+    expect(mapProviderErrorTypeToExitCode(ProviderErrorType.MODEL_NOT_FOUND)).toBe(4);
+    expect(mapProviderErrorTypeToExitCode(ProviderErrorType.CONTEXT_OVERFLOW)).toBe(4);
+    expect(mapProviderErrorTypeToExitCode(ProviderErrorType.TOOL_CALL_UNSUPPORTED)).toBe(4);
+    expect(mapProviderErrorTypeToExitCode(ProviderErrorType.VISION_UNSUPPORTED)).toBe(4);
+    expect(mapProviderErrorTypeToExitCode(ProviderErrorType.PROTOCOL_INCOMPATIBLE)).toBe(4);
+    expect(mapProviderErrorTypeToExitCode(ProviderErrorType.PROVIDER_ERROR)).toBe(4);
+  });
+
+  it("maps CANCELLED to 4 as a safety-net default (callers short-circuit on abort before this)", () => {
+    expect(mapProviderErrorTypeToExitCode(ProviderErrorType.CANCELLED)).toBe(4);
+  });
+});
+
 describe("main() exit codes (docs/20 §6.2)", () => {
   const previousApiKey = process.env.EVIR_API_KEY;
 
@@ -109,6 +133,35 @@ describe("main() exit codes (docs/20 §6.2)", () => {
       error: "Provider request failed",
     });
     expect(await main(["ask", "hi"])).toBe(4);
+  });
+
+  it("returns 3 when the Provider stream reports an AUTH_FAILED error", async () => {
+    process.env.EVIR_API_KEY = "test-key";
+    vi.mocked(readConfig).mockResolvedValueOnce(baseConfig);
+    vi.mocked(streamProvider).mockResolvedValueOnce({
+      content: "",
+      toolCalls: [],
+      stopped: false,
+      error: "Invalid API key",
+      errorKind: "provider",
+      errorType: ProviderErrorType.AUTH_FAILED,
+      retryable: false,
+    });
+    expect(await main(["ask", "hi"])).toBe(3);
+  });
+
+  it("returns 3 and propagates errorType for an Agent run that fails on AUTH_FAILED", async () => {
+    process.env.EVIR_API_KEY = "test-key";
+    vi.mocked(readConfig).mockResolvedValueOnce(baseConfig);
+    vi.mocked(resolveWorkspace).mockResolvedValueOnce("/tmp/workspace");
+    vi.mocked(runAgent).mockResolvedValueOnce({
+      content: "",
+      error: "Invalid API key",
+      errorKind: "provider",
+      errorType: ProviderErrorType.AUTH_FAILED,
+      retryable: false,
+    });
+    expect(await main(["agent", "fix", "bug"])).toBe(3);
   });
 
   it("returns 5 when workspace resolution fails", async () => {
