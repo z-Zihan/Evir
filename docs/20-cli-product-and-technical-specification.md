@@ -73,7 +73,7 @@ evir agent [task] [--workspace <path>]
 5. 非 TTY 环境拒绝写入和命令；只读工具仍受步骤/输出/循环限制。
 6. 完成前运行合适验证，输出变更、验证、错误和未完成项。
 
-当前实现已完成工作区边界、逐次审批、10 步上限、重复调用检测和基础完成摘要（步骤/工具调用/写入成败/验证标志/耗时）；长输出 Artifact 仍未实现。
+当前实现已完成工作区边界、逐次审批、10 步上限、重复调用检测、基础完成摘要（步骤/工具调用/写入成败/验证标志/耗时）和长输出 Artifact（见 §9）。
 
 ## 5. 状态与失败恢复
 
@@ -103,6 +103,7 @@ evir agent [task] [--workspace <path>]
 - 已实现：`agent --json` 的每一行都是 `{ schemaVersion: 1, timestamp, command: "agent", event }` 的换行分隔信封，`event` 即原始的 CLI-2 载荷。
 - 已实现：`completed` 事件附加统计字段 `toolCalls`（按工具名次数）、`writes`（写类工具 ok/failed 计数）、`verified`（`run_command`/`git_status`/`git_diff` 全部成功才为 true）和 `elapsedMs`（运行墙钟耗时）；Agent 运行结束时还会在 stderr 输出一行本地化人类摘要（zh/en）。
 - 已实现：`failed` 事件新增可选字段 `errorKind`（`config`/`provider`/`runtime`）、`errorType`（共享层 `ProviderErrorType` 枚举）、`retryable`；均为 additive，不影响 `schemaVersion`，Provider 运行错误以外的失败（配置、循环/步骤上限）仅填 `errorKind`。
+- 已实现：`ok: true` 的 `tool-result` 事件新增可选字段 `artifact: { path, bytes }`，仅当该次工具输出触发 §9 的 256KB 落盘时出现；为 additive 字段，不影响 `schemaVersion`。
 
 ### 6.2 目标退出码
 
@@ -178,6 +179,7 @@ types → argument/config repositories → provider/tool services → agent runt
 - 不把完整 Prompt、文件正文、Authorization、Cookie、环境变量或 Provider 原始请求写入日志。
 - CLI 冷启动不加载 MCP/Skill/浏览器模块，不扫描工作区；只有 Agent 调用具体工具时读取目标。
 - 单次工具输出超过 256KB 时应写 Artifact/临时文件并返回摘要；不得把 1MB+ 输出长期留在 Agent 消息和终端内存。
+- 已实现：CLI 侧阈值为 256 * 1024 字节（精确等于该值不落盘，超出 1 字节即落盘）；超限输出整份写入 `<workspace>/.evir/artifacts/<UTC 时间戳>-<pid>-<序号>-<工具名>.txt`，模型侧收到的摘要只含字节数、前 4KB 预览（含截断标记）和该 Artifact 相对路径，并提示可用 `read_file` 分段读取；磁盘写入失败时降级为仅返回预览 + 失败原因，不抛错，也不产生 `artifact` 字段。`read_file` 本身超过 256KB 仍直接报错，不落盘、不走该路径。`search_files` 的目录遍历跳过 `.evir`，避免 Artifact 文件污染搜索结果。
 
 ## 10. 多语言与终端 UI
 
@@ -216,7 +218,7 @@ pnpm --dir packages/cli pack:check
 - [ ] 友好配置向导和错误分类，不输出原始 Zod JSON（Provider 错误子分类的 CLI 侧已落地：§6.2 的 `mapProviderErrorTypeToExitCode` + stderr 修复指引 + `doctor` 短标签；交互式配置向导与 Zod JSON 的替换展示仍未做）。
 - [ ] 中英文人类输出与完整消息目录。
 - [x] 版本化 JSON/JSONL 运行事件、稳定 stdout/stderr 和退出码表（本次范围：§6.2 全部码位已映射并有单元/集成测试；跨平台真实 Provider 网络异常/超时下的码位验收仍属第 10 项 NOT RUN）。
-- [x] Agent step/tool/verification/completion 摘要和长输出 Artifact（本次范围：完成摘要 + 事件统计字段；长输出 Artifact 仍未实现）。
+- [x] Agent step/tool/verification/completion 摘要和长输出 Artifact（本次范围：完成摘要 + 事件统计字段；长输出 Artifact CLI 侧已实现——工具输出超 256KB 落盘 `.evir/artifacts/` 并返回摘要，`tool-result` 事件附带 `artifact` 字段；`read_file` 超限仍直接报错；真实 Provider 端到端验收仍 NOT RUN）。
 - [ ] macOS/Windows/Linux 的真实 Keyring、安装/升级/卸载验收。
 - [ ] 真实 Provider、网络异常、超时、停止和长任务验收。
 

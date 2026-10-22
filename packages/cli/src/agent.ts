@@ -1,4 +1,5 @@
 import type { ProviderErrorType } from "../../../src/core/providers/stream-events";
+import { spillIfTooLarge } from "./artifacts";
 import type { CliConfig } from "./types";
 import { streamProvider } from "./provider-client";
 import { createWorkspaceTools, type CliTool } from "./workspace-tools";
@@ -25,7 +26,12 @@ export type AgentEvent =
   | { type: "run-start"; promptChars: number; workspace: string }
   | { type: "step"; step: number }
   | { type: "approval"; tool: string; approved: boolean }
-  | { type: "tool-result"; tool: string; ok: boolean }
+  | {
+      type: "tool-result";
+      tool: string;
+      ok: boolean;
+      artifact?: { path: string; bytes: number };
+    }
   | {
       type: "completed";
       steps: number;
@@ -189,6 +195,7 @@ export async function runAgent(options: {
         signal: options.signal,
         approve: options.approve,
         onEvent,
+        root: options.workspace,
       });
       messages.push({
         role: "tool",
@@ -217,6 +224,7 @@ async function executeTool(
     signal: AbortSignal;
     approve: (message: string) => Promise<boolean>;
     onEvent?: (event: AgentEvent) => void;
+    root: string;
   },
 ): Promise<string> {
   const tool = tools.find((candidate) => candidate.name === name);
@@ -240,8 +248,14 @@ async function executeTool(
   }
   try {
     const output = await tool.execute(args, options.signal);
-    options.onEvent?.({ type: "tool-result", tool: name, ok: true });
-    return output;
+    const spill = await spillIfTooLarge(options.root, name, output);
+    options.onEvent?.({
+      type: "tool-result",
+      tool: name,
+      ok: true,
+      ...(spill.artifact ? { artifact: spill.artifact } : {}),
+    });
+    return spill.content;
   } catch (error) {
     options.onEvent?.({ type: "tool-result", tool: name, ok: false });
     return error instanceof Error ? error.message : "Tool execution failed";
