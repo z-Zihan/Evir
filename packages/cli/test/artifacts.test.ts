@@ -131,7 +131,7 @@ vi.mock("../src/workspace-tools", async () => {
     risk: "read",
     parameters: { type: "object", properties: {}, additionalProperties: false },
     preview: () => "big_output_tool",
-    execute: async () => "b".repeat(SPILL_THRESHOLD_BYTES + 1000),
+    execute: () => Promise.resolve("b".repeat(SPILL_THRESHOLD_BYTES + 1000)),
   };
   return {
     ...actual,
@@ -185,7 +185,7 @@ describe("agent integration: tool output spill", () => {
       signal: new AbortController().signal,
       onDelta: () => undefined,
       approve: () => Promise.resolve(true),
-      onEvent: (event) => events.push(event as unknown as { type: string }),
+      onEvent: (event) => events.push(event),
     });
 
     expect(result.error).toBeUndefined();
