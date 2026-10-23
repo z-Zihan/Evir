@@ -186,7 +186,7 @@ async function walk(
 ): Promise<void> {
   if (matches.length >= 200) return;
   for (const entry of await readdir(directory, { withFileTypes: true })) {
-    if ([".git", "node_modules", "dist", "target"].includes(entry.name)) continue;
+    if ([".git", "node_modules", "dist", "target", ".evir"].includes(entry.name)) continue;
     const target = path.join(directory, entry.name);
     const relative = path.relative(root, target);
     if (relative.toLowerCase().includes(term)) matches.push(relative);
