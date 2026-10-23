@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
+import { createSpillSink, type SpillResult } from "./artifacts";
 import { resolveExistingWorkspacePath, resolveWritableWorkspacePath } from "./workspace-boundary";
 
 const MAX_BYTES = 256 * 1024;
@@ -12,7 +13,7 @@ export interface CliTool {
   risk: "read" | "write" | "execute";
   parameters: Record<string, unknown>;
   preview(args: unknown): string;
-  execute(args: unknown, signal: AbortSignal): Promise<string>;
+  execute(args: unknown, signal: AbortSignal): Promise<string | SpillResult>;
 }
 
 export function createWorkspaceTools(root: string): CliTool[] {
@@ -142,7 +143,8 @@ function runCommandTool(root: string): CliTool {
     },
     schema,
     (args) => `Run: ${[args.program, ...args.args].join(" ")}`,
-    (args, signal) => runProcess(args.program, args.args, root, args.timeoutMs, signal),
+    (args, signal) =>
+      runProcess(args.program, args.args, root, args.timeoutMs, signal, "run_command"),
   );
 }
 
@@ -155,7 +157,7 @@ function gitTool(root: string, name: string, args: string[]): CliTool {
     { type: "object", properties: {}, additionalProperties: false },
     schema,
     () => name,
-    (_args, signal) => runProcess("git", args, root, 30_000, signal),
+    (_args, signal) => runProcess("git", args, root, 30_000, signal, name),
   );
 }
 
@@ -166,7 +168,7 @@ function tool<T>(
   parameters: Record<string, unknown>,
   schema: z.ZodType<T>,
   preview: (args: T) => string,
-  execute: (args: T, signal: AbortSignal) => Promise<string>,
+  execute: (args: T, signal: AbortSignal) => Promise<string | SpillResult>,
 ): CliTool {
   return {
     name,
@@ -201,13 +203,19 @@ function runProcess(
   cwd: string,
   timeoutMs: number,
   signal: AbortSignal,
-): Promise<string> {
+  toolName: string,
+): Promise<string | SpillResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(program, args, { cwd, shell: false, windowsHide: true });
-    let output = "";
+    // Error-path output (non-zero exit / spawn error) keeps the old bounded
+    // in-memory capture and is never spilled to an artifact; only the
+    // success path streams through the sink below.
+    let errorOutput = "";
+    const sink = createSpillSink(cwd, toolName);
     const append = (chunk: Buffer) => {
-      const remaining = MAX_BYTES - Buffer.byteLength(output);
-      if (remaining > 0) output += chunk.subarray(0, remaining).toString("utf8");
+      const remaining = MAX_BYTES - Buffer.byteLength(errorOutput);
+      if (remaining > 0) errorOutput += chunk.subarray(0, remaining).toString("utf8");
+      sink.append(chunk);
     };
     child.stdout.on("data", append);
     child.stderr.on("data", append);
@@ -236,9 +244,19 @@ function runProcess(
       clearTimeout(timer);
       clearKillTimer();
       signal.removeEventListener("abort", stop);
-      if (signal.aborted) reject(new Error("Command stopped"));
-      else if (code === 0) resolve(output || "Command completed with no output.");
-      else reject(new Error(`Command exited with code ${code ?? "unknown"}\n${output}`));
+      if (signal.aborted) {
+        reject(new Error("Command stopped"));
+        return;
+      }
+      if (code !== 0) {
+        reject(new Error(`Command exited with code ${code ?? "unknown"}\n${errorOutput}`));
+        return;
+      }
+      sink.finish().then((result) => {
+        if (result.content === "" && !result.artifact) resolve("Command completed with no output.");
+        else if (result.artifact) resolve(result);
+        else resolve(result.content);
+      }, reject);
     });
   });
 }

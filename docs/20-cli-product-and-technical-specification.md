@@ -180,6 +180,7 @@ types → argument/config repositories → provider/tool services → agent runt
 - CLI 冷启动不加载 MCP/Skill/浏览器模块，不扫描工作区；只有 Agent 调用具体工具时读取目标。
 - 单次工具输出超过 256KB 时应写 Artifact/临时文件并返回摘要；不得把 1MB+ 输出长期留在 Agent 消息和终端内存。
 - 已实现：CLI 侧阈值为 256 * 1024 字节（精确等于该值不落盘，超出 1 字节即落盘）；超限输出整份写入 `<workspace>/.evir/artifacts/<UTC 时间戳>-<pid>-<序号>-<工具名>.txt`，模型侧收到的摘要只含字节数、前 4KB 预览（含截断标记）和该 Artifact 相对路径，并提示可用 `read_file` 分段读取；磁盘写入失败时降级为仅返回预览 + 失败原因，不抛错，也不产生 `artifact` 字段。`read_file` 本身超过 256KB 仍直接报错，不落盘、不走该路径。`search_files` 的目录遍历跳过 `.evir`，避免 Artifact 文件污染搜索结果。
+- 已实现：`run_command`/`git_status`/`git_diff` 的输出通过 `artifacts.ts` 的 `createSpillSink(root, toolName)` 流式落盘，而不是先在 `workspace-tools.ts` 里累积成一个完整字符串再检查阈值——此前两者的内存上限恰好都是 256KB，导致这三个工具的输出永远先被 `runProcess` 自身截断，从未真正达到落盘阈值，`tool-result` 的 `artifact` 字段对它们形同虚设。现在 sink 在内存中只缓冲到 256KB，一旦这次追加的 chunk 使累计字节超过阈值，就把已缓冲内容一次性写入 Artifact 文件（同一套 `.evir/artifacts/<时间戳>-<pid>-<序号>-<工具名>.txt` 命名），此后的 chunk 原样逐个 `appendFile` 追加，内存不再随输出增长（只保留落盘时刻那 4KB 预览）；成功退出（exit 0）时的工具返回值来自这条流式路径。失败路径（非零退出码 / 子进程 `error` 事件）维持原状：错误信息仍使用旧的、内存中按 256KB 截断的输出拼成，不落盘、不经过 sink 的摘要逻辑。sink 建立阶段（`mkdir`/`writeFile`）失败会降级为与 `spillIfTooLarge` 相同措辞的预览+失败原因摘要，不产生 `artifact` 字段；建立成功之后的某次追加写入（`appendFile`）失败则标记为 partial——摘要如实说明磁盘上只有已成功写入的字节数、输出不完整、未写入的剩余部分不可恢复，此时仍带 `artifact` 字段（`bytes` 为磁盘上的真实字节数，不是逻辑总字节数）。阈值内的输出行为与此前完全一致：按原样返回该工具的结果字符串，没有 `artifact` 字段。
 
 ## 10. 多语言与终端 UI
 
@@ -218,7 +219,7 @@ pnpm --dir packages/cli pack:check
 - [ ] 友好配置向导和错误分类，不输出原始 Zod JSON（Provider 错误子分类的 CLI 侧已落地：§6.2 的 `mapProviderErrorTypeToExitCode` + stderr 修复指引 + `doctor` 短标签；交互式配置向导与 Zod JSON 的替换展示仍未做）。
 - [ ] 中英文人类输出与完整消息目录。
 - [x] 版本化 JSON/JSONL 运行事件、稳定 stdout/stderr 和退出码表（本次范围：§6.2 全部码位已映射并有单元/集成测试；跨平台真实 Provider 网络异常/超时下的码位验收仍属第 10 项 NOT RUN）。
-- [x] Agent step/tool/verification/completion 摘要和长输出 Artifact（本次范围：完成摘要 + 事件统计字段；长输出 Artifact CLI 侧已实现——工具输出超 256KB 落盘 `.evir/artifacts/` 并返回摘要，`tool-result` 事件附带 `artifact` 字段；`read_file` 超限仍直接报错；真实 Provider 端到端验收仍 NOT RUN）。
+- [x] Agent step/tool/verification/completion 摘要和长输出 Artifact（本次范围：完成摘要 + 事件统计字段；长输出 Artifact CLI 侧已实现——工具输出超 256KB 落盘 `.evir/artifacts/` 并返回摘要，`tool-result` 事件附带 `artifact` 字段；`run_command`/`git_status`/`git_diff` 此前因与自身 256KB 捕获上限撞车而永远触不到这条落盘路径，现已改为流式落盘，三者也能真正触发并验证通过；`read_file` 超限仍直接报错；真实 Provider 端到端验收仍 NOT RUN）。
 - [ ] macOS/Windows/Linux 的真实 Keyring、安装/升级/卸载验收。
 - [ ] 真实 Provider、网络异常、超时、停止和长任务验收。
 

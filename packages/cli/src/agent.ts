@@ -1,5 +1,5 @@
 import type { ProviderErrorType } from "../../../src/core/providers/stream-events";
-import { spillIfTooLarge } from "./artifacts";
+import { spillIfTooLarge, type SpillResult } from "./artifacts";
 import type { CliConfig } from "./types";
 import { streamProvider } from "./provider-client";
 import { createWorkspaceTools, type CliTool } from "./workspace-tools";
@@ -248,14 +248,15 @@ async function executeTool(
   }
   try {
     const output = await tool.execute(args, options.signal);
-    const spill = await spillIfTooLarge(options.root, name, output);
+    const resolved: SpillResult =
+      typeof output === "string" ? await spillIfTooLarge(options.root, name, output) : output;
     options.onEvent?.({
       type: "tool-result",
       tool: name,
       ok: true,
-      ...(spill.artifact ? { artifact: spill.artifact } : {}),
+      ...(resolved.artifact ? { artifact: resolved.artifact } : {}),
     });
-    return spill.content;
+    return resolved.content;
   } catch (error) {
     options.onEvent?.({ type: "tool-result", tool: name, ok: false });
     return error instanceof Error ? error.message : "Tool execution failed";
