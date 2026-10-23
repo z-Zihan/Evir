@@ -209,4 +209,55 @@ describe("agent integration: tool output spill", () => {
     const onDisk = await stat(path.join(workspace, artifact.path));
     expect(onDisk.size).toBe(SPILL_THRESHOLD_BYTES + 1000);
   });
+
+  it("run_command: streams a >256KB real subprocess output to an artifact and reports it on the tool-result event", async () => {
+    const workspace = await makeGitWorkspace();
+    const totalBytes = 300 * 1024;
+
+    vi.mocked(streamProvider).mockReset();
+    vi.mocked(streamProvider).mockImplementationOnce(() =>
+      Promise.resolve({
+        content: "",
+        stopped: false,
+        toolCalls: [
+          {
+            id: "c1",
+            name: "run_command",
+            arguments: JSON.stringify({
+              program: process.execPath,
+              args: ["-e", `process.stdout.write("a".repeat(${totalBytes}))`],
+            }),
+          },
+        ],
+      }),
+    );
+    vi.mocked(streamProvider).mockImplementationOnce(() =>
+      Promise.resolve({ content: "done", stopped: false, toolCalls: [] }),
+    );
+
+    const events: Array<{ type: string; [key: string]: unknown }> = [];
+    const result = await runAgent({
+      config,
+      apiKey: "k",
+      prompt: "run it",
+      workspace,
+      signal: new AbortController().signal,
+      onDelta: () => undefined,
+      approve: () => Promise.resolve(true),
+      onEvent: (event) => events.push(event),
+    });
+
+    expect(result.error).toBeUndefined();
+    const toolResult = events.find(
+      (event) => event.type === "tool-result" && event.tool === "run_command",
+    );
+    if (!toolResult) throw new Error("no tool-result event for run_command");
+    expect(toolResult.ok).toBe(true);
+    const artifact = toolResult.artifact as { path: string; bytes: number } | undefined;
+    if (!artifact) throw new Error("expected an artifact field on the tool-result event");
+    expect(artifact.bytes).toBe(totalBytes);
+
+    const onDisk = await stat(path.join(workspace, artifact.path));
+    expect(onDisk.size).toBe(totalBytes);
+  }, 30_000);
 });

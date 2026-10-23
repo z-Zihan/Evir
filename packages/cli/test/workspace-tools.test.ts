@@ -1,8 +1,13 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { afterEach, describe, expect, it } from "vitest";
 import { createWorkspaceTools } from "../src/workspace-tools";
+import { resolveWorkspace } from "../src/workspace-boundary";
+import type { SpillResult } from "../src/artifacts";
+
+const SPILL_THRESHOLD_BYTES = 256 * 1024;
 
 const temporary: string[] = [];
 afterEach(async () => {
@@ -88,6 +93,48 @@ describe("CLI run_command process termination", () => {
       { program: process.execPath, args: ["-e", "console.log(42)"], timeoutMs: 1000 },
       new AbortController().signal,
     );
+    // Within the 256KB threshold, behavior is unchanged from before streaming
+    // spill support: a plain string, no `artifact` field.
+    expect(typeof output).toBe("string");
     expect(output).toContain("42");
   });
+});
+
+async function makeGitWorkspace(): Promise<string> {
+  const created = await mkdtemp(path.join(os.tmpdir(), "evir-cli-run-command-spill-"));
+  temporary.push(created);
+  const root = await resolveWorkspace(created);
+  spawnSync("git", ["init", "-q"], { cwd: root });
+  return root;
+}
+
+describe("CLI run_command artifact spill (real subprocess)", () => {
+  it("spills a >256KB stdout output to an artifact file with byte-identical content", async () => {
+    const root = await makeGitWorkspace();
+    const tools = createWorkspaceTools(root);
+    const run = tools.find((candidate) => candidate.name === "run_command")!;
+    const totalBytes = 300 * 1024;
+    const result = await run.execute(
+      {
+        program: process.execPath,
+        args: ["-e", `process.stdout.write("a".repeat(${totalBytes}))`],
+        timeoutMs: 30_000,
+      },
+      new AbortController().signal,
+    );
+
+    expect(typeof result).toBe("object");
+    const spill = result as SpillResult;
+    const artifact = spill.artifact;
+    if (!artifact) throw new Error("expected an artifact");
+    expect(artifact.bytes).toBe(totalBytes);
+    expect(spill.content.length).toBeLessThan(SPILL_THRESHOLD_BYTES);
+    expect(spill.content).toContain(artifact.path);
+    expect(spill.content.toLowerCase()).toContain("truncated");
+
+    const onDisk = await stat(path.join(root, artifact.path));
+    expect(onDisk.size).toBe(totalBytes);
+    const written = await readFile(path.join(root, artifact.path));
+    expect(Buffer.compare(written, Buffer.from("a".repeat(totalBytes)))).toBe(0);
+  }, 30_000);
 });
