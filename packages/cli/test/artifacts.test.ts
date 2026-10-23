@@ -123,9 +123,8 @@ describe("search_files skips .evir", () => {
 
 vi.mock("../src/provider-client", () => ({ streamProvider: vi.fn() }));
 vi.mock("../src/workspace-tools", async () => {
-  const actual = await vi.importActual<typeof import("../src/workspace-tools")>(
-    "../src/workspace-tools",
-  );
+  const actual =
+    await vi.importActual<typeof import("../src/workspace-tools")>("../src/workspace-tools");
   const bigOutputTool: CliTool = {
     name: "big_output_tool",
     description: "Test fixture: returns output over the spill threshold.",
@@ -162,56 +161,52 @@ describe("agent integration: tool output spill", () => {
     return root;
   }
 
-  it(
-    "replaces a >256KB tool output with a summary and reports the artifact on the tool-result event",
-    async () => {
-      const workspace = await makeGitWorkspace();
+  it("replaces a >256KB tool output with a summary and reports the artifact on the tool-result event", async () => {
+    const workspace = await makeGitWorkspace();
 
-      vi.mocked(streamProvider).mockReset();
-      vi.mocked(streamProvider).mockImplementationOnce(() =>
-        Promise.resolve({
-          content: "",
-          stopped: false,
-          toolCalls: [{ id: "c1", name: "big_output_tool", arguments: "{}" }],
-        }),
-      );
-      vi.mocked(streamProvider).mockImplementationOnce(() =>
-        Promise.resolve({ content: "done", stopped: false, toolCalls: [] }),
-      );
+    vi.mocked(streamProvider).mockReset();
+    vi.mocked(streamProvider).mockImplementationOnce(() =>
+      Promise.resolve({
+        content: "",
+        stopped: false,
+        toolCalls: [{ id: "c1", name: "big_output_tool", arguments: "{}" }],
+      }),
+    );
+    vi.mocked(streamProvider).mockImplementationOnce(() =>
+      Promise.resolve({ content: "done", stopped: false, toolCalls: [] }),
+    );
 
-      const events: Array<{ type: string; [key: string]: unknown }> = [];
-      const result = await runAgent({
-        config,
-        apiKey: "k",
-        prompt: "do it",
-        workspace,
-        signal: new AbortController().signal,
-        onDelta: () => undefined,
-        approve: () => Promise.resolve(true),
-        onEvent: (event) => events.push(event as unknown as { type: string }),
-      });
+    const events: Array<{ type: string; [key: string]: unknown }> = [];
+    const result = await runAgent({
+      config,
+      apiKey: "k",
+      prompt: "do it",
+      workspace,
+      signal: new AbortController().signal,
+      onDelta: () => undefined,
+      approve: () => Promise.resolve(true),
+      onEvent: (event) => events.push(event as unknown as { type: string }),
+    });
 
-      expect(result.error).toBeUndefined();
-      const toolResult = events.find(
-        (event) => event.type === "tool-result" && event.tool === "big_output_tool",
-      );
-      if (!toolResult) throw new Error("no tool-result event for big_output_tool");
-      expect(toolResult.ok).toBe(true);
-      const artifact = toolResult.artifact as { path: string; bytes: number } | undefined;
-      if (!artifact) throw new Error("expected an artifact field on the tool-result event");
-      expect(artifact.bytes).toBe(SPILL_THRESHOLD_BYTES + 1000);
+    expect(result.error).toBeUndefined();
+    const toolResult = events.find(
+      (event) => event.type === "tool-result" && event.tool === "big_output_tool",
+    );
+    if (!toolResult) throw new Error("no tool-result event for big_output_tool");
+    expect(toolResult.ok).toBe(true);
+    const artifact = toolResult.artifact as { path: string; bytes: number } | undefined;
+    if (!artifact) throw new Error("expected an artifact field on the tool-result event");
+    expect(artifact.bytes).toBe(SPILL_THRESHOLD_BYTES + 1000);
 
-      const secondCall = vi.mocked(streamProvider).mock.calls[1]?.[0] as
-        | { messages: Array<{ role: string; content: string }> }
-        | undefined;
-      if (!secondCall) throw new Error("streamProvider was not called a second time");
-      const toolMessage = secondCall.messages.find((message) => message.role === "tool");
-      if (!toolMessage) throw new Error("no tool message in the second turn");
-      expect(toolMessage.content.length).toBeLessThan(SPILL_THRESHOLD_BYTES);
-      expect(toolMessage.content).toContain(artifact.path);
+    const secondCall = vi.mocked(streamProvider).mock.calls[1]?.[0] as
+      { messages: Array<{ role: string; content: string }> } | undefined;
+    if (!secondCall) throw new Error("streamProvider was not called a second time");
+    const toolMessage = secondCall.messages.find((message) => message.role === "tool");
+    if (!toolMessage) throw new Error("no tool message in the second turn");
+    expect(toolMessage.content.length).toBeLessThan(SPILL_THRESHOLD_BYTES);
+    expect(toolMessage.content).toContain(artifact.path);
 
-      const onDisk = await stat(path.join(workspace, artifact.path));
-      expect(onDisk.size).toBe(SPILL_THRESHOLD_BYTES + 1000);
-    },
-  );
+    const onDisk = await stat(path.join(workspace, artifact.path));
+    expect(onDisk.size).toBe(SPILL_THRESHOLD_BYTES + 1000);
+  });
 });
