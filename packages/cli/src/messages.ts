@@ -58,6 +58,12 @@ Configure stores credentials in the operating system credential store shared wit
     "Agent requires toolCalling: true. Re-run configure with --tool-calling",
   hiddenApiKeyPrompt: "API key (hidden; leave blank to keep the existing credential): ",
   configureCancelled: "Configuration cancelled",
+  configureMissingArgs:
+    "Missing required options: {flags}\nExample: evir configure --protocol openai-chat-completions --base-url https://api.example.com/v1 --model gpt-4o",
+  configurePromptProtocol: "Protocol [{protocols}]: ",
+  configurePromptBaseUrl: "Base URL: ",
+  configurePromptModel: "Model ID: ",
+  configurePromptRetryBaseUrl: "Invalid URL, try again: ",
   notConfigured:
     "Evir is not configured. Run: evir configure --protocol ... --base-url ... --model ...",
   providerErrorHintAuth:
@@ -120,6 +126,12 @@ configure 将凭据保存在与 Evir Desktop 共用的操作系统凭据库。As
     "Agent 需要 toolCalling: true。请使用 --tool-calling 重新运行 configure",
   hiddenApiKeyPrompt: "API Key（隐藏输入；留空以保留现有凭据）： ",
   configureCancelled: "配置已取消",
+  configureMissingArgs:
+    "缺少必填选项：{flags}\n示例：evir configure --protocol openai-chat-completions --base-url https://api.example.com/v1 --model gpt-4o",
+  configurePromptProtocol: "协议 [{protocols}]： ",
+  configurePromptBaseUrl: "Base URL： ",
+  configurePromptModel: "模型 ID： ",
+  configurePromptRetryBaseUrl: "URL 无效，请重试： ",
   notConfigured: "Evir 尚未配置。请运行：evir configure --protocol ... --base-url ... --model ...",
   providerErrorHintAuth: "凭据或认证失败：请检查 EVIR_API_KEY 或重新运行 evir configure。",
   providerErrorHintGeneric: "Provider 请求失败：请检查网络与 Provider 服务状态。",
