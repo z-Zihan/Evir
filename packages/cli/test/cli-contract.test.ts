@@ -101,6 +101,11 @@ describe("CLI localization (CLI-2)", () => {
       "agentRequiresToolCalling",
       "hiddenApiKeyPrompt",
       "configureCancelled",
+      "configureMissingArgs",
+      "configurePromptProtocol",
+      "configurePromptBaseUrl",
+      "configurePromptModel",
+      "configurePromptRetryBaseUrl",
       "notConfigured",
     ] as const) {
       expect(en[key]).toBeTruthy();
@@ -117,6 +122,13 @@ describe("CLI localization (CLI-2)", () => {
     expect(zh.apiKeyNotSet).toContain("EVIR_API_KEY");
     expect(en.notConfigured).toContain("evir configure");
     expect(zh.notConfigured).toContain("evir configure");
+    expect(fill(en.configureMissingArgs, { flags: "--base-url, --model" })).toContain(
+      "--base-url, --model",
+    );
+    expect(en.configureMissingArgs).toContain("evir configure --protocol");
+    expect(zh.configureMissingArgs).toContain("evir configure --protocol");
+    expect(fill(en.configurePromptProtocol, { protocols: "a / b" })).toContain("a / b");
+    expect(fill(zh.configurePromptProtocol, { protocols: "a / b" })).toContain("a / b");
   });
 });
 

@@ -7,6 +7,12 @@ import { parseArguments } from "./arguments";
 import { requestApproval } from "./approval";
 import { envelopeEvent, runAgent, type AgentEvent } from "./agent";
 import { formatConfigError } from "./config-errors";
+import {
+  ConfigurePromptCancelled,
+  configureFlagName,
+  missingConfigureFields,
+  promptMissingConfigureValues,
+} from "./configure-prompt";
 import { defaultConfigPath, NotConfiguredError, readConfig, writeConfig } from "./config-store";
 import { getProviderCredential, setProviderCredential } from "./credential-store";
 import { CliExitError, mapProviderErrorTypeToExitCode, toExitCode } from "./exit-codes";
@@ -73,6 +79,29 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
         if (error instanceof NotConfiguredError) return undefined;
         throw error;
       });
+      const missing = missingConfigureFields(previous, command.values);
+      if (missing.length > 0) {
+        if (stdin.isTTY) {
+          try {
+            Object.assign(
+              command.values,
+              await promptMissingConfigureValues(missing, strings, stdin, stderr),
+            );
+          } catch (error) {
+            if (error instanceof ConfigurePromptCancelled) {
+              throw new CliExitError(2, strings.configureCancelled);
+            }
+            throw error;
+          }
+        } else {
+          throw new CliExitError(
+            2,
+            fill(strings.configureMissingArgs, {
+              flags: missing.map(configureFlagName).join(", "),
+            }),
+          );
+        }
+      }
       const now = Date.now();
       let config;
       try {
