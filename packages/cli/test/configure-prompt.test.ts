@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   ConfigurePromptCancelled,
   configureFlagName,
+  confirmConfigureSummary,
   missingConfigureFields,
   promptMissingConfigureValues,
 } from "../src/configure-prompt";
@@ -176,5 +177,80 @@ describe("promptMissingConfigureValues", () => {
     await expect(
       promptMissingConfigureValues(["modelId"], strings, input, output),
     ).rejects.toBeInstanceOf(ConfigurePromptCancelled);
+  });
+});
+
+describe("confirmConfigureSummary", () => {
+  const strings = cliStrings("en");
+  const summary = {
+    protocolId: "openai-compatible-chat",
+    baseUrl: "https://api.example.com/v1",
+    modelId: "gpt-4o",
+    apiKeyStatus: "will-prompt" as const,
+  };
+
+  it.each(["y", "yes", "Y", "YES", " y "])("confirms on %j", async (answer) => {
+    const input = sendLines([answer]);
+    const { output } = collectOutput();
+
+    await expect(confirmConfigureSummary(summary, strings, input, output)).resolves.toBe(true);
+  });
+
+  it.each(["n", "", "maybe"])("rejects on %j", async (answer) => {
+    const input = sendLines([answer]);
+    const { output } = collectOutput();
+
+    await expect(confirmConfigureSummary(summary, strings, input, output)).resolves.toBe(false);
+  });
+
+  it("rejects with ConfigurePromptCancelled on Ctrl+C (\\u0003)", async () => {
+    const input = sendLines(["\u0003"]);
+    const { output } = collectOutput();
+
+    await expect(confirmConfigureSummary(summary, strings, input, output)).rejects.toBeInstanceOf(
+      ConfigurePromptCancelled,
+    );
+  });
+
+  it("rejects with ConfigurePromptCancelled on EOF before an answer is given", async () => {
+    const input = new PassThrough();
+    input.end();
+    const { output } = collectOutput();
+
+    await expect(confirmConfigureSummary(summary, strings, input, output)).rejects.toBeInstanceOf(
+      ConfigurePromptCancelled,
+    );
+  });
+
+  it("echoes the merged field values for confirmation", async () => {
+    const input = sendLines(["y"]);
+    const { output, written } = collectOutput();
+
+    await confirmConfigureSummary(summary, strings, input, output);
+
+    expect(written()).toContain("openai-compatible-chat");
+    expect(written()).toContain("https://api.example.com/v1");
+    expect(written()).toContain("gpt-4o");
+  });
+
+  // ConfigureSummary never carries an API key field (see its type above), so
+  // the function has no value it could leak here by construction; the
+  // end-to-end proof that a real secret never reaches stderr lives in
+  // configure-missing-args.test.ts's EVIR_API_KEY integration test.
+  it("renders the status line that matches each apiKeyStatus", async () => {
+    const expectedLine = {
+      "none-required": strings.configureSummaryKeyNone,
+      "env-override": strings.configureSummaryKeyEnv,
+      "will-prompt": strings.configureSummaryKeyPrompt,
+    } as const;
+
+    for (const apiKeyStatus of Object.keys(expectedLine) as (keyof typeof expectedLine)[]) {
+      const input = sendLines(["y"]);
+      const { output, written } = collectOutput();
+
+      await confirmConfigureSummary({ ...summary, apiKeyStatus }, strings, input, output);
+
+      expect(written()).toContain(expectedLine[apiKeyStatus]);
+    }
   });
 });
