@@ -79,6 +79,52 @@ class LineReader {
   }
 }
 
+/** How the API key will be handled once the merged config is saved. */
+export type ConfigureApiKeyStatus = "none-required" | "env-override" | "will-prompt";
+
+export interface ConfigureSummary {
+  protocolId: string;
+  baseUrl: string;
+  modelId: string;
+  apiKeyStatus: ConfigureApiKeyStatus;
+}
+
+function configureSummaryKeyLine(status: ConfigureApiKeyStatus, strings: CliStrings): string {
+  switch (status) {
+    case "none-required":
+      return strings.configureSummaryKeyNone;
+    case "env-override":
+      return strings.configureSummaryKeyEnv;
+    case "will-prompt":
+      return strings.configureSummaryKeyPrompt;
+  }
+}
+
+/**
+ * docs/20 §4.1 step 2: once the missing-field prompt has filled in
+ * protocolId/baseUrl/modelId, echoes the merged values (never the API key
+ * itself) and asks for y/N before the caller proceeds to the hidden API key
+ * prompt and writeConfig. Builds its own LineReader over the same `input` —
+ * safe because promptMissingConfigureValues's reader never calls the
+ * iterator's `return()` (see the LineReader doc comment above).
+ */
+export async function confirmConfigureSummary(
+  summary: ConfigureSummary,
+  strings: CliStrings,
+  input: Readable,
+  output: Writable,
+): Promise<boolean> {
+  const reader = new LineReader(input);
+  output.write(strings.configureSummaryHeading);
+  output.write(fill(strings.configureSummaryProtocol, { protocolId: summary.protocolId }));
+  output.write(fill(strings.configureSummaryBaseUrl, { baseUrl: summary.baseUrl }));
+  output.write(fill(strings.configureSummaryModel, { modelId: summary.modelId }));
+  output.write(configureSummaryKeyLine(summary.apiKeyStatus, strings));
+  output.write(strings.configureSummaryConfirm);
+  const answer = (await reader.readLine()).trim();
+  return /^(y|yes)$/i.test(answer);
+}
+
 function isValidUrl(value: string): boolean {
   try {
     return Boolean(new URL(value));

@@ -8,6 +8,7 @@ import { requestApproval } from "./approval";
 import { envelopeEvent, runAgent, type AgentEvent } from "./agent";
 import { formatConfigError } from "./config-errors";
 import {
+  confirmConfigureSummary,
   ConfigurePromptCancelled,
   configureFlagName,
   missingConfigureFields,
@@ -126,6 +127,33 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
           );
         }
         throw error;
+      }
+      if (missing.length > 0 && stdin.isTTY) {
+        let confirmed: boolean;
+        try {
+          confirmed = await confirmConfigureSummary(
+            {
+              protocolId: config.protocolId,
+              baseUrl: config.baseUrl,
+              modelId: config.modelId,
+              apiKeyStatus:
+                config.protocolId === "ollama-native"
+                  ? "none-required"
+                  : process.env.EVIR_API_KEY
+                    ? "env-override"
+                    : "will-prompt",
+            },
+            strings,
+            stdin,
+            stderr,
+          );
+        } catch (error) {
+          if (error instanceof ConfigurePromptCancelled) {
+            throw new CliExitError(2, strings.configureCancelled);
+          }
+          throw error;
+        }
+        if (!confirmed) throw new CliExitError(2, strings.configureCancelled);
       }
       const apiKey =
         config.protocolId === "ollama-native"
