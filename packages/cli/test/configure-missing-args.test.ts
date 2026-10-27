@@ -166,7 +166,7 @@ describe("configure missing-args handling (TTY interactive)", () => {
     for (const line of lines) fakeStdin.write(`${line}\n`);
   }
 
-  it("prompts for missing fields in order and saves the completed config", async () => {
+  it("prompts for missing fields in order, then saves after a y confirmation", async () => {
     Object.defineProperty(fakeStdin, "isTTY", { value: true, configurable: true });
     vi.mocked(readConfig).mockRejectedValueOnce(new NotConfiguredError());
     vi.mocked(writeConfig).mockResolvedValueOnce(undefined);
@@ -174,7 +174,7 @@ describe("configure missing-args handling (TTY interactive)", () => {
     const stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     try {
       const resultPromise = main(["configure", "--protocol", "openai-compatible-chat"]);
-      sendLines(["https://api.example.com/v1", "gpt-4o"]);
+      sendLines(["https://api.example.com/v1", "gpt-4o", "y"]);
       expect(await resultPromise).toBe(0);
       expect(writeConfig).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -202,6 +202,94 @@ describe("configure missing-args handling (TTY interactive)", () => {
       sendLines(["openai-compatible-chat", "\u0003"]);
       expect(await resultPromise).toBe(2);
       expect(stderr.join("")).toContain("Configuration cancelled");
+    } finally {
+      stderrSpy.mockRestore();
+    }
+  });
+});
+
+describe("configure confirmation summary (TTY interactive, docs/20 §4.1 step 2)", () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+    Object.defineProperty(fakeStdin, "isTTY", { value: false, configurable: true });
+  });
+
+  function sendLines(lines: string[]): void {
+    for (const line of lines) fakeStdin.write(`${line}\n`);
+  }
+
+  it("exits 2 and does not save when the confirmation is rejected with n", async () => {
+    Object.defineProperty(fakeStdin, "isTTY", { value: true, configurable: true });
+    vi.mocked(readConfig).mockRejectedValueOnce(new NotConfiguredError());
+    const { main } = await import("../src/cli");
+    const stderr: string[] = [];
+    const stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation((chunk: unknown) => {
+      stderr.push(String(chunk));
+      return true;
+    });
+    try {
+      const resultPromise = main(["configure", "--protocol", "openai-compatible-chat"]);
+      sendLines(["https://api.example.com/v1", "gpt-4o", "n"]);
+      expect(await resultPromise).toBe(2);
+      expect(writeConfig).not.toHaveBeenCalled();
+      expect(stderr.join("")).toContain("Configuration cancelled");
+    } finally {
+      stderrSpy.mockRestore();
+    }
+  });
+
+  it("does not show a confirmation prompt when all three flags are already present", async () => {
+    Object.defineProperty(fakeStdin, "isTTY", { value: true, configurable: true });
+    vi.mocked(readConfig).mockRejectedValueOnce(new NotConfiguredError());
+    vi.mocked(writeConfig).mockResolvedValueOnce(undefined);
+    const { main } = await import("../src/cli");
+    const stderr: string[] = [];
+    const stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation((chunk: unknown) => {
+      stderr.push(String(chunk));
+      return true;
+    });
+    try {
+      expect(
+        await main([
+          "configure",
+          "--protocol",
+          "openai-compatible-chat",
+          "--base-url",
+          "https://api.example.com/v1",
+          "--model",
+          "gpt-4o",
+        ]),
+      ).toBe(0);
+      expect(writeConfig).toHaveBeenCalledWith(
+        expect.objectContaining({
+          protocolId: "openai-compatible-chat",
+          baseUrl: "https://api.example.com/v1",
+          modelId: "gpt-4o",
+        }),
+      );
+      expect(stderr.join("")).not.toContain("Save this configuration?");
+    } finally {
+      stderrSpy.mockRestore();
+    }
+  });
+
+  it("echoes the EVIR_API_KEY override status in the summary without ever printing the key itself", async () => {
+    process.env.EVIR_API_KEY = "sk-test-secret-12345";
+    Object.defineProperty(fakeStdin, "isTTY", { value: true, configurable: true });
+    vi.mocked(readConfig).mockRejectedValueOnce(new NotConfiguredError());
+    const { main } = await import("../src/cli");
+    const stderr: string[] = [];
+    const stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation((chunk: unknown) => {
+      stderr.push(String(chunk));
+      return true;
+    });
+    try {
+      const resultPromise = main(["configure", "--protocol", "openai-compatible-chat"]);
+      sendLines(["https://api.example.com/v1", "gpt-4o", "n"]);
+      expect(await resultPromise).toBe(2);
+      expect(writeConfig).not.toHaveBeenCalled();
+      expect(stderr.join("")).toContain("will use the key from EVIR_API_KEY");
+      expect(stderr.join("")).not.toContain("sk-test-secret-12345");
     } finally {
       stderrSpy.mockRestore();
     }

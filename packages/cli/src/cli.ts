@@ -8,8 +8,10 @@ import { requestApproval } from "./approval";
 import { envelopeEvent, runAgent, type AgentEvent } from "./agent";
 import { formatConfigError } from "./config-errors";
 import {
+  confirmConfigureSummary,
   ConfigurePromptCancelled,
   configureFlagName,
+  LineReader,
   missingConfigureFields,
   promptMissingConfigureValues,
 } from "./configure-prompt";
@@ -80,12 +82,17 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
         throw error;
       });
       const missing = missingConfigureFields(previous, command.values);
+      // All of configure's interactive steps (the missing-field prompt and the
+      // save confirmation) must share this one LineReader — see its doc
+      // comment in configure-prompt.ts for why a second reader over the same
+      // stdin stream starves.
+      const reader = missing.length > 0 && stdin.isTTY ? new LineReader(stdin) : undefined;
       if (missing.length > 0) {
-        if (stdin.isTTY) {
+        if (reader) {
           try {
             Object.assign(
               command.values,
-              await promptMissingConfigureValues(missing, strings, stdin, stderr),
+              await promptMissingConfigureValues(missing, strings, reader, stderr),
             );
           } catch (error) {
             if (error instanceof ConfigurePromptCancelled) {
@@ -126,6 +133,33 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
           );
         }
         throw error;
+      }
+      if (missing.length > 0 && reader) {
+        let confirmed: boolean;
+        try {
+          confirmed = await confirmConfigureSummary(
+            {
+              protocolId: config.protocolId,
+              baseUrl: config.baseUrl,
+              modelId: config.modelId,
+              apiKeyStatus:
+                config.protocolId === "ollama-native"
+                  ? "none-required"
+                  : process.env.EVIR_API_KEY
+                    ? "env-override"
+                    : "will-prompt",
+            },
+            strings,
+            reader,
+            stderr,
+          );
+        } catch (error) {
+          if (error instanceof ConfigurePromptCancelled) {
+            throw new CliExitError(2, strings.configureCancelled);
+          }
+          throw error;
+        }
+        if (!confirmed) throw new CliExitError(2, strings.configureCancelled);
       }
       const apiKey =
         config.protocolId === "ollama-native"

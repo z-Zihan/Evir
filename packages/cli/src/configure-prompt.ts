@@ -47,8 +47,17 @@ export function missingConfigureFields(
  * loop would call the iterator's `return()` (and destroy the stream) the
  * moment the first prompt's loop body returns, breaking every prompt after
  * it — so `next()` is driven by hand instead.
+ *
+ * All of `configure`'s interactive steps must share a single LineReader
+ * instance over stdin. Calling `[Symbol.asyncIterator]()` a second time on
+ * the same stream creates a second `data` listener; Node delivers each
+ * chunk to only one listener, so whichever iterator grabs it first buffers
+ * it privately and the other iterator starves waiting for data that will
+ * never arrive. That race is why two separately-constructed LineReaders
+ * (one per prompt step) hung CI: it depends on event-loop timing and does
+ * not reproduce reliably locally.
  */
-class LineReader {
+export class LineReader {
   private readonly iterator: AsyncIterator<unknown>;
   private buffer = "";
   private ended = false;
@@ -79,6 +88,50 @@ class LineReader {
   }
 }
 
+/** How the API key will be handled once the merged config is saved. */
+export type ConfigureApiKeyStatus = "none-required" | "env-override" | "will-prompt";
+
+export interface ConfigureSummary {
+  protocolId: string;
+  baseUrl: string;
+  modelId: string;
+  apiKeyStatus: ConfigureApiKeyStatus;
+}
+
+function configureSummaryKeyLine(status: ConfigureApiKeyStatus, strings: CliStrings): string {
+  switch (status) {
+    case "none-required":
+      return strings.configureSummaryKeyNone;
+    case "env-override":
+      return strings.configureSummaryKeyEnv;
+    case "will-prompt":
+      return strings.configureSummaryKeyPrompt;
+  }
+}
+
+/**
+ * docs/20 §4.1 step 2: once the missing-field prompt has filled in
+ * protocolId/baseUrl/modelId, echoes the merged values (never the API key
+ * itself) and asks for y/N before the caller proceeds to the hidden API key
+ * prompt and writeConfig. Takes the caller's shared LineReader rather than
+ * constructing its own (see the LineReader doc comment above for why).
+ */
+export async function confirmConfigureSummary(
+  summary: ConfigureSummary,
+  strings: CliStrings,
+  reader: LineReader,
+  output: Writable,
+): Promise<boolean> {
+  output.write(strings.configureSummaryHeading);
+  output.write(fill(strings.configureSummaryProtocol, { protocolId: summary.protocolId }));
+  output.write(fill(strings.configureSummaryBaseUrl, { baseUrl: summary.baseUrl }));
+  output.write(fill(strings.configureSummaryModel, { modelId: summary.modelId }));
+  output.write(configureSummaryKeyLine(summary.apiKeyStatus, strings));
+  output.write(strings.configureSummaryConfirm);
+  const answer = (await reader.readLine()).trim();
+  return /^(y|yes)$/i.test(answer);
+}
+
 function isValidUrl(value: string): boolean {
   try {
     return Boolean(new URL(value));
@@ -95,14 +148,15 @@ const BASE_URL_MAX_RETRIES = 2;
  * Blank answers abandon that field (the caller's later Zod parse then
  * reports it as missing); an invalid base URL is retried up to twice
  * before being passed through as-is so Zod reports the format error.
+ * Takes the caller's shared LineReader rather than constructing its own
+ * (see the LineReader doc comment above for why).
  */
 export async function promptMissingConfigureValues(
   missing: ConfigureField[],
   strings: CliStrings,
-  input: Readable,
+  reader: LineReader,
   output: Writable,
 ): Promise<ConfigureValues> {
-  const reader = new LineReader(input);
   const result: ConfigureValues = {};
   for (const field of missing) {
     if (field === "protocolId") {

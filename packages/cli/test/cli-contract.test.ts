@@ -106,6 +106,14 @@ describe("CLI localization (CLI-2)", () => {
       "configurePromptBaseUrl",
       "configurePromptModel",
       "configurePromptRetryBaseUrl",
+      "configureSummaryHeading",
+      "configureSummaryProtocol",
+      "configureSummaryBaseUrl",
+      "configureSummaryModel",
+      "configureSummaryKeyNone",
+      "configureSummaryKeyEnv",
+      "configureSummaryKeyPrompt",
+      "configureSummaryConfirm",
       "notConfigured",
     ] as const) {
       expect(en[key]).toBeTruthy();

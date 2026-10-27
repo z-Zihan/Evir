@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   ConfigurePromptCancelled,
   configureFlagName,
+  confirmConfigureSummary,
+  LineReader,
   missingConfigureFields,
   promptMissingConfigureValues,
 } from "../src/configure-prompt";
@@ -83,12 +85,13 @@ describe("promptMissingConfigureValues", () => {
 
   it("fills in all three fields from sequential answers", async () => {
     const input = sendLines(["openai-compatible-chat", "https://api.example.com/v1", "gpt-4o"]);
+    const reader = new LineReader(input);
     const { output, written } = collectOutput();
 
     const result = await promptMissingConfigureValues(
       ["protocolId", "baseUrl", "modelId"],
       strings,
-      input,
+      reader,
       output,
     );
 
@@ -104,12 +107,13 @@ describe("promptMissingConfigureValues", () => {
 
   it("trims whitespace and treats a blank answer as abandoning that field", async () => {
     const input = sendLines(["  ", "gpt-4o  "]);
+    const reader = new LineReader(input);
     const { output } = collectOutput();
 
     const result = await promptMissingConfigureValues(
       ["protocolId", "modelId"],
       strings,
-      input,
+      reader,
       output,
     );
 
@@ -118,9 +122,10 @@ describe("promptMissingConfigureValues", () => {
 
   it("retries an invalid base URL and keeps the value once it becomes valid", async () => {
     const input = sendLines(["not-a-url", "https://api.example.com/v1"]);
+    const reader = new LineReader(input);
     const { output, written } = collectOutput();
 
-    const result = await promptMissingConfigureValues(["baseUrl"], strings, input, output);
+    const result = await promptMissingConfigureValues(["baseUrl"], strings, reader, output);
 
     expect(result).toEqual({ baseUrl: "https://api.example.com/v1" });
     expect(written()).toContain(strings.configurePromptRetryBaseUrl);
@@ -128,9 +133,10 @@ describe("promptMissingConfigureValues", () => {
 
   it("gives up after two invalid base URL retries and passes the last answer through", async () => {
     const input = sendLines(["not-a-url", "still-not-a-url", "nope-either"]);
+    const reader = new LineReader(input);
     const { output, written } = collectOutput();
 
-    const result = await promptMissingConfigureValues(["baseUrl"], strings, input, output);
+    const result = await promptMissingConfigureValues(["baseUrl"], strings, reader, output);
 
     // Three attempts total (1 initial + 2 retries): the caller's later Zod
     // parse reports the format error, this function does not duplicate it.
@@ -141,29 +147,32 @@ describe("promptMissingConfigureValues", () => {
 
   it("abandons the base URL field when the user gives a blank answer instead of retrying", async () => {
     const input = sendLines(["not-a-url", ""]);
+    const reader = new LineReader(input);
     const { output } = collectOutput();
 
-    const result = await promptMissingConfigureValues(["baseUrl"], strings, input, output);
+    const result = await promptMissingConfigureValues(["baseUrl"], strings, reader, output);
 
     expect(result).toEqual({});
   });
 
   it("rejects with ConfigurePromptCancelled on Ctrl+C (\\u0003)", async () => {
     const input = sendLines(["openai-compatible-chat", "\u0003"]);
+    const reader = new LineReader(input);
     const { output } = collectOutput();
 
     await expect(
-      promptMissingConfigureValues(["protocolId", "baseUrl"], strings, input, output),
+      promptMissingConfigureValues(["protocolId", "baseUrl"], strings, reader, output),
     ).rejects.toBeInstanceOf(ConfigurePromptCancelled);
   });
 
   it("rejects with ConfigurePromptCancelled on EOF before an answer is given", async () => {
     const input = new PassThrough();
     input.end();
+    const reader = new LineReader(input);
     const { output } = collectOutput();
 
     await expect(
-      promptMissingConfigureValues(["protocolId"], strings, input, output),
+      promptMissingConfigureValues(["protocolId"], strings, reader, output),
     ).rejects.toBeInstanceOf(ConfigurePromptCancelled);
   });
 
@@ -171,10 +180,128 @@ describe("promptMissingConfigureValues", () => {
     const input = new PassThrough();
     input.write("partial-no-newline");
     input.end();
+    const reader = new LineReader(input);
     const { output } = collectOutput();
 
     await expect(
-      promptMissingConfigureValues(["modelId"], strings, input, output),
+      promptMissingConfigureValues(["modelId"], strings, reader, output),
     ).rejects.toBeInstanceOf(ConfigurePromptCancelled);
+  });
+});
+
+describe("confirmConfigureSummary", () => {
+  const strings = cliStrings("en");
+  const summary = {
+    protocolId: "openai-compatible-chat",
+    baseUrl: "https://api.example.com/v1",
+    modelId: "gpt-4o",
+    apiKeyStatus: "will-prompt" as const,
+  };
+
+  it.each(["y", "yes", "Y", "YES", " y "])("confirms on %j", async (answer) => {
+    const input = sendLines([answer]);
+    const reader = new LineReader(input);
+    const { output } = collectOutput();
+
+    await expect(confirmConfigureSummary(summary, strings, reader, output)).resolves.toBe(true);
+  });
+
+  it.each(["n", "", "maybe"])("rejects on %j", async (answer) => {
+    const input = sendLines([answer]);
+    const reader = new LineReader(input);
+    const { output } = collectOutput();
+
+    await expect(confirmConfigureSummary(summary, strings, reader, output)).resolves.toBe(false);
+  });
+
+  it("rejects with ConfigurePromptCancelled on Ctrl+C (\\u0003)", async () => {
+    const input = sendLines(["\u0003"]);
+    const reader = new LineReader(input);
+    const { output } = collectOutput();
+
+    await expect(confirmConfigureSummary(summary, strings, reader, output)).rejects.toBeInstanceOf(
+      ConfigurePromptCancelled,
+    );
+  });
+
+  it("rejects with ConfigurePromptCancelled on EOF before an answer is given", async () => {
+    const input = new PassThrough();
+    input.end();
+    const reader = new LineReader(input);
+    const { output } = collectOutput();
+
+    await expect(confirmConfigureSummary(summary, strings, reader, output)).rejects.toBeInstanceOf(
+      ConfigurePromptCancelled,
+    );
+  });
+
+  it("echoes the merged field values for confirmation", async () => {
+    const input = sendLines(["y"]);
+    const reader = new LineReader(input);
+    const { output, written } = collectOutput();
+
+    await confirmConfigureSummary(summary, strings, reader, output);
+
+    expect(written()).toContain("openai-compatible-chat");
+    expect(written()).toContain("https://api.example.com/v1");
+    expect(written()).toContain("gpt-4o");
+  });
+
+  // ConfigureSummary never carries an API key field (see its type above), so
+  // the function has no value it could leak here by construction; the
+  // end-to-end proof that a real secret never reaches stderr lives in
+  // configure-missing-args.test.ts's EVIR_API_KEY integration test.
+  it("renders the status line that matches each apiKeyStatus", async () => {
+    const expectedLine = {
+      "none-required": strings.configureSummaryKeyNone,
+      "env-override": strings.configureSummaryKeyEnv,
+      "will-prompt": strings.configureSummaryKeyPrompt,
+    } as const;
+
+    for (const apiKeyStatus of Object.keys(expectedLine) as (keyof typeof expectedLine)[]) {
+      const input = sendLines(["y"]);
+      const reader = new LineReader(input);
+      const { output, written } = collectOutput();
+
+      await confirmConfigureSummary({ ...summary, apiKeyStatus }, strings, reader, output);
+
+      expect(written()).toContain(expectedLine[apiKeyStatus]);
+    }
+  });
+
+  it("lets one shared reader serve the prompt step and then the confirm step, mirroring cli.ts", async () => {
+    const input = sendLines([
+      "openai-compatible-chat",
+      "https://api.example.com/v1",
+      "gpt-4o",
+      "y",
+    ]);
+    const reader = new LineReader(input);
+    const { output } = collectOutput();
+
+    const values = await promptMissingConfigureValues(
+      ["protocolId", "baseUrl", "modelId"],
+      strings,
+      reader,
+      output,
+    );
+    expect(values).toEqual({
+      protocolId: "openai-compatible-chat",
+      baseUrl: "https://api.example.com/v1",
+      modelId: "gpt-4o",
+    });
+
+    const confirmed = await confirmConfigureSummary(
+      {
+        protocolId: values.protocolId ?? "",
+        baseUrl: values.baseUrl ?? "",
+        modelId: values.modelId ?? "",
+        apiKeyStatus: "will-prompt",
+      },
+      strings,
+      reader,
+      output,
+    );
+    expect(confirmed).toBe(true);
   });
 });
