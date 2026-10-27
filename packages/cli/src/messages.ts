@@ -73,6 +73,7 @@ Configure stores credentials in the operating system credential store shared wit
   configureSummaryKeyPrompt:
     "  API key: will prompt for hidden input; leave blank to keep the existing credential\n",
   configureSummaryConfirm: "Save this configuration? [y/N] ",
+  configureEditWhichField: "Which field would you like to change? [protocol / base-url / model]: ",
   notConfigured:
     "Evir is not configured. Run: evir configure --protocol ... --base-url ... --model ...",
   providerErrorHintAuth:
@@ -149,6 +150,7 @@ configure 将凭据保存在与 Evir Desktop 共用的操作系统凭据库。As
   configureSummaryKeyEnv: "  API Key：将使用 EVIR_API_KEY 中的密钥\n",
   configureSummaryKeyPrompt: "  API Key：将提示隐藏输入；留空以保留现有凭据\n",
   configureSummaryConfirm: "保存此配置？[y/N] ",
+  configureEditWhichField: "要修改哪一项？[protocol / base-url / model]： ",
   notConfigured: "Evir 尚未配置。请运行：evir configure --protocol ... --base-url ... --model ...",
   providerErrorHintAuth: "凭据或认证失败：请检查 EVIR_API_KEY 或重新运行 evir configure。",
   providerErrorHintGeneric: "Provider 请求失败：请检查网络与 Provider 服务状态。",

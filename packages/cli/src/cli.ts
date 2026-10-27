@@ -14,6 +14,8 @@ import {
   LineReader,
   missingConfigureFields,
   promptMissingConfigureValues,
+  runConfigureEditLoop,
+  type ConfigureApiKeyStatus,
 } from "./configure-prompt";
 import { defaultConfigPath, NotConfiguredError, readConfig, writeConfig } from "./config-store";
 import { getProviderCredential, setProviderCredential } from "./credential-store";
@@ -110,56 +112,79 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
         }
       }
       const now = Date.now();
-      let config;
-      try {
-        config = cliConfigSchema.parse({
-          ...previous,
-          ...command.values,
-          id:
-            previous?.id === "legacy-cli-default"
-              ? crypto.randomUUID()
-              : (previous?.id ?? crypto.randomUUID()),
-          name: previous?.name ?? "Evir CLI",
-          enabled: true,
-          isDefault: true,
-          createdAt: previous?.createdAt || now,
-          updatedAt: now,
-        });
-      } catch (error) {
-        if (error instanceof z.ZodError) {
-          throw new CliExitError(
-            2,
-            fill(strings.configureInvalid, { issues: formatConfigError(error) }),
-          );
-        }
-        throw error;
-      }
-      if (missing.length > 0 && reader) {
-        let confirmed: boolean;
+      const apiKeyStatusFor = (protocolId: string): ConfigureApiKeyStatus =>
+        protocolId === "ollama-native"
+          ? "none-required"
+          : process.env.EVIR_API_KEY
+            ? "env-override"
+            : "will-prompt";
+      const buildConfig = (overrides: {
+        protocolId?: string;
+        baseUrl?: string;
+        modelId?: string;
+      }) => {
         try {
-          confirmed = await confirmConfigureSummary(
+          return cliConfigSchema.parse({
+            ...previous,
+            ...command.values,
+            ...overrides,
+            id:
+              previous?.id === "legacy-cli-default"
+                ? crypto.randomUUID()
+                : (previous?.id ?? crypto.randomUUID()),
+            name: previous?.name ?? "Evir CLI",
+            enabled: true,
+            isDefault: true,
+            createdAt: previous?.createdAt || now,
+            updatedAt: now,
+          });
+        } catch (error) {
+          if (error instanceof z.ZodError) {
+            throw new CliExitError(
+              2,
+              fill(strings.configureInvalid, { issues: formatConfigError(error) }),
+            );
+          }
+          throw error;
+        }
+      };
+      let config = buildConfig({});
+      if (missing.length > 0 && reader) {
+        try {
+          const confirmed = await confirmConfigureSummary(
             {
               protocolId: config.protocolId,
               baseUrl: config.baseUrl,
               modelId: config.modelId,
-              apiKeyStatus:
-                config.protocolId === "ollama-native"
-                  ? "none-required"
-                  : process.env.EVIR_API_KEY
-                    ? "env-override"
-                    : "will-prompt",
+              apiKeyStatus: apiKeyStatusFor(config.protocolId),
             },
             strings,
             reader,
             stderr,
           );
+          if (!confirmed) {
+            // docs/20 §4.1 step 3: rejecting the summary opens a field-edit
+            // loop (reusing this same shared reader) instead of exiting
+            // immediately; it only returns once a reconfirm is accepted.
+            const edited = await runConfigureEditLoop(
+              {
+                protocolId: config.protocolId,
+                baseUrl: config.baseUrl,
+                modelId: config.modelId,
+              },
+              strings,
+              reader,
+              stderr,
+              apiKeyStatusFor,
+            );
+            config = buildConfig(edited);
+          }
         } catch (error) {
           if (error instanceof ConfigurePromptCancelled) {
             throw new CliExitError(2, strings.configureCancelled);
           }
           throw error;
         }
-        if (!confirmed) throw new CliExitError(2, strings.configureCancelled);
       }
       const apiKey =
         config.protocolId === "ollama-native"

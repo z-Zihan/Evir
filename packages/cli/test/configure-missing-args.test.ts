@@ -218,7 +218,7 @@ describe("configure confirmation summary (TTY interactive, docs/20 §4.1 step 2)
     for (const line of lines) fakeStdin.write(`${line}\n`);
   }
 
-  it("exits 2 and does not save when the confirmation is rejected with n", async () => {
+  it("exits 2 and does not save when the confirmation is rejected and the edit prompt is then abandoned", async () => {
     Object.defineProperty(fakeStdin, "isTTY", { value: true, configurable: true });
     vi.mocked(readConfig).mockRejectedValueOnce(new NotConfiguredError());
     const { main } = await import("../src/cli");
@@ -229,7 +229,10 @@ describe("configure confirmation summary (TTY interactive, docs/20 §4.1 step 2)
     });
     try {
       const resultPromise = main(["configure", "--protocol", "openai-compatible-chat"]);
-      sendLines(["https://api.example.com/v1", "gpt-4o", "n"]);
+      // Rejecting the summary ("n") now opens the field-edit loop (docs/20
+      // §4.1 step 3); an unrecognized answer ("nope") at its "which field"
+      // prompt abandons the edit with the same cancellation exit as before.
+      sendLines(["https://api.example.com/v1", "gpt-4o", "n", "nope"]);
       expect(await resultPromise).toBe(2);
       expect(writeConfig).not.toHaveBeenCalled();
       expect(stderr.join("")).toContain("Configuration cancelled");
@@ -285,7 +288,7 @@ describe("configure confirmation summary (TTY interactive, docs/20 §4.1 step 2)
     });
     try {
       const resultPromise = main(["configure", "--protocol", "openai-compatible-chat"]);
-      sendLines(["https://api.example.com/v1", "gpt-4o", "n"]);
+      sendLines(["https://api.example.com/v1", "gpt-4o", "n", "nope"]);
       expect(await resultPromise).toBe(2);
       expect(writeConfig).not.toHaveBeenCalled();
       expect(stderr.join("")).toContain("will use the key from EVIR_API_KEY");

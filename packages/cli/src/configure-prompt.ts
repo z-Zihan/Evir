@@ -91,6 +91,13 @@ export class LineReader {
 /** How the API key will be handled once the merged config is saved. */
 export type ConfigureApiKeyStatus = "none-required" | "env-override" | "will-prompt";
 
+/** The three fields `runConfigureEditLoop` can hand back to the caller to re-save. */
+export interface ConfigureEditableValues {
+  protocolId: string;
+  baseUrl: string;
+  modelId: string;
+}
+
 export interface ConfigureSummary {
   protocolId: string;
   baseUrl: string;
@@ -182,4 +189,51 @@ export async function promptMissingConfigureValues(
     }
   }
   return result;
+}
+
+const EDIT_FIELD_BY_TOKEN: Record<string, ConfigureField> = {
+  protocol: "protocolId",
+  "base-url": "baseUrl",
+  model: "modelId",
+};
+
+/**
+ * docs/20 §4.1 step 3: once `confirmConfigureSummary` returns false, this
+ * loops asking which of protocol/base-url/model to change, re-prompts that
+ * one field with the same validation `promptMissingConfigureValues` uses
+ * (base URL retried up to twice, protocol echoes the enum), then recomputes
+ * and reconfirms the summary — `apiKeyStatusFor` is re-run every pass since
+ * switching protocolId into or out of ollama-native changes it. Loops until
+ * the reconfirm is accepted. A blank, unrecognized, or explicit-cancel
+ * answer at the "which field" prompt abandons the edit by throwing
+ * ConfigurePromptCancelled, the same exception Ctrl+C/EOF raise, so the
+ * caller's existing cancellation handling (exit code 2, nothing written)
+ * covers both. Takes the caller's shared LineReader rather than
+ * constructing its own (see the LineReader doc comment above for why).
+ */
+export async function runConfigureEditLoop(
+  initial: ConfigureEditableValues,
+  strings: CliStrings,
+  reader: LineReader,
+  output: Writable,
+  apiKeyStatusFor: (protocolId: string) => ConfigureApiKeyStatus,
+): Promise<ConfigureEditableValues> {
+  const values: ConfigureEditableValues = { ...initial };
+  for (;;) {
+    output.write(strings.configureEditWhichField);
+    const answer = (await reader.readLine()).trim().toLowerCase();
+    const field = EDIT_FIELD_BY_TOKEN[answer];
+    if (!field) throw new ConfigurePromptCancelled();
+    const updated = await promptMissingConfigureValues([field], strings, reader, output);
+    if (updated.protocolId) values.protocolId = updated.protocolId;
+    if (updated.baseUrl) values.baseUrl = updated.baseUrl;
+    if (updated.modelId) values.modelId = updated.modelId;
+    const confirmed = await confirmConfigureSummary(
+      { ...values, apiKeyStatus: apiKeyStatusFor(values.protocolId) },
+      strings,
+      reader,
+      output,
+    );
+    if (confirmed) return values;
+  }
 }
