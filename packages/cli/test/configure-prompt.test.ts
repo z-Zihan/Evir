@@ -7,6 +7,8 @@ import {
   LineReader,
   missingConfigureFields,
   promptMissingConfigureValues,
+  runConfigureEditLoop,
+  type ConfigureApiKeyStatus,
 } from "../src/configure-prompt";
 import { cliStrings } from "../src/messages";
 
@@ -303,5 +305,156 @@ describe("confirmConfigureSummary", () => {
       output,
     );
     expect(confirmed).toBe(true);
+  });
+});
+
+describe("runConfigureEditLoop", () => {
+  const strings = cliStrings("en");
+  const initial = {
+    protocolId: "openai-compatible-chat",
+    baseUrl: "https://api.example.com/v1",
+    modelId: "gpt-4o",
+  };
+
+  const apiKeyStatusFor = (protocolId: string): ConfigureApiKeyStatus =>
+    protocolId === "ollama-native" ? "none-required" : "will-prompt";
+
+  it("edits the chosen field, reconfirms, and returns the updated values once accepted", async () => {
+    const input = sendLines(["model", "gpt-4o-mini", "y"]);
+    const reader = new LineReader(input);
+    const { output, written } = collectOutput();
+
+    const result = await runConfigureEditLoop(initial, strings, reader, output, apiKeyStatusFor);
+
+    expect(result).toEqual({ ...initial, modelId: "gpt-4o-mini" });
+    expect(written()).toContain(strings.configureEditWhichField);
+    expect(written()).toContain("gpt-4o-mini");
+  });
+
+  it("loops back to 'which field' when the recomputed summary is rejected again", async () => {
+    const input = sendLines([
+      "base-url",
+      "https://changed.example.com/v1",
+      "n",
+      "model",
+      "o4",
+      "y",
+    ]);
+    const reader = new LineReader(input);
+    const { output, written } = collectOutput();
+
+    const result = await runConfigureEditLoop(initial, strings, reader, output, apiKeyStatusFor);
+
+    expect(result).toEqual({
+      ...initial,
+      baseUrl: "https://changed.example.com/v1",
+      modelId: "o4",
+    });
+    expect(written().split(strings.configureEditWhichField).length - 1).toBe(2);
+  });
+
+  it("recalculates apiKeyStatus when protocol is switched into ollama-native", async () => {
+    const input = sendLines(["protocol", "ollama-native", "y"]);
+    const reader = new LineReader(input);
+    const { output, written } = collectOutput();
+
+    const result = await runConfigureEditLoop(initial, strings, reader, output, apiKeyStatusFor);
+
+    expect(result.protocolId).toBe("ollama-native");
+    expect(written()).toContain(strings.configureSummaryKeyNone);
+  });
+
+  it("recalculates apiKeyStatus when protocol is switched out of ollama-native", async () => {
+    const ollamaInitial = { ...initial, protocolId: "ollama-native" };
+    const input = sendLines(["protocol", "openai-compatible-chat", "y"]);
+    const reader = new LineReader(input);
+    const { output, written } = collectOutput();
+
+    const result = await runConfigureEditLoop(
+      ollamaInitial,
+      strings,
+      reader,
+      output,
+      apiKeyStatusFor,
+    );
+
+    expect(result.protocolId).toBe("openai-compatible-chat");
+    expect(written()).toContain(strings.configureSummaryKeyPrompt);
+  });
+
+  it("still caps base URL retries at two inside the edit loop", async () => {
+    const input = sendLines(["base-url", "not-a-url", "still-not", "nope-either", "y"]);
+    const reader = new LineReader(input);
+    const { output, written } = collectOutput();
+
+    const result = await runConfigureEditLoop(initial, strings, reader, output, apiKeyStatusFor);
+
+    expect(result.baseUrl).toBe("nope-either");
+    const retryCount = written().split(strings.configurePromptRetryBaseUrl).length - 1;
+    expect(retryCount).toBe(2);
+  });
+
+  it.each(["", "n", "no", "cancel", "gibberish"])(
+    "abandons the edit with ConfigurePromptCancelled on %j at the which-field prompt",
+    async (answer) => {
+      const input = sendLines([answer]);
+      const reader = new LineReader(input);
+      const { output } = collectOutput();
+
+      await expect(
+        runConfigureEditLoop(initial, strings, reader, output, apiKeyStatusFor),
+      ).rejects.toBeInstanceOf(ConfigurePromptCancelled);
+    },
+  );
+
+  it("rejects with ConfigurePromptCancelled on Ctrl+C while picking a field", async () => {
+    const input = sendLines(["\u0003"]);
+    const reader = new LineReader(input);
+    const { output } = collectOutput();
+
+    await expect(
+      runConfigureEditLoop(initial, strings, reader, output, apiKeyStatusFor),
+    ).rejects.toBeInstanceOf(ConfigurePromptCancelled);
+  });
+
+  it("rejects with ConfigurePromptCancelled on Ctrl+C while editing the chosen field", async () => {
+    const input = sendLines(["model", "\u0003"]);
+    const reader = new LineReader(input);
+    const { output } = collectOutput();
+
+    await expect(
+      runConfigureEditLoop(initial, strings, reader, output, apiKeyStatusFor),
+    ).rejects.toBeInstanceOf(ConfigurePromptCancelled);
+  });
+
+  it("rejects with ConfigurePromptCancelled on EOF before an answer is given", async () => {
+    const input = new PassThrough();
+    input.end();
+    const reader = new LineReader(input);
+    const { output } = collectOutput();
+
+    await expect(
+      runConfigureEditLoop(initial, strings, reader, output, apiKeyStatusFor),
+    ).rejects.toBeInstanceOf(ConfigurePromptCancelled);
+  });
+
+  it("rejects with ConfigurePromptCancelled on Ctrl+C while reconfirming after an edit", async () => {
+    const input = sendLines(["model", "o4", "\u0003"]);
+    const reader = new LineReader(input);
+    const { output } = collectOutput();
+
+    await expect(
+      runConfigureEditLoop(initial, strings, reader, output, apiKeyStatusFor),
+    ).rejects.toBeInstanceOf(ConfigurePromptCancelled);
+  });
+
+  it("leaves unedited fields untouched when a reprompted field is left blank", async () => {
+    const input = sendLines(["model", "", "y"]);
+    const reader = new LineReader(input);
+    const { output } = collectOutput();
+
+    const result = await runConfigureEditLoop(initial, strings, reader, output, apiKeyStatusFor);
+
+    expect(result).toEqual(initial);
   });
 });
