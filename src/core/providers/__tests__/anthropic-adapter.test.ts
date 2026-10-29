@@ -129,4 +129,43 @@ describe("AnthropicMessagesAdapter", () => {
       retryable: true,
     });
   });
+
+  it("reports a lost connection instead of CORS when a stream drops mid-flight", async () => {
+    const encoder = new TextEncoder();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Response(
+            new ReadableStream<Uint8Array>({
+              start(controller) {
+                controller.enqueue(
+                  encoder.encode(
+                    'event: message_start\ndata: {"type":"message_start","message":{"id":"msg-1"}}\n\n',
+                  ),
+                );
+              },
+              pull(controller) {
+                controller.error(new TypeError("network error"));
+              },
+            }),
+            { status: 200, headers: { "Content-Type": "text/event-stream" } },
+          ),
+      ),
+    );
+
+    const events = await collect(new AnthropicMessagesAdapter({ apiKey: "test-key" }));
+
+    expect(events.some((event) => event.type === "response-start")).toBe(true);
+    const error = events.find((event) => event.type === "error");
+    expect(
+      error?.type === "error"
+        ? [error.error.type, error.error.message, error.error.retryable]
+        : undefined,
+    ).toEqual([
+      ProviderErrorType.NETWORK_ERROR,
+      "Connection lost while receiving the response",
+      true,
+    ]);
+  });
 });
