@@ -86,6 +86,7 @@ export class OpenAIResponsesClient implements ProtocolAdapter {
     signal?: AbortSignal;
   }): AsyncIterable<ProviderStreamEvent> {
     let responseId = uuid();
+    let streamStarted = false;
     try {
       const { input, instructions } = responsesInput(params.messages);
       const response = await this.request(
@@ -118,6 +119,7 @@ export class OpenAIResponsesClient implements ProtocolAdapter {
         modelId: params.modelId,
         providerId: this.connection.providerId,
       };
+      streamStarted = true;
       for await (const sse of responseSseEvents(response.body)) {
         let payload: unknown;
         try {
@@ -175,7 +177,7 @@ export class OpenAIResponsesClient implements ProtocolAdapter {
         },
       };
     } catch (error) {
-      yield { type: "error", error: mapThrownError(error, params.signal) };
+      yield { type: "error", error: mapThrownError(error, params.signal, streamStarted) };
     }
   }
 
