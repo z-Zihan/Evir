@@ -88,4 +88,26 @@ describe("OllamaClient", () => {
       true,
     ]);
   });
+
+  it("reports an incomplete response when a stream closes without done:true", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(ndjsonResponse(['{"message":{"content":"partial"},"done":false}\n'])),
+      ),
+    );
+
+    const events = await collect(new OllamaClient({ baseUrl: "http://localhost:11434" }));
+
+    expect(events.some((event) => event.type === "response-start")).toBe(true);
+    expect(events.some((event) => event.type === "response-complete")).toBe(false);
+    expect(events.at(-1)).toEqual({
+      type: "error",
+      error: {
+        type: ProviderErrorType.NETWORK_ERROR,
+        message: "Provider stream ended before completion",
+        retryable: true,
+      },
+    });
+  });
 });

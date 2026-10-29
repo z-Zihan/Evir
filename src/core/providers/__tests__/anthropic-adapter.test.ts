@@ -168,4 +168,30 @@ describe("AnthropicMessagesAdapter", () => {
       true,
     ]);
   });
+
+  it("reports an incomplete response when a stream closes without message_stop", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          sseResponse([
+            'event: message_start\ndata: {"type":"message_start","message":{"id":"msg-x"}}\n\nevent: content_block_delta\ndata: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"partial"}}\n\n',
+          ]),
+        ),
+      ),
+    );
+
+    const events = await collect(new AnthropicMessagesAdapter({ apiKey: "test-key" }));
+
+    expect(events.some((event) => event.type === "response-start")).toBe(true);
+    expect(events.some((event) => event.type === "response-complete")).toBe(false);
+    expect(events.at(-1)).toEqual({
+      type: "error",
+      error: {
+        type: ProviderErrorType.NETWORK_ERROR,
+        message: "Provider stream ended before completion",
+        retryable: true,
+      },
+    });
+  });
 });
