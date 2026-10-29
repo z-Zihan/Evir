@@ -2,6 +2,7 @@ import "fake-indexeddb/auto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createConfiguredAdapter, getAdapter, listModelsForProtocol } from "../adapter-registry";
 import { OpenAIChatCompletionsAdapter } from "../adapters/openai-chat-completions";
+import { AzureOpenAIClient } from "../adapters/azure-openai-client";
 import { chatEndpoint, mapHttpError, mapThrownError } from "../adapters/openai-chat-utils";
 import {
   ProviderErrorType,
@@ -369,6 +370,48 @@ describe("OpenAIChatCompletionsAdapter", () => {
     const events = await collect(new OpenAIChatCompletionsAdapter({ apiKey: "test-key" }));
     const error = events.find((event) => event.type === "error");
 
+    expect(
+      error?.type === "error"
+        ? [error.error.type, error.error.message, error.error.retryable]
+        : undefined,
+    ).toEqual([
+      ProviderErrorType.NETWORK_ERROR,
+      "Connection lost while receiving the response",
+      true,
+    ]);
+  });
+
+  it("reports a lost connection instead of CORS when an Azure stream drops mid-flight", async () => {
+    const encoder = new TextEncoder();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Response(
+            new ReadableStream<Uint8Array>({
+              start(controller) {
+                controller.enqueue(
+                  encoder.encode('data: {"choices":[{"delta":{"content":"partial"}}]}\n\n'),
+                );
+                controller.error(new TypeError("network error"));
+              },
+            }),
+            { status: 200, headers: { "Content-Type": "text/event-stream" } },
+          ),
+      ),
+    );
+
+    const adapter = new AzureOpenAIClient({
+      baseUrl: "https://example-resource.openai.azure.com/openai/deployments/gpt-test",
+      apiKey: "test-key",
+    });
+    const events: ProviderStreamEvent[] = [];
+    for await (const event of adapter.stream({ modelId: "gpt-test", messages: [] })) {
+      events.push(event);
+    }
+
+    expect(events.some((event) => event.type === "response-start")).toBe(true);
+    const error = events.find((event) => event.type === "error");
     expect(
       error?.type === "error"
         ? [error.error.type, error.error.message, error.error.retryable]

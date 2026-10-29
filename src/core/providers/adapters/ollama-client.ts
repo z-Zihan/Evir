@@ -152,6 +152,7 @@ export class OllamaClient implements ProtocolAdapter {
   }): AsyncIterable<ProviderStreamEvent> {
     const responseId = uuid();
     let finishReason = "stop";
+    let streamStarted = false;
     try {
       const includeTools =
         !!params.tools?.length && (await this.modelSupportsTools(params.modelId));
@@ -187,6 +188,7 @@ export class OllamaClient implements ProtocolAdapter {
         modelId: params.modelId,
         providerId: this.connection.providerId,
       };
+      streamStarted = true;
       let nextToolCallIndex = 0;
       for await (const line of ndjsonLines(response.body)) {
         let payload: unknown;
@@ -249,7 +251,7 @@ export class OllamaClient implements ProtocolAdapter {
         },
       };
     } catch (error) {
-      yield { type: "error", error: mapThrownError(error, params.signal) };
+      yield { type: "error", error: mapThrownError(error, params.signal, streamStarted) };
     }
   }
 }

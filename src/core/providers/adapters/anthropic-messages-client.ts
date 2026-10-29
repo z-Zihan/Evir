@@ -122,6 +122,7 @@ export class AnthropicMessagesClient implements ProtocolAdapter {
     let responseId = uuid();
     let finishReason = "stop";
     let started = false;
+    let streamStarted = false;
     try {
       const response = await this.request(
         {
@@ -175,6 +176,7 @@ export class AnthropicMessagesClient implements ProtocolAdapter {
             modelId: params.modelId,
             providerId: this.connection.providerId,
           };
+          streamStarted = true;
         }
         if (eventType === "content_block_delta") {
           const delta = asRecord(root?.delta);
@@ -202,7 +204,7 @@ export class AnthropicMessagesClient implements ProtocolAdapter {
         },
       };
     } catch (error) {
-      yield { type: "error", error: mapThrownError(error, params.signal) };
+      yield { type: "error", error: mapThrownError(error, params.signal, streamStarted) };
     }
   }
 

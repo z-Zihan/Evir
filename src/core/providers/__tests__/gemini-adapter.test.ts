@@ -129,4 +129,37 @@ describe("GeminiGenerateContentAdapter", () => {
       "x-goog-api-key": "secret",
     });
   });
+
+  it("reports a lost connection instead of CORS when a stream drops mid-flight", async () => {
+    const encoder = new TextEncoder();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Response(
+            new ReadableStream<Uint8Array>({
+              start(controller) {
+                controller.enqueue(
+                  encoder.encode(
+                    'data: {"candidates":[{"content":{"parts":[{"text":"partial"}]}}]}\n\n',
+                  ),
+                );
+              },
+              pull(controller) {
+                controller.error(new TypeError("network error"));
+              },
+            }),
+            { status: 200, headers: { "Content-Type": "text/event-stream" } },
+          ),
+      ),
+    );
+
+    const events = await collect(new GeminiGenerateContentAdapter({ apiKey: "test-key" }));
+
+    expect(events.some((event) => event.type === "response-start")).toBe(true);
+    const error = events.find((event) => event.type === "error");
+    expect(error?.type === "error" ? [error.error.type, error.error.retryable] : undefined).toEqual(
+      [ProviderErrorType.NETWORK_ERROR, true],
+    );
+  });
 });

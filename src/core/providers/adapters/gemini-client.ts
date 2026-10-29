@@ -78,6 +78,7 @@ export class GeminiClient implements ProtocolAdapter {
     signal?: AbortSignal;
   }): AsyncIterable<ProviderStreamEvent> {
     const responseId = uuid();
+    let streamStarted = false;
     try {
       const response = await this.request(
         params.modelId,
@@ -106,6 +107,7 @@ export class GeminiClient implements ProtocolAdapter {
         modelId: params.modelId,
         providerId: this.connection.providerId,
       };
+      streamStarted = true;
       for await (const data of dataLines(response.body)) {
         let payload: unknown;
         try {
@@ -160,7 +162,7 @@ export class GeminiClient implements ProtocolAdapter {
         },
       };
     } catch (error) {
-      yield { type: "error", error: mapThrownError(error, params.signal) };
+      yield { type: "error", error: mapThrownError(error, params.signal, streamStarted) };
     }
   }
 

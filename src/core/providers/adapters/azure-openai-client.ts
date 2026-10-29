@@ -125,6 +125,7 @@ export class AzureOpenAIClient implements ProtocolAdapter {
     let hasFinished = false;
     const openToolCalls = new Set<string>();
     const toolCallIds = new Map<number, string>();
+    let streamStarted = false;
     try {
       const response = await this.request(
         {
@@ -157,6 +158,7 @@ export class AzureOpenAIClient implements ProtocolAdapter {
         modelId: params.modelId,
         providerId: this.connection.providerId,
       };
+      streamStarted = true;
       for await (const data of dataLines(response.body)) {
         if (data === "[DONE]") {
           for (const toolCallId of openToolCalls) yield { type: "tool-call-end", toolCallId };
@@ -232,7 +234,7 @@ export class AzureOpenAIClient implements ProtocolAdapter {
         };
       }
     } catch (error) {
-      yield { type: "error", error: mapThrownError(error, params.signal) };
+      yield { type: "error", error: mapThrownError(error, params.signal, streamStarted) };
     }
   }
 
