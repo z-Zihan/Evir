@@ -184,4 +184,30 @@ describe("OpenAIResponsesAdapter", () => {
       [ProviderErrorType.NETWORK_ERROR, true],
     );
   });
+
+  it("reports an incomplete response when a stream closes without response.completed", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          sseResponse([
+            'event: response.output_text.delta\ndata: {"type":"response.output_text.delta","delta":"partial"}\n\n',
+          ]),
+        ),
+      ),
+    );
+
+    const events = await collect(new OpenAIResponsesAdapter({ apiKey: "test-key" }));
+
+    expect(events.some((event) => event.type === "response-start")).toBe(true);
+    expect(events.some((event) => event.type === "response-complete")).toBe(false);
+    expect(events.at(-1)).toEqual({
+      type: "error",
+      error: {
+        type: ProviderErrorType.NETWORK_ERROR,
+        message: "Provider stream ended before completion",
+        retryable: true,
+      },
+    });
+  });
 });

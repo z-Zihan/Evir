@@ -423,6 +423,55 @@ describe("OpenAIChatCompletionsAdapter", () => {
     ]);
   });
 
+  it("reports an incomplete response when a stream closes without [DONE] or finish_reason", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(sseResponse(['data: {"choices":[{"delta":{"content":"partial"}}]}\n\n'])),
+      ),
+    );
+
+    const events = await collect(new OpenAIChatCompletionsAdapter({ apiKey: "test-key" }));
+
+    expect(events.some((event) => event.type === "response-start")).toBe(true);
+    expect(events.some((event) => event.type === "response-complete")).toBe(false);
+    expect(events.at(-1)).toEqual({
+      type: "error",
+      error: {
+        type: ProviderErrorType.NETWORK_ERROR,
+        message: "Provider stream ended before completion",
+        retryable: true,
+      },
+    });
+  });
+
+  it("reports an incomplete response when an Azure stream closes without [DONE] or finish_reason", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(sseResponse(['data: {"choices":[{"delta":{"content":"partial"}}]}\n\n'])),
+      ),
+    );
+
+    const events = await collect(
+      new AzureOpenAIClient({
+        baseUrl: "https://example-resource.openai.azure.com/openai/deployments/gpt-test",
+        apiKey: "test-key",
+      }),
+    );
+
+    expect(events.some((event) => event.type === "response-start")).toBe(true);
+    expect(events.some((event) => event.type === "response-complete")).toBe(false);
+    expect(events.at(-1)).toEqual({
+      type: "error",
+      error: {
+        type: ProviderErrorType.NETWORK_ERROR,
+        message: "Provider stream ended before completion",
+        retryable: true,
+      },
+    });
+  });
+
   it("classifies Chinese insufficient-balance provider messages as billing errors", () => {
     expect(mapHttpError(429, "余额不足或无可用资源包,请充值。")).toMatchObject({
       type: ProviderErrorType.INSUFFICIENT_BALANCE,
