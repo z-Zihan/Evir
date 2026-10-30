@@ -613,6 +613,151 @@ describe("streamAssistant", () => {
     await expect(second).resolves.toMatchObject({ status: "stopped" });
   });
 
+  it("aborts a stalled stream as a TIMEOUT once no event arrives within the idle budget", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      queueMicrotask(() => callback(0));
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_input: RequestInfo | URL, init?: RequestInit) =>
+        Promise.resolve(
+          new Response(
+            new ReadableStream<Uint8Array>({
+              // Never enqueues or closes; like real fetch, abort errors the body.
+              start(controller) {
+                init?.signal?.addEventListener("abort", () => {
+                  controller.error(new DOMException("Aborted", "AbortError"));
+                });
+              },
+            }),
+            { status: 200, headers: { "Content-Type": "text/event-stream" } },
+          ),
+        ),
+      ),
+    );
+    const provider: ProviderRecord = {
+      id: "provider-stall",
+      name: "Provider",
+      protocolId: "openai-compatible-chat",
+      baseUrl: "https://example.com/v1",
+      apiKey: "test-key",
+      modelId: "model-stall",
+      enabled: true,
+      isDefault: true,
+      createdAt: 1,
+      updatedAt: 1,
+    };
+
+    const request = streamAssistant(
+      provider,
+      "conversation-stall",
+      [{ role: "user", content: "hello" }],
+      () => undefined,
+      undefined,
+      undefined,
+      1_000,
+      10,
+    );
+    await vi.advanceTimersByTimeAsync(10);
+
+    await expect(request).resolves.toMatchObject({
+      status: "error",
+      errorMessage: "chat.streamStalled",
+    });
+    expect(
+      useUsageStore
+        .getState()
+        .records.find(({ conversationId }) => conversationId === "conversation-stall"),
+    ).toMatchObject({ evidence: "unavailable", success: false, errorType: "TIMEOUT" });
+    expect(
+      logger
+        .getEntries()
+        .find(
+          ({ event, conversationId }) =>
+            event === "provider.request-completed" && conversationId === "conversation-stall",
+        ),
+    ).toMatchObject({ data: { status: "error", errorType: "TIMEOUT" } });
+  });
+
+  it("keeps a slow but live stream alive because every event resets the idle timer", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      queueMicrotask(() => callback(0));
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    const encoder = new TextEncoder();
+    const chunks = [
+      'data: {"id":"response-slow","choices":[{"delta":{"content":"a"}}]}\n\n',
+      'data: {"id":"response-slow","choices":[{"delta":{"content":"b"}}]}\n\n',
+      'data: {"id":"response-slow","choices":[{"delta":{"content":"c"}}]}\n\n',
+      'data: {"id":"response-slow","choices":[{"delta":{},"finish_reason":"stop"}]}\n\n',
+      "data: [DONE]\n\n",
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_input: RequestInfo | URL, init?: RequestInit) =>
+        Promise.resolve(
+          new Response(
+            new ReadableStream<Uint8Array>({
+              start(controller) {
+                let aborted = false;
+                init?.signal?.addEventListener("abort", () => {
+                  aborted = true;
+                  controller.error(new DOMException("Aborted", "AbortError"));
+                });
+                const emit = (index: number) => {
+                  if (aborted) return;
+                  const chunk = chunks[index];
+                  if (chunk === undefined) {
+                    controller.close();
+                    return;
+                  }
+                  controller.enqueue(encoder.encode(chunk));
+                  setTimeout(() => emit(index + 1), 5_000);
+                };
+                setTimeout(() => emit(0), 5_000);
+              },
+            }),
+            { status: 200, headers: { "Content-Type": "text/event-stream" } },
+          ),
+        ),
+      ),
+    );
+    const provider: ProviderRecord = {
+      id: "provider-slow",
+      name: "Provider",
+      protocolId: "openai-compatible-chat",
+      baseUrl: "https://example.com/v1",
+      apiKey: "test-key",
+      modelId: "model-slow",
+      enabled: true,
+      isDefault: true,
+      createdAt: 1,
+      updatedAt: 1,
+    };
+
+    // 25s of total streaming with a 12s idle budget: only passes if each
+    // event re-arms the idle timer. The finish_reason chunk yields no event,
+    // so the longest real event gap is 10s ("c" at 15s → [DONE] at 25s).
+    const request = streamAssistant(
+      provider,
+      "conversation-slow",
+      [{ role: "user", content: "hello" }],
+      () => undefined,
+      undefined,
+      undefined,
+      120_000,
+      12_000,
+    );
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    await expect(request).resolves.toMatchObject({ status: "complete", content: "abc" });
+  });
+
   it("stops a structured request when its deadline expires", async () => {
     vi.stubGlobal(
       "fetch",

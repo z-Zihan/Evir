@@ -3,6 +3,7 @@ import { logger } from "../../core/logging/logger";
 import type { AgentRunContext, EvirRuntime } from "../../runtime/types";
 import type { InteractionMode } from "../../core/providers/tool-registry";
 import { streamAssistant, type StreamResult } from "./chat-stream";
+import { STREAM_IDLE_TIMEOUT_MS } from "./stream-idle-timeout";
 import { activeTraceFor } from "../tracing/trace-recorder";
 import {
   AGENT_TURN_TIMEOUT_MS,
@@ -77,6 +78,7 @@ export async function streamWithRetry(
     tools,
     options.signal,
     AGENT_TURN_TIMEOUT_MS,
+    STREAM_IDLE_TIMEOUT_MS,
   );
   for (let retry = 0; isTransientStreamError(stream) && retry < MAX_STREAM_RETRIES; retry += 1) {
     if (options.signal?.aborted) break;
@@ -103,6 +105,7 @@ export async function streamWithRetry(
       tools,
       options.signal,
       AGENT_TURN_TIMEOUT_MS,
+      STREAM_IDLE_TIMEOUT_MS,
     );
   }
   return stream;

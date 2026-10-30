@@ -10,6 +10,7 @@ import {
   streamAssistant,
   type StreamResult,
 } from "./chat-stream";
+import { STREAM_IDLE_TIMEOUT_MS } from "./stream-idle-timeout";
 import type { EvirRuntime } from "../../runtime/types";
 import type { PendingToolApproval } from "./tool-approval";
 import { toMessage } from "./chat-helpers";
@@ -230,6 +231,7 @@ async function executeTurn(
     undefined,
     undefined,
     ASK_STREAM_TIMEOUT_MS,
+    STREAM_IDLE_TIMEOUT_MS,
   );
   return {
     turns: [{ stream: explainToolCallWithoutAccess(stream) }],

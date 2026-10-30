@@ -150,6 +150,7 @@
     "slowResponse": "The model is responding slowly, but the task is still running. You can stop at any time.",
     "ipcRetrying": "Retrying local file access…",
     "requestTimedOut": "The model did not finish this turn within 120 seconds. Retry or check provider load.",
+    "streamStalled": "The model stopped sending data, so this turn was aborted to avoid waiting indefinitely. Retry if needed.",
     "tokenCount": "{{count}} tokens",
     "retry": "Retry",
     "privateSession": "Private Session",
