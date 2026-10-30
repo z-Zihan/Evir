@@ -117,6 +117,9 @@ export interface StreamResult {
   toolCalls?: { id: string; toolName: string; arguments: string }[];
 }
 
+// Idle budget: any gap between stream events longer than this is a stall.
+export { STREAM_IDLE_TIMEOUT_MS } from "./stream-idle-timeout";
+
 export async function streamAssistant(
   provider: ProviderRecord,
   conversationId: string,
@@ -125,6 +128,7 @@ export async function streamAssistant(
   tools?: unknown[],
   externalSignal?: AbortSignal,
   timeoutMs?: number,
+  idleTimeoutMs?: number,
 ): Promise<StreamResult> {
   const configuredAdapter = createConfiguredAdapter(provider.protocolId, {
     providerId: provider.id,
@@ -147,6 +151,18 @@ export async function streamAssistant(
         controller.abort();
       }, timeoutMs)
     : undefined;
+  let stalled = false;
+  let idleTimer: ReturnType<typeof setTimeout> | undefined;
+  const armIdleTimer = () => {
+    if (!idleTimeoutMs || idleTimeoutMs <= 0) return;
+    if (idleTimer !== undefined) globalThis.clearTimeout(idleTimer);
+    idleTimer = globalThis.setTimeout(() => {
+      stalled = true;
+      timedOut = true;
+      controller.abort();
+    }, idleTimeoutMs);
+  };
+  armIdleTimer();
   const abortFromExternal = () => controller.abort();
   if (externalSignal?.aborted) controller.abort();
   else externalSignal?.addEventListener("abort", abortFromExternal, { once: true });
@@ -192,6 +208,7 @@ export async function streamAssistant(
       ...(tools?.length ? { tools } : {}),
       signal: controller.signal,
     })) {
+      armIdleTimer();
       if (event.type === "text-delta") {
         firstTokenMs ??= Date.now() - startTime;
         content += event.text;
@@ -223,7 +240,9 @@ export async function streamAssistant(
             ? "stopped"
             : "error";
         errorMessage = timedOut
-          ? "chat.requestTimedOut"
+          ? stalled
+            ? "chat.streamStalled"
+            : "chat.requestTimedOut"
           : status === "error"
             ? formatProviderError(event.error.type, event.error.message)
             : undefined;
@@ -246,7 +265,9 @@ export async function streamAssistant(
   } catch (error) {
     status = timedOut ? "error" : controller.signal.aborted ? "stopped" : "error";
     errorMessage = timedOut
-      ? "chat.requestTimedOut"
+      ? stalled
+        ? "chat.streamStalled"
+        : "chat.requestTimedOut"
       : status === "error"
         ? formatProviderError(
             ProviderErrorType.PROVIDER_ERROR,
@@ -260,6 +281,7 @@ export async function streamAssistant(
         : ProviderErrorType.PROVIDER_ERROR;
   } finally {
     if (timeout !== undefined) globalThis.clearTimeout(timeout);
+    if (idleTimer !== undefined) globalThis.clearTimeout(idleTimer);
     const set = activeControllers.get(conversationId);
     set?.delete(controller);
     if (set?.size === 0) activeControllers.delete(conversationId);

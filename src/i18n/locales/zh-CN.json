@@ -150,6 +150,7 @@
     "slowResponse": "模型响应较慢，但任务仍在运行。你可以随时停止。",
     "ipcRetrying": "正在重试本地文件访问…",
     "requestTimedOut": "模型在 120 秒内没有完成本轮响应。请重试，或检查服务端负载。",
+    "streamStalled": "模型响应停止更新较久，已中止本轮以避免无限等待。可重试。",
     "tokenCount": "{{count}} tokens",
     "retry": "重试",
     "privateSession": "隐私会话",
