@@ -246,7 +246,7 @@ interface CollectedApprovals {
   approvalContexts: ApprovalContext[];
 }
 
-function collectApprovals(turn: TurnContext, result: AgentLoopResult): CollectedApprovals {
+export function collectApprovals(turn: TurnContext, result: AgentLoopResult): CollectedApprovals {
   const { runtime, conversationId, provider } = turn;
   const lastTurn = result.turns[result.turns.length - 1];
   const approvalContexts =
@@ -324,7 +324,7 @@ async function completeTurn(
 }
 
 /** Map the loop outcome onto the trace's terminal status. */
-function traceStatusFor(
+export function traceStatusFor(
   result: AgentLoopResult,
   error: string | undefined,
 ): "completed" | "failed" | "stopped" {
