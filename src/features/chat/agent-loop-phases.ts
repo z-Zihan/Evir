@@ -46,15 +46,16 @@ function isTransientStreamError(stream: StreamResult): boolean {
 
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
-    const timer = globalThis.setTimeout(resolve, ms);
-    signal?.addEventListener(
-      "abort",
-      () => {
-        globalThis.clearTimeout(timer);
-        resolve();
-      },
-      { once: true },
-    );
+    const onAbort = () => {
+      globalThis.clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    };
+    const timer = globalThis.setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
   });
 }
 

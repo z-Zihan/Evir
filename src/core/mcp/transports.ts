@@ -168,7 +168,7 @@ export class StdioMcpTransport implements McpTransport {
   }
 }
 
-async function boundedText(response: Response): Promise<string> {
+export async function boundedText(response: Response): Promise<string> {
   const declaredLength = response.headers.get("Content-Length");
   const length = declaredLength === null ? undefined : Number(declaredLength);
   if (length !== undefined && Number.isFinite(length) && length > MAX_MCP_RESPONSE_BYTES) {
@@ -201,7 +201,7 @@ async function boundedText(response: Response): Promise<string> {
   return new TextDecoder().decode(bytes);
 }
 
-function eventData(event: string): string | undefined {
+export function eventData(event: string): string | undefined {
   const data = event
     .split(/\r?\n/)
     .filter((line) => line.startsWith("data:"))
@@ -210,7 +210,7 @@ function eventData(event: string): string | undefined {
   return data || undefined;
 }
 
-async function consumeNotificationStream(
+export async function consumeNotificationStream(
   response: Response,
   notify: (method: string, params?: Record<string, unknown>) => void,
 ): Promise<void> {
