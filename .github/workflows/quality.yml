@@ -32,6 +32,10 @@ jobs:
         run: pnpm check
       - name: Web build sanity
         run: pnpm build:web
+      - name: Install Chrome for Playwright
+        run: pnpm exec playwright install --with-deps chrome
+      - name: Playwright e2e (web + desktop core flows)
+        run: pnpm test:e2e
 
   # Windows-specific compile/test sanity on every PR/main so Windows-only
   # breakage is not discovered at release-tag time. Physical-device Windows
