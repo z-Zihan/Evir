@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { agentMessages, configurePage, isDesktop, seedFixture } from "./helpers";
 
@@ -98,8 +98,11 @@ test("shows the platform-specific built-in Skill catalog", async ({ page }, test
   await page.getByRole("button", { name: "Skills", exact: true }).click();
 
   const expectedSkillCount = isDesktop(testInfo) ? 36 : 10;
+  // SKL-1 defaults: core coding skills are ON by default (15 on desktop, 7 on
+  // web); optional office/auxiliary packs stay OFF until enabled in Settings.
+  const expectedEnabledByDefault = isDesktop(testInfo) ? 15 : 7;
   await expect(page.locator(".skill-item")).toHaveCount(expectedSkillCount);
-  await expect(page.locator(".skill-toggle input:checked")).toHaveCount(0);
+  await expect(page.locator(".skill-toggle input:checked")).toHaveCount(expectedEnabledByDefault);
   await expect(page.getByText("Desktop only", { exact: true })).toHaveCount(
     isDesktop(testInfo) ? 26 : 0,
   );
@@ -256,6 +259,26 @@ test("runs two tasks concurrently with stop isolation", async ({ page }) => {
   await expect(page.locator("textarea")).toBeEnabled();
 });
 
+// After a viewport change the desktop/mobile workbench variants swap through
+// a short unmount/remount window, so a one-shot boundingBox() can land between
+// renders and return null even though the element is visible. Wait for two
+// consecutive non-null reads before asserting on the box.
+async function settledBoundingBox(locator: Locator, timeout = 5_000) {
+  const deadline = Date.now() + timeout;
+  let last: Awaited<ReturnType<Locator["boundingBox"]>> = null;
+  while (Date.now() < deadline) {
+    const first = await locator.boundingBox();
+    if (first !== null) {
+      await locator.page().waitForTimeout(100);
+      const second = await locator.boundingBox();
+      if (second !== null) return second;
+    }
+    last = first;
+    await locator.page().waitForTimeout(100);
+  }
+  return last;
+}
+
 test("Desktop Agent renders the event-driven task workbench", async ({ page }, testInfo) => {
   test.skip(!isDesktop(testInfo), "Task orchestration is a Desktop capability");
   await configurePage(page);
@@ -288,7 +311,7 @@ test("Desktop Agent renders the event-driven task workbench", async ({ page }, t
     await page.setViewportSize(viewport);
     const workbench = page.locator(".task-workbench");
     await expect(workbench).toBeVisible();
-    const bounds = await workbench.boundingBox();
+    const bounds = await settledBoundingBox(workbench);
     expect(bounds).not.toBeNull();
     expect(bounds?.x ?? -1).toBeGreaterThanOrEqual(0);
     expect((bounds?.x ?? 0) + (bounds?.width ?? viewport.width + 1)).toBeLessThanOrEqual(
@@ -296,7 +319,7 @@ test("Desktop Agent renders the event-driven task workbench", async ({ page }, t
     );
     const assistantLocator = page.locator(".message-assistant .message-main").first();
     await expect(assistantLocator).toBeVisible();
-    const assistantContent = await assistantLocator.boundingBox();
+    const assistantContent = await settledBoundingBox(assistantLocator);
     expect(assistantContent).not.toBeNull();
     expect(Math.abs((bounds?.x ?? 0) - (assistantContent?.x ?? 0))).toBeLessThanOrEqual(1);
     expect(bounds?.width ?? 821).toBeLessThanOrEqual(820);
