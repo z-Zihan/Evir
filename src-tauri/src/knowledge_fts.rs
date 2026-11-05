@@ -39,7 +39,7 @@ pub fn tokenize_index_text(heading: &str, text: &str) -> String {
     let mut word = String::new();
     let mut cjk_run: Vec<char> = Vec::new();
 
-    let mut flush_word = |word: &mut String, tokens: &mut Vec<String>| {
+    let flush_word = |word: &mut String, tokens: &mut Vec<String>| {
         if word.chars().count() >= 2 {
             tokens.push(word.clone());
         }
