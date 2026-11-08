@@ -50,10 +50,9 @@ describe("provider error display i18n closure", () => {
             value,
             `${name} errors.${type}.${field} must not fall back to the raw key`,
           ).not.toBe(`errors.${type}.${field}`);
-          expect(
-            value,
-            `${name} errors.${type}.${field} must be resolved copy`,
-          ).not.toContain("errors.");
+          expect(value, `${name} errors.${type}.${field} must be resolved copy`).not.toContain(
+            "errors.",
+          );
         }
       }
     }
@@ -67,10 +66,9 @@ describe("provider error display i18n closure", () => {
         .filter(([, value]) => typeof value === "object" && value !== null)
         .map(([key]) => key)
         .sort();
-      expect(
-        copyKeys,
-        `${name} errors node must match ProviderErrorType exactly`,
-      ).toEqual([...TYPES].sort());
+      expect(copyKeys, `${name} errors node must match ProviderErrorType exactly`).toEqual(
+        [...TYPES].sort(),
+      );
     }
   });
 
