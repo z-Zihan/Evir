@@ -370,16 +370,8 @@ async function searchDocs(
     }
     return { success: true, output: hits.join("\n") || "no matches in project docs" };
   } catch (error) {
-    return toolToolError(error);
+    return toolError(error);
   }
-}
-
-function toolToolError(error: unknown): ToolResult {
-  return {
-    success: false,
-    output: error instanceof Error ? error.message : "search_docs failed",
-    error: "tool_error",
-  };
 }
 
 async function runCommand(
@@ -444,7 +436,11 @@ async function gitStatus(
     });
     if (!result.is_repo) return { success: true, output: "Not a git repository" };
     const lines = result.entries.map((e) => `${e.status}\t${e.file}`);
-    return { success: true, output: `branch: ${result.branch ?? "unknown"}\n${lines.join("\n")}` };
+    const branchLine = `branch: ${result.branch ?? "unknown"}`;
+    return {
+      success: true,
+      output: lines.length > 0 ? `${branchLine}\n${lines.join("\n")}` : branchLine,
+    };
   } catch (error) {
     return toolError(error);
   }
