@@ -354,6 +354,28 @@ describe("search_docs", () => {
     );
     expect(result).toEqual({ success: true, output: "no matches in project docs" });
   });
+
+  it("bounds and redacts storage failures to tool_error", async () => {
+    const leaky = vi.fn(() =>
+      Promise.reject(new Error("index scan failed with sk-abcdefghijkl12 key")),
+    );
+    const result = await tool("search_docs").execute(
+      { path: "/tmp/project", pattern: "alpha" },
+      desktopRuntime({ searchFiles: leaky }),
+    );
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("tool_error");
+    expect(result.output).toBe("index scan failed with [REDACTED] key");
+    expect(result.output).not.toContain("sk-abcdefghijkl12");
+
+    const long = vi.fn(() => Promise.reject(new Error("y".repeat(1_500))));
+    const bounded = await tool("search_docs").execute(
+      { path: "/tmp/project", pattern: "alpha" },
+      desktopRuntime({ searchFiles: long }),
+    );
+    expect(bounded.error).toBe("tool_error");
+    expect(bounded.output).toBe("y".repeat(1_000));
+  });
 });
 
 describe("run_command", () => {
@@ -458,14 +480,25 @@ describe("git_status", () => {
     });
   });
 
-  it("falls back to an unknown branch", async () => {
+  it("falls back to an unknown branch without a trailing newline", async () => {
     const gitStatus = vi.fn(() => Promise.resolve({ is_repo: true, entries: [], branch: null }));
     const result = await tool("git_status").execute(
       { path: "/tmp/project" },
       desktopRuntime({ gitStatus }),
     );
-    // Empty entries still leave the header newline in place.
-    expect(result).toEqual({ success: true, output: "branch: unknown\n" });
+    // Empty entries emit the branch header alone — no trailing newline.
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("branch: unknown");
+  });
+
+  it("emits only the branch line for a clean tree", async () => {
+    const gitStatus = vi.fn(() => Promise.resolve({ is_repo: true, entries: [], branch: "main" }));
+    const result = await tool("git_status").execute(
+      { path: "/tmp/project" },
+      desktopRuntime({ gitStatus }),
+    );
+    expect(result.success).toBe(true);
+    expect(result.output).toBe("branch: main");
   });
 });
 
