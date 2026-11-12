@@ -191,7 +191,7 @@ export async function deleteConversation(
   const [steps, assignments, approvals] = await Promise.all([
     storage.readAll<{ id: string; runId: string }>("run_steps"),
     storage.readAll<AgentAssignment>("agent_assignments"),
-    storage.readAll<{ id: string; runId: string }>("approvals"),
+    storage.readAll<{ id: string; runId: string; conversationId: string }>("approvals"),
   ]);
   const messageIds = new Set(messages.map(({ id: messageId }) => messageId));
   const attachments = await storage.readAll<{ id: string; messageId: string }>("attachments");
@@ -248,7 +248,7 @@ export async function deleteConversation(
         id: assignmentId,
       })),
     ...approvals
-      .filter(({ runId }) => runIds.has(runId))
+      .filter(({ runId, conversationId }) => runIds.has(runId) || conversationId === id)
       .map(({ id: approvalId }) => ({
         type: "delete" as const,
         entity: "approvals" as const,

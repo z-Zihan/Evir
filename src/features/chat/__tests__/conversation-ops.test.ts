@@ -581,6 +581,26 @@ describe("deleteConversation", () => {
     expect(await ids("memories")).toEqual(["mem-2"]);
   });
 
+  it("deletes legacy agent-loop approvals by conversationId when their runId is not in any brief", async () => {
+    await db.conversations.put(makeConversation("c1", 1));
+    await db.conversations.put(makeConversation("c2", 2));
+    await storage.write("task_briefs", "brief-1", {
+      id: "brief-1",
+      runId: "orch-run",
+      conversationId: "c1",
+      updatedAt: 1,
+    });
+    await storage.writeMany("approvals", [
+      makeApproval("ap-legacy-c1", "c1", "call-1", 1, { runId: "agent-run-c1" }),
+      makeApproval("ap-legacy-c2", "c2", "call-2", 1, { runId: "agent-run-c2" }),
+    ]);
+
+    await deleteConversation(set, get, "c1");
+
+    const approvalIds = (await storage.readAll<{ id: string }>("approvals")).map(({ id }) => id);
+    expect(approvalIds).toEqual(["ap-legacy-c2"]);
+  });
+
   it("clears the current view when deleting the current conversation", async () => {
     await db.conversations.put(makeConversation("c1", 1));
     useChatStore.setState({
