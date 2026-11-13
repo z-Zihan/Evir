@@ -80,7 +80,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     if (slotFor(get(), id)) get().stopGeneration(id);
     return doDeleteConversation(set, get, id);
   },
-  renameConversation: async (id, title) => doRenameConversation(set, id, title),
+  renameConversation: async (id, title) => doRenameConversation(set, get, id, title),
   togglePin: async (id) => doTogglePin(set, get, id),
   updateConversationProvider: async (providerId, modelId) =>
     doUpdateConversationProvider(set, get, providerId, modelId),

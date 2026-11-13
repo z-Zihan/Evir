@@ -291,6 +291,7 @@ export async function deleteConversation(
 
 export async function renameConversation(
   set: ChatStoreSet,
+  get: ChatStoreGet,
   id: string,
   title: string,
 ): Promise<void> {
@@ -298,7 +299,17 @@ export async function renameConversation(
   if (!cleanTitle) return;
   const storage = getStructuredStorage();
   const current = await storage.read<ConversationRecord>("conversations", id);
-  if (!current) return;
+  if (!current) {
+    // Private sessions never persist to storage; fall back to the in-memory
+    // record so rename still takes effect instead of silently no-op'ing.
+    if (!get().conversations.some((c) => c.id === id)) return;
+    set(({ conversations }) => ({
+      conversations: conversations.map((c) =>
+        c.id === id ? { ...c, title: cleanTitle, updatedAt: Date.now() } : c,
+      ),
+    }));
+    return;
+  }
   await storage.write("conversations", id, {
     ...current,
     title: cleanTitle,
@@ -314,7 +325,17 @@ export async function togglePin(set: ChatStoreSet, get: ChatStoreGet, id: string
   const newPinned = conv?.pinned ? 0 : 1;
   try {
     const current = await getStructuredStorage().read<ConversationRecord>("conversations", id);
-    if (!current) return;
+    if (!current) {
+      // Private sessions never persist to storage; fall back to the
+      // in-memory record so pin still takes effect instead of silently no-op'ing.
+      if (!conv) return;
+      set(({ conversations }) => ({
+        conversations: conversations.map((c) =>
+          c.id === id ? { ...c, pinned: newPinned, updatedAt: Date.now() } : c,
+        ),
+      }));
+      return;
+    }
     await getStructuredStorage().write("conversations", id, {
       ...current,
       pinned: newPinned,
@@ -341,7 +362,17 @@ export async function updateConversationProvider(
     "conversations",
     currentConversationId,
   );
-  if (!current) return;
+  if (!current) {
+    // Private sessions never persist to storage; fall back to the in-memory
+    // record so provider switches still take effect instead of silently no-op'ing.
+    if (!get().conversations.some((c) => c.id === currentConversationId)) return;
+    set(({ conversations }) => ({
+      conversations: conversations.map((c) =>
+        c.id === currentConversationId ? { ...c, providerId, modelId, updatedAt: now } : c,
+      ),
+    }));
+    return;
+  }
   await getStructuredStorage().write("conversations", currentConversationId, {
     ...current,
     providerId,
