@@ -308,14 +308,14 @@ describe("togglePin", () => {
     expect(get().conversations[0]?.pinned).toBe(0);
   });
 
-  it("is a no-op when the conversation is not in storage", async () => {
-    const conversation = makeConversation("ghost", 1);
-    useChatStore.setState({ conversations: [conversation] });
+  it("is a no-op when the conversation is neither in storage nor in memory", async () => {
+    useChatStore.setState({ conversations: [] });
 
     await togglePin(set, get, "ghost");
 
-    expect(get().conversations[0]?.pinned).toBeUndefined();
+    expect(get().conversations).toHaveLength(0);
     expect(get().error).toBeNull();
+    expect(await db.conversations.get("ghost")).toBeUndefined();
   });
 
   it("sets chat.pinFailed when storage throws", async () => {
@@ -329,6 +329,18 @@ describe("togglePin", () => {
     expect(get().error).toBe("chat.pinFailed");
     expect(get().conversations[0]?.pinned).toBeUndefined();
   });
+
+  it("pins a private conversation in memory without touching storage", async () => {
+    const id = await createConversation(set, "provider-1", "model-1", true);
+    vi.spyOn(Date, "now").mockReturnValue(700);
+
+    await togglePin(set, get, id);
+
+    expect(get().conversations.find((c) => c.id === id)?.pinned).toBe(1);
+    expect(get().conversations.find((c) => c.id === id)?.updatedAt).toBe(700);
+    expect(await db.conversations.get(id)).toBeUndefined();
+    expect(get().error).toBeNull();
+  });
 });
 
 describe("renameConversation", () => {
@@ -338,7 +350,7 @@ describe("renameConversation", () => {
     useChatStore.setState({ conversations: [conversation] });
     vi.spyOn(Date, "now").mockReturnValue(500);
 
-    await renameConversation(set, "c1", "  New title  ");
+    await renameConversation(set, get, "c1", "  New title  ");
 
     const stored = await db.conversations.get("c1");
     expect(stored?.title).toBe("New title");
@@ -351,20 +363,31 @@ describe("renameConversation", () => {
     await db.conversations.put(conversation);
     useChatStore.setState({ conversations: [conversation] });
 
-    await renameConversation(set, "c1", "   ");
+    await renameConversation(set, get, "c1", "   ");
 
     expect((await db.conversations.get("c1"))?.title).toBe("Title c1");
     expect(get().conversations[0]?.title).toBe("Title c1");
   });
 
-  it("is a no-op when the conversation is not in storage", async () => {
-    const conversation = makeConversation("ghost", 1);
-    useChatStore.setState({ conversations: [conversation] });
+  it("is a no-op when the conversation is neither in storage nor in memory", async () => {
+    useChatStore.setState({ conversations: [] });
 
-    await renameConversation(set, "ghost", "Renamed");
+    await renameConversation(set, get, "ghost", "Renamed");
 
-    expect(get().conversations[0]?.title).toBe("Title ghost");
+    expect(get().conversations).toHaveLength(0);
     expect(await db.conversations.get("ghost")).toBeUndefined();
+  });
+
+  it("updates the in-memory title for a private conversation without touching storage", async () => {
+    const id = await createConversation(set, "provider-1", "model-1", true);
+    vi.spyOn(Date, "now").mockReturnValue(700);
+
+    await renameConversation(set, get, id, "  Private title  ");
+
+    expect(get().conversations.find((c) => c.id === id)?.title).toBe("Private title");
+    expect(get().conversations.find((c) => c.id === id)?.updatedAt).toBe(700);
+    expect(await db.conversations.get(id)).toBeUndefined();
+    expect(get().error).toBeNull();
   });
 });
 
@@ -686,11 +709,27 @@ describe("updateConversationProvider", () => {
     expect(get().conversations[0]?.providerId).toBe("provider-1");
   });
 
-  it("leaves state untouched when the current conversation is not persisted (private)", async () => {
-    const id = await createConversation(set, "provider-1", "model-1", true);
+  it("is a no-op when the current conversation is neither in storage nor in memory", async () => {
+    useChatStore.setState({ conversations: [], currentConversationId: "ghost" });
 
     await updateConversationProvider(set, get, "provider-2", "model-2");
 
-    expect(get().conversations.find((c) => c.id === id)?.providerId).toBe("provider-1");
+    expect(get().conversations).toHaveLength(0);
+    expect(await db.conversations.get("ghost")).toBeUndefined();
+  });
+
+  it("updates the in-memory record for a private conversation without touching storage", async () => {
+    const id = await createConversation(set, "provider-1", "model-1", true);
+    vi.spyOn(Date, "now").mockReturnValue(900);
+
+    await updateConversationProvider(set, get, "provider-2", "model-2");
+
+    const conversation = get().conversations.find((c) => c.id === id);
+    expect(conversation).toMatchObject({
+      providerId: "provider-2",
+      modelId: "model-2",
+      updatedAt: 900,
+    });
+    expect(await db.conversations.get(id)).toBeUndefined();
   });
 });
