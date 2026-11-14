@@ -290,22 +290,30 @@ describe("togglePin", () => {
     const conversation = makeConversation("c1", 1);
     await db.conversations.put(conversation);
     useChatStore.setState({ conversations: [conversation] });
+    vi.spyOn(Date, "now").mockReturnValue(500);
 
     await togglePin(set, get, "c1");
 
-    expect((await db.conversations.get("c1"))?.pinned).toBe(1);
+    const stored = await db.conversations.get("c1");
+    expect(stored?.pinned).toBe(1);
+    expect(stored?.updatedAt).toBe(500);
     expect(get().conversations[0]?.pinned).toBe(1);
+    expect(get().conversations[0]?.updatedAt).toBe(500);
   });
 
   it("unpins a pinned conversation and persists it", async () => {
     const conversation = makeConversation("c1", 1, { pinned: 1 });
     await db.conversations.put(conversation);
     useChatStore.setState({ conversations: [conversation] });
+    vi.spyOn(Date, "now").mockReturnValue(600);
 
     await togglePin(set, get, "c1");
 
-    expect((await db.conversations.get("c1"))?.pinned).toBe(0);
+    const stored = await db.conversations.get("c1");
+    expect(stored?.pinned).toBe(0);
+    expect(stored?.updatedAt).toBe(600);
     expect(get().conversations[0]?.pinned).toBe(0);
+    expect(get().conversations[0]?.updatedAt).toBe(600);
   });
 
   it("is a no-op when the conversation is neither in storage nor in memory", async () => {
@@ -328,6 +336,7 @@ describe("togglePin", () => {
 
     expect(get().error).toBe("chat.pinFailed");
     expect(get().conversations[0]?.pinned).toBeUndefined();
+    expect(get().conversations[0]?.updatedAt).toBe(1);
   });
 
   it("pins a private conversation in memory without touching storage", async () => {
@@ -356,6 +365,7 @@ describe("renameConversation", () => {
     expect(stored?.title).toBe("New title");
     expect(stored?.updatedAt).toBe(500);
     expect(get().conversations[0]?.title).toBe("New title");
+    expect(get().conversations[0]?.updatedAt).toBe(500);
   });
 
   it("ignores blank titles", async () => {
