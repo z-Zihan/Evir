@@ -88,11 +88,22 @@ describe("search_knowledge argument validation", () => {
     expect(retrieve).not.toHaveBeenCalled();
   });
 
-  it("strips unknown keys instead of rejecting them", async () => {
-    retrieve.mockResolvedValue(withHits());
+  it("rejects unknown keys to match the additionalProperties: false JSON schema", async () => {
     const storage = projectStorage(project("/tmp/project", ["kb-1"]));
     const result = await tool("search_knowledge").execute(
       { query: "auth", rogue: "extra" },
+      runtime(storage, "/tmp/project"),
+    );
+    expect(result).toEqual({ success: false, output: 'Unrecognized key: "rogue"' });
+    expect("error" in result).toBe(false);
+    expect(retrieve).not.toHaveBeenCalled();
+  });
+
+  it("accepts arguments without unknown keys", async () => {
+    retrieve.mockResolvedValue(withHits());
+    const storage = projectStorage(project("/tmp/project", ["kb-1"]));
+    const result = await tool("search_knowledge").execute(
+      { query: "auth", limit: 5 },
       runtime(storage, "/tmp/project"),
     );
     expect(result.success).toBe(true);

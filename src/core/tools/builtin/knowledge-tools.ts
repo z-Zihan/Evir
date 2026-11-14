@@ -11,10 +11,12 @@ import type { ProjectRecord } from "../../storage/db";
 import type { EvirRuntime } from "../../../runtime/types";
 import type { ToolDefinition } from "../../providers/tool-registry";
 
-const searchArgsSchema = z.object({
-  query: z.string().min(1).max(2_000),
-  limit: z.number().int().min(1).max(20).optional(),
-});
+const searchArgsSchema = z
+  .object({
+    query: z.string().min(1).max(2_000),
+    limit: z.number().int().min(1).max(20).optional(),
+  })
+  .strict();
 
 async function searchKnowledge(
   args: Record<string, unknown>,
