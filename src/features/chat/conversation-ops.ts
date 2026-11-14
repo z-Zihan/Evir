@@ -310,13 +310,16 @@ export async function renameConversation(
     }));
     return;
   }
+  const now = Date.now();
   await storage.write("conversations", id, {
     ...current,
     title: cleanTitle,
-    updatedAt: Date.now(),
+    updatedAt: now,
   });
   set(({ conversations }) => ({
-    conversations: conversations.map((c) => (c.id === id ? { ...c, title: cleanTitle } : c)),
+    conversations: conversations.map((c) =>
+      c.id === id ? { ...c, title: cleanTitle, updatedAt: now } : c,
+    ),
   }));
 }
 
@@ -336,13 +339,16 @@ export async function togglePin(set: ChatStoreSet, get: ChatStoreGet, id: string
       }));
       return;
     }
+    const now = Date.now();
     await getStructuredStorage().write("conversations", id, {
       ...current,
       pinned: newPinned,
-      updatedAt: Date.now(),
+      updatedAt: now,
     });
     set(({ conversations }) => ({
-      conversations: conversations.map((c) => (c.id === id ? { ...c, pinned: newPinned } : c)),
+      conversations: conversations.map((c) =>
+        c.id === id ? { ...c, pinned: newPinned, updatedAt: now } : c,
+      ),
     }));
   } catch {
     set({ error: "chat.pinFailed" });
