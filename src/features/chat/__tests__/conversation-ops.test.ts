@@ -399,6 +399,20 @@ describe("renameConversation", () => {
     expect(await db.conversations.get(id)).toBeUndefined();
     expect(get().error).toBeNull();
   });
+
+  it("sets chat.renameFailed when storage throws", async () => {
+    const conversation = makeConversation("c1", 1);
+    await db.conversations.put(conversation);
+    useChatStore.setState({ conversations: [conversation] });
+    vi.spyOn(storage, "write").mockRejectedValueOnce(new Error("disk full"));
+
+    await renameConversation(set, get, "c1", "New title");
+
+    expect(get().error).toBe("chat.renameFailed");
+    expect(get().conversations[0]?.title).toBe("Title c1");
+    expect(get().conversations[0]?.updatedAt).toBe(1);
+    expect((await db.conversations.get("c1"))?.title).toBe("Title c1");
+  });
 });
 
 describe("selectConversation", () => {
@@ -682,6 +696,28 @@ describe("deleteConversation", () => {
     expect(Object.keys(state.pendingApprovals ?? {})).toEqual(["c2"]);
     expect(state.pendingToolApproval?.approvalId).toBe("ap-c2");
   });
+
+  it("sets chat.deleteFailed and keeps the view when storage throws", async () => {
+    await db.conversations.put(makeConversation("c1", 1));
+    await db.messages.put(makeMessage("m1", "c1", 1));
+    useChatStore.setState({
+      conversations: [makeConversation("c1", 1)],
+      currentConversationId: "c1",
+      messages: [makeMessage("m1", "c1", 1)],
+      latestAgentRun: makeAgentRun("run-a", "c1", 1),
+    });
+    vi.spyOn(storage, "query").mockRejectedValueOnce(new Error("disk full"));
+
+    await deleteConversation(set, get, "c1");
+
+    expect(get().error).toBe("chat.deleteFailed");
+    expect(get().conversations.map(({ id }) => id)).toEqual(["c1"]);
+    expect(get().currentConversationId).toBe("c1");
+    expect(get().messages.map(({ id }) => id)).toEqual(["m1"]);
+    expect(get().latestAgentRun?.id).toBe("run-a");
+    expect(await db.conversations.get("c1")).toBeDefined();
+    expect(await db.messages.get("m1")).toBeDefined();
+  });
 });
 
 describe("updateConversationProvider", () => {
@@ -741,5 +777,22 @@ describe("updateConversationProvider", () => {
       updatedAt: 900,
     });
     expect(await db.conversations.get(id)).toBeUndefined();
+  });
+
+  it("sets chat.providerUpdateFailed when storage throws", async () => {
+    const conversation = makeConversation("c1", 1);
+    await db.conversations.put(conversation);
+    useChatStore.setState({
+      conversations: [conversation],
+      currentConversationId: "c1",
+    });
+    vi.spyOn(storage, "read").mockRejectedValueOnce(new Error("disk full"));
+
+    await updateConversationProvider(set, get, "provider-2", "model-2");
+
+    expect(get().error).toBe("chat.providerUpdateFailed");
+    expect(get().conversations[0]?.providerId).toBe("provider-1");
+    expect(get().conversations[0]?.modelId).toBe("model-1");
+    expect(get().conversations[0]?.updatedAt).toBe(1);
   });
 });
