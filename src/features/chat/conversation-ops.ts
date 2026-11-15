@@ -173,95 +173,100 @@ export async function deleteConversation(
   id: string,
 ): Promise<void> {
   const storage = getStructuredStorage();
-  const [messages, agentRuns, toolExecutions, conversationMemories, briefs, plans, events] =
-    await Promise.all([
-      storage.query<MessageRecord>("messages", { conversationId: id }),
-      storage.query<{ id: string; conversationId: string }>("agent_runs", { conversationId: id }),
-      storage.query<{ id: string; conversationId: string }>("tool_executions", {
-        conversationId: id,
-      }),
-      storage.query<MemoryRecord>("memories", { scope: id }),
-      storage.query<TaskBrief>("task_briefs", { conversationId: id }),
-      storage.query<{ id: string; runId: string; conversationId: string }>("plans", {
-        conversationId: id,
-      }),
-      storage.query<RunEventV1>("run_events", { conversationId: id }),
+  try {
+    const [messages, agentRuns, toolExecutions, conversationMemories, briefs, plans, events] =
+      await Promise.all([
+        storage.query<MessageRecord>("messages", { conversationId: id }),
+        storage.query<{ id: string; conversationId: string }>("agent_runs", { conversationId: id }),
+        storage.query<{ id: string; conversationId: string }>("tool_executions", {
+          conversationId: id,
+        }),
+        storage.query<MemoryRecord>("memories", { scope: id }),
+        storage.query<TaskBrief>("task_briefs", { conversationId: id }),
+        storage.query<{ id: string; runId: string; conversationId: string }>("plans", {
+          conversationId: id,
+        }),
+        storage.query<RunEventV1>("run_events", { conversationId: id }),
+      ]);
+    const runIds = new Set(briefs.map(({ runId }) => runId));
+    const [steps, assignments, approvals] = await Promise.all([
+      storage.readAll<{ id: string; runId: string }>("run_steps"),
+      storage.readAll<AgentAssignment>("agent_assignments"),
+      storage.readAll<{ id: string; runId: string; conversationId: string }>("approvals"),
     ]);
-  const runIds = new Set(briefs.map(({ runId }) => runId));
-  const [steps, assignments, approvals] = await Promise.all([
-    storage.readAll<{ id: string; runId: string }>("run_steps"),
-    storage.readAll<AgentAssignment>("agent_assignments"),
-    storage.readAll<{ id: string; runId: string; conversationId: string }>("approvals"),
-  ]);
-  const messageIds = new Set(messages.map(({ id: messageId }) => messageId));
-  const attachments = await storage.readAll<{ id: string; messageId: string }>("attachments");
-  await storage.apply([
-    ...attachments
-      .filter(({ messageId }) => messageIds.has(messageId))
-      .map(({ id: attachmentId }) => ({
+    const messageIds = new Set(messages.map(({ id: messageId }) => messageId));
+    const attachments = await storage.readAll<{ id: string; messageId: string }>("attachments");
+    await storage.apply([
+      ...attachments
+        .filter(({ messageId }) => messageIds.has(messageId))
+        .map(({ id: attachmentId }) => ({
+          type: "delete" as const,
+          entity: "attachments" as const,
+          id: attachmentId,
+        })),
+      ...messages.map(({ id: messageId }) => ({
         type: "delete" as const,
-        entity: "attachments" as const,
-        id: attachmentId,
+        entity: "messages" as const,
+        id: messageId,
       })),
-    ...messages.map(({ id: messageId }) => ({
-      type: "delete" as const,
-      entity: "messages" as const,
-      id: messageId,
-    })),
-    ...toolExecutions.map(({ id: executionId }) => ({
-      type: "delete" as const,
-      entity: "tool_executions" as const,
-      id: executionId,
-    })),
-    ...agentRuns.map(({ id: runId }) => ({
-      type: "delete" as const,
-      entity: "agent_runs" as const,
-      id: runId,
-    })),
-    ...briefs.map(({ id: briefId }) => ({
-      type: "delete" as const,
-      entity: "task_briefs" as const,
-      id: briefId,
-    })),
-    ...plans.map(({ id: planId }) => ({
-      type: "delete" as const,
-      entity: "plans" as const,
-      id: planId,
-    })),
-    ...steps
-      .filter(({ runId }) => runIds.has(runId))
-      .map(({ id: stepId }) => ({
+      ...toolExecutions.map(({ id: executionId }) => ({
         type: "delete" as const,
-        entity: "run_steps" as const,
-        id: stepId,
+        entity: "tool_executions" as const,
+        id: executionId,
       })),
-    ...events.map(({ id: eventId }) => ({
-      type: "delete" as const,
-      entity: "run_events" as const,
-      id: eventId,
-    })),
-    ...assignments
-      .filter(({ parentRunId }) => runIds.has(parentRunId))
-      .map(({ id: assignmentId }) => ({
+      ...agentRuns.map(({ id: runId }) => ({
         type: "delete" as const,
-        entity: "agent_assignments" as const,
-        id: assignmentId,
+        entity: "agent_runs" as const,
+        id: runId,
       })),
-    ...approvals
-      .filter(({ runId, conversationId }) => runIds.has(runId) || conversationId === id)
-      .map(({ id: approvalId }) => ({
+      ...briefs.map(({ id: briefId }) => ({
         type: "delete" as const,
-        entity: "approvals" as const,
-        id: approvalId,
+        entity: "task_briefs" as const,
+        id: briefId,
       })),
-    ...conversationMemories.map(({ id: memoryId }) => ({
-      type: "delete" as const,
-      entity: "memories" as const,
-      id: memoryId,
-    })),
-    { type: "delete", entity: "settings", id: `checkpoint:${id}` },
-    { type: "delete", entity: "conversations", id },
-  ]);
+      ...plans.map(({ id: planId }) => ({
+        type: "delete" as const,
+        entity: "plans" as const,
+        id: planId,
+      })),
+      ...steps
+        .filter(({ runId }) => runIds.has(runId))
+        .map(({ id: stepId }) => ({
+          type: "delete" as const,
+          entity: "run_steps" as const,
+          id: stepId,
+        })),
+      ...events.map(({ id: eventId }) => ({
+        type: "delete" as const,
+        entity: "run_events" as const,
+        id: eventId,
+      })),
+      ...assignments
+        .filter(({ parentRunId }) => runIds.has(parentRunId))
+        .map(({ id: assignmentId }) => ({
+          type: "delete" as const,
+          entity: "agent_assignments" as const,
+          id: assignmentId,
+        })),
+      ...approvals
+        .filter(({ runId, conversationId }) => runIds.has(runId) || conversationId === id)
+        .map(({ id: approvalId }) => ({
+          type: "delete" as const,
+          entity: "approvals" as const,
+          id: approvalId,
+        })),
+      ...conversationMemories.map(({ id: memoryId }) => ({
+        type: "delete" as const,
+        entity: "memories" as const,
+        id: memoryId,
+      })),
+      { type: "delete", entity: "settings", id: `checkpoint:${id}` },
+      { type: "delete", entity: "conversations", id },
+    ]);
+  } catch {
+    set({ error: "chat.deleteFailed" });
+    return;
+  }
   set(({ conversations, currentConversationId, streamSlots, pendingApprovals }) => ({
     conversations: conversations.filter((c) => c.id !== id),
     ...(currentConversationId === id
@@ -298,7 +303,13 @@ export async function renameConversation(
   const cleanTitle = title.trim();
   if (!cleanTitle) return;
   const storage = getStructuredStorage();
-  const current = await storage.read<ConversationRecord>("conversations", id);
+  let current: ConversationRecord | undefined;
+  try {
+    current = await storage.read<ConversationRecord>("conversations", id);
+  } catch {
+    set({ error: "chat.renameFailed" });
+    return;
+  }
   if (!current) {
     // Private sessions never persist to storage; fall back to the in-memory
     // record so rename still takes effect instead of silently no-op'ing.
@@ -311,11 +322,16 @@ export async function renameConversation(
     return;
   }
   const now = Date.now();
-  await storage.write("conversations", id, {
-    ...current,
-    title: cleanTitle,
-    updatedAt: now,
-  });
+  try {
+    await storage.write("conversations", id, {
+      ...current,
+      title: cleanTitle,
+      updatedAt: now,
+    });
+  } catch {
+    set({ error: "chat.renameFailed" });
+    return;
+  }
   set(({ conversations }) => ({
     conversations: conversations.map((c) =>
       c.id === id ? { ...c, title: cleanTitle, updatedAt: now } : c,
@@ -364,10 +380,16 @@ export async function updateConversationProvider(
   const { currentConversationId } = get();
   if (!currentConversationId) return;
   const now = Date.now();
-  const current = await getStructuredStorage().read<ConversationRecord>(
-    "conversations",
-    currentConversationId,
-  );
+  let current: ConversationRecord | undefined;
+  try {
+    current = await getStructuredStorage().read<ConversationRecord>(
+      "conversations",
+      currentConversationId,
+    );
+  } catch {
+    set({ error: "chat.providerUpdateFailed" });
+    return;
+  }
   if (!current) {
     // Private sessions never persist to storage; fall back to the in-memory
     // record so provider switches still take effect instead of silently no-op'ing.
@@ -379,12 +401,17 @@ export async function updateConversationProvider(
     }));
     return;
   }
-  await getStructuredStorage().write("conversations", currentConversationId, {
-    ...current,
-    providerId,
-    modelId,
-    updatedAt: now,
-  });
+  try {
+    await getStructuredStorage().write("conversations", currentConversationId, {
+      ...current,
+      providerId,
+      modelId,
+      updatedAt: now,
+    });
+  } catch {
+    set({ error: "chat.providerUpdateFailed" });
+    return;
+  }
   set(({ conversations }) => ({
     conversations: conversations.map((c) =>
       c.id === currentConversationId ? { ...c, providerId, modelId, updatedAt: now } : c,
