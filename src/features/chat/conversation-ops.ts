@@ -174,20 +174,29 @@ export async function deleteConversation(
 ): Promise<void> {
   const storage = getStructuredStorage();
   try {
-    const [messages, agentRuns, toolExecutions, conversationMemories, briefs, plans, events] =
-      await Promise.all([
-        storage.query<MessageRecord>("messages", { conversationId: id }),
-        storage.query<{ id: string; conversationId: string }>("agent_runs", { conversationId: id }),
-        storage.query<{ id: string; conversationId: string }>("tool_executions", {
-          conversationId: id,
-        }),
-        storage.query<MemoryRecord>("memories", { scope: id }),
-        storage.query<TaskBrief>("task_briefs", { conversationId: id }),
-        storage.query<{ id: string; runId: string; conversationId: string }>("plans", {
-          conversationId: id,
-        }),
-        storage.query<RunEventV1>("run_events", { conversationId: id }),
-      ]);
+    const [
+      messages,
+      agentRuns,
+      toolExecutions,
+      conversationMemories,
+      briefs,
+      plans,
+      events,
+      artifacts,
+    ] = await Promise.all([
+      storage.query<MessageRecord>("messages", { conversationId: id }),
+      storage.query<{ id: string; conversationId: string }>("agent_runs", { conversationId: id }),
+      storage.query<{ id: string; conversationId: string }>("tool_executions", {
+        conversationId: id,
+      }),
+      storage.query<MemoryRecord>("memories", { scope: id }),
+      storage.query<TaskBrief>("task_briefs", { conversationId: id }),
+      storage.query<{ id: string; runId: string; conversationId: string }>("plans", {
+        conversationId: id,
+      }),
+      storage.query<RunEventV1>("run_events", { conversationId: id }),
+      storage.query<{ id: string }>("artifacts", { relatedEntityId: id }),
+    ]);
     const runIds = new Set(briefs.map(({ runId }) => runId));
     const [steps, assignments, approvals] = await Promise.all([
       storage.readAll<{ id: string; runId: string }>("run_steps"),
@@ -196,7 +205,32 @@ export async function deleteConversation(
     ]);
     const messageIds = new Set(messages.map(({ id: messageId }) => messageId));
     const attachments = await storage.readAll<{ id: string; messageId: string }>("attachments");
+    // Branches copy summary messages and archived-output markers verbatim, so
+    // an artifact still referenced from another conversation must survive.
+    const otherMessages = artifacts.length
+      ? (await storage.readAll<MessageRecord>("messages")).filter(
+          ({ conversationId }) => conversationId !== id,
+        )
+      : [];
+    const referencedArchiveIds = new Set(
+      otherMessages.flatMap(({ summaryMetadata }) =>
+        summaryMetadata ? [summaryMetadata.archiveId] : [],
+      ),
+    );
+    const otherToolOutputs = otherMessages.flatMap(({ toolResults }) =>
+      (toolResults ?? []).map(({ output }) => output),
+    );
+    const isReferencedElsewhere = (artifactId: string) =>
+      referencedArchiveIds.has(artifactId) ||
+      otherToolOutputs.some((output) => output.includes(artifactId));
     await storage.apply([
+      ...artifacts
+        .filter(({ id: artifactId }) => !isReferencedElsewhere(artifactId))
+        .map(({ id: artifactId }) => ({
+          type: "delete" as const,
+          entity: "artifacts" as const,
+          id: artifactId,
+        })),
       ...attachments
         .filter(({ messageId }) => messageIds.has(messageId))
         .map(({ id: attachmentId }) => ({

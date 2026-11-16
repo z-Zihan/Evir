@@ -648,6 +648,74 @@ describe("deleteConversation", () => {
     expect(approvalIds).toEqual(["ap-legacy-c2"]);
   });
 
+  it("deletes compaction artifacts owned by the conversation", async () => {
+    await db.conversations.bulkPut([makeConversation("c1", 1), makeConversation("c2", 2)]);
+    await storage.writeMany("artifacts", [
+      { id: "tool-output-call-1", type: "tool-output-source", relatedEntityId: "c1", output: "x" },
+      { id: "summary-source:sum-1", type: "conversation-summary-source", relatedEntityId: "c1" },
+      { id: "tool-output-call-2", type: "tool-output-source", relatedEntityId: "c2", output: "y" },
+    ]);
+
+    await deleteConversation(set, get, "c1");
+
+    expect(await storage.read("artifacts", "tool-output-call-1")).toBeUndefined();
+    expect(await storage.read("artifacts", "summary-source:sum-1")).toBeUndefined();
+    expect(await storage.read("artifacts", "tool-output-call-2")).toBeDefined();
+  });
+
+  it("keeps a summary-source artifact still referenced by another conversation's summary", async () => {
+    await db.conversations.bulkPut([makeConversation("c1", 1), makeConversation("branch", 2)]);
+    const summaryMetadata = {
+      version: 1 as const,
+      sourceMessageIds: ["m0"],
+      sourceStartedAt: 1,
+      sourceEndedAt: 1,
+      archiveId: "summary-source:sum-1",
+    };
+    await db.messages.bulkPut([
+      makeMessage("sum-1", "c1", 1, { role: "system", summaryMetadata }),
+      makeMessage("sum-1-copy", "branch", 1, { role: "system", summaryMetadata }),
+    ]);
+    await storage.writeMany("artifacts", [
+      { id: "summary-source:sum-1", type: "conversation-summary-source", relatedEntityId: "c1" },
+      { id: "summary-source:sum-2", type: "conversation-summary-source", relatedEntityId: "c1" },
+    ]);
+
+    await deleteConversation(set, get, "c1");
+
+    expect(await storage.read("artifacts", "summary-source:sum-1")).toBeDefined();
+    expect(await storage.read("artifacts", "summary-source:sum-2")).toBeUndefined();
+  });
+
+  it("keeps a tool-output artifact still referenced by another conversation's tool result", async () => {
+    await db.conversations.bulkPut([makeConversation("c1", 1), makeConversation("branch", 2)]);
+    const toolResult = (toolCallId: string, artifactId: string) => ({
+      toolCallId,
+      toolName: "run_command",
+      success: true,
+      output: `head…\n[full output archived: ${artifactId}]`,
+    });
+    await db.messages.bulkPut([
+      makeMessage("m1", "c1", 1, {
+        role: "assistant",
+        toolResults: [toolResult("call-1", "tool-output-call-1")],
+      }),
+      makeMessage("m1-copy", "branch", 1, {
+        role: "assistant",
+        toolResults: [toolResult("call-1-remapped", "tool-output-call-1")],
+      }),
+    ]);
+    await storage.writeMany("artifacts", [
+      { id: "tool-output-call-1", type: "tool-output-source", relatedEntityId: "c1", output: "x" },
+      { id: "tool-output-call-9", type: "tool-output-source", relatedEntityId: "c1", output: "z" },
+    ]);
+
+    await deleteConversation(set, get, "c1");
+
+    expect(await storage.read("artifacts", "tool-output-call-1")).toBeDefined();
+    expect(await storage.read("artifacts", "tool-output-call-9")).toBeUndefined();
+  });
+
   it("clears the current view when deleting the current conversation", async () => {
     await db.conversations.put(makeConversation("c1", 1));
     useChatStore.setState({
