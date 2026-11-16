@@ -195,7 +195,7 @@ export async function deleteConversation(
         conversationId: id,
       }),
       storage.query<RunEventV1>("run_events", { conversationId: id }),
-      storage.query<{ id: string }>("artifacts", { relatedEntityId: id }),
+      storage.query<{ id: string; relatedEntityId: string }>("artifacts", { relatedEntityId: id }),
     ]);
     const runIds = new Set(briefs.map(({ runId }) => runId));
     const [steps, assignments, approvals] = await Promise.all([
