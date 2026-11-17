@@ -2,19 +2,65 @@ import type { ConversationRecord, MessageRecord, AttachmentRecord } from "../../
 import { getStructuredStorage } from "../../runtime/structured-storage";
 import { getRuntime } from "../../runtime/use-runtime";
 
+interface SummarySourceArchive {
+  id: string;
+  type: "conversation-summary-source";
+  relatedEntityId: string;
+  messages: MessageRecord[];
+  attachments?: AttachmentRecord[];
+  createdAt?: number;
+}
+
 interface ExportData {
-  // API Key is never included in exports — only conversations, messages, and attachments are exported
+  // API Key is never included in exports — only conversations, messages, attachments,
+  // and the summary-source archives those messages reference are exported
   version: 1;
   exportedAt: number;
   conversations: Array<
     ConversationRecord & { messages: Array<MessageRecord & { attachments: AttachmentRecord[] }> }
   >;
+  archives: SummarySourceArchive[];
+}
+
+/**
+ * Compaction replaces old messages with a summary whose source messages live
+ * only in a `conversation-summary-source` artifact. Without exporting it, an
+ * import would leave the summary pointing at nothing and later rounds would
+ * re-summarize the summary text. Branches copy summaries verbatim, so ids are
+ * deduplicated; archives missing from storage are skipped.
+ */
+async function collectSummaryArchives(
+  messages: readonly MessageRecord[],
+): Promise<SummarySourceArchive[]> {
+  const storage = getStructuredStorage();
+  const archiveIds = [
+    ...new Set(messages.flatMap(({ summaryMetadata }) => summaryMetadata?.archiveId ?? [])),
+  ];
+  const archives: SummarySourceArchive[] = [];
+  for (const id of archiveIds) {
+    const artifact = await storage.read<SummarySourceArchive>("artifacts", id);
+    if (artifact?.type !== "conversation-summary-source") continue;
+    archives.push({
+      id: artifact.id,
+      type: artifact.type,
+      relatedEntityId: artifact.relatedEntityId,
+      messages: artifact.messages,
+      ...(artifact.attachments !== undefined ? { attachments: artifact.attachments } : {}),
+      ...(artifact.createdAt !== undefined ? { createdAt: artifact.createdAt } : {}),
+    });
+  }
+  return archives;
 }
 
 export async function exportConversations(): Promise<Blob> {
   const storage = getStructuredStorage();
   const conversations = await storage.readAll<ConversationRecord>("conversations");
-  const result: ExportData = { version: 1, exportedAt: Date.now(), conversations: [] };
+  const result: ExportData = {
+    version: 1,
+    exportedAt: Date.now(),
+    conversations: [],
+    archives: [],
+  };
   for (const conv of conversations) {
     const messages = await storage.query<MessageRecord>("messages", { conversationId: conv.id });
     messages.sort((a, b) => a.createdAt - b.createdAt);
@@ -28,6 +74,9 @@ export async function exportConversations(): Promise<Blob> {
     );
     result.conversations.push({ ...conv, messages: messagesWithAttachments });
   }
+  result.archives = await collectSummaryArchives(
+    result.conversations.flatMap(({ messages }) => messages),
+  );
   return new Blob([JSON.stringify(result, null, 2)], { type: "application/json" });
 }
 
@@ -54,6 +103,7 @@ export async function exportConversation(id: string): Promise<Blob> {
     version: 1,
     exportedAt: Date.now(),
     conversations: [{ ...conv, messages: messages }],
+    archives: await collectSummaryArchives(messages),
   };
   return new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
 }
