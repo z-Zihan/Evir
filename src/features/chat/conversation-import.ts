@@ -76,10 +76,21 @@ const conversationSchema = z.object({
   messages: z.array(messageSchema),
 });
 
+const summaryArchiveSchema = z.object({
+  id: z.string(),
+  type: z.literal("conversation-summary-source"),
+  relatedEntityId: z.string(),
+  createdAt: z.number().optional(),
+  messages: z.array(messageSchema),
+  attachments: z.array(attachmentSchema).optional(),
+});
+
 const exportDataSchema = z.object({
   version: z.literal(1),
   exportedAt: z.number(),
   conversations: z.array(conversationSchema),
+  // Absent in exports that predate summary-archive export.
+  archives: z.array(summaryArchiveSchema).optional(),
 });
 
 export async function importConversations(
@@ -91,6 +102,9 @@ export async function importConversations(
   let skipped = 0;
   const storage = getStructuredStorage();
   const mutations: StorageMutation[] = [];
+  const archivesById = new Map((parsed.archives ?? []).map((archive) => [archive.id, archive]));
+  // Archives already queued or already in storage; local data is never overwritten.
+  const handledArchiveIds = new Set<string>();
   for (const conv of parsed.conversations) {
     const existing = await storage.read("conversations", conv.id);
     if (existing) {
@@ -149,6 +163,14 @@ export async function importConversations(
           : {}),
       };
       mutations.push({ type: "write", entity: "messages", id: msgRecord.id, data: msgRecord });
+      const archiveId = msgData.summaryMetadata?.archiveId;
+      const archive = archiveId !== undefined ? archivesById.get(archiveId) : undefined;
+      if (archive && !handledArchiveIds.has(archive.id)) {
+        handledArchiveIds.add(archive.id);
+        if (!(await storage.read("artifacts", archive.id))) {
+          mutations.push({ type: "write", entity: "artifacts", id: archive.id, data: archive });
+        }
+      }
       if (attachments) {
         for (const att of attachments) {
           mutations.push({ type: "write", entity: "attachments", id: att.id, data: att });
