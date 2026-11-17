@@ -214,6 +214,8 @@ describe("summarizeAndPersist", () => {
     expect(archive.messages.slice(0, 2)).toEqual(archivedSources);
     // The prior summary message itself (not its archived sources) is what gets deleted.
     expect(opsFor("delete", "messages").map(({ id }) => id)).toContain("prior");
+    // Its archive is fully re-expanded into the new one, so it is superseded.
+    expect(opsFor("delete", "artifacts").map(({ id }) => id)).toEqual(["summary-source:prior"]);
   });
 
   it("falls back to the summary message itself when its archive is missing", async () => {
@@ -237,6 +239,7 @@ describe("summarizeAndPersist", () => {
     expect(streamAssistantMock).toHaveBeenCalledTimes(1);
     expect(summarizedText(0)).toContain("orphan recap");
     expect(result[0]?.summaryMetadata?.sourceMessageIds[0]).toBe("orphan");
+    expect(opsFor("delete", "artifacts")).toEqual([]);
   });
 
   it("returns the original history and persists nothing when summarization fails", async () => {
@@ -292,6 +295,80 @@ describe("summarizeAndPersist", () => {
     );
     expect(opsFor("delete", "messages").map(({ id }) => id)).toContain(firstSummary.id);
     expect(estimateLength(result)).toBeLessThan(estimateLength(history));
+  });
+
+  it("deletes the round-1 archive once round 2 absorbs it into a new archive", async () => {
+    const history = makeHistory(20);
+    entityMap("attachments").set("a-early", makeAttachment("a-early", "m1"));
+
+    const result = await summarizeAndPersist(provider, CONVERSATION_ID, history, 2000);
+
+    const firstSummary = opsFor("write", "messages")[0]?.data as MessageRecord;
+    const firstArchiveId = `summary-source:${firstSummary.id}`;
+    const finalArchiveId = result[0]!.summaryMetadata!.archiveId;
+    expect(firstSummary.summaryMetadata?.archiveId).toBe(firstArchiveId);
+    expect(opsFor("write", "artifacts").map(({ id }) => id)).toEqual([
+      firstArchiveId,
+      finalArchiveId,
+    ]);
+    expect(opsFor("delete", "artifacts").map(({ id }) => id)).toEqual([firstArchiveId]);
+    expect(opsFor("delete", "messages").map(({ id }) => id)).toContain(firstSummary.id);
+    expect([...entityMap("artifacts").keys()]).toEqual([finalArchiveId]);
+    const finalArchive = entityMap("artifacts").get(finalArchiveId) as {
+      messages: MessageRecord[];
+      attachments: AttachmentRecord[];
+    };
+    expect(finalArchive.messages.map(({ id }) => id)).toEqual(
+      history.slice(0, 16).map(({ id }) => id),
+    );
+    // The round-1 archive held the only copy of this attachment; it moves forward.
+    expect(finalArchive.attachments.map(({ id }) => id)).toEqual(["a-early"]);
+  });
+
+  it("keeps the round-1 archive while another conversation still references it", async () => {
+    const history = makeHistory(20);
+    const firstUuid = "00000000-0000-4000-8000-000000000001";
+    const firstArchiveId = `summary-source:summary-${firstUuid}`;
+    const uuidSpy = vi.spyOn(crypto, "randomUUID").mockReturnValueOnce(firstUuid);
+    // A branch copied the round-1 summary (same archiveId) into another conversation.
+    entityMap("messages").set(
+      "branch-copy",
+      makeMsg({
+        id: "branch-copy",
+        conversationId: "c-branch",
+        role: "system",
+        summaryMetadata: {
+          version: 1,
+          sourceMessageIds: history.slice(0, 12).map(({ id }) => id),
+          sourceStartedAt: 1,
+          sourceEndedAt: 12,
+          archiveId: firstArchiveId,
+        },
+      }),
+    );
+
+    try {
+      await summarizeAndPersist(provider, CONVERSATION_ID, history, 2000);
+    } finally {
+      uuidSpy.mockRestore();
+    }
+
+    const firstSummary = opsFor("write", "messages")[0]?.data as MessageRecord;
+    expect(firstSummary.summaryMetadata?.archiveId).toBe(firstArchiveId);
+    expect(streamAssistantMock).toHaveBeenCalledTimes(2);
+    expect(opsFor("delete", "messages").map(({ id }) => id)).toContain(firstSummary.id);
+    expect(opsFor("delete", "artifacts")).toEqual([]);
+    expect(entityMap("artifacts").has(firstArchiveId)).toBe(true);
+  });
+
+  it("does not delete any artifact in a single-round compaction", async () => {
+    const history = makeHistory(10);
+
+    await summarizeAndPersist(provider, CONVERSATION_ID, history, 1000);
+
+    expect(streamAssistantMock).toHaveBeenCalledTimes(1);
+    expect(opsFor("delete", "artifacts")).toEqual([]);
+    expect(entityMap("artifacts").size).toBe(1);
   });
 
   it("stops after the maximum number of rounds even if still over budget", async () => {

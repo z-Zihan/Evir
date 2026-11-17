@@ -19,6 +19,49 @@ import { logger } from "../../core/logging/logger";
 const MAX_SUMMARIZATION_ROUNDS = 2;
 const INITIAL_SUMMARY_KEEP_RATIO = 0.4;
 
+type SummaryArchive = { messages?: MessageRecord[]; attachments?: AttachmentRecord[] };
+
+/**
+ * Archives of prior summaries absorbed into this round. They are only
+ * superseded when the new archive re-expanded every one of their messages and
+ * no other conversation (branches copy summaries verbatim) still references
+ * them; anything uncertain keeps the archive.
+ */
+async function findSupersededArchives(
+  toSummarize: MessageRecord[],
+  sourceMessages: MessageRecord[],
+  conversationId: string,
+): Promise<Array<{ id: string; archive: SummaryArchive }>> {
+  const absorbedIds = [
+    ...new Set(toSummarize.flatMap(({ summaryMetadata }) => summaryMetadata?.archiveId ?? [])),
+  ];
+  if (absorbedIds.length === 0) return [];
+  const storage = getStructuredStorage();
+  const sourceIds = new Set(sourceMessages.map(({ id }) => id));
+  const archives = (
+    await Promise.all(
+      absorbedIds.map(async (id) => ({
+        id,
+        archive: await storage.read<SummaryArchive>("artifacts", id),
+      })),
+    )
+  ).flatMap(({ id, archive }) =>
+    archive?.messages?.length && archive.messages.every((message) => sourceIds.has(message.id))
+      ? [{ id, archive }]
+      : [],
+  );
+  const referencedElsewhere = new Set(
+    archives.length
+      ? (await storage.readAll<MessageRecord>("messages")).flatMap((message) =>
+          message.conversationId !== conversationId && message.summaryMetadata
+            ? [message.summaryMetadata.archiveId]
+            : [],
+        )
+      : [],
+  );
+  return archives.filter(({ id }) => !referencedElsewhere.has(id));
+}
+
 async function persistSummarization(
   toSummarize: MessageRecord[],
   sourceMessages: MessageRecord[],
@@ -28,8 +71,17 @@ async function persistSummarization(
   const storage = getStructuredStorage();
   const attachments = await storage.readAll<AttachmentRecord>("attachments");
   const messageIds = new Set(idsToDelete);
-  const archivedAttachments = attachments.filter(({ messageId }) => messageIds.has(messageId));
+  const summarizedAttachments = attachments.filter(({ messageId }) => messageIds.has(messageId));
   const archiveId = summaryMessage.summaryMetadata?.archiveId;
+  const supersededArchives = archiveId
+    ? await findSupersededArchives(toSummarize, sourceMessages, summaryMessage.conversationId)
+    : [];
+  // Attachments archived by a superseded round only live in its artifact, so
+  // they move into the new archive before that artifact is deleted.
+  const archivedAttachments = [
+    ...supersededArchives.flatMap(({ archive }) => archive.attachments ?? []),
+    ...summarizedAttachments,
+  ];
   await storage.apply([
     ...(archiveId
       ? [
@@ -48,13 +100,18 @@ async function persistSummarization(
           },
         ]
       : []),
-    ...archivedAttachments.map(({ id }) => ({
+    ...summarizedAttachments.map(({ id }) => ({
       type: "delete" as const,
       entity: "attachments" as const,
       id,
     })),
     ...idsToDelete.map((id) => ({ type: "delete" as const, entity: "messages" as const, id })),
     { type: "write", entity: "messages", id: summaryMessage.id, data: summaryMessage },
+    ...supersededArchives.map(({ id }) => ({
+      type: "delete" as const,
+      entity: "artifacts" as const,
+      id,
+    })),
   ]);
 }
 
