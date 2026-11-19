@@ -17,6 +17,7 @@ import { initializeRuntimeStorage } from "../runtime/initialize-storage";
 import { installWorkspaceResolver } from "../features/workspace/workspace-bridge";
 import { useProjectStore } from "../features/projects/project-store";
 import { useChatStore } from "../features/chat/chat-store";
+import { scheduleArtifactRetention } from "../features/chat/artifact-retention";
 import {
   clearCheckpoint,
   findUnfinishedRuns,
@@ -151,6 +152,9 @@ export function App() {
         });
       }
       setUnfinishedRuns(detected);
+      // Only after storage init/migrations: sweeping earlier could treat
+      // not-yet-migrated conversations as gone. Once-guarded, idle-time.
+      scheduleArtifactRetention();
     } catch (error) {
       setInitializationError(error instanceof Error ? error.message : String(error));
     }
