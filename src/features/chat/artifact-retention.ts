@@ -116,9 +116,14 @@ export async function runArtifactRetention(
 }
 
 const IDLE_FALLBACK_DELAY_MS = 5_000;
+export const ARTIFACT_RETENTION_INTERVAL_MS = 24 * 60 * 60 * 1_000;
 let retentionScheduled = false;
+let retentionInterval: ReturnType<typeof setInterval> | undefined;
 
-/** Schedules a single idle-time retention sweep per app session. */
+/**
+ * Schedules an idle-time retention sweep at startup, then re-runs the same
+ * sweep every 24h so long-lived sessions keep collecting new orphans.
+ */
 export function scheduleArtifactRetention(): void {
   if (retentionScheduled) return;
   retentionScheduled = true;
@@ -130,9 +135,15 @@ export function scheduleArtifactRetention(): void {
   } else {
     setTimeout(run, IDLE_FALLBACK_DELAY_MS);
   }
+  retentionInterval = setInterval(run, ARTIFACT_RETENTION_INTERVAL_MS);
 }
 
-/** Test-only: re-arms the once guard of {@link scheduleArtifactRetention}. */
+/**
+ * Test-only: clears the periodic sweep and re-arms the once guard of
+ * {@link scheduleArtifactRetention}.
+ */
 export function resetArtifactRetentionScheduleForTests(): void {
+  if (retentionInterval !== undefined) clearInterval(retentionInterval);
+  retentionInterval = undefined;
   retentionScheduled = false;
 }
