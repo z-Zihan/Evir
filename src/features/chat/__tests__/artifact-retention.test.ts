@@ -3,6 +3,7 @@ import type { MessageRecord } from "../../../core/storage/db";
 import type { EntityName, StorageMutation, StoragePort } from "../../../core/storage/storage-port";
 import { logger } from "../../../core/logging/logger";
 import {
+  ARTIFACT_RETENTION_INTERVAL_MS,
   resetArtifactRetentionScheduleForTests,
   runArtifactRetention,
   scheduleArtifactRetention,
@@ -332,6 +333,7 @@ describe("scheduleArtifactRetention", () => {
   });
 
   afterEach(() => {
+    resetArtifactRetentionScheduleForTests();
     vi.useRealTimers();
     vi.unstubAllGlobals();
   });
@@ -358,5 +360,47 @@ describe("scheduleArtifactRetention", () => {
 
     expect(requestIdleCallback).toHaveBeenCalledTimes(1);
     expect(requestIdleCallback).toHaveBeenCalledWith(expect.any(Function), { timeout: 5_000 });
+  });
+
+  function artifactSweeps(readAll: { mock: { calls: unknown[][] } }): number {
+    return readAll.mock.calls.filter(([entity]) => entity === "artifacts").length;
+  }
+
+  it("re-runs the sweep every 24h after the startup run", async () => {
+    vi.stubGlobal("window", {});
+    const readAll = vi.spyOn(storage, "readAll");
+
+    scheduleArtifactRetention();
+    scheduleArtifactRetention();
+    await vi.advanceTimersByTimeAsync(ARTIFACT_RETENTION_INTERVAL_MS);
+
+    expect(artifactSweeps(readAll)).toBe(2);
+  });
+
+  it("does not re-run before 24h have elapsed", async () => {
+    vi.stubGlobal("window", {});
+    const readAll = vi.spyOn(storage, "readAll");
+
+    scheduleArtifactRetention();
+    await vi.advanceTimersByTimeAsync(ARTIFACT_RETENTION_INTERVAL_MS - 1);
+
+    expect(artifactSweeps(readAll)).toBe(1);
+  });
+
+  it("clears the periodic sweep on reset and allows rescheduling", async () => {
+    vi.stubGlobal("window", {});
+    const readAll = vi.spyOn(storage, "readAll");
+
+    scheduleArtifactRetention();
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(artifactSweeps(readAll)).toBe(1);
+
+    resetArtifactRetentionScheduleForTests();
+    await vi.advanceTimersByTimeAsync(ARTIFACT_RETENTION_INTERVAL_MS);
+    expect(artifactSweeps(readAll)).toBe(1);
+
+    scheduleArtifactRetention();
+    await vi.advanceTimersByTimeAsync(ARTIFACT_RETENTION_INTERVAL_MS);
+    expect(artifactSweeps(readAll)).toBe(3);
   });
 });
