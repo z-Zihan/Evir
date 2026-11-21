@@ -34,6 +34,22 @@ vi.mock("../../core/storage/db", () => ({
     usage_records: { clear: mockClear },
     mcpServers: { clear: mockClear },
     memories: { clear: mockClear, toArray: () => Promise.resolve([]) },
+    toolExecutions: { delete: mockDelete, toArray: () => Promise.resolve([{ id: "exec-1" }]) },
+    agentRuns: { delete: mockDelete, toArray: () => Promise.resolve([]) },
+    taskBriefs: { delete: mockDelete, toArray: () => Promise.resolve([]) },
+    plans: { delete: mockDelete, toArray: () => Promise.resolve([]) },
+    runSteps: { delete: mockDelete, toArray: () => Promise.resolve([]) },
+    runEvents: { delete: mockDelete, toArray: () => Promise.resolve([]) },
+    agentAssignments: { delete: mockDelete, toArray: () => Promise.resolve([]) },
+    approvals: { delete: mockDelete, toArray: () => Promise.resolve([]) },
+    artifacts: {
+      delete: mockDelete,
+      toArray: () =>
+        Promise.resolve([
+          { id: "summary-1", relatedEntityId: "conversation-1" },
+          { id: "stored-1", relatedEntityId: null },
+        ]),
+    },
     settings: {
       clear: mockClear,
       delete: mockDelete,
@@ -107,6 +123,9 @@ describe("PrivacySettings", () => {
       expect(mockClear).toHaveBeenCalled();
       expect(mockDelete).toHaveBeenCalledWith("checkpoint:conversation-1");
       expect(mockDelete).not.toHaveBeenCalledWith("memory.enabled");
+      expect(mockDelete).toHaveBeenCalledWith("exec-1");
+      expect(mockDelete).toHaveBeenCalledWith("summary-1");
+      expect(mockDelete).not.toHaveBeenCalledWith("stored-1");
     });
   });
 });
