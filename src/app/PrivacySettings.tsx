@@ -12,6 +12,7 @@ import {
 } from "../components/settings";
 import type { ProviderRecord, SettingRecord } from "../core/storage/db";
 import { useChatStore } from "../features/chat/chat-store";
+import { buildClearConversationsMutations } from "../features/chat/clear-conversations";
 import { useConfirmationDialog } from "./useConfirmationDialog";
 import { getStructuredStorage } from "../runtime/structured-storage";
 import { getRuntime, isNativeDesktopRuntime } from "../runtime/use-runtime";
@@ -53,27 +54,49 @@ export function PrivacySettings() {
         chat.stopGeneration(conversationId);
       }
       const storage = getStructuredStorage();
-      const conversationMemories = (await storage.readAll<MemoryRecord>("memories")).filter(
-        ({ type }) => type === "conversation",
-      );
-      const conversationCheckpoints = (await storage.readAll<SettingRecord>("settings")).filter(
-        ({ name }) => name.startsWith("checkpoint:"),
-      );
-      await storage.apply([
-        { type: "clear", entity: "conversations" },
-        { type: "clear", entity: "messages" },
-        { type: "clear", entity: "attachments" },
-        ...conversationMemories.map(({ id }) => ({
-          type: "delete" as const,
-          entity: "memories" as const,
-          id,
-        })),
-        ...conversationCheckpoints.map(({ name }) => ({
-          type: "delete" as const,
-          entity: "settings" as const,
-          id: name,
-        })),
+      type Row = { id: string };
+      const [
+        memories,
+        settings,
+        toolExecutions,
+        agentRuns,
+        taskBriefs,
+        plans,
+        runSteps,
+        runEvents,
+        agentAssignments,
+        approvals,
+        artifacts,
+      ] = await Promise.all([
+        storage.readAll<MemoryRecord>("memories"),
+        storage.readAll<SettingRecord>("settings"),
+        storage.readAll<Row>("tool_executions"),
+        storage.readAll<Row>("agent_runs"),
+        storage.readAll<Row>("task_briefs"),
+        storage.readAll<Row>("plans"),
+        storage.readAll<Row>("run_steps"),
+        storage.readAll<Row>("run_events"),
+        storage.readAll<Row>("agent_assignments"),
+        storage.readAll<Row>("approvals"),
+        storage.readAll<Row & { relatedEntityId?: string | null }>("artifacts"),
       ]);
+      // Same derived-row purge as deleteConversation, applied to every
+      // conversation in one atomic batch.
+      await storage.apply(
+        buildClearConversationsMutations({
+          memories,
+          settings,
+          toolExecutions,
+          agentRuns,
+          taskBriefs,
+          plans,
+          runSteps,
+          runEvents,
+          agentAssignments,
+          approvals,
+          artifacts,
+        }),
+      );
       useChatStore.setState({ conversations: [], currentConversationId: null, messages: [] });
       useMemoryStore.setState(({ memories }) => ({
         memories: memories.filter(({ type }) => type !== "conversation"),
