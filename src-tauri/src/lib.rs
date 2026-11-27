@@ -1,4 +1,7 @@
 mod ax_snapshot;
+mod background_tasks;
+#[cfg(all(test, unix))]
+mod background_tasks_tests;
 mod browser_commands;
 mod browser_runtime;
 mod browser_workbench;
@@ -103,6 +106,7 @@ pub fn run() {
             app.manage(browser_workbench::BrowserWorkbenchState::default());
             app.manage(browser_commands::BrowserAgentState::default());
             app.manage(dev_server::DevServerState::default());
+            app.manage(background_tasks::BackgroundTaskRegistry::default());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -188,6 +192,11 @@ pub fn run() {
             dev_server::dev_server_start,
             dev_server::dev_server_stop,
             dev_server::dev_server_list,
+            background_tasks::background_task_start,
+            background_tasks::background_task_status,
+            background_tasks::background_task_output,
+            background_tasks::background_task_wait,
+            background_tasks::background_task_stop,
             browser_commands::browser_agent_status,
             browser_commands::browser_agent_start,
             browser_commands::browser_agent_stop,
@@ -260,6 +269,9 @@ pub fn run() {
                 // Dev servers are child process groups: Evir must not leave
                 // orphan `npm run dev` processes behind (§48).
                 dev_server::kill_all(app);
+                // Background tasks never outlive Evir and are not persisted:
+                // after a restart their ids answer not_found.
+                background_tasks::kill_all(app);
             }
         });
 }
