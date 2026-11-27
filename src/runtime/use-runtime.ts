@@ -1,4 +1,5 @@
 import { createRuntime } from "./create-runtime";
+import { loadComponentConfiguration } from "../features/settings/component-configuration";
 import type { EvirRuntime } from "./types";
 
 // Lazy: merely importing this module (transitively reachable from core
@@ -7,7 +8,15 @@ import type { EvirRuntime } from "./types";
 let runtime: EvirRuntime | undefined;
 
 function resolveRuntime(): EvirRuntime {
-  if (!runtime) runtime = createRuntime();
+  if (!runtime) {
+    runtime = createRuntime();
+    // Component switches live in structured storage, so the runtime is built
+    // first and the stored configuration is reconciled in once it loads. A
+    // failed load must never block the app: defaults stay in effect.
+    void loadComponentConfiguration()
+      .then((configuration) => runtime?.componentRuntime?.reconcile(configuration))
+      .catch(() => undefined);
+  }
   return runtime;
 }
 

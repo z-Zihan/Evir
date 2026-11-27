@@ -320,7 +320,15 @@
       "extended": "Extended"
     },
     "browser": "Browser",
-    "knowledge": "Knowledge"
+    "knowledge": "Knowledge",
+    "components": "Components",
+    "componentState": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "disabled": "Disabled",
+      "incompatible": "Unavailable in this runtime"
+    },
+    "componentSaveFailed": "Failed to save component configuration: {{message}}"
   },
   "provider": {
     "add": "Add provider",
@@ -415,7 +423,8 @@
     "providerCount_one": "{{count}} configuration",
     "providerCount_other": "{{count}} configurations",
     "localData": "Local data",
-    "privacy": "Control private sessions and local data deletion. Evir never uploads this content silently."
+    "privacy": "Control private sessions and local data deletion. Evir never uploads this content silently.",
+    "components": "Toggle built-in tool components. Turning one off removes its tools from the agent immediately; turn it back on to restore them."
   },
   "personalization": {
     "title": "Personalization",

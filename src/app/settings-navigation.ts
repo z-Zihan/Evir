@@ -13,6 +13,7 @@ export type SettingsTab =
   | "privacy"
   | "memory"
   | "knowledge"
+  | "components"
   | "diagnostics"
   | "about";
 
