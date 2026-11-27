@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 const deleteConversation = vi.fn<(id: string) => Promise<void>>();
 const togglePin = vi.fn<(id: string) => Promise<void>>();
@@ -107,6 +107,15 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+// The sidebar pulls in a large module graph. Importing it once here keeps the
+// cold-start cost out of the per-test 5s timeout: under full-suite load that
+// cost exceeded the limit, and the still-running render then leaked into the
+// next test (duplicate title nodes).
+let SidebarComponent: typeof import("../Sidebar").Sidebar;
+beforeAll(async () => {
+  SidebarComponent = (await import("../Sidebar")).Sidebar;
+});
+
 function openMoreMenuFor(title: string | RegExp) {
   const row = screen.getByText(title).closest(".conversation-item");
   if (!row) throw new Error(`row for ${String(title)} not found`);
@@ -117,8 +126,8 @@ function openMoreMenuFor(title: string | RegExp) {
 }
 
 describe("Sidebar", () => {
-  it("keeps secondary actions in the ••• menu and none exposed on the row", async () => {
-    const { Sidebar } = await import("../Sidebar");
+  it("keeps secondary actions in the ••• menu and none exposed on the row", () => {
+    const Sidebar = SidebarComponent;
     render(<Sidebar onOpenSettings={vi.fn()} onNewConversation={vi.fn()} onClose={vi.fn()} />);
 
     // The only hover controls are 新任务 (projects only) and ••• — pin/rename/
@@ -135,7 +144,7 @@ describe("Sidebar", () => {
   });
 
   it("pins a conversation from the ••• menu", async () => {
-    const { Sidebar } = await import("../Sidebar");
+    const Sidebar = SidebarComponent;
     render(<Sidebar onOpenSettings={vi.fn()} onNewConversation={vi.fn()} onClose={vi.fn()} />);
 
     const menu = openMoreMenuFor("产品讨论");
@@ -145,7 +154,7 @@ describe("Sidebar", () => {
   });
 
   it("requires confirmation before deleting a conversation via the ••• menu", async () => {
-    const { Sidebar } = await import("../Sidebar");
+    const Sidebar = SidebarComponent;
     render(<Sidebar onOpenSettings={vi.fn()} onNewConversation={vi.fn()} onClose={vi.fn()} />);
 
     const menu = openMoreMenuFor("产品讨论");
@@ -161,7 +170,7 @@ describe("Sidebar", () => {
   });
 
   it("exposes keyboard/AT metadata on the ••• trigger", async () => {
-    const { Sidebar } = await import("../Sidebar");
+    const Sidebar = SidebarComponent;
     render(<Sidebar onOpenSettings={vi.fn()} onNewConversation={vi.fn()} onClose={vi.fn()} />);
 
     const triggers = screen.getAllByRole("button", { name: "sidebar.more" });
@@ -177,8 +186,8 @@ describe("Sidebar", () => {
     await waitFor(() => expect(firstTrigger.getAttribute("aria-expanded")).toBe("true"));
   });
 
-  it("keeps long titles truncated with the More trigger present (no row shift)", async () => {
-    const { Sidebar } = await import("../Sidebar");
+  it("keeps long titles truncated with the More trigger present (no row shift)", () => {
+    const Sidebar = SidebarComponent;
     render(<Sidebar onOpenSettings={vi.fn()} onNewConversation={vi.fn()} onClose={vi.fn()} />);
 
     const titles = screen.getAllByText(/一个特别长的任务标题/);
@@ -191,16 +200,16 @@ describe("Sidebar", () => {
     }
   });
 
-  it("has no sort control and clears the legacy sort key on mount", async () => {
+  it("has no sort control and clears the legacy sort key on mount", () => {
     window.localStorage.setItem("evir-sidebar-sort", "name");
-    const { Sidebar } = await import("../Sidebar");
+    const Sidebar = SidebarComponent;
     render(<Sidebar onOpenSettings={vi.fn()} onNewConversation={vi.fn()} onClose={vi.fn()} />);
 
     expect(screen.queryByRole("button", { name: "sidebar.sortToggle" })).toBeNull();
     expect(window.localStorage.getItem("evir-sidebar-sort")).toBeNull();
   });
 
-  it("orders conversations pinned-first then by updatedAt descending", async () => {
+  it("orders conversations pinned-first then by updatedAt descending", () => {
     const original = [...chatState.conversations];
     chatState.conversations = [
       {
@@ -230,7 +239,7 @@ describe("Sidebar", () => {
       },
     ] as unknown as typeof chatState.conversations;
     try {
-      const { Sidebar } = await import("../Sidebar");
+      const Sidebar = SidebarComponent;
       render(<Sidebar onOpenSettings={vi.fn()} onNewConversation={vi.fn()} onClose={vi.fn()} />);
 
       const rows = [...document.querySelectorAll(".sidebar-section-chats .conversation-item")].map(
@@ -249,7 +258,7 @@ describe("Sidebar", () => {
     }
   });
 
-  it("shows the relative time sharing the trailing slot with ••• (no layout shift)", async () => {
+  it("shows the relative time sharing the trailing slot with ••• (no layout shift)", () => {
     const original = [...chatState.conversations];
     const now = Date.now();
     chatState.conversations = [
@@ -263,7 +272,7 @@ describe("Sidebar", () => {
       },
     ];
     try {
-      const { Sidebar } = await import("../Sidebar");
+      const Sidebar = SidebarComponent;
       render(<Sidebar onOpenSettings={vi.fn()} onNewConversation={vi.fn()} onClose={vi.fn()} />);
 
       const time = document.querySelector("time.conversation-time");
