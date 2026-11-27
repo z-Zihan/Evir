@@ -88,9 +88,15 @@ function createKnowledgeToolComponent(): ComponentDefinition<null> {
 
 /**
  * Computer use is opt-in: synthetic desktop input is the highest-risk tool
- * family Evir ships, so the component starts disabled and only a deliberate
- * user toggle in the component settings registers the tools. It also requires
- * the `computerUse` capability, which only the desktop runtime advertises.
+ * family Evir ships, so the component starts disabled and only registers its
+ * tools when the host passes a component configuration that enables it. It
+ * also requires the `computerUse` capability, which only the desktop runtime
+ * advertises.
+ *
+ * Known gap (honest): the app calls `createRuntime()` without a component
+ * configuration and there is no settings-UI switch for components yet, so
+ * today this can only be enabled in code. A component-switch settings surface
+ * is the follow-up that makes this reachable for users.
  */
 function createComputerToolComponent(): ComponentDefinition<null> {
   const definition: ComponentDefinition<null> = {
