@@ -34,7 +34,7 @@ jobs:
         run: pnpm build:web
       - name: Install Chrome for Playwright
         run: pnpm exec playwright install --with-deps chrome
-      - name: Playwright e2e (web + desktop core flows)
+      - name: Playwright e2e (web + desktop core flows + preview/slash/trace specs)
         run: pnpm test:e2e
 
   # Windows-specific compile/test sanity on every PR/main so Windows-only

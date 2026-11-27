@@ -37,6 +37,13 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), tailwindcss(), bundledSkillNotices()],
     clearScreen: false,
     envPrefix: ["VITE_", "TAURI_"],
+    // The web and desktop dev servers run side by side under Playwright, and
+    // the mode-specific `define` above gives their dependency pre-bundles
+    // different hashes. Sharing the default cache dir lets whichever server
+    // optimizes last delete the other one's chunks (504 "Outdated Optimize
+    // Dep" → blank page → every web-e2e test fails on a cold cache), so each
+    // target keeps its own cache.
+    cacheDir: `node_modules/.vite-${target}`,
     define: {
       "import.meta.env.VITE_EVIR_TARGET": JSON.stringify(target),
     },
