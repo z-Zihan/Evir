@@ -2,8 +2,8 @@ import type {
   ComponentConfiguration,
   ComponentConfigurationMap,
 } from "../../core/components/types";
+import type { StoragePort } from "../../core/storage/storage-port";
 import type { SettingRecord } from "../../core/storage/db";
-import { getStructuredStorage } from "../../runtime/structured-storage";
 
 /**
  * Persisted component switches (`settings/componentConfiguration`).
@@ -15,6 +15,16 @@ import { getStructuredStorage } from "../../runtime/structured-storage";
  */
 
 export const COMPONENT_CONFIGURATION_KEY = "componentConfiguration";
+
+/**
+ * Resolved through a dynamic import on purpose: structured-storage reads the
+ * runtime, and use-runtime imports this module, so a static edge here closes a
+ * runtime import cycle (caught by scripts/cycle-audit.mjs, §32-38).
+ */
+async function storage(): Promise<StoragePort> {
+  const { getStructuredStorage } = await import("../../runtime/structured-storage");
+  return getStructuredStorage();
+}
 
 export function normalizeComponentConfiguration(value: unknown): ComponentConfigurationMap {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
@@ -29,17 +39,18 @@ export function normalizeComponentConfiguration(value: unknown): ComponentConfig
 }
 
 export async function loadComponentConfiguration(): Promise<ComponentConfigurationMap> {
-  const record = await getStructuredStorage().read<SettingRecord>(
-    "settings",
-    COMPONENT_CONFIGURATION_KEY,
-  );
+  const record = await (
+    await storage()
+  ).read<SettingRecord>("settings", COMPONENT_CONFIGURATION_KEY);
   return normalizeComponentConfiguration(record?.value);
 }
 
 export async function saveComponentConfiguration(
   configuration: ComponentConfigurationMap,
 ): Promise<void> {
-  await getStructuredStorage().write("settings", COMPONENT_CONFIGURATION_KEY, {
+  await (
+    await storage()
+  ).write("settings", COMPONENT_CONFIGURATION_KEY, {
     name: COMPONENT_CONFIGURATION_KEY,
     value: configuration,
   });
