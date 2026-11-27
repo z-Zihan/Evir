@@ -27,7 +27,15 @@ describe("createRuntime component assembly", () => {
         .map(({ id }) => id)
         .sort(),
     );
-    expect(runtime.componentRuntime?.inspect().every(({ state }) => state === "active")).toBe(true);
+    // Computer use is the one opt-in component: present but disabled by
+    // default, so its tools only appear after the user turns it on.
+    const states = runtime.componentRuntime?.inspect() ?? [];
+    expect(
+      states
+        .filter(({ id }) => id !== "evir.tools.computer-use")
+        .every(({ state }) => state === "active"),
+    ).toBe(true);
+    expect(states.find(({ id }) => id === "evir.tools.computer-use")?.state).toBe("disabled");
   });
 
   it("applies component configuration before exposing the Runtime", () => {
