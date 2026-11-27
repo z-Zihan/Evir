@@ -319,7 +319,15 @@
       "extended": "扩展"
     },
     "browser": "浏览器",
-    "knowledge": "知识库"
+    "knowledge": "知识库",
+    "components": "组件",
+    "componentState": {
+      "active": "已启用",
+      "inactive": "未启用",
+      "disabled": "已关闭",
+      "incompatible": "当前运行环境不可用"
+    },
+    "componentSaveFailed": "保存组件配置失败：{{message}}"
   },
   "provider": {
     "add": "添加供应商",
@@ -414,7 +422,8 @@
     "providerCount_one": "{{count}} 个配置",
     "providerCount_other": "{{count}} 个配置",
     "localData": "本地数据",
-    "privacy": "控制隐私会话与本地数据清理。Evir 不会静默上传这些内容。"
+    "privacy": "控制隐私会话与本地数据清理。Evir 不会静默上传这些内容。",
+    "components": "开关内置工具组件。关闭后对应工具立即从 Agent 工具列表移除，重新打开即可恢复。"
   },
   "personalization": {
     "title": "个性化",
