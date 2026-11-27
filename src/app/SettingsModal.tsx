@@ -6,6 +6,7 @@ import {
   Brain,
   Database,
   Boxes,
+  Blocks,
   Braces,
   Globe2,
   Info,
@@ -58,6 +59,9 @@ const ProviderSettings = lazy(() =>
   import("./ProviderSettings").then((m) => ({ default: m.ProviderSettings })),
 );
 const UsagePanel = lazy(() => import("./UsagePanel").then((m) => ({ default: m.UsagePanel })));
+const ComponentSettings = lazy(() =>
+  import("./ComponentSettings").then((m) => ({ default: m.ComponentSettings })),
+);
 const BrowserSettings = lazy(() =>
   import("./BrowserSettings").then((m) => ({ default: m.BrowserSettings })),
 );
@@ -99,6 +103,7 @@ const SETTINGS_GROUPS: Array<{ labelKey: string; items: SettingsNavItem[] }> = [
       { tab: "mcp", labelKey: "settings.mcp", icon: Boxes },
       { tab: "memory", labelKey: "memory.title", icon: Brain },
       { tab: "knowledge", labelKey: "settings.knowledge", icon: Database },
+      { tab: "components", labelKey: "settings.components", icon: Blocks },
     ],
   },
   {
@@ -348,6 +353,7 @@ export function SettingsModal({ open, onClose, initialTab = "providers" }: Setti
                   />
                 )}
                 {effectiveActiveTab === "knowledge" && <KnowledgeSettings />}
+                {effectiveActiveTab === "components" && <ComponentSettings />}
                 {effectiveActiveTab === "diagnostics" && <DiagnosticsSettings />}
               </Suspense>
             </div>
