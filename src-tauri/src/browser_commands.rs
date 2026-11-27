@@ -51,7 +51,7 @@ impl BrowserAgentState {
     }
 }
 
-fn tool_result(payload: serde_json::Value) -> Result<serde_json::Value, String> {
+pub(crate) fn tool_result(payload: serde_json::Value) -> Result<serde_json::Value, String> {
     Ok(payload)
 }
 
@@ -696,14 +696,14 @@ pub async fn browser_screenshot_read(
     Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
 }
 
-fn chrono_millis() -> u128 {
+pub(crate) fn chrono_millis() -> u128 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|duration| duration.as_millis())
         .unwrap_or(0)
 }
 
-fn png_dimensions(bytes: &[u8]) -> Result<(u32, u32), String> {
+pub(crate) fn png_dimensions(bytes: &[u8]) -> Result<(u32, u32), String> {
     if bytes.len() < 24 || &bytes[..8] != b"\x89PNG\r\n\x1a\n" {
         return Err("screenshot is not a PNG".into());
     }

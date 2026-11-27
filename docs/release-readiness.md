@@ -215,5 +215,6 @@
 - **SKL-1（Skills）**：21 个未标 tier 的 manifest 补 `tier: general`；无保存选择时默认仅 15 core 启用（办公/辅助包默认关，Settings 可开）；显式选择原样尊重；办公类描述注明可选非主路径；benchmark 已是 chunks-exist 门禁无 36-KPI。agent-eval 20/20 不回归。
 - **门禁汇总**：本轮每切片 typecheck/eslint/vitest/cargo 对应绿；`pnpm test:agent-eval` 20/20（0 越权 0 越界）；knowledge-eval 11/11；comprehensive-qa 19/0/1 保持。
 
+- **CUA-1（Computer Use，2026-11-27）**：5 个 `computer_*` 工具落地（screenshot/frontmost_app=L1；click/type/key=L3 必走审批），组件 `evir.tools.computer-use` 默认关闭、需组件配置显式启用（**尚无设置页开关，启用入口待补**），并依赖 desktop `computerUse` 能力；Rust 侧复用系统 `screencapture` 与 `osascript`（零新增依赖），输入文本经 argv 传入不拼 AppleScript 源码；Windows/Linux 明确「本平台暂不支持」。单元 + 组件装配测试绿（vitest 1691 项全绿）；真机端到端（屏幕录制/辅助功能授权后的 GUI 旅程）NOT RUN。
 - **CMP-1（组件开关设置页，2026-11-27）**：新增 Settings → Components 页，列出全部已注册 tool 组件与状态，开关即时 `reconcile` 生效、无需重启；配置持久化在 `settings/componentConfiguration`（结构化存储），启动时由 `use-runtime` 在 runtime 建好后 hydrate 一次。取代原「UI 级组件配置入口有限」的 Known Gap，同时让 opt-in 组件（CUA、后续 backgroundTasks）对用户可达。存储行逐条校验（非布尔 enabled 直接丢弃），损坏行不会误启用组件。新增 5 个测试（normalize/load/save、面板渲染存量状态、开关持久化+实时 reconcile）。
-- **仍 NOT RUN / PARTIAL（更新）**：单次连续 ≥30min PASS（未取得，非本轮 blocker）；外部 MCP HTTP / Agent 会话内 MCP 工具（MCP-1 未做）；Windows/Intel/签名公证（不变）。
+- **仍 NOT RUN / PARTIAL（更新）**：单次连续 ≥30min PASS（未取得，非本轮 blocker）；外部 MCP HTTP / Agent 会话内 MCP 工具（MCP-1 未做）；CUA 真机端到端（CUA-1 未跑）；组件开关页真机点击（CMP-1 未跑）；Windows/Intel/签名公证（不变）。

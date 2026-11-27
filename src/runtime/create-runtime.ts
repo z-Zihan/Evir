@@ -76,6 +76,7 @@ export function createRuntime(options: CreateRuntimeOptions = {}): EvirRuntime {
           "localMcp",
           "backgroundTasks",
           "browserAutomation",
+          "computerUse",
         ]
       : ["chat", "attachments"];
   const runtime = buildRuntime(target, capabilities);
