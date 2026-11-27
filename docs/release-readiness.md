@@ -215,4 +215,5 @@
 - **SKL-1（Skills）**：21 个未标 tier 的 manifest 补 `tier: general`；无保存选择时默认仅 15 core 启用（办公/辅助包默认关，Settings 可开）；显式选择原样尊重；办公类描述注明可选非主路径；benchmark 已是 chunks-exist 门禁无 36-KPI。agent-eval 20/20 不回归。
 - **门禁汇总**：本轮每切片 typecheck/eslint/vitest/cargo 对应绿；`pnpm test:agent-eval` 20/20（0 越权 0 越界）；knowledge-eval 11/11；comprehensive-qa 19/0/1 保持。
 
-- **仍 NOT RUN / PARTIAL（更新）**：单次连续 ≥30min PASS（未取得，非本轮 blocker）；外部 MCP HTTP / Agent 会话内 MCP 工具（MCP-1 未做）；Windows/Intel/签名公证（不变）。
+- **CUA-1（Computer Use，2026-11-27）**：5 个 `computer_*` 工具落地（screenshot/frontmost_app=L1；click/type/key=L3 必走审批），组件 `evir.tools.computer-use` 默认关闭、需用户显式开启，并依赖 desktop `computerUse` 能力；Rust 侧复用系统 `screencapture` 与 `osascript`（零新增依赖），输入文本经 argv 传入不拼 AppleScript 源码；Windows/Linux 明确「本平台暂不支持」。单元 + 组件装配测试绿（vitest 1691 项全绿）；真机端到端（屏幕录制/辅助功能授权后的 GUI 旅程）NOT RUN。
+- **仍 NOT RUN / PARTIAL（更新）**：单次连续 ≥30min PASS（未取得，非本轮 blocker）；外部 MCP HTTP / Agent 会话内 MCP 工具（MCP-1 未做）；CUA 真机端到端（CUA-1 未跑）；Windows/Intel/签名公证（不变）。

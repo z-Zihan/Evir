@@ -5,6 +5,7 @@ import { LOCAL_FILE_TOOLS } from "../../core/tools/builtin/local-file-tools";
 import { browserToolsForProvider } from "../../core/tools/builtin/browser-tools";
 import { CANVAS_TOOLS } from "../../core/tools/builtin/canvas-tools";
 import { KNOWLEDGE_TOOLS } from "../../core/tools/builtin/knowledge-tools";
+import { COMPUTER_TOOLS } from "../../core/tools/builtin/computer-tools";
 import { readAgentBrowserProvider } from "../../features/browser/browser-provider";
 
 const emptyConfigSchema = z.object({}).strict().optional();
@@ -85,12 +86,42 @@ function createKnowledgeToolComponent(): ComponentDefinition<null> {
   return definition;
 }
 
+/**
+ * Computer use is opt-in: synthetic desktop input is the highest-risk tool
+ * family Evir ships, so the component starts disabled and only a deliberate
+ * user toggle in the component settings registers the tools. It also requires
+ * the `computerUse` capability, which only the desktop runtime advertises.
+ */
+function createComputerToolComponent(): ComponentDefinition<null> {
+  const definition: ComponentDefinition<null> = {
+    manifest: {
+      id: "evir.tools.computer-use",
+      version: "1.0.0",
+      kind: "tool",
+      targets: ["desktop"],
+      provides: ["tools:computerUse"],
+      requires: ["capability:computerUse"],
+      defaultEnabled: false,
+      trust: "builtin",
+    },
+    parseConfig(input) {
+      emptyConfigSchema.parse(input);
+      return null;
+    },
+    activate(context) {
+      for (const tool of COMPUTER_TOOLS) context.registerTool(tool);
+    },
+  };
+  return definition;
+}
+
 export const BUILTIN_TOOL_COMPONENTS = [
   createToolComponent("filesystem"),
   createToolComponent("terminal"),
   createToolComponent("git"),
   createBrowserToolComponent(),
   createKnowledgeToolComponent(),
+  createComputerToolComponent(),
 ] as const;
 
 export function capabilityDependencies(capabilities: ReadonlySet<Capability>): string[] {
