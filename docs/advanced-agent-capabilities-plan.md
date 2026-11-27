@@ -56,3 +56,33 @@ Mode(Plan 只读) × Permission(ask/workspace/full) × Role(Primary/SubAgent/Sup
 ## Benchmark
 
 Single vs Multi-Agent 数值对比需要真实 Provider 长任务（fixture 无法模拟真实 token/延迟差异），本轮**不做伪造数字**：设计上 subagent 节点由 planner 仅在大上下文独立子任务时生成（小任务单 Agent），多 Agent 是按需而非默认。见 docs/archive/ADVANCED_AGENT_BENCHMARK_REPORT.md（诚实 NOT RUN）。
+
+---
+
+## 2026-11-27 · Computer Use（CUA）v1 落地 + 能力面复核
+
+> 事实来源：本次提交的代码与测试（非文档声明）。BUA（浏览器自动化）此前已完整存在，本轮补的是桌面级 CUA。
+
+### 复核结论：已经完整存在（本轮不改）
+
+| 能力             | 真实实现                                                                                                                                                                                                                       | 证据                                                                                                  |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| BUA 浏览器自动化 | `browser_*` 工具族（open/navigate/back/forward/reload/snapshot/screenshot/click/fill/select/press/scroll/get_text/get_url/tabs/switch_tab/…），Rust CDP 运行时 + AX 快照 `@eN role "name"` 引用语言；loopback 导航 L1、公网 L3 | `src/core/tools/builtin/browser-tools.ts`、`src-tauri/src/browser_commands.rs`、`ax_snapshot.rs`      |
+| 审批             | L2+ 审批门（ToolExecutor 对 run profile 校验）、PendingToolApproval 卡片、ask/workspace/full 三档；子代理权限 ≤ 父，Supervisor 无审批旁路                                                                                      | `src/core/tools/tool-executor.ts`、`src/core/security/permission-profiles.ts`                         |
+| 监控             | 运行轨迹（run trace）、用量统计、分类结构化本地日志（默认脱敏）、诊断包导出；无远程读取后门                                                                                                                                    | `src/features/tracing`、`src/features/usage`、`src/core/logging`、`src/runtime/diagnostics-export.ts` |
+| 同构内核         | web / desktop / VS Code / CLI 共用同一套 `src/core` + `src/runtime`，能力按 target 分层（web 仅 chat+attachments）                                                                                                             | `src/runtime/create-runtime.ts`                                                                       |
+
+### 本轮新增：Computer Use（opt-in，macOS v1）
+
+- 5 个工具：`computer_screenshot`、`computer_frontmost_app`（L1 只读）；`computer_click`、`computer_type`、`computer_key`（L3，必走审批对话——合成输入在任何沙箱之外）。
+- 组件 `evir.tools.computer-use` **默认关闭**，只有宿主传入启用的组件配置才注册工具；同时依赖 `computerUse` 能力（仅 desktop runtime 声明）。**已知缺口**：应用目前无参调用 `createRuntime()`，仓库里没有组件开关 UI，所以今天只能在代码层启用；补一个组件开关设置面是后续待办（也同时解锁 backgroundTasks）。
+- Rust 侧 `src-tauri/src/computer_use.rs`：截图复用系统 `screencapture`，输入复用 `osascript` + System Events —— **零新增原生依赖**；Windows/Linux 返回明确的「本平台暂不支持」，不假装成功。
+- OS 权限仍是硬门：截图需「屏幕录制」，合成输入需「辅助功能」，缺失时如实报错。
+- 安全边界：输入文本以 argv 传入，绝不拼进 AppleScript 源码（防注入）；屏幕内容视为不可信外部输入，不授予权限、不回显。
+
+### 明确未做（待后续轮次，不凑数）
+
+- 区域截图 / 多屏选择（v1 只截全屏）。
+- 滚轮、拖拽、右键、双击等输入原语。
+- Windows / Linux 实现。
+- CUA 的 Golden Agent Eval 场景：目前只有单元测试 + 组件装配测试，真机端到端 NOT RUN。

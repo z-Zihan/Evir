@@ -184,18 +184,3 @@ export class KeywordKnowledgeRetriever implements KnowledgeRetriever {
     return { results: selected, context, noResult: false };
   }
 }
-
-import { FtsKnowledgeRetriever } from "./fts-retrieval";
-
-/**
- * Default retriever: FTS5 candidate prefilter on desktop (KNOW-2), in-memory
- * keyword scan everywhere else (capability branch). Constructed lazily to
- * avoid a module-init Tauri dependency.
- */
-let cached: KnowledgeRetriever | null = null;
-export const defaultKnowledgeRetriever: KnowledgeRetriever = {
-  retrieve(storage, input) {
-    cached ??= new FtsKnowledgeRetriever();
-    return cached.retrieve(storage, input);
-  },
-};

@@ -6,7 +6,7 @@
  * relevance bar instead of fabricating content.
  */
 import { z } from "zod";
-import { defaultKnowledgeRetriever } from "../../knowledge/retrieval";
+import { defaultKnowledgeRetriever } from "../../knowledge/default-retriever";
 import type { ProjectRecord } from "../../storage/db";
 import type { EvirRuntime } from "../../../runtime/types";
 import type { ToolDefinition } from "../../providers/tool-registry";

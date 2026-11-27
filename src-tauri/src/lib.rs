@@ -8,6 +8,7 @@ mod cdp;
 mod command_env;
 pub mod knowledge_fts;
 mod commands;
+mod computer_use;
 mod dev_server;
 mod diagnostics;
 #[cfg(test)]
@@ -161,6 +162,11 @@ pub fn run() {
             diagnostics::diagnostics_export_zip,
             preview_sandbox::preview_artifact_register,
             preview_sandbox::preview_artifact_revoke,
+            computer_use::computer_screenshot,
+            computer_use::computer_click,
+            computer_use::computer_type,
+            computer_use::computer_key,
+            computer_use::computer_frontmost_app,
             browser_workbench::browser_workbench_open,
             browser_workbench::browser_tab_new,
             browser_workbench::browser_tab_activate,
