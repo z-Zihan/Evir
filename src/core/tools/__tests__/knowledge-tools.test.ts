@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { retrieve } = vi.hoisted(() => ({ retrieve: vi.fn() }));
 
-vi.mock("../../../core/knowledge/retrieval", () => ({
+vi.mock("../../../core/knowledge/default-retriever", () => ({
   defaultKnowledgeRetriever: { retrieve },
 }));
 

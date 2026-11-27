@@ -505,7 +505,8 @@ async function retrieveKnowledge(
         chunkCount: event.chunkCount,
       };
     } else {
-      const { defaultKnowledgeRetriever } = await import("../../../core/knowledge/retrieval");
+      const { defaultKnowledgeRetriever } =
+        await import("../../../core/knowledge/default-retriever");
       const result = await defaultKnowledgeRetriever.retrieve(storage, {
         baseIds,
         query: normalizedUserInput,

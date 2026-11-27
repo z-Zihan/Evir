@@ -3,7 +3,7 @@ import type { ComponentDefinition, ComponentRuntimePort } from "../../core/compo
 import { createContextBudgetManager } from "../../core/context/context-budget-manager";
 import { logger } from "../../core/logging/logger";
 import { retrieveMemoryContext } from "../../core/memory/memory-retrieval";
-import { defaultKnowledgeRetriever } from "../../core/knowledge/retrieval";
+import { defaultKnowledgeRetriever } from "../../core/knowledge/default-retriever";
 import { routeSkill } from "../../core/skills/skill-router";
 import { taskResolver } from "../../core/tools/verification-evidence";
 import { requiresToolCalling } from "../../core/providers/tool-registry";
